@@ -8,7 +8,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const timer = setTimeout(() => setLoading(false), 2500);
+    const timer = setTimeout(() => setLoading(false), 2600);
     return () => clearTimeout(timer);
   }, []);
 
@@ -33,7 +33,6 @@ export default function App() {
             handleSize: 14,
             handleSizeHover: 16,
             dotBorderColor: '#e94560',
-            trackLineColor: '#e94560',
             handleColor: '#e94560',
             handleColorDisabled: '#555',
             dotActiveBorderColor: '#e94560',
