@@ -379,11 +379,13 @@ body {
   right: 0;
   bottom: 0;
   background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
   animation: fadeIn 200ms ease-out;
+  transition: opacity 200ms ease-out, backdrop-filter 200ms ease-out;
 }
 
 .dialog {
@@ -391,17 +393,61 @@ body {
   border-radius: 16px;
   padding: 32px;
   width: 90%;
-  max-width: 500px;
+  max-width: 520px;
   max-height: 90vh;
   overflow-y: auto;
-  animation: dialogSlideIn 300ms ease-out;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+  animation: dialogSlideIn 250ms ease-out;
+  transition: transform 200ms ease-out, opacity 200ms ease-out;
+}
+
+.dialog-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
 }
 
 .dialog-title {
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 600;
   color: #333;
-  margin-bottom: 24px;
+  margin: 0;
+}
+
+.dialog-close-btn {
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  font-size: 24px;
+  color: #999;
+  cursor: pointer;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  line-height: 1;
+  padding: 0;
+}
+
+.dialog-close-btn:hover {
+  background: #f0f0f0;
+  color: #333;
+}
+
+.type-display {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #f0f4ff;
+  border: 1px solid #667eea;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #667eea;
 }
 
 .form-group {
@@ -505,8 +551,13 @@ body {
 .dialog-actions {
   display: flex;
   gap: 12px;
-  justify-content: flex-end;
+  justify-content: space-between;
   margin-top: 24px;
+}
+
+.dialog-actions-right {
+  display: flex;
+  gap: 12px;
 }
 
 .btn {
@@ -751,6 +802,25 @@ body {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+
+@keyframes dialogSlideOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px) scale(0.95);
+  }
+}
+
+.dialog-closing {
+  animation: dialogSlideOut 200ms ease-out forwards !important;
+}
+
+.dialog-closing .dialog {
+  animation: dialogSlideOut 200ms ease-out forwards !important;
 }
 
 @media (max-width: 768px) {

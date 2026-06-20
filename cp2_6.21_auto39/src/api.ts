@@ -14,7 +14,7 @@ export const getCard = (id: number): Promise<Card> => {
 };
 
 export const createCard = (
-  card: Omit<Card, 'id' | 'createdAt' | 'updatedAt'>
+  card: Omit<Card, 'id' | 'created_at' | 'updated_at'>
 ): Promise<Card> => {
   return api.post('/cards', card).then(res => res.data);
 };

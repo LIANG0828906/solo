@@ -2,21 +2,13 @@ import { useState } from 'react';
 import { useStore } from '../store';
 import CreateCardDialog from './CreateCardDialog';
 import type { CardCreate } from '../types';
+import { PRESET_COLORS } from '../constants';
 
 const TYPE_FILTERS = [
   { value: 'all', label: '全部' },
   { value: 'text', label: '文本' },
   { value: 'image', label: '图片' },
   { value: 'todo', label: '待办' },
-];
-
-const PRESET_COLORS = [
-  '#ff6b6b',
-  '#4ecdc4',
-  '#ffe66d',
-  '#95e1d3',
-  '#a29bfe',
-  '#fd79a8',
 ];
 
 function Sidebar() {

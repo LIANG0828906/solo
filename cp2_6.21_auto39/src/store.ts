@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Card, HistoryAction } from './types';
+import type { Card, CardCreate, HistoryAction } from './types';
 import {
   getCards,
   createCard,
@@ -28,7 +28,7 @@ interface StoreState {
   history: HistoryAction[];
   historyIndex: number;
   fetchCards: () => Promise<void>;
-  addCard: (card: Omit<Card, 'id' | 'createdAt' | 'updatedAt'>) => Promise<void>;
+  addCard: (card: CardCreate) => Promise<void>;
   removeCard: (id: number) => Promise<void>;
   moveCard: (id: number, x: number, y: number) => void;
   editCard: (id: number, data: Partial<Card>) => Promise<void>;
@@ -189,6 +189,7 @@ export const useStore = create<StoreState>((set, get) => ({
     return state.cards.filter((card) => {
       if (
         state.selectedColors.length > 0 &&
+        card.color !== null &&
         !state.selectedColors.includes(card.color)
       ) {
         return false;
