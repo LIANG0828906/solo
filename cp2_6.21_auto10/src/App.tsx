@@ -317,25 +317,22 @@ export default function App() {
         <>
           <div className="stats-row">
             <div className="stat-card">
-              <div className="stat-icon">📚</div>
+              <div className="stat-icon css-icon icon-books" aria-hidden="true"></div>
               <div className="stat-number">{stats.total}</div>
               <div className="stat-label">总藏书量</div>
             </div>
-            <div className="stat-card-divider"></div>
             <div className="stat-card">
-              <div className="stat-icon">📖</div>
+              <div className="stat-icon css-icon icon-reading" aria-hidden="true"></div>
               <div className="stat-number">{stats.reading}</div>
               <div className="stat-label">当前在读</div>
             </div>
-            <div className="stat-card-divider"></div>
             <div className="stat-card">
-              <div className="stat-icon">✅</div>
+              <div className="stat-icon css-icon icon-check" aria-hidden="true"></div>
               <div className="stat-number">{stats.finished}</div>
               <div className="stat-label">已完成</div>
             </div>
-            <div className="stat-card-divider"></div>
             <div className="stat-card">
-              <div className="stat-icon">📝</div>
+              <div className="stat-icon css-icon icon-notes" aria-hidden="true"></div>
               <div className="stat-number">{stats.totalNotes}</div>
               <div className="stat-label">总笔记数</div>
             </div>
