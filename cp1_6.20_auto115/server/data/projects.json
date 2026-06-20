@@ -1,0 +1,11 @@
+[
+  {
+    "id": "2064cb2e-1028-4ef2-861a-db5b13db8673",
+    "name": "默认作品集",
+    "description": "摄影师的精选作品集",
+    "createdAt": "2026-06-20T07:08:08.662Z",
+    "photographerName": "李明",
+    "watermarkColor": "#ffffff",
+    "watermarkOpacity": 0.3
+  }
+]
