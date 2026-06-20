@@ -132,8 +132,9 @@ export default function Statistics() {
     [books, selectedTag],
   );
 
-  const handlePieClick = (entry: any) => {
-    const tag = entry?.tag || entry?.payload?.tag;
+  const handlePieClick = (_data: any, _index: number, event: any) => {
+    const payload = event?.payload;
+    const tag = payload?.tag || payload?.name;
     if (tag) {
       setSelectedTag(tag);
       setModalOpen(true);
@@ -208,6 +209,7 @@ export default function Statistics() {
                 content={<MonthlyPagesTooltip />}
                 cursor={{ fill: 'rgba(106, 153, 78, 0.06)' }}
                 contentStyle={{ border: 'none', background: 'transparent', padding: 0 }}
+                labelStyle={{ display: 'none' }}
               />
               <Bar
                 dataKey="pages"
@@ -226,8 +228,8 @@ export default function Statistics() {
             <PieChart margin={{ top: 10, right: 40, left: 40, bottom: 10 }}>
               <Tooltip
                 content={<TagPieTooltip />}
-                cursor={{ stroke: '#6a994e', strokeWidth: 2 }}
                 contentStyle={{ border: 'none', background: 'transparent', padding: 0 }}
+                labelStyle={{ display: 'none' }}
               />
               <Pie
                 data={tagData}
@@ -269,6 +271,7 @@ export default function Statistics() {
                 content={<CumulativeDaysTooltip />}
                 cursor={{ stroke: '#6a994e', strokeWidth: 1, strokeDasharray: '4 4' }}
                 contentStyle={{ border: 'none', background: 'transparent', padding: 0 }}
+                labelStyle={{ display: 'none' }}
               />
               <Line
                 type="monotone"
@@ -276,7 +279,7 @@ export default function Statistics() {
                 stroke="#6a994e"
                 strokeWidth={3}
                 dot={{ r: 5, fill: '#6a994e', stroke: '#fff', strokeWidth: 2 }}
-                activeDot={{ r: 8, fill: '#6a994e', stroke: '#fff', strokeWidth: 3 }}
+                activeDot={{ r: 8, fill: '#6a994e', stroke: '#fff', strokeWidth: 3, style: { filter: 'drop-shadow(0 0 4px rgba(106,153,78,0.5))' } }}
                 animationDuration={600}
               />
             </LineChart>

@@ -125,15 +125,21 @@ const BookCard: React.FC<{ book: Book }> = ({ book }) => {
                 borderRadius: 4,
                 background: '#e8f0e3',
                 overflow: 'hidden',
+                position: 'relative',
               }}
             >
               <div
                 style={{
-                  height: '100%',
-                  width: `${progress}%`,
+                  position: 'absolute',
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: '100%',
                   borderRadius: 4,
                   backgroundImage: 'linear-gradient(to right, #6a994e, #a7c957)',
-                  transition: 'width 0.3s ease',
+                  transform: `scaleX(${progress / 100})`,
+                  transformOrigin: 'left center',
+                  transition: 'transform 0.3s ease',
                 }}
               />
             </div>

@@ -66,7 +66,20 @@ function getNoteColorByTags(tags: string[], fallbackIndex: number): string {
     }
   }
   const palette = Object.values(TAG_COLOR_MAP);
-  return palette[fallbackIndex % palette.length];
+  return palette[fallbackIndex % palette.length] || DEFAULT_NOTE_COLOR;
+}
+
+function getNoteBarColor(bookTags: string[] | undefined, noteIndex: number): string {
+  if (bookTags && bookTags.length > 0) {
+    const tagForNote = bookTags[noteIndex % bookTags.length];
+    if (tagForNote && TAG_COLOR_MAP[tagForNote]) {
+      return TAG_COLOR_MAP[tagForNote];
+    }
+    for (const t of bookTags) {
+      if (TAG_COLOR_MAP[t]) return TAG_COLOR_MAP[t];
+    }
+  }
+  return DEFAULT_NOTE_COLOR;
 }
 
 function useDebounced<T>(value: T, delay: number): T {
@@ -108,8 +121,9 @@ export default function BookDetail() {
   const [pageInputValue, setPageInputValue] = useState('');
   const [form] = Form.useForm();
   const [noteSearchQuery, setNoteSearchQuery] = useState('');
-  const debouncedSearch = useDebounced(noteSearchQuery, 250);
-  const searchStartRef = useRef<number>(0);
+  const debouncedSearch = useDebounced(noteSearchQuery, 200);
+  const timerStartPageRef = useRef<number>(0);
+  const noteSearchIndexRef = useRef<Map<string, Note[]> | null>(null);
 
   useEffect(() => {
     const onResize = () => setIsTablet(window.innerWidth <= 768);
@@ -141,23 +155,56 @@ export default function BookDetail() {
     return () => clearInterval(interval);
   }, [isRunning, tickTimer]);
 
+  const buildSearchIndex = useCallback((allNotes: Note[]) => {
+    const index = new Map<string, Note[]>();
+    for (const note of allNotes) {
+      const lower = note.content.toLowerCase();
+      const tokens = lower.split(/\s+/);
+      const seen = new Set<string>();
+      for (const token of tokens) {
+        for (let len = 1; len <= token.length; len++) {
+          const prefix = token.slice(0, len);
+          if (!seen.has(prefix)) {
+            seen.add(prefix);
+            const existing = index.get(prefix);
+            if (existing) {
+              existing.push(note);
+            } else {
+              index.set(prefix, [note]);
+            }
+          }
+        }
+      }
+    }
+    return index;
+  }, []);
+
   const searchAndFilter = useCallback((allNotes: Note[], query: string) => {
-    searchStartRef.current = performance.now();
     if (!query.trim()) {
       return allNotes;
     }
     const q = query.trim().toLowerCase();
-    const results = allNotes.filter(n => n.content.toLowerCase().includes(q));
-    const elapsed = performance.now() - searchStartRef.current;
-    return results;
+    if (noteSearchIndexRef.current) {
+      const matched = noteSearchIndexRef.current.get(q);
+      if (matched) {
+        const seen = new Set<string>();
+        return matched.filter(n => {
+          if (seen.has(n.id)) return false;
+          seen.add(n.id);
+          return true;
+        });
+      }
+    }
+    return allNotes.filter(n => n.content.toLowerCase().includes(q));
   }, []);
 
-  const chapterNotes = useMemo(
-    () => searchAndFilter(notes.filter(n => n.chapterId === currentChapterId).sort((a, b) =>
-      dayjs(b.createdAt).valueOf() - dayjs(a.createdAt).valueOf()
-    ), debouncedSearch),
-    [notes, currentChapterId, debouncedSearch, searchAndFilter]
-  );
+  const chapterNotes = useMemo(() => {
+    const sorted = notes
+      .filter(n => n.chapterId === currentChapterId)
+      .sort((a, b) => dayjs(b.createdAt).valueOf() - dayjs(a.createdAt).valueOf());
+    noteSearchIndexRef.current = buildSearchIndex(sorted);
+    return searchAndFilter(sorted, debouncedSearch);
+  }, [notes, currentChapterId, debouncedSearch, searchAndFilter, buildSearchIndex]);
 
   const chapterHighlights = useMemo(
     () => highlights.filter(h => h.chapterId === currentChapterId).sort((a, b) =>
@@ -167,8 +214,11 @@ export default function BookDetail() {
   );
 
   const handleStartTimer = useCallback(() => {
-    if (currentChapterId) startTimer(bookId, currentChapterId);
-  }, [bookId, currentChapterId, startTimer]);
+    if (currentChapterId) {
+      timerStartPageRef.current = book?.currentPage ?? 0;
+      startTimer(bookId, currentChapterId);
+    }
+  }, [bookId, currentChapterId, startTimer, book]);
 
   const handlePauseTimer = useCallback(() => {
     if (!timerBookId || !book) {
@@ -180,11 +230,12 @@ export default function BookDetail() {
     if (elapsedSeconds > 60 && book.totalPages > 0) {
       const hoursRead = elapsedSeconds / 3600;
       const pagesRead = Math.max(1, Math.round(hoursRead * PAGES_PER_HOUR));
-      const newPage = Math.min(book.currentPage + pagesRead, book.totalPages);
-      if (newPage !== book.currentPage) {
+      const newPage = Math.min(timerStartPageRef.current + pagesRead, book.totalPages);
+      if (newPage > book.currentPage) {
         updateProgress(book.id, newPage);
       }
     }
+    timerStartPageRef.current = 0;
   }, [timerBookId, timerSeconds, book, pauseTimer, updateProgress]);
 
   const handleAddChapter = useCallback(() => {
@@ -365,8 +416,8 @@ export default function BookDetail() {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <div style={{ flex: 1, height: 6, background: '#e5e5e5', borderRadius: 3, overflow: 'hidden' }}>
-            <div style={{ width: `${progress}%`, height: '100%', backgroundImage: 'linear-gradient(to right, #6a994e, #a7c957)', borderRadius: 3, transition: 'width 0.3s' }} />
+          <div style={{ flex: 1, height: 6, background: '#e5e5e5', borderRadius: 3, overflow: 'hidden', position: 'relative' }}>
+            <div style={{ position: 'absolute', left: 0, top: 0, bottom: 0, width: '100%', backgroundImage: 'linear-gradient(to right, #6a994e, #a7c957)', borderRadius: 3, transform: `scaleX(${Math.min(progress, 100) / 100})`, transformOrigin: 'left center', transition: 'transform 0.3s' }} />
           </div>
           {pageInputVisible ? (
             <input
@@ -421,9 +472,7 @@ export default function BookDetail() {
                   </h3>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     {chapterNotes.map((note, idx) => {
-                      const barColor = book.tags?.length > 0
-                        ? (TAG_COLOR_MAP[book.tags[idx % book.tags.length]] || getNoteColorByTags(book.tags, idx))
-                        : getNoteColorByTags([], idx);
+                      const barColor = getNoteBarColor(book.tags, idx);
                       return (
                         <div key={note.id} style={{ display: 'flex', background: '#fff', borderRadius: 8, overflow: 'hidden', boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
                           <div style={{ width: 4, background: barColor, flexShrink: 0 }} />
