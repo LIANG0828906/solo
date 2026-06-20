@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useMemo } from 'react';
 import { z } from 'zod';
 import { v4 as uuidv4 } from 'uuid';
 import { useNavigate } from 'react-router-dom';
@@ -8,25 +8,37 @@ const step1Schema = z.object({
   employee_id: z.string().min(1, '请输入员工编号'),
   employee_name: z.string().min(1, '请输入姓名'),
   department: z.string().min(1, '请输入部门'),
-  age: z.coerce.number().min(16, '年龄至少16岁').max(100, '年龄最大100岁'),
-  gender: z.enum(['男', '女'], { required_error: '请选择性别' }),
-  height: z.coerce.number().min(100, '身高至少100cm').max(230, '身高最大230cm'),
-  weight: z.coerce.number().min(30, '体重至少30kg').max(200, '体重最大200kg'),
+  age: z.coerce.number({ invalid_type_error: '请输入有效年龄' })
+    .min(16, '年龄至少16岁').max(100, '年龄最大100岁'),
+  gender: z.enum(['男', '女'], { required_error: '请选择性别', invalid_type_error: '请选择性别' }),
+  height: z.coerce.number({ invalid_type_error: '请输入有效身高' })
+    .min(100, '身高至少100cm').max(230, '身高最大230cm'),
+  weight: z.coerce.number({ invalid_type_error: '请输入有效体重' })
+    .min(30, '体重至少30kg').max(200, '体重最大200kg'),
 });
 
 const step2Schema = z.object({
-  fasting_glucose: z.coerce.number().min(2, '数值过低').max(20, '数值过高'),
-  total_cholesterol: z.coerce.number().min(2, '数值过低').max(15, '数值过高'),
-  triglycerides: z.coerce.number().min(0.3, '数值过低').max(10, '数值过高'),
-  hdl: z.coerce.number().min(0.3, '数值过低').max(3, '数值过高'),
-  ldl: z.coerce.number().min(0.5, '数值过低').max(8, '数值过高'),
-  systolic_bp: z.coerce.number().min(60, '数值过低').max(220, '数值过高'),
-  diastolic_bp: z.coerce.number().min(30, '数值过低').max(140, '数值过高'),
+  fasting_glucose: z.coerce.number({ invalid_type_error: '请输入有效数值' })
+    .min(2, '数值过低，至少2').max(20, '数值过高，最高20'),
+  total_cholesterol: z.coerce.number({ invalid_type_error: '请输入有效数值' })
+    .min(2, '数值过低').max(15, '数值过高'),
+  triglycerides: z.coerce.number({ invalid_type_error: '请输入有效数值' })
+    .min(0.3, '数值过低').max(10, '数值过高'),
+  hdl: z.coerce.number({ invalid_type_error: '请输入有效数值' })
+    .min(0.3, '数值过低').max(3, '数值过高'),
+  ldl: z.coerce.number({ invalid_type_error: '请输入有效数值' })
+    .min(0.5, '数值过低').max(8, '数值过高'),
+  systolic_bp: z.coerce.number({ invalid_type_error: '请输入有效数值' })
+    .min(60, '数值过低').max(220, '数值过高'),
+  diastolic_bp: z.coerce.number({ invalid_type_error: '请输入有效数值' })
+    .min(30, '数值过低').max(140, '数值过高'),
 });
 
 const step3Schema = z.object({
-  exercise_freq: z.coerce.number().min(0, '不能小于0').max(14, '最大14次'),
-  sleep_hours: z.coerce.number().min(0, '不能小于0').max(24, '不能超过24小时'),
+  exercise_freq: z.coerce.number({ invalid_type_error: '请输入有效次数' })
+    .min(0, '不能小于0').max(14, '最大14次'),
+  sleep_hours: z.coerce.number({ invalid_type_error: '请输入有效时长' })
+    .min(0, '不能小于0').max(24, '不能超过24小时'),
   smoking: z.boolean(),
   drinking: z.boolean(),
 });
@@ -85,16 +97,23 @@ const DataInputForm: React.FC = function DataInputForm() {
     const newErrors: FormErrors = {};
     result.error.issues.forEach((issue) => {
       const key = issue.path.join('.');
-      newErrors[key] = issue.message;
+      if (!newErrors[key]) {
+        newErrors[key] = issue.message;
+      }
     });
     return newErrors;
   }, [step1, step2, step3]);
+
+  const errorCount = useMemo(() => Object.keys(errors).length, [errors]);
 
   const handleNext = () => {
     const newErrors = validateStep(step);
     setErrors(newErrors);
     if (Object.keys(newErrors).length > 0) return;
-    if (step < 3) setStep(step + 1);
+    if (step < 3) {
+      setStep(step + 1);
+      setErrors({});
+    }
   };
 
   const handlePrev = () => {
@@ -158,9 +177,10 @@ const DataInputForm: React.FC = function DataInputForm() {
         if (data.basic_info) setStep1((s) => ({ ...s, ...data.basic_info }));
         if (data.blood_metrics) setStep2((s) => ({ ...s, ...data.blood_metrics }));
         if (data.lifestyle) setStep3((s) => ({ ...s, ...data.lifestyle }));
+        setErrors({});
         alert('文件导入成功');
       } catch {
-        alert('JSON格式错误');
+        alert('JSON格式错误，请检查文件内容');
       }
     };
     reader.readAsText(file);
@@ -173,7 +193,13 @@ const DataInputForm: React.FC = function DataInputForm() {
     if (file) onFile(file);
   };
 
-  const renderInput = (name: string, label: string, value: string | number, onChange: (v: string) => void, type = 'text') => (
+  const renderInput = (
+    name: string,
+    label: string,
+    value: string | number,
+    onChange: (v: string) => void,
+    type = 'text'
+  ) => (
     <div className="form-group">
       <label>{label}</label>
       <input
@@ -181,19 +207,44 @@ const DataInputForm: React.FC = function DataInputForm() {
         value={value}
         onChange={(e) => onChange(e.target.value)}
         className={errors[name] ? 'error' : ''}
+        aria-invalid={!!errors[name]}
+        aria-describedby={errors[name] ? `${name}-error` : undefined}
       />
-      {errors[name] && <span className="error-text">{errors[name]}</span>}
+      {errors[name] && (
+        <span id={`${name}-error`} className="error-text" role="alert">
+          ⚠ {errors[name]}
+        </span>
+      )}
     </div>
   );
 
-  const renderSelect = (name: string, label: string, value: string, options: string[], onChange: (v: string) => void) => (
+  const renderSelect = (
+    name: string,
+    label: string,
+    value: string,
+    options: string[],
+    onChange: (v: string) => void
+  ) => (
     <div className="form-group">
       <label>{label}</label>
-      <select value={value} onChange={(e) => onChange(e.target.value)} className={errors[name] ? 'error' : ''}>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className={errors[name] ? 'error' : ''}
+        aria-invalid={!!errors[name]}
+      >
         <option value="">请选择</option>
-        {options.map((o) => <option key={o} value={o}>{o}</option>)}
+        {options.map((o) => (
+          <option key={o} value={o}>
+            {o}
+          </option>
+        ))}
       </select>
-      {errors[name] && <span className="error-text">{errors[name]}</span>}
+      {errors[name] && (
+        <span className="error-text" role="alert">
+          ⚠ {errors[name]}
+        </span>
+      )}
     </div>
   );
 
@@ -201,10 +252,15 @@ const DataInputForm: React.FC = function DataInputForm() {
     <div className="fade-in card">
       <div
         className={`upload-area ${dragging ? 'dragging' : ''}`}
-        onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragging(true);
+        }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
         onClick={() => fileInputRef.current?.click()}
+        role="button"
+        tabIndex={0}
       >
         <div className="upload-text">📄 点击或拖拽 JSON 文件上传体检数据</div>
         <div className="upload-hint">支持按模板格式的 JSON 文件，上传后自动填充表单</div>
@@ -219,28 +275,67 @@ const DataInputForm: React.FC = function DataInputForm() {
 
       <div className="step-indicator">
         {STEP_TITLES.map((title, i) => (
-          <div key={i} className={`step-item ${step === i + 1 ? 'active' : step > i + 1 ? 'completed' : ''}`}>
-            <span className="step-num">{i + 1}</span>
+          <div
+            key={i}
+            className={`step-item ${step === i + 1 ? 'active' : step > i + 1 ? 'completed' : ''}`}
+          >
+            <span className="step-num">{step > i + 1 ? '✓' : i + 1}</span>
             <span>{title}</span>
           </div>
         ))}
       </div>
 
+      {errorCount > 0 && (
+        <div
+          style={{
+            padding: '12px 16px',
+            backgroundColor: '#fed7d7',
+            borderRadius: 8,
+            marginBottom: 20,
+            borderLeft: '4px solid #e53e3e',
+          }}
+          role="alert"
+        >
+          <span style={{ color: '#742a2a', fontWeight: 600, fontSize: 14 }}>
+            当前步骤有 {errorCount} 项错误，请检查以下字段：
+          </span>
+          <div style={{ marginTop: 6, fontSize: 13, color: '#742a2a' }}>
+            {Object.entries(errors).map(([field, msg]) => (
+              <div key={field}>• {msg}</div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {step === 1 && (
         <div className="fade-data">
           <h3 className="section-title">步骤 1：基本信息</h3>
           <div className="form-row">
-            {renderInput('employee_id', '员工编号', step1.employee_id, (v) => setStep1({ ...step1, employee_id: v }))}
-            {renderInput('employee_name', '姓名', step1.employee_name, (v) => setStep1({ ...step1, employee_name: v }))}
+            {renderInput('employee_id', '员工编号', step1.employee_id, (v) =>
+              setStep1({ ...step1, employee_id: v })
+            )}
+            {renderInput('employee_name', '姓名', step1.employee_name, (v) =>
+              setStep1({ ...step1, employee_name: v })
+            )}
           </div>
           <div className="form-row">
-            {renderInput('department', '部门', step1.department, (v) => setStep1({ ...step1, department: v }))}
-            {renderSelect('gender', '性别', step1.gender, ['男', '女'], (v) => setStep1({ ...step1, gender: v as '男' | '女' }))}
+            {renderInput('department', '部门', step1.department, (v) =>
+              setStep1({ ...step1, department: v })
+            )}
+            {renderSelect('gender', '性别', step1.gender, ['男', '女'], (v) =>
+              setStep1({ ...step1, gender: v as '男' | '女' })
+            )}
           </div>
           <div className="form-row-3">
-            {renderInput('age', '年龄', step1.age, (v) => setStep1({ ...step1, age: v as unknown as number }), 'number')}
-            {renderInput('height', '身高 (cm)', step1.height, (v) => setStep1({ ...step1, height: v as unknown as number }), 'number')}
-            {renderInput('weight', '体重 (kg)', step1.weight, (v) => setStep1({ ...step1, weight: v as unknown as number }), 'number')}
+            {renderInput('age', '年龄', step1.age, (v) =>
+              setStep1({ ...step1, age: v as unknown as number }), 'number'
+            )}
+            {renderInput('height', '身高 (cm)', step1.height, (v) =>
+              setStep1({ ...step1, height: v as unknown as number }), 'number'
+            )}
+            {renderInput('weight', '体重 (kg)', step1.weight, (v) =>
+              setStep1({ ...step1, weight: v as unknown as number }), 'number'
+            )}
           </div>
         </div>
       )}
@@ -249,17 +344,31 @@ const DataInputForm: React.FC = function DataInputForm() {
         <div className="fade-data">
           <h3 className="section-title">步骤 2：血液与血压指标</h3>
           <div className="form-row">
-            {renderInput('fasting_glucose', '空腹血糖 (mmol/L)', step2.fasting_glucose, (v) => setStep2({ ...step2, fasting_glucose: v as unknown as number }), 'number')}
-            {renderInput('total_cholesterol', '总胆固醇 (mmol/L)', step2.total_cholesterol, (v) => setStep2({ ...step2, total_cholesterol: v as unknown as number }), 'number')}
+            {renderInput('fasting_glucose', '空腹血糖 (mmol/L)', step2.fasting_glucose, (v) =>
+              setStep2({ ...step2, fasting_glucose: v as unknown as number }), 'number'
+            )}
+            {renderInput('total_cholesterol', '总胆固醇 (mmol/L)', step2.total_cholesterol, (v) =>
+              setStep2({ ...step2, total_cholesterol: v as unknown as number }), 'number'
+            )}
           </div>
           <div className="form-row">
-            {renderInput('triglycerides', '甘油三酯 (mmol/L)', step2.triglycerides, (v) => setStep2({ ...step2, triglycerides: v as unknown as number }), 'number')}
-            {renderInput('hdl', '高密度脂蛋白 (mmol/L)', step2.hdl, (v) => setStep2({ ...step2, hdl: v as unknown as number }), 'number')}
+            {renderInput('triglycerides', '甘油三酯 (mmol/L)', step2.triglycerides, (v) =>
+              setStep2({ ...step2, triglycerides: v as unknown as number }), 'number'
+            )}
+            {renderInput('hdl', '高密度脂蛋白 (mmol/L)', step2.hdl, (v) =>
+              setStep2({ ...step2, hdl: v as unknown as number }), 'number'
+            )}
           </div>
           <div className="form-row-3">
-            {renderInput('ldl', '低密度脂蛋白 (mmol/L)', step2.ldl, (v) => setStep2({ ...step2, ldl: v as unknown as number }), 'number')}
-            {renderInput('systolic_bp', '收缩压 (mmHg)', step2.systolic_bp, (v) => setStep2({ ...step2, systolic_bp: v as unknown as number }), 'number')}
-            {renderInput('diastolic_bp', '舒张压 (mmHg)', step2.diastolic_bp, (v) => setStep2({ ...step2, diastolic_bp: v as unknown as number }), 'number')}
+            {renderInput('ldl', '低密度脂蛋白 (mmol/L)', step2.ldl, (v) =>
+              setStep2({ ...step2, ldl: v as unknown as number }), 'number'
+            )}
+            {renderInput('systolic_bp', '收缩压 (mmHg)', step2.systolic_bp, (v) =>
+              setStep2({ ...step2, systolic_bp: v as unknown as number }), 'number'
+            )}
+            {renderInput('diastolic_bp', '舒张压 (mmHg)', step2.diastolic_bp, (v) =>
+              setStep2({ ...step2, diastolic_bp: v as unknown as number }), 'number'
+            )}
           </div>
         </div>
       )}
@@ -268,8 +377,12 @@ const DataInputForm: React.FC = function DataInputForm() {
         <div className="fade-data">
           <h3 className="section-title">步骤 3：生活习惯</h3>
           <div className="form-row">
-            {renderInput('exercise_freq', '每周运动次数', step3.exercise_freq, (v) => setStep3({ ...step3, exercise_freq: v as unknown as number }), 'number')}
-            {renderInput('sleep_hours', '每日睡眠时长 (小时)', step3.sleep_hours, (v) => setStep3({ ...step3, sleep_hours: v as unknown as number }), 'number')}
+            {renderInput('exercise_freq', '每周运动次数', step3.exercise_freq, (v) =>
+              setStep3({ ...step3, exercise_freq: v as unknown as number }), 'number'
+            )}
+            {renderInput('sleep_hours', '每日睡眠时长 (小时)', step3.sleep_hours, (v) =>
+              setStep3({ ...step3, sleep_hours: v as unknown as number }), 'number'
+            )}
           </div>
           <div className="form-row">
             <div className="form-group">
@@ -304,14 +417,18 @@ const DataInputForm: React.FC = function DataInputForm() {
 
       <div className="btn-group">
         {step > 1 && (
-          <button className="secondary" onClick={handlePrev}>上一步</button>
+          <button className="secondary" onClick={handlePrev}>
+            上一步
+          </button>
         )}
         {step < 3 && (
-          <button className="primary" onClick={handleNext}>下一步</button>
+          <button className="primary" onClick={handleNext}>
+            下一步 →
+          </button>
         )}
         {step === 3 && (
-          <button className="primary" onClick={handleSubmit} disabled={submitting}>
-            {submitting ? '提交中...' : '提交分析'}
+          <button className="primary success" onClick={handleSubmit} disabled={submitting}>
+            {submitting ? '提交中...' : '✓ 提交分析'}
           </button>
         )}
       </div>
