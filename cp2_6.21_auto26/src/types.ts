@@ -11,8 +11,8 @@ export interface Entry {
 }
 
 export const MOOD_CONFIG: Record<Mood, { label: string; color: string }> = {
-  excited: { label: '兴奋', color: '#FF6B6B' },
-  thoughtful: { label: '深思', color: '#4ECDC4' },
-  bored: { label: '无聊', color: '#95E1D3' },
-  anxious: { label: '焦虑', color: '#DDA0DD' },
+  excited: { label: '兴奋', color: '#ff6b6b' },
+  thoughtful: { label: '沉思', color: '#4ecdc4' },
+  bored: { label: '无聊', color: '#ffe66d' },
+  anxious: { label: '焦虑', color: '#a29bfe' },
 };
