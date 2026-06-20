@@ -17,6 +17,7 @@ import {
   drawElement,
   drawSelection,
   drawRipple,
+  drawSnapFlash,
   preloadImage,
 } from '../utils/canvasUtils';
 import {
@@ -80,6 +81,7 @@ export default function Board() {
   const gridColor = useUIStore((s) => s.gridColor);
   const gridOpacity = useUIStore((s) => s.gridOpacity);
   const ripple = useUIStore((s) => s.ripple);
+  const snapFlash = useUIStore((s) => s.snapFlash);
   const triggerRipple = useUIStore((s) => s.triggerRipple);
   const triggerSnapFlash = useUIStore((s) => s.triggerSnapFlash);
   const togglePropertyPanel = useUIStore((s) => s.togglePropertyPanel);
@@ -114,7 +116,7 @@ export default function Board() {
       ctx.scale(zoom, zoom);
       ctx.translate(offset.x, offset.y);
 
-      drawGrid(ctx, width / zoom, height / zoom, 1, { x: 0, y: 0 }, canvasTheme);
+      drawGrid(ctx, width / zoom, height / zoom, zoom, offset, canvasTheme);
 
       const sortedElements = [...elements].sort((a, b) => a.zIndex - b.zIndex);
       sortedElements.forEach((el: BoardElement) => {
@@ -130,7 +132,7 @@ export default function Board() {
 
       if (selectedElement) {
         drawElement(ctx, selectedElement, imageCacheRef.current);
-        drawSelection(ctx, selectedElement, 1);
+        drawSelection(ctx, selectedElement, zoom);
       }
 
       if (drawingPathRef.current.length > 1 && currentTool === 'pen') {
@@ -152,14 +154,24 @@ export default function Board() {
 
       ctx.restore();
 
+      const dpr = window.devicePixelRatio || 1;
+      const rect = ctx.canvas.getBoundingClientRect();
+      const xRatio = (ctx.canvas.width / rect.width) / dpr;
+      const yRatio = (ctx.canvas.height / rect.height) / dpr;
+
       if (ripple && ripple.active) {
-        const rect = ctx.canvas.getBoundingClientRect();
-        const rx = (ripple.x - rect.left) * (ctx.canvas.width / rect.width) / (window.devicePixelRatio || 1);
-        const ry = (ripple.y - rect.top) * (ctx.canvas.height / rect.height) / (window.devicePixelRatio || 1);
+        const rx = (ripple.x - rect.left) * xRatio;
+        const ry = (ripple.y - rect.top) * yRatio;
         drawRipple(ctx, rx, ry, ripple.progress);
       }
+
+      if (snapFlash && snapFlash.active) {
+        const sx = (snapFlash.x - rect.left) * xRatio;
+        const sy = (snapFlash.y - rect.top) * yRatio;
+        drawSnapFlash(ctx, sx, sy, snapFlash.active);
+      }
     },
-    [elements, selectedElementId, selectedElement, zoom, offset, theme, canvasTheme, currentTool, currentColor, currentStrokeWidth, ripple]
+    [elements, selectedElementId, selectedElement, zoom, offset, theme, canvasTheme, currentTool, currentColor, currentStrokeWidth, ripple, snapFlash]
   );
 
   const [canvasRef, redraw] = useCanvas(render);
@@ -178,6 +190,7 @@ export default function Board() {
     currentColor,
     currentStrokeWidth,
     ripple,
+    snapFlash,
     pageTransition,
     redraw,
   ]);

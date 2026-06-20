@@ -5,43 +5,44 @@ export function useCanvas(
 ): [React.RefObject<HTMLCanvasElement>, () => void] {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number | null>(null);
-  const pendingRef = useRef(false);
   const renderRef = useRef(render);
-  const sizeRef = useRef({ width: 0, height: 0 });
+  const lastSizeRef = useRef({ width: -1, height: -1, dpr: -1 });
 
   renderRef.current = render;
 
   const draw = useCallback(() => {
-    pendingRef.current = false;
+    rafRef.current = null;
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    const dpr = window.devicePixelRatio || 1;
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
     const rect = canvas.getBoundingClientRect();
-    const cssWidth = rect.width;
-    const cssHeight = rect.height;
+    const cssWidth = Math.max(1, Math.floor(rect.width));
+    const cssHeight = Math.max(1, Math.floor(rect.height));
 
-    if (cssWidth === 0 || cssHeight === 0) return;
+    const targetWidth = cssWidth * dpr;
+    const targetHeight = cssHeight * dpr;
 
-    const targetWidth = Math.floor(cssWidth * dpr);
-    const targetHeight = Math.floor(cssHeight * dpr);
-
-    if (canvas.width !== targetWidth || canvas.height !== targetHeight) {
+    if (
+      lastSizeRef.current.width !== cssWidth ||
+      lastSizeRef.current.height !== cssHeight ||
+      lastSizeRef.current.dpr !== dpr
+    ) {
       canvas.width = targetWidth;
       canvas.height = targetHeight;
-      sizeRef.current = { width: cssWidth, height: cssHeight };
+      lastSizeRef.current = { width: cssWidth, height: cssHeight, dpr };
     }
 
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.imageSmoothingEnabled = false;
     ctx.clearRect(0, 0, cssWidth, cssHeight);
     renderRef.current(ctx, cssWidth, cssHeight);
   }, []);
 
   const requestDraw = useCallback(() => {
-    if (pendingRef.current) return;
-    pendingRef.current = true;
+    if (rafRef.current !== null) return;
     rafRef.current = requestAnimationFrame(draw);
   }, [draw]);
 
@@ -58,17 +59,18 @@ export function useCanvas(
     window.addEventListener('resize', handleResize);
 
     requestDraw();
-    const t1 = setTimeout(requestDraw, 0);
-    const t2 = setTimeout(requestDraw, 50);
-    const t3 = setTimeout(requestDraw, 200);
+    const timers = [
+      setTimeout(requestDraw, 0),
+      setTimeout(requestDraw, 30),
+      setTimeout(requestDraw, 100),
+      setTimeout(requestDraw, 300),
+    ];
 
     return () => {
-      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current !== null) cancelAnimationFrame(rafRef.current);
       resizeObserver.disconnect();
       window.removeEventListener('resize', handleResize);
-      clearTimeout(t1);
-      clearTimeout(t2);
-      clearTimeout(t3);
+      timers.forEach(clearTimeout);
     };
   }, [requestDraw]);
 

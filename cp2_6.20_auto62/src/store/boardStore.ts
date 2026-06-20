@@ -33,9 +33,12 @@ interface BoardStore {
   redo: () => void;
   canUndo: () => boolean;
   canRedo: () => boolean;
+  startBatch: () => void;
+  endBatch: () => void;
   _history: HistorySnapshot[];
   _historyIndex: number;
   _recordHistory: boolean;
+  _batchDepth: number;
   _pushHistory: () => void;
   _persist: () => void;
 }
@@ -78,6 +81,7 @@ export const useBoardStore = create<BoardStore>((set, get) => ({
   _history: [],
   _historyIndex: -1,
   _recordHistory: true,
+  _batchDepth: 0,
 
   initFromStorage: () => {
     const initial = createInitialState();
@@ -322,6 +326,24 @@ export const useBoardStore = create<BoardStore>((set, get) => ({
 
   canUndo: () => get()._historyIndex > 0,
   canRedo: () => get()._historyIndex < get()._history.length - 1,
+
+  startBatch: () => {
+    const depth = get()._batchDepth;
+    if (depth === 0) {
+      set({ _recordHistory: false });
+    }
+    set({ _batchDepth: depth + 1 });
+  },
+
+  endBatch: () => {
+    const depth = get()._batchDepth;
+    const newDepth = Math.max(0, depth - 1);
+    set({ _batchDepth: newDepth });
+    if (newDepth === 0) {
+      set({ _recordHistory: true });
+      get()._pushHistory();
+    }
+  },
 
   _pushHistory: () => {
     const { boards, activeBoardId, _history, _historyIndex } = get();

@@ -17,28 +17,32 @@ export function drawGrid(
   theme: Theme
 ): void {
   const gridSize = 20;
-  const scaledGrid = gridSize * zoom;
 
   ctx.save();
+  ctx.imageSmoothingEnabled = false;
+
+  const effectiveGrid = gridSize;
+  const startX = -offset.x % effectiveGrid;
+  const startY = -offset.y % effectiveGrid;
+
   ctx.strokeStyle = theme.gridColor;
   ctx.globalAlpha = theme.gridOpacity;
   ctx.lineWidth = 1;
 
-  const startX = -(offset.x * zoom) % scaledGrid;
-  const startY = -(offset.y * zoom) % scaledGrid;
-
   ctx.beginPath();
-  for (let x = startX; x < width; x += scaledGrid) {
-    ctx.moveTo(x, 0);
-    ctx.lineTo(x, height);
+  for (let x = startX; x < width; x += effectiveGrid) {
+    const px = Math.round(x) + 0.5;
+    ctx.moveTo(px, 0);
+    ctx.lineTo(px, height);
   }
-  for (let y = startY; y < height; y += scaledGrid) {
-    ctx.moveTo(0, y);
-    ctx.lineTo(width, y);
+  for (let y = startY; y < height; y += effectiveGrid) {
+    const py = Math.round(y) + 0.5;
+    ctx.moveTo(0, py);
+    ctx.lineTo(width, py);
   }
   ctx.stroke();
 
-  drawCheckerboard(ctx, width, height, zoom, offset, theme);
+  drawCheckerboard(ctx, width, height, offset, theme);
   ctx.restore();
 }
 
@@ -46,26 +50,23 @@ function drawCheckerboard(
   ctx: CanvasRenderingContext2D,
   width: number,
   height: number,
-  zoom: number,
   offset: Point,
   theme: Theme
 ): void {
-  const tileSize = 20 * zoom * 4;
-  if (tileSize < 4) return;
+  const tileSize = 80;
+  const startGX = Math.floor(offset.x / tileSize);
+  const startGY = Math.floor(offset.y / tileSize);
+  const endGX = Math.ceil((offset.x + width) / tileSize);
+  const endGY = Math.ceil((offset.y + height) / tileSize);
 
-  ctx.globalAlpha = theme.gridOpacity * 0.15;
+  ctx.globalAlpha = theme.gridOpacity * 0.18;
   ctx.fillStyle = theme.gridColor;
-
-  const startGX = Math.floor((offset.x * zoom) / tileSize);
-  const startGY = Math.floor((offset.y * zoom) / tileSize);
-  const endGX = Math.ceil((offset.x * zoom + width) / tileSize);
-  const endGY = Math.ceil((offset.y * zoom + height) / tileSize);
 
   for (let gx = startGX; gx < endGX; gx++) {
     for (let gy = startGY; gy < endGY; gy++) {
       if ((gx + gy) % 2 === 0) continue;
-      const x = gx * tileSize - offset.x * zoom;
-      const y = gy * tileSize - offset.y * zoom;
+      const x = Math.floor(gx * tileSize - offset.x);
+      const y = Math.floor(gy * tileSize - offset.y);
       ctx.fillRect(x, y, tileSize, tileSize);
     }
   }
@@ -78,6 +79,7 @@ export function drawElement(
 ): void {
   ctx.save();
   ctx.globalAlpha = element.opacity;
+  ctx.imageSmoothingEnabled = true;
 
   const cx = element.x + element.width / 2;
   const cy = element.y + element.height / 2;
@@ -216,9 +218,10 @@ export function drawSelection(
 ): void {
   ctx.save();
   const color = '#2196F3';
+  const lineW = Math.max(1.5, 2 / zoom);
   ctx.strokeStyle = color;
-  ctx.lineWidth = 2 / zoom;
-  ctx.setLineDash([6 / zoom, 4 / zoom]);
+  ctx.lineWidth = lineW;
+  ctx.setLineDash([Math.max(4, 6 / zoom), Math.max(3, 4 / zoom)]);
 
   const cx = element.x + element.width / 2;
   const cy = element.y + element.height / 2;
@@ -226,10 +229,11 @@ export function drawSelection(
   ctx.rotate((element.rotation * Math.PI) / 180);
   ctx.translate(-cx, -cy);
 
-  ctx.strokeRect(element.x, element.y, element.width, element.height);
+  ctx.strokeRect(element.x - lineW / 2, element.y - lineW / 2, element.width + lineW, element.height + lineW);
 
   ctx.setLineDash([]);
-  const handleSize = 10 / zoom;
+  const handleSize = Math.max(8, 10 / zoom);
+  const halfHandle = handleSize / 2;
   const positions: Record<string, Point> = {
     nw: { x: element.x, y: element.y },
     n:  { x: cx, y: element.y },
@@ -243,21 +247,12 @@ export function drawSelection(
 
   for (const pos of Object.values(positions)) {
     ctx.fillStyle = '#ffffff';
-    ctx.fillRect(
-      pos.x - handleSize / 2,
-      pos.y - handleSize / 2,
-      handleSize,
-      handleSize
-    );
-    ctx.strokeRect(
-      pos.x - handleSize / 2,
-      pos.y - handleSize / 2,
-      handleSize,
-      handleSize
-    );
+    ctx.fillRect(pos.x - halfHandle, pos.y - halfHandle, handleSize, handleSize);
+    ctx.strokeRect(pos.x - halfHandle, pos.y - halfHandle, handleSize, handleSize);
   }
 
-  const rotateY = element.y - 30 / zoom;
+  const rotateDist = Math.max(20, 30 / zoom);
+  const rotateY = element.y - rotateDist;
   ctx.beginPath();
   ctx.moveTo(cx, element.y);
   ctx.lineTo(cx, rotateY);
@@ -265,7 +260,7 @@ export function drawSelection(
 
   ctx.fillStyle = color;
   ctx.beginPath();
-  ctx.arc(cx, rotateY, handleSize, 0, Math.PI * 2);
+  ctx.arc(cx, rotateY, Math.max(6, handleSize * 0.75), 0, Math.PI * 2);
   ctx.fill();
 
   ctx.restore();
@@ -285,6 +280,30 @@ export function drawRipple(
   ctx.lineWidth = 3 * (1 - progress * 0.5);
   ctx.beginPath();
   ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.restore();
+}
+
+export function drawSnapFlash(
+  ctx: CanvasRenderingContext2D,
+  x: number,
+  y: number,
+  active: boolean
+): void {
+  if (!active) return;
+  ctx.save();
+  const radius = 14;
+  const gradient = ctx.createRadialGradient(x, y, 0, x, y, radius);
+  gradient.addColorStop(0, 'rgba(255, 255, 200, 0.95)');
+  gradient.addColorStop(0.5, 'rgba(255, 235, 100, 0.7)');
+  gradient.addColorStop(1, 'rgba(255, 215, 0, 0)');
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(x, y, radius, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+  ctx.lineWidth = 2;
   ctx.stroke();
   ctx.restore();
 }
