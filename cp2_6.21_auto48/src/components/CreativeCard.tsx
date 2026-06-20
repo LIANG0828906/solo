@@ -7,6 +7,7 @@ interface CreativeCardProps {
   onVote: () => void;
   onDelete: () => void;
   currentUserId: string;
+  hasVoted: boolean;
 }
 
 const formatRelativeTime = (date: Date | string): string => {
@@ -45,13 +46,14 @@ const CreativeCard = ({
   onVote,
   onDelete,
   currentUserId,
+  hasVoted,
 }: CreativeCardProps) => {
   const [hovered, setHovered] = useState(false);
   const showDelete = canDelete(creative, currentUserId);
-  const voted = creative.voters.includes(currentUserId);
   const typeColor = TYPE_COLORS[creative.type as keyof typeof TYPE_COLORS] || '#999';
 
   const handleDeleteClick = () => {
+    if (!canDelete(creative, currentUserId)) return;
     if (window.confirm('确定要删除这条创意吗？此操作不可撤销。')) {
       onDelete();
     }
@@ -61,32 +63,39 @@ const CreativeCard = ({
     width: '280px',
     borderRadius: '16px',
     background: 'rgba(255,255,255,0.85)',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
-    transition: 'all 0.25s ease',
-    transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
     boxShadow: hovered
       ? '0 8px 24px rgba(0,0,0,0.12)'
       : '0 2px 8px rgba(0,0,0,0.06)',
-    padding: '16px',
+    transition: 'all 0.25s ease',
+    transform: hovered ? 'translateY(-3px)' : 'translateY(0)',
+    padding: '0',
     marginBottom: '16px',
     breakInside: 'avoid',
-    display: 'flex',
+    display: 'inline-flex',
     flexDirection: 'column',
-    gap: '12px',
     position: 'relative',
     backdropFilter: 'blur(4px)',
     WebkitBackdropFilter: 'blur(4px)',
+    overflow: 'hidden',
   };
 
   const typeTagStyle: React.CSSProperties = {
-    alignSelf: 'flex-start',
-    padding: '4px 10px',
-    borderRadius: '4px',
+    position: 'absolute',
+    top: '0',
+    left: '0',
+    padding: '5px 12px',
+    borderRadius: '0 0 4px 0',
     background: typeColor,
     color: '#fff',
     fontSize: '12px',
-    fontWeight: 500,
+    fontWeight: 600,
     lineHeight: 1.4,
+    letterSpacing: '0.5px',
+    zIndex: 2,
+  };
+
+  const contentAreaStyle: React.CSSProperties = {
+    padding: '40px 16px 12px 16px',
   };
 
   const contentStyle: React.CSSProperties = {
@@ -103,7 +112,7 @@ const CreativeCard = ({
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingTop: '8px',
+    padding: '8px 16px 12px 16px',
     borderTop: '1px solid rgba(0,0,0,0.06)',
   };
 
@@ -126,8 +135,8 @@ const CreativeCard = ({
 
   const deleteButtonStyle: React.CSSProperties = {
     position: 'absolute',
-    top: '12px',
-    right: '12px',
+    top: '6px',
+    right: '8px',
     width: '24px',
     height: '24px',
     border: 'none',
@@ -142,6 +151,7 @@ const CreativeCard = ({
     lineHeight: 1,
     opacity: hovered ? 1 : 0,
     transition: 'all 0.2s',
+    zIndex: 3,
   };
 
   return (
@@ -150,6 +160,8 @@ const CreativeCard = ({
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
+      <span style={typeTagStyle}>{creative.type}</span>
+
       {showDelete && (
         <button
           onClick={handleDeleteClick}
@@ -168,16 +180,16 @@ const CreativeCard = ({
         </button>
       )}
 
-      <span style={typeTagStyle}>{creative.type}</span>
-
-      <div style={contentStyle}>{creative.content}</div>
+      <div style={contentAreaStyle}>
+        <div style={contentStyle}>{creative.content}</div>
+      </div>
 
       <div style={bottomRowStyle}>
         <div style={authorMetaStyle}>
           <span style={authorNameStyle}>{creative.author}</span>
           <span style={timeStyle}>{formatRelativeTime(creative.createdAt)}</span>
         </div>
-        <VoteButton voted={voted} voteCount={creative.votes} onVote={onVote} />
+        <VoteButton voted={hasVoted} voteCount={creative.votes} onVote={onVote} />
       </div>
     </div>
   );

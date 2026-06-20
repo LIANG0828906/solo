@@ -17,7 +17,6 @@ import {
   disconnect,
 } from '../socket/socketClient';
 import CreativeCard from '../components/CreativeCard';
-import VoteButton from '../components/VoteButton';
 import { CreativeType, TYPE_COLORS, ICreative } from '../types';
 
 type SortOption = 'votes_desc' | 'votes_asc' | 'created_desc' | 'created_asc';
@@ -158,6 +157,8 @@ const BoardRoom = () => {
   const handleVote = async (creative: ICreative) => {
     if (!id) return;
 
+    if (creative.voters.includes(CURRENT_USER_ID)) return;
+
     const prevState = optimisticVote(creative.id, CURRENT_USER_ID);
     if (!prevState) return;
 
@@ -177,6 +178,13 @@ const BoardRoom = () => {
 
   const handleDelete = async (creative: ICreative) => {
     if (!id) return;
+
+    if (creative.createdBy !== CURRENT_USER_ID) return;
+
+    const now = new Date();
+    const createdAt = new Date(creative.createdAt);
+    const diffMin = (now.getTime() - createdAt.getTime()) / (1000 * 60);
+    if (diffMin >= 10) return;
 
     try {
       await deleteCreative(id, creative.id);
@@ -300,13 +308,13 @@ const BoardRoom = () => {
     return {
       padding: '6px 14px',
       fontSize: '12px',
-      fontWeight: 500,
+      fontWeight: active ? 600 : 500,
       borderRadius: '16px',
-      border: 'none',
+      border: active ? 'none' : '1px solid #e0e0e0',
       cursor: 'pointer',
       transition: 'all 0.2s',
-      background: active ? color : '#f0f0f0',
-      color: active ? '#fff' : '#888',
+      background: active ? color : '#f5f5f5',
+      color: active ? '#fff' : '#999',
     };
   };
 
@@ -378,17 +386,6 @@ const BoardRoom = () => {
     marginTop: '6px',
   };
 
-  const boardStyle: React.CSSProperties = {
-    columnCount: 3,
-    columnGap: '16px',
-    '@media (max-width: 1024px)': {
-      columnCount: 2,
-    },
-    '@media (max-width: 640px)': {
-      columnCount: 1,
-    },
-  };
-
   const loadingStyle: React.CSSProperties = {
     textAlign: 'center',
     padding: '80px 20px',
@@ -404,18 +401,36 @@ const BoardRoom = () => {
     lineHeight: 1.8,
   };
 
-  const responsiveBoardStyle = {
-    ...boardStyle,
-  };
-
   return (
     <div style={pageStyle}>
       <style>{`
+        @keyframes heartbeat {
+          0% { transform: scale(1); }
+          25% { transform: scale(0.9); }
+          50% { transform: scale(1.1); }
+          75% { transform: scale(1); }
+          100% { transform: scale(1); }
+        }
+        .masonry-board {
+          column-count: 3;
+          column-gap: 16px;
+          width: 100%;
+        }
         @media (max-width: 1024px) {
-          .board-column { column-count: 2 !important; }
+          .masonry-board {
+            column-count: 2;
+          }
         }
         @media (max-width: 640px) {
-          .board-column { column-count: 1 !important; }
+          .masonry-board {
+            column-count: 1;
+          }
+        }
+        .masonry-board .creative-card-wrapper {
+          break-inside: avoid;
+          margin-bottom: 16px;
+          display: inline-block;
+          width: 280px;
         }
       `}</style>
 
@@ -564,15 +579,17 @@ const BoardRoom = () => {
                   : '没有符合筛选条件的创意'}
               </div>
             ) : (
-              <div className="board-column" style={responsiveBoardStyle}>
+              <div className="masonry-board">
                 {filteredAndSortedCreatives.map((creative) => (
-                  <CreativeCard
-                    key={creative.id}
-                    creative={creative}
-                    onVote={() => handleVote(creative)}
-                    onDelete={() => handleDelete(creative)}
-                    currentUserId={CURRENT_USER_ID}
-                  />
+                  <div key={creative.id} className="creative-card-wrapper">
+                    <CreativeCard
+                      creative={creative}
+                      onVote={() => handleVote(creative)}
+                      onDelete={() => handleDelete(creative)}
+                      currentUserId={CURRENT_USER_ID}
+                      hasVoted={creative.voters.includes(CURRENT_USER_ID)}
+                    />
+                  </div>
                 ))}
               </div>
             )}

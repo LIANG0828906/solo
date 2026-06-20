@@ -27,9 +27,9 @@ export interface IBoardRoom {
 }
 
 export const TYPE_COLORS: Record<CreativeType, string> = {
-  [CreativeType.功能]: '#1890ff',
-  [CreativeType.交互]: '#52c41a',
-  [CreativeType.视觉]: '#eb2f96',
-  [CreativeType.运营]: '#fa8c16',
-  [CreativeType.技术]: '#722ed1',
+  [CreativeType.功能]: '#2196F3',
+  [CreativeType.交互]: '#4CAF50',
+  [CreativeType.视觉]: '#FF9800',
+  [CreativeType.运营]: '#9C27B0',
+  [CreativeType.技术]: '#F44336',
 };
