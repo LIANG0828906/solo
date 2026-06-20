@@ -17,6 +17,8 @@ import {
   Drawer,
   Row,
   Col,
+  Checkbox,
+  Tooltip,
 } from 'antd';
 import {
   CheckOutlined,
@@ -38,12 +40,33 @@ const { useBreakpoint } = Grid;
 
 const CalendarHeatmap: React.FC<{
   data: HeatmapDataItem[];
+  habits: { name: string; color: string }[];
+  selectedHabits: string[];
+  onSelectedHabitsChange: (habits: string[]) => void;
   onDateClick: (date: string) => void;
-}> = ({ data, onDateClick }) => {
+}> = ({ data, habits, selectedHabits, onSelectedHabitsChange, onDateClick }) => {
   const currentYear = dayjs().year();
   const startDate = dayjs(`${currentYear}-01-01`);
   const endDate = dayjs(`${currentYear}-12-31`);
   const totalDays = endDate.diff(startDate, 'day') + 1;
+
+  const [hoveredDay, setHoveredDay] = useState<{ item: HeatmapDataItem; x: number; y: number } | null>(null);
+
+  const handleCheckboxChange = (checkedValues: string[]) => {
+    if (checkedValues.length === 0) {
+      if (habits.length > 0) {
+        onSelectedHabitsChange([habits[0].name]);
+      }
+      return;
+    }
+    if (checkedValues.length > 3) {
+      message.warning('最多可选择3个习惯进行对比');
+      return;
+    }
+    onSelectedHabitsChange(checkedValues);
+  };
+
+  const effectiveSelected = selectedHabits.length > 0 ? selectedHabits : (habits.length > 0 ? [habits[0].name] : []);
 
   const weeks = useMemo(() => {
     const result: (HeatmapDataItem | null)[][] = [];
@@ -93,64 +116,141 @@ const CalendarHeatmap: React.FC<{
 
   const weekdayLabels = ['日', '一', '二', '三', '四', '五', '六'];
 
+  const buildTooltipContent = (item: HeatmapDataItem) => {
+    const dateStr = dayjs(item.date).format('YYYY年M月D日');
+    const lines: string[] = [dateStr];
+    if (item.habitDetails && effectiveSelected.length > 0) {
+      effectiveSelected.forEach((name) => {
+        const done = item.habitDetails?.[name];
+        const icon = done ? '✓' : '✗';
+        lines.push(`${icon} ${name}`);
+      });
+      const completedCount = effectiveSelected.filter((n) => item.habitDetails?.[n]).length;
+      lines.push(`完成 ${completedCount}/${effectiveSelected.length}`);
+    } else {
+      lines.push(`完成 ${item.count}/${item.total}`);
+    }
+    return lines.join('\n');
+  };
+
   return (
     <div style={{ padding: '16px 0' }}>
-      <div style={{ display: 'flex', marginBottom: '8px', paddingLeft: '40px' }}>
-        {monthLabels.map((month, idx) => (
-          <span
-            key={idx}
-            style={{
-              position: 'absolute',
-              left: `${40 + month.weekIndex * 14}px`,
-              fontSize: '12px',
-              color: '#6b7280',
-            }}
+      {habits.length > 0 && (
+        <div style={{ marginBottom: '16px' }}>
+          <Text style={{ fontSize: '13px', color: '#6b7280', marginRight: '12px' }}>筛选习惯:</Text>
+          <Checkbox.Group
+            value={effectiveSelected}
+            onChange={(vals) => handleCheckboxChange(vals as string[])}
+            style={{ display: 'inline-flex', flexWrap: 'wrap', gap: '8px' }}
           >
-            {month.label}
-          </span>
-        ))}
-      </div>
-      <div style={{ display: 'flex', marginTop: '20px' }}>
-        <div style={{ width: '30px', flexShrink: 0 }}>
-          {weekdayLabels.map((day, idx) => (
-            <div
+            {habits.map((habit) => (
+              <Checkbox key={habit.name} value={habit.name}>
+                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                  <span
+                    style={{
+                      display: 'inline-block',
+                      width: '8px',
+                      height: '8px',
+                      borderRadius: '50%',
+                      backgroundColor: habit.color,
+                    }}
+                  />
+                  <span style={{ fontSize: '13px' }}>{habit.name}</span>
+                </span>
+              </Checkbox>
+            ))}
+          </Checkbox.Group>
+        </div>
+      )}
+
+      <div style={{ position: 'relative' }}>
+        <div style={{ display: 'flex', marginBottom: '8px', paddingLeft: '40px' }}>
+          {monthLabels.map((month, idx) => (
+            <span
               key={idx}
               style={{
-                height: '12px',
-                marginBottom: '2px',
-                fontSize: '10px',
+                position: 'absolute',
+                left: `${40 + month.weekIndex * 14}px`,
+                fontSize: '12px',
                 color: '#6b7280',
-                lineHeight: '12px',
               }}
             >
-              {idx % 2 === 1 ? day : ''}
-            </div>
+              {month.label}
+            </span>
           ))}
         </div>
-        <div style={{ display: 'flex', gap: '2px' }}>
-          {weeks.map((week, weekIdx) => (
-            <div key={weekIdx} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-              {week.map((day, dayIdx) => (
-                <div
-                  key={dayIdx}
-                  onClick={() => day && onDateClick(day.date)}
-                  style={{
-                    width: '12px',
-                    height: '12px',
-                    borderRadius: '2px',
-                    backgroundColor: day
-                      ? getHeatmapColor(day.count, day.total)
-                      : 'transparent',
-                    cursor: day ? 'pointer' : 'default',
-                    transition: 'all 0.2s ease',
-                  }}
-                  title={day ? `${day.date}: ${day.count}/${day.total}` : ''}
-                />
-              ))}
-            </div>
-          ))}
+        <div style={{ display: 'flex', marginTop: '20px' }}>
+          <div style={{ width: '30px', flexShrink: 0 }}>
+            {weekdayLabels.map((day, idx) => (
+              <div
+                key={idx}
+                style={{
+                  height: '12px',
+                  marginBottom: '2px',
+                  fontSize: '10px',
+                  color: '#6b7280',
+                  lineHeight: '12px',
+                }}
+              >
+                {idx % 2 === 1 ? day : ''}
+              </div>
+            ))}
+          </div>
+          <div style={{ display: 'flex', gap: '2px' }}>
+            {weeks.map((week, weekIdx) => (
+              <div key={weekIdx} style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                {week.map((day, dayIdx) => (
+                  <div
+                    key={dayIdx}
+                    onClick={() => day && onDateClick(day.date)}
+                    onMouseEnter={(e) => {
+                      if (day) {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setHoveredDay({ item: day, x: rect.left + rect.width / 2, y: rect.top });
+                      }
+                    }}
+                    onMouseLeave={() => setHoveredDay(null)}
+                    style={{
+                      width: '12px',
+                      height: '12px',
+                      borderRadius: '2px',
+                      backgroundColor: day
+                        ? getHeatmapColor(day.count, day.total)
+                        : 'transparent',
+                      cursor: day ? 'pointer' : 'default',
+                      transition: 'all 0.2s ease',
+                    }}
+                  />
+                ))}
+              </div>
+            ))}
+          </div>
         </div>
+
+        {hoveredDay && (
+          <div
+            style={{
+              position: 'fixed',
+              left: hoveredDay.x,
+              top: hoveredDay.y - 8,
+              transform: 'translate(-50%, -100%)',
+              backgroundColor: 'rgba(0,0,0,0.8)',
+              color: '#fff',
+              padding: '8px 12px',
+              borderRadius: '6px',
+              fontSize: '12px',
+              lineHeight: '1.6',
+              whiteSpace: 'pre-line',
+              zIndex: 1000,
+              pointerEvents: 'none',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+            }}
+          >
+            {buildTooltipContent(hoveredDay.item)}
+          </div>
+        )}
       </div>
+
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', marginTop: '12px', gap: '8px' }}>
         <Text type="secondary" style={{ fontSize: '12px' }}>少</Text>
         {['#ebedf0', '#c6e48b', '#9be9a8', '#40c463', '#216e39'].map((color, idx) => (
@@ -372,8 +472,8 @@ const QuickCheckButton: React.FC<{
 };
 
 export default function App() {
-  const { refreshAll, toggleHabit, addHabit, deleteHabit } = useHabits();
-  const { habits, records, heatmapData, stats, loading } = useHabitsStore();
+  const { refreshAll, toggleHabit, addHabit, deleteHabit, fetchHeatmap } = useHabits();
+  const { habits, records, heatmapData, stats, loading, selectedHabits, setSelectedHabits } = useHabitsStore();
   const { md } = useBreakpoint();
 
   const [inputValue, setInputValue] = useState('');
@@ -386,9 +486,26 @@ export default function App() {
 
   const today = dayjs().format('YYYY-MM-DD');
 
+  const habitsWithColors = useMemo(
+    () => habits.map((h) => ({ name: h.name, color: getHabitColor(h.name) })),
+    [habits]
+  );
+
   useEffect(() => {
     refreshAll();
   }, [refreshAll]);
+
+  useEffect(() => {
+    if (habits.length > 0 && selectedHabits.length === 0) {
+      setSelectedHabits([habits[0].name]);
+    }
+  }, [habits, selectedHabits.length, setSelectedHabits]);
+
+  useEffect(() => {
+    if (selectedHabits.length > 0) {
+      fetchHeatmap(dayjs().year(), selectedHabits);
+    }
+  }, [selectedHabits, fetchHeatmap]);
 
   const isHabitCompletedToday = useCallback(
     (habitName: string) => {
@@ -592,7 +709,13 @@ export default function App() {
                       boxShadow: '0 4px 12px rgba(0,0,0,0.05)',
                     }}
                   >
-                    <CalendarHeatmap data={heatmapData} onDateClick={handleDateClick} />
+                    <CalendarHeatmap
+                      data={heatmapData}
+                      habits={habitsWithColors}
+                      selectedHabits={selectedHabits}
+                      onSelectedHabitsChange={setSelectedHabits}
+                      onDateClick={handleDateClick}
+                    />
                   </Card>
 
                   <Card
@@ -689,7 +812,13 @@ export default function App() {
                     overflow: 'auto',
                   }}
                 >
-                  <CalendarHeatmap data={heatmapData} onDateClick={handleDateClick} />
+                  <CalendarHeatmap
+                    data={heatmapData}
+                    habits={habitsWithColors}
+                    selectedHabits={selectedHabits}
+                    onSelectedHabitsChange={setSelectedHabits}
+                    onDateClick={handleDateClick}
+                  />
                 </Card>
 
                 <Card

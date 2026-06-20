@@ -33,6 +33,7 @@ export interface HeatmapDataItem {
   count: number;
   total: number;
   level: number;
+  habitDetails?: Record<string, boolean>;
 }
 
 export interface StatsResponse {

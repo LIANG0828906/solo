@@ -14,6 +14,8 @@ interface HabitsState {
   setStats: (stats: StatsResponse | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  selectedHabits: string[];
+  setSelectedHabits: (habits: string[]) => void;
   toggleRecord: (habitName: string, date: string) => void;
   addHabit: (habit: Habit) => void;
   deleteHabit: (name: string) => void;
@@ -26,6 +28,7 @@ export const useHabitsStore = create<HabitsState>((set) => ({
   stats: null,
   loading: false,
   error: null,
+  selectedHabits: [],
 
   setHabits: (habits) => set({ habits }),
   setRecords: (records) => set({ records }),
@@ -33,6 +36,7 @@ export const useHabitsStore = create<HabitsState>((set) => ({
   setStats: (stats) => set({ stats }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
+  setSelectedHabits: (selectedHabits) => set({ selectedHabits }),
 
   toggleRecord: (habitName, date) =>
     set((state) => {

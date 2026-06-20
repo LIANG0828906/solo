@@ -232,36 +232,73 @@ def get_stats(
 @app.get("/heatmap")
 def get_heatmap(
     year: Optional[int] = None,
+    habit_names: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     if year is None:
         year = date.today().year
-    
+
     start_date = date(year, 1, 1)
     end_date = date(year, 12, 31)
-    
+    start_str = start_date.strftime("%Y-%m-%d")
+    end_str = end_date.strftime("%Y-%m-%d")
+
+    query = db.query(HabitRecord).filter(
+        HabitRecord.date >= start_str,
+        HabitRecord.date <= end_str,
+    )
+
+    selected_names = None
+    if habit_names:
+        selected_names = [n.strip() for n in habit_names.split(",") if n.strip()]
+        if selected_names:
+            query = query.filter(HabitRecord.habit_name.in_(selected_names))
+
+    records = query.all()
+
+    date_map: dict = {}
+    for r in records:
+        ds = r.date
+        if ds not in date_map:
+            date_map[ds] = {}
+        date_map[ds][r.habit_name] = r.completed
+
+    if selected_names:
+        target_names = selected_names
+    else:
+        all_habits = set()
+        for habits in date_map.values():
+            all_habits.update(habits.keys())
+        target_names = list(all_habits)
+
+    total_habits = len(target_names)
+
     data = []
     current_date = start_date
     while current_date <= end_date:
         date_str = current_date.strftime("%Y-%m-%d")
-        
-        records = (
-            db.query(HabitRecord)
-            .filter(
-                HabitRecord.date == date_str,
-                HabitRecord.completed == True,
-            )
-            .count()
-        )
-        
-        data.append({
-            "date": date_str,
-            "value": records,
-        })
-        
+        day_habits = date_map.get(date_str, {})
+
+        if selected_names:
+            habit_details = {
+                n: day_habits.get(n, False) for n in selected_names
+            }
+            value = sum(1 for n in selected_names if day_habits.get(n, False))
+            data.append({
+                "date": date_str,
+                "value": value,
+                "habit_details": habit_details,
+            })
+        else:
+            value = sum(1 for v in day_habits.values() if v)
+            data.append({
+                "date": date_str,
+                "value": value,
+            })
+
         current_date += timedelta(days=1)
-    
-    return {"data": data}
+
+    return {"data": data, "total_habits": total_habits}
 
 
 if __name__ == "__main__":

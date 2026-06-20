@@ -125,13 +125,23 @@ export function useHabits() {
     }
   };
 
-  const fetchHeatmap = async (year: number = dayjs().year()) => {
+  const fetchHeatmap = async (year: number = dayjs().year(), habitNames?: string[]) => {
     try {
       setLoading(true);
-      const response = await api.get<HeatmapDataItem[]>('/heatmap', {
-        params: { year },
-      });
-      setHeatmapData(response.data);
+      const params: Record<string, string | number> = { year };
+      if (habitNames && habitNames.length > 0) {
+        params.habit_names = habitNames.join(',');
+      }
+      const response = await api.get('/heatmap', { params });
+      const raw = response.data;
+      const items: HeatmapDataItem[] = (raw.data || []).map((item: any) => ({
+        date: item.date,
+        count: item.value ?? 0,
+        total: raw.total_habits ?? 0,
+        level: 0,
+        habitDetails: item.habit_details || undefined,
+      }));
+      setHeatmapData(items);
       setError(null);
     } catch (err) {
       handleError(err);
@@ -140,7 +150,7 @@ export function useHabits() {
     }
   };
 
-  const refreshAll = async (date?: string, days?: number, year?: number) => {
+  const refreshAll = async (date?: string, days?: number, year?: number, habitNames?: string[]) => {
     try {
       setLoading(true);
       setError(null);
@@ -152,7 +162,7 @@ export function useHabits() {
         fetchHabits(),
         fetchRecords(targetDate),
         fetchStats(targetDays),
-        fetchHeatmap(targetYear),
+        fetchHeatmap(targetYear, habitNames),
       ]);
     } catch (err) {
       handleError(err);
