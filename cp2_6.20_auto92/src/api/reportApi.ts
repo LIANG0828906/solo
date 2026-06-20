@@ -9,46 +9,44 @@ const api = axios.create({
 });
 
 export interface BasicInfo {
-  name: string;
-  gender: 'male' | 'female';
   age: number;
+  gender: string;
   height: number;
   weight: number;
-  employeeId?: string;
 }
 
 export interface BloodMetrics {
-  systolic: number;
-  diastolic: number;
-  heartRate: number;
-  totalCholesterol: number;
+  fasting_glucose: number;
+  total_cholesterol: number;
   triglycerides: number;
   hdl: number;
   ldl: number;
-  fastingGlucose: number;
+  systolic_bp: number;
+  diastolic_bp: number;
 }
 
 export interface Lifestyle {
+  exercise_freq: number;
+  sleep_hours: number;
   smoking: boolean;
-  smokingFrequency?: number;
   drinking: boolean;
-  drinkingFrequency?: number;
-  exerciseFrequency: number;
-  sleepHours: number;
-  stressLevel: number;
 }
 
 export interface ReportData {
-  basicInfo: BasicInfo;
-  bloodMetrics: BloodMetrics;
+  employee_id: string;
+  employee_name: string;
+  department: string;
+  basic_info: BasicInfo;
+  blood_metrics: BloodMetrics;
   lifestyle: Lifestyle;
 }
 
-export interface RiskDimension {
-  name: string;
-  score: number;
-  level: 'low' | 'medium' | 'high';
-  description: string;
+export interface RiskScores {
+  cardiovascular: number;
+  metabolic: number;
+  respiratory: number;
+  digestive: number;
+  skeletal: number;
 }
 
 export interface TrendPoint {
@@ -56,70 +54,64 @@ export interface TrendPoint {
   value: number;
 }
 
-export interface Trends {
-  [key: string]: TrendPoint[];
-}
-
 export interface Suggestion {
   id: string;
-  category: 'diet' | 'exercise' | 'lifestyle' | 'medical';
-  title: string;
-  content: string;
-  priority: 'high' | 'medium' | 'low';
+  metric: string;
+  current_value: string;
+  status: 'normal' | 'warning' | 'danger';
+  advice: string;
+  source: string;
 }
 
 export interface AnalysisResult {
-  id: string;
-  reportId: string;
-  score: number;
-  level: 'excellent' | 'good' | 'fair' | 'poor';
-  risks: RiskDimension[];
-  trends: Trends;
+  report_id: string;
+  overall_score: number;
+  risk_scores: RiskScores;
+  trends: Record<string, TrendPoint[]>;
   suggestions: Suggestion[];
-  createdAt: string;
-}
-
-export interface ReportWithAnalysis {
-  id: string;
-  employeeId: string;
-  reportDate: string;
-  data: ReportData;
-  analysis: AnalysisResult;
+  report_date: string;
 }
 
 export interface ReportSummary {
   id: string;
-  reportDate: string;
-  score: number;
-  level: 'excellent' | 'good' | 'fair' | 'poor';
-  mainRisks: string[];
+  date: string;
+  overall_score: number;
+  key_abnormalities: string[];
 }
 
-export interface EmployeeHealthStats {
-  employeeId: string;
+export interface MetricDistribution {
+  metric: string;
+  count: number;
+}
+
+export interface HighRiskEmployee {
   name: string;
-  reportCount: number;
-  avgScore: number;
-  latestScore: number;
-  trend: 'up' | 'down' | 'stable';
-  highRiskCount: number;
-}
-
-export interface RiskDistribution {
-  low: number;
-  medium: number;
-  high: number;
+  department: string;
+  score: number;
+  abnormalities: string[];
 }
 
 export interface HROverviewData {
-  totalEmployees: number;
-  totalReports: number;
-  avgOverallScore: number;
-  riskDistribution: RiskDistribution;
-  topRisks: { name: string; count: number }[];
-  employeesAtRisk: EmployeeHealthStats[];
-  recentReports: ReportSummary[];
-  departmentStats?: { department: string; avgScore: number; employeeCount: number }[];
+  total_employees: number;
+  avg_score: number;
+  high_risk_count: number;
+  metric_distribution: MetricDistribution[];
+  high_risk_employees: HighRiskEmployee[];
+}
+
+export interface ReportWithAnalysis {
+  employee_id: string;
+  employee_name: string;
+  department: string;
+  basic_info: BasicInfo;
+  blood_metrics: BloodMetrics;
+  lifestyle: Lifestyle;
+  report_id: string;
+  overall_score: number;
+  risk_scores: RiskScores;
+  trends: Record<string, TrendPoint[]>;
+  suggestions: Suggestion[];
+  report_date: string;
 }
 
 export const submitReport = async (data: ReportData): Promise<AnalysisResult> => {
