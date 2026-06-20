@@ -1,0 +1,134 @@
+.rune-slot {
+  width: 70px;
+  height: 70px;
+  border-radius: 12px;
+  background: rgba(44, 31, 14, 0.6);
+  border: 2px dashed var(--slot-color);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+  backdrop-filter: blur(8px);
+}
+
+.rune-slot:hover {
+  border-style: solid;
+  transform: scale(1.05);
+  box-shadow: 0 0 20px var(--slot-color);
+}
+
+.rune-slot.filled {
+  border-style: solid;
+  background: rgba(44, 31, 14, 0.9);
+}
+
+.slot-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.slot-icon {
+  font-size: 24px;
+  opacity: 0.8;
+}
+
+.slot-label {
+  font-size: 11px;
+  color: #c9a34a;
+  opacity: 0.8;
+}
+
+.slot-rune {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  animation: rune-equip 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes rune-equip {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.slot-rune-name {
+  font-size: 10px;
+  color: #fff;
+  font-weight: 600;
+  text-align: center;
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slot-tooltip {
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(26, 26, 46, 0.95);
+  border: 1px solid #c9a34a;
+  border-radius: 8px;
+  padding: 10px 12px;
+  font-size: 12px;
+  color: #ddd;
+  white-space: nowrap;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.2s ease;
+  z-index: 10;
+  pointer-events: none;
+  min-width: 120px;
+}
+
+.rune-slot:hover .slot-tooltip {
+  opacity: 1;
+  visibility: visible;
+}
+
+.tooltip-name {
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.tooltip-rarity {
+  margin-bottom: 6px;
+  font-size: 14px;
+}
+
+.tooltip-effect {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(201, 163, 74, 0.3);
+  color: #c9a34a;
+  font-size: 11px;
+  font-style: italic;
+}
+
+@media (max-width: 768px) {
+  .rune-slot {
+    width: 56px;
+    height: 56px;
+  }
+  
+  .slot-icon {
+    font-size: 18px;
+  }
+  
+  .slot-label {
+    font-size: 10px;
+  }
+}
