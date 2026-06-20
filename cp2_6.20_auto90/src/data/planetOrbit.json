@@ -9,7 +9,9 @@
     "orbitalPeriod": 88,
     "distanceFromSun": "5790万公里",
     "moons": 0,
-    "isInnerPlanet": true
+    "isInnerPlanet": true,
+    "initialAngle": 28.0,
+    "inclination": 7.0
   },
   {
     "id": "venus",
@@ -21,7 +23,9 @@
     "orbitalPeriod": 225,
     "distanceFromSun": "1.082亿公里",
     "moons": 0,
-    "isInnerPlanet": true
+    "isInnerPlanet": true,
+    "initialAngle": 156.0,
+    "inclination": 3.39
   },
   {
     "id": "earth",
@@ -33,7 +37,9 @@
     "orbitalPeriod": 365,
     "distanceFromSun": "1.496亿公里",
     "moons": 1,
-    "isInnerPlanet": true
+    "isInnerPlanet": true,
+    "initialAngle": 288.0,
+    "inclination": 0.0
   },
   {
     "id": "mars",
@@ -45,7 +51,9 @@
     "orbitalPeriod": 687,
     "distanceFromSun": "2.279亿公里",
     "moons": 2,
-    "isInnerPlanet": true
+    "isInnerPlanet": true,
+    "initialAngle": 208.0,
+    "inclination": 1.85
   },
   {
     "id": "jupiter",
@@ -57,7 +65,9 @@
     "orbitalPeriod": 4333,
     "distanceFromSun": "7.783亿公里",
     "moons": 95,
-    "isInnerPlanet": false
+    "isInnerPlanet": false,
+    "initialAngle": 232.0,
+    "inclination": 1.31
   },
   {
     "id": "saturn",
@@ -69,7 +79,9 @@
     "orbitalPeriod": 10759,
     "distanceFromSun": "14.27亿公里",
     "moons": 146,
-    "isInnerPlanet": false
+    "isInnerPlanet": false,
+    "initialAngle": 86.0,
+    "inclination": 2.49
   },
   {
     "id": "uranus",
@@ -81,7 +93,9 @@
     "orbitalPeriod": 30687,
     "distanceFromSun": "28.71亿公里",
     "moons": 27,
-    "isInnerPlanet": false
+    "isInnerPlanet": false,
+    "initialAngle": 18.0,
+    "inclination": 0.77
   },
   {
     "id": "neptune",
@@ -93,6 +107,8 @@
     "orbitalPeriod": 60190,
     "distanceFromSun": "44.98亿公里",
     "moons": 16,
-    "isInnerPlanet": false
+    "isInnerPlanet": false,
+    "initialAngle": 352.0,
+    "inclination": 1.77
   }
 ]

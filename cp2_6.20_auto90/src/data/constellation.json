@@ -5,8 +5,139 @@
     "nameEn": "Ursa Major",
     "season": "春季",
     "areaRank": 3,
-    "mainStars": ["Dubhe", "Merak", "Phecda", "Megrez", "Alioth", "Mizar", "Alkaid"],
-    "lines": [[1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [4, 1]]
+    "mainStars": [
+      {
+        "name": "天枢",
+        "nameEn": "Dubhe"
+      },
+      {
+        "name": "天璇",
+        "nameEn": "Merak"
+      },
+      {
+        "name": "天玑",
+        "nameEn": "Phecda"
+      },
+      {
+        "name": "天权",
+        "nameEn": "Megrez"
+      },
+      {
+        "name": "玉衡",
+        "nameEn": "Alioth"
+      },
+      {
+        "name": "开阳",
+        "nameEn": "Mizar"
+      },
+      {
+        "name": "摇光",
+        "nameEn": "Alkaid"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        3
+      ],
+      [
+        3,
+        4
+      ],
+      [
+        4,
+        5
+      ],
+      [
+        5,
+        6
+      ],
+      [
+        6,
+        7
+      ],
+      [
+        4,
+        1
+      ]
+    ],
+    "bestSeason": "春季",
+    "lineVertices": [
+      [
+        [
+          11.0623,
+          61.7511
+        ],
+        [
+          11.0307,
+          56.3824
+        ]
+      ],
+      [
+        [
+          11.0307,
+          56.3824
+        ],
+        [
+          11.5355,
+          53.6948
+        ]
+      ],
+      [
+        [
+          11.5355,
+          53.6948
+        ],
+        [
+          12.2578,
+          57.0326
+        ]
+      ],
+      [
+        [
+          12.2578,
+          57.0326
+        ],
+        [
+          12.9005,
+          55.9595
+        ]
+      ],
+      [
+        [
+          12.9005,
+          55.9595
+        ],
+        [
+          13.3987,
+          54.9254
+        ]
+      ],
+      [
+        [
+          13.3987,
+          54.9254
+        ],
+        [
+          13.7924,
+          49.3133
+        ]
+      ],
+      [
+        [
+          12.2578,
+          57.0326
+        ],
+        [
+          11.0623,
+          61.7511
+        ]
+      ]
+    ]
   },
   {
     "id": "UMi",
@@ -14,8 +145,53 @@
     "nameEn": "Ursa Minor",
     "season": "全年",
     "areaRank": 56,
-    "mainStars": ["Polaris", "Kochab", "Pherkad"],
-    "lines": [[1, 2], [2, 3]]
+    "mainStars": [
+      {
+        "name": "勾陈一",
+        "nameEn": "Polaris"
+      },
+      {
+        "name": "紫微星",
+        "nameEn": "Kochab"
+      },
+      {
+        "name": "太子",
+        "nameEn": "Pherkad"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        3
+      ]
+    ],
+    "bestSeason": "全年",
+    "lineVertices": [
+      [
+        [
+          2.5302,
+          89.2641
+        ],
+        [
+          14.8333,
+          74.1552
+        ]
+      ],
+      [
+        [
+          14.8333,
+          74.1552
+        ],
+        [
+          15.018,
+          71.8333
+        ]
+      ]
+    ]
   },
   {
     "id": "Ori",
@@ -23,8 +199,153 @@
     "nameEn": "Orion",
     "season": "冬季",
     "areaRank": 26,
-    "mainStars": ["Betelgeuse", "Rigel", "Bellatrix", "Alnitak", "Alnilam", "Mintaka", "Saiph"],
-    "lines": [[1, 3], [3, 6], [6, 2], [2, 7], [7, 1], [4, 5], [5, 6], [4, 7]]
+    "mainStars": [
+      {
+        "name": "参宿四",
+        "nameEn": "Betelgeuse"
+      },
+      {
+        "name": "参宿七",
+        "nameEn": "Rigel"
+      },
+      {
+        "name": "参宿五",
+        "nameEn": "Bellatrix"
+      },
+      {
+        "name": "参宿一",
+        "nameEn": "Alnitak"
+      },
+      {
+        "name": "参宿二",
+        "nameEn": "Alnilam"
+      },
+      {
+        "name": "参宿三",
+        "nameEn": "Mintaka"
+      },
+      {
+        "name": "参宿六",
+        "nameEn": "Saiph"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        3
+      ],
+      [
+        3,
+        6
+      ],
+      [
+        6,
+        2
+      ],
+      [
+        2,
+        7
+      ],
+      [
+        7,
+        1
+      ],
+      [
+        4,
+        5
+      ],
+      [
+        5,
+        6
+      ],
+      [
+        4,
+        7
+      ]
+    ],
+    "bestSeason": "冬季",
+    "lineVertices": [
+      [
+        [
+          5.9194,
+          7.4071
+        ],
+        [
+          5.4118,
+          6.3497
+        ]
+      ],
+      [
+        [
+          5.4118,
+          6.3497
+        ],
+        [
+          5.5918,
+          -0.2991
+        ]
+      ],
+      [
+        [
+          5.5918,
+          -0.2991
+        ],
+        [
+          5.2423,
+          -8.2017
+        ]
+      ],
+      [
+        [
+          5.2423,
+          -8.2017
+        ],
+        [
+          5.7604,
+          -9.67
+        ]
+      ],
+      [
+        [
+          5.7604,
+          -9.67
+        ],
+        [
+          5.9194,
+          7.4071
+        ]
+      ],
+      [
+        [
+          5.6036,
+          -1.9426
+        ],
+        [
+          5.6036,
+          -1.2017
+        ]
+      ],
+      [
+        [
+          5.6036,
+          -1.2017
+        ],
+        [
+          5.5918,
+          -0.2991
+        ]
+      ],
+      [
+        [
+          5.6036,
+          -1.9426
+        ],
+        [
+          5.7604,
+          -9.67
+        ]
+      ]
+    ]
   },
   {
     "id": "Tau",
@@ -32,8 +353,53 @@
     "nameEn": "Taurus",
     "season": "冬季",
     "areaRank": 17,
-    "mainStars": ["Aldebaran", "Alnath", "Alcyone"],
-    "lines": [[1, 2], [1, 3]]
+    "mainStars": [
+      {
+        "name": "毕宿五",
+        "nameEn": "Aldebaran"
+      },
+      {
+        "name": "五车五",
+        "nameEn": "Alnath"
+      },
+      {
+        "name": "昴宿六",
+        "nameEn": "Alcyone"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ],
+      [
+        1,
+        3
+      ]
+    ],
+    "bestSeason": "冬季",
+    "lineVertices": [
+      [
+        [
+          4.5994,
+          16.5097
+        ],
+        [
+          5.4118,
+          28.6045
+        ]
+      ],
+      [
+        [
+          4.5994,
+          16.5097
+        ],
+        [
+          3.7841,
+          24.1056
+        ]
+      ]
+    ]
   },
   {
     "id": "Gem",
@@ -41,8 +407,67 @@
     "nameEn": "Gemini",
     "season": "冬季",
     "areaRank": 30,
-    "mainStars": ["Castor", "Pollux", "Alhena"],
-    "lines": [[1, 2], [1, 3], [2, 3]]
+    "mainStars": [
+      {
+        "name": "北河二",
+        "nameEn": "Castor"
+      },
+      {
+        "name": "北河三",
+        "nameEn": "Pollux"
+      },
+      {
+        "name": "井宿三",
+        "nameEn": "Alhena"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ],
+      [
+        1,
+        3
+      ],
+      [
+        2,
+        3
+      ]
+    ],
+    "bestSeason": "冬季",
+    "lineVertices": [
+      [
+        [
+          7.5768,
+          31.8883
+        ],
+        [
+          7.7548,
+          28.0262
+        ]
+      ],
+      [
+        [
+          7.5768,
+          31.8883
+        ],
+        [
+          6.3768,
+          16.3994
+        ]
+      ],
+      [
+        [
+          7.7548,
+          28.0262
+        ],
+        [
+          6.3768,
+          16.3994
+        ]
+      ]
+    ]
   },
   {
     "id": "CMa",
@@ -50,8 +475,44 @@
     "nameEn": "Canis Major",
     "season": "冬季",
     "areaRank": 43,
-    "mainStars": ["Sirius"],
-    "lines": []
+    "mainStars": [
+      {
+        "name": "天狼星",
+        "nameEn": "Sirius"
+      },
+      {
+        "name": "弧矢二",
+        "nameEn": "Adhara"
+      },
+      {
+        "name": "军市一",
+        "nameEn": "Mirzam"
+      }
+    ],
+    "lines": [],
+    "bestSeason": "冬季",
+    "lineVertices": [
+      [
+        [
+          6.7525,
+          -16.7161
+        ],
+        [
+          6.978,
+          -28.972
+        ]
+      ],
+      [
+        [
+          6.978,
+          -28.972
+        ],
+        [
+          6.77,
+          -17.956
+        ]
+      ]
+    ]
   },
   {
     "id": "CMi",
@@ -59,8 +520,35 @@
     "nameEn": "Canis Minor",
     "season": "冬季",
     "areaRank": 71,
-    "mainStars": ["Procyon", "Gomeisa"],
-    "lines": [[1, 2]]
+    "mainStars": [
+      {
+        "name": "南河三",
+        "nameEn": "Procyon"
+      },
+      {
+        "name": "南河二",
+        "nameEn": "Gomeisa"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ]
+    ],
+    "bestSeason": "冬季",
+    "lineVertices": [
+      [
+        [
+          7.655,
+          5.225
+        ],
+        [
+          7.421,
+          8.325
+        ]
+      ]
+    ]
   },
   {
     "id": "Leo",
@@ -68,8 +556,71 @@
     "nameEn": "Leo",
     "season": "春季",
     "areaRank": 12,
-    "mainStars": ["Regulus", "Denebola", "Algieba", "Zosma"],
-    "lines": [[1, 3], [3, 4], [4, 2]]
+    "mainStars": [
+      {
+        "name": "轩辕十四",
+        "nameEn": "Regulus"
+      },
+      {
+        "name": "五帝座一",
+        "nameEn": "Denebola"
+      },
+      {
+        "name": "轩辕十二",
+        "nameEn": "Algieba"
+      },
+      {
+        "name": "西上相",
+        "nameEn": "Zosma"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        3
+      ],
+      [
+        3,
+        4
+      ],
+      [
+        4,
+        2
+      ]
+    ],
+    "bestSeason": "春季",
+    "lineVertices": [
+      [
+        [
+          10.1396,
+          11.9672
+        ],
+        [
+          10.4822,
+          19.8373
+        ]
+      ],
+      [
+        [
+          10.4822,
+          19.8373
+        ],
+        [
+          11.3331,
+          20.5233
+        ]
+      ],
+      [
+        [
+          11.3331,
+          20.5233
+        ],
+        [
+          11.9127,
+          14.5667
+        ]
+      ]
+    ]
   },
   {
     "id": "Vir",
@@ -77,8 +628,53 @@
     "nameEn": "Virgo",
     "season": "春季",
     "areaRank": 2,
-    "mainStars": ["Spica", "Porrima", "Zavijava"],
-    "lines": [[1, 2], [2, 3]]
+    "mainStars": [
+      {
+        "name": "角宿一",
+        "nameEn": "Spica"
+      },
+      {
+        "name": "东上相",
+        "nameEn": "Porrima"
+      },
+      {
+        "name": "角宿二",
+        "nameEn": "Zavijava"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        3
+      ]
+    ],
+    "bestSeason": "春季",
+    "lineVertices": [
+      [
+        [
+          13.4199,
+          -11.1614
+        ],
+        [
+          12.2358,
+          -1.2647
+        ]
+      ],
+      [
+        [
+          12.2358,
+          -1.2647
+        ],
+        [
+          11.6325,
+          1.7608
+        ]
+      ]
+    ]
   },
   {
     "id": "Boo",
@@ -86,8 +682,35 @@
     "nameEn": "Bootes",
     "season": "春季",
     "areaRank": 13,
-    "mainStars": ["Arcturus", "Seginus"],
-    "lines": [[1, 2]]
+    "mainStars": [
+      {
+        "name": "大角星",
+        "nameEn": "Arcturus"
+      },
+      {
+        "name": "七公五",
+        "nameEn": "Seginus"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ]
+    ],
+    "bestSeason": "春季",
+    "lineVertices": [
+      [
+        [
+          14.2624,
+          19.1825
+        ],
+        [
+          14.7709,
+          38.5917
+        ]
+      ]
+    ]
   },
   {
     "id": "Sco",
@@ -95,8 +718,89 @@
     "nameEn": "Scorpius",
     "season": "夏季",
     "areaRank": 33,
-    "mainStars": ["Antares", "Acrab", "Dschubba", "Shaula", "Sargas"],
-    "lines": [[1, 3], [3, 2], [1, 4], [4, 5]]
+    "mainStars": [
+      {
+        "name": "心宿二",
+        "nameEn": "Antares"
+      },
+      {
+        "name": "房宿一",
+        "nameEn": "Acrab"
+      },
+      {
+        "name": "房宿三",
+        "nameEn": "Dschubba"
+      },
+      {
+        "name": "尾宿八",
+        "nameEn": "Shaula"
+      },
+      {
+        "name": "尾宿五",
+        "nameEn": "Sargas"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        3
+      ],
+      [
+        3,
+        2
+      ],
+      [
+        1,
+        4
+      ],
+      [
+        4,
+        5
+      ]
+    ],
+    "bestSeason": "夏季",
+    "lineVertices": [
+      [
+        [
+          16.4901,
+          -26.432
+        ],
+        [
+          16.2207,
+          -22.6383
+        ]
+      ],
+      [
+        [
+          16.2207,
+          -22.6383
+        ],
+        [
+          16.0323,
+          -19.5134
+        ]
+      ],
+      [
+        [
+          16.4901,
+          -26.432
+        ],
+        [
+          17.5684,
+          -37.1039
+        ]
+      ],
+      [
+        [
+          17.5684,
+          -37.1039
+        ],
+        [
+          17.6315,
+          -42.9872
+        ]
+      ]
+    ]
   },
   {
     "id": "Sgr",
@@ -104,8 +808,103 @@
     "nameEn": "Sagittarius",
     "season": "夏季",
     "areaRank": 15,
-    "mainStars": ["Kaus Australis", "Nunki", "Kaus Media", "Kaus Borealis", "Alnasl"],
-    "lines": [[1, 2], [2, 3], [3, 4], [4, 5], [5, 1]]
+    "mainStars": [
+      {
+        "name": "箕宿三",
+        "nameEn": "Kaus Australis"
+      },
+      {
+        "name": "斗宿六",
+        "nameEn": "Nunki"
+      },
+      {
+        "name": "箕宿一",
+        "nameEn": "Kaus Media"
+      },
+      {
+        "name": "斗宿四",
+        "nameEn": "Kaus Borealis"
+      },
+      {
+        "name": "箕宿一",
+        "nameEn": "Alnasl"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        3
+      ],
+      [
+        3,
+        4
+      ],
+      [
+        4,
+        5
+      ],
+      [
+        5,
+        1
+      ]
+    ],
+    "bestSeason": "夏季",
+    "lineVertices": [
+      [
+        [
+          19.0156,
+          -34.3847
+        ],
+        [
+          19.0768,
+          -27.5183
+        ]
+      ],
+      [
+        [
+          19.0768,
+          -27.5183
+        ],
+        [
+          18.7323,
+          -21.8367
+        ]
+      ],
+      [
+        [
+          18.7323,
+          -21.8367
+        ],
+        [
+          18.4507,
+          -25.5006
+        ]
+      ],
+      [
+        [
+          18.4507,
+          -25.5006
+        ],
+        [
+          18.5724,
+          -30.4008
+        ]
+      ],
+      [
+        [
+          18.5724,
+          -30.4008
+        ],
+        [
+          19.0156,
+          -34.3847
+        ]
+      ]
+    ]
   },
   {
     "id": "Aql",
@@ -113,8 +912,53 @@
     "nameEn": "Aquila",
     "season": "夏季",
     "areaRank": 22,
-    "mainStars": ["Altair", "Tarazed", "Alshain"],
-    "lines": [[1, 2], [1, 3]]
+    "mainStars": [
+      {
+        "name": "河鼓二",
+        "nameEn": "Altair"
+      },
+      {
+        "name": "河鼓一",
+        "nameEn": "Tarazed"
+      },
+      {
+        "name": "河鼓三",
+        "nameEn": "Alshain"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ],
+      [
+        1,
+        3
+      ]
+    ],
+    "bestSeason": "夏季",
+    "lineVertices": [
+      [
+        [
+          19.8463,
+          8.8683
+        ],
+        [
+          19.7724,
+          10.6128
+        ]
+      ],
+      [
+        [
+          19.8463,
+          8.8683
+        ],
+        [
+          19.9312,
+          6.4883
+        ]
+      ]
+    ]
   },
   {
     "id": "Lyr",
@@ -122,8 +966,67 @@
     "nameEn": "Lyra",
     "season": "夏季",
     "areaRank": 52,
-    "mainStars": ["Vega", "Sulafat", "Sheliak"],
-    "lines": [[1, 2], [2, 3], [1, 3]]
+    "mainStars": [
+      {
+        "name": "织女星",
+        "nameEn": "Vega"
+      },
+      {
+        "name": "渐台二",
+        "nameEn": "Sulafat"
+      },
+      {
+        "name": "渐台三",
+        "nameEn": "Sheliak"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        3
+      ],
+      [
+        1,
+        3
+      ]
+    ],
+    "bestSeason": "夏季",
+    "lineVertices": [
+      [
+        [
+          18.6156,
+          38.7837
+        ],
+        [
+          18.9882,
+          32.9118
+        ]
+      ],
+      [
+        [
+          18.9882,
+          32.9118
+        ],
+        [
+          18.7882,
+          33.1309
+        ]
+      ],
+      [
+        [
+          18.6156,
+          38.7837
+        ],
+        [
+          18.7882,
+          33.1309
+        ]
+      ]
+    ]
   },
   {
     "id": "Cyg",
@@ -131,8 +1034,53 @@
     "nameEn": "Cygnus",
     "season": "秋季",
     "areaRank": 16,
-    "mainStars": ["Deneb", "Albireo", "Sadr"],
-    "lines": [[1, 3], [3, 2]]
+    "mainStars": [
+      {
+        "name": "天津四",
+        "nameEn": "Deneb"
+      },
+      {
+        "name": "辇道增七",
+        "nameEn": "Albireo"
+      },
+      {
+        "name": "天津一",
+        "nameEn": "Sadr"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        3
+      ],
+      [
+        3,
+        2
+      ]
+    ],
+    "bestSeason": "秋季",
+    "lineVertices": [
+      [
+        [
+          20.6907,
+          45.2803
+        ],
+        [
+          20.2391,
+          40.2568
+        ]
+      ],
+      [
+        [
+          20.2391,
+          40.2568
+        ],
+        [
+          19.5135,
+          27.9592
+        ]
+      ]
+    ]
   },
   {
     "id": "Peg",
@@ -140,8 +1088,85 @@
     "nameEn": "Pegasus",
     "season": "秋季",
     "areaRank": 7,
-    "mainStars": ["Markab", "Scheat", "Algenib", "Enif"],
-    "lines": [[1, 2], [2, 3], [3, 1], [2, 4]]
+    "mainStars": [
+      {
+        "name": "室宿一",
+        "nameEn": "Markab"
+      },
+      {
+        "name": "室宿二",
+        "nameEn": "Scheat"
+      },
+      {
+        "name": "壁宿一",
+        "nameEn": "Algenib"
+      },
+      {
+        "name": "危宿三",
+        "nameEn": "Enif"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        3
+      ],
+      [
+        3,
+        1
+      ],
+      [
+        2,
+        4
+      ]
+    ],
+    "bestSeason": "秋季",
+    "lineVertices": [
+      [
+        [
+          23.4386,
+          15.2053
+        ],
+        [
+          22.9661,
+          28.0852
+        ]
+      ],
+      [
+        [
+          22.9661,
+          28.0852
+        ],
+        [
+          0.1397,
+          15.2053
+        ]
+      ],
+      [
+        [
+          0.1397,
+          15.2053
+        ],
+        [
+          23.4386,
+          15.2053
+        ]
+      ],
+      [
+        [
+          22.9661,
+          28.0852
+        ],
+        [
+          21.7407,
+          9.875
+        ]
+      ]
+    ]
   },
   {
     "id": "And",
@@ -149,8 +1174,53 @@
     "nameEn": "Andromeda",
     "season": "秋季",
     "areaRank": 19,
-    "mainStars": ["Alpheratz", "Mirach", "Almach"],
-    "lines": [[1, 2], [2, 3]]
+    "mainStars": [
+      {
+        "name": "壁宿二",
+        "nameEn": "Alpheratz"
+      },
+      {
+        "name": "奎宿九",
+        "nameEn": "Mirach"
+      },
+      {
+        "name": "奎宿四",
+        "nameEn": "Almach"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        3
+      ]
+    ],
+    "bestSeason": "秋季",
+    "lineVertices": [
+      [
+        [
+          0.1397,
+          29.0905
+        ],
+        [
+          1.1013,
+          35.6207
+        ]
+      ],
+      [
+        [
+          1.1013,
+          35.6207
+        ],
+        [
+          2.1004,
+          42.3267
+        ]
+      ]
+    ]
   },
   {
     "id": "Psc",
@@ -158,8 +1228,35 @@
     "nameEn": "Pisces",
     "season": "秋季",
     "areaRank": 14,
-    "mainStars": ["Alrescha", "Fomalhaut"],
-    "lines": [[1, 2]]
+    "mainStars": [
+      {
+        "name": "外屏七",
+        "nameEn": "Alrescha"
+      },
+      {
+        "name": "北落师门",
+        "nameEn": "Fomalhaut"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ]
+    ],
+    "bestSeason": "秋季",
+    "lineVertices": [
+      [
+        [
+          2.3414,
+          13.5008
+        ],
+        [
+          22.9608,
+          -29.6222
+        ]
+      ]
+    ]
   },
   {
     "id": "Ari",
@@ -167,8 +1264,53 @@
     "nameEn": "Aries",
     "season": "秋季",
     "areaRank": 39,
-    "mainStars": ["Hamal", "Sheratan", "Mesarthim"],
-    "lines": [[1, 2], [2, 3]]
+    "mainStars": [
+      {
+        "name": "娄宿三",
+        "nameEn": "Hamal"
+      },
+      {
+        "name": "娄宿一",
+        "nameEn": "Sheratan"
+      },
+      {
+        "name": "娄宿二",
+        "nameEn": "Mesarthim"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        3
+      ]
+    ],
+    "bestSeason": "秋季",
+    "lineVertices": [
+      [
+        [
+          2.2976,
+          23.4628
+        ],
+        [
+          1.87,
+          20.7185
+        ]
+      ],
+      [
+        [
+          1.87,
+          20.7185
+        ],
+        [
+          1.9284,
+          19.1367
+        ]
+      ]
+    ]
   },
   {
     "id": "Cnc",
@@ -176,8 +1318,43 @@
     "nameEn": "Cancer",
     "season": "春季",
     "areaRank": 31,
-    "mainStars": ["Acubens", "Tarf", "Asellus Borealis"],
-    "lines": [[1, 2], [1, 3]]
+    "mainStars": [
+      {
+        "name": "鬼宿四",
+        "nameEn": "Asellus Borealis"
+      },
+      {
+        "name": "柳宿增三",
+        "nameEn": "Tarf"
+      },
+      {
+        "name": "鬼宿三",
+        "nameEn": "Asellus Australis"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ],
+      [
+        1,
+        3
+      ]
+    ],
+    "bestSeason": "春季",
+    "lineVertices": [
+      [
+        [
+          8.6617,
+          12.3423
+        ],
+        [
+          8.17,
+          9.1008
+        ]
+      ]
+    ]
   },
   {
     "id": "Lib",
@@ -185,8 +1362,35 @@
     "nameEn": "Libra",
     "season": "夏季",
     "areaRank": 29,
-    "mainStars": ["Zubenelgenubi", "Zubeneschamali"],
-    "lines": [[1, 2]]
+    "mainStars": [
+      {
+        "name": "氐宿一",
+        "nameEn": "Zubenelgenubi"
+      },
+      {
+        "name": "氐宿四",
+        "nameEn": "Zubeneschamali"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ]
+    ],
+    "bestSeason": "夏季",
+    "lineVertices": [
+      [
+        [
+          14.7635,
+          -16.0417
+        ],
+        [
+          14.3147,
+          -9.3829
+        ]
+      ]
+    ]
   },
   {
     "id": "Cap",
@@ -194,8 +1398,53 @@
     "nameEn": "Capricornus",
     "season": "秋季",
     "areaRank": 40,
-    "mainStars": ["Algedi", "Dabih", "Nashira"],
-    "lines": [[1, 2], [2, 3]]
+    "mainStars": [
+      {
+        "name": "牛宿一",
+        "nameEn": "Algedi"
+      },
+      {
+        "name": "牛宿二",
+        "nameEn": "Dabih"
+      },
+      {
+        "name": "女宿一",
+        "nameEn": "Nashira"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        3
+      ]
+    ],
+    "bestSeason": "秋季",
+    "lineVertices": [
+      [
+        [
+          20.4625,
+          -12.5058
+        ],
+        [
+          20.5386,
+          -14.7458
+        ]
+      ],
+      [
+        [
+          20.5386,
+          -14.7458
+        ],
+        [
+          21.0853,
+          -16.7417
+        ]
+      ]
+    ]
   },
   {
     "id": "Aqr",
@@ -203,8 +1452,53 @@
     "nameEn": "Aquarius",
     "season": "秋季",
     "areaRank": 10,
-    "mainStars": ["Sadalmelik", "Sadalsuud", "Sadachbia"],
-    "lines": [[1, 2], [2, 3]]
+    "mainStars": [
+      {
+        "name": "危宿一",
+        "nameEn": "Sadalmelik"
+      },
+      {
+        "name": "虚宿一",
+        "nameEn": "Sadalsuud"
+      },
+      {
+        "name": "坟墓一",
+        "nameEn": "Sadachbia"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        3
+      ]
+    ],
+    "bestSeason": "秋季",
+    "lineVertices": [
+      [
+        [
+          22.0996,
+          -0.1967
+        ],
+        [
+          21.4717,
+          -5.0722
+        ]
+      ],
+      [
+        [
+          21.4717,
+          -5.0722
+        ],
+        [
+          22.2628,
+          -1.9503
+        ]
+      ]
+    ]
   },
   {
     "id": "Per",
@@ -212,8 +1506,35 @@
     "nameEn": "Perseus",
     "season": "冬季",
     "areaRank": 24,
-    "mainStars": ["Mirfak", "Algol"],
-    "lines": [[1, 2]]
+    "mainStars": [
+      {
+        "name": "天船三",
+        "nameEn": "Mirfak"
+      },
+      {
+        "name": "大陵五",
+        "nameEn": "Algol"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ]
+    ],
+    "bestSeason": "冬季",
+    "lineVertices": [
+      [
+        [
+          3.4843,
+          49.8609
+        ],
+        [
+          3.2522,
+          40.9557
+        ]
+      ]
+    ]
   },
   {
     "id": "Aur",
@@ -221,8 +1542,35 @@
     "nameEn": "Auriga",
     "season": "冬季",
     "areaRank": 21,
-    "mainStars": ["Capella", "Menkalinan"],
-    "lines": [[1, 2]]
+    "mainStars": [
+      {
+        "name": "五车二",
+        "nameEn": "Capella"
+      },
+      {
+        "name": "五车三",
+        "nameEn": "Menkalinan"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ]
+    ],
+    "bestSeason": "冬季",
+    "lineVertices": [
+      [
+        [
+          5.2782,
+          45.998
+        ],
+        [
+          5.1689,
+          44.9321
+        ]
+      ]
+    ]
   },
   {
     "id": "Hya",
@@ -230,8 +1578,35 @@
     "nameEn": "Hydra",
     "season": "春季",
     "areaRank": 1,
-    "mainStars": ["Alphard", "Ukdah"],
-    "lines": [[1, 2]]
+    "mainStars": [
+      {
+        "name": "星宿一",
+        "nameEn": "Alphard"
+      },
+      {
+        "name": "张宿一",
+        "nameEn": "Ukdah"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ]
+    ],
+    "bestSeason": "春季",
+    "lineVertices": [
+      [
+        [
+          9.4587,
+          -8.6588
+        ],
+        [
+          8.8705,
+          -2.7436
+        ]
+      ]
+    ]
   },
   {
     "id": "Cen",
@@ -239,8 +1614,35 @@
     "nameEn": "Centaurus",
     "season": "春季",
     "areaRank": 9,
-    "mainStars": ["Alpha Centauri", "Hadar"],
-    "lines": [[1, 2]]
+    "mainStars": [
+      {
+        "name": "南门二",
+        "nameEn": "Alpha Centauri"
+      },
+      {
+        "name": "马腹一",
+        "nameEn": "Hadar"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ]
+    ],
+    "bestSeason": "春季",
+    "lineVertices": [
+      [
+        [
+          14.6614,
+          -60.8339
+        ],
+        [
+          14.0638,
+          -59.6888
+        ]
+      ]
+    ]
   },
   {
     "id": "Car",
@@ -248,8 +1650,35 @@
     "nameEn": "Carina",
     "season": "冬季",
     "areaRank": 34,
-    "mainStars": ["Canopus", "Miaplacidus"],
-    "lines": [[1, 2]]
+    "mainStars": [
+      {
+        "name": "老人星",
+        "nameEn": "Canopus"
+      },
+      {
+        "name": "南船五",
+        "nameEn": "Miaplacidus"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ]
+    ],
+    "bestSeason": "冬季",
+    "lineVertices": [
+      [
+        [
+          6.3992,
+          -52.6957
+        ],
+        [
+          9.2246,
+          -69.7167
+        ]
+      ]
+    ]
   },
   {
     "id": "Eri",
@@ -257,8 +1686,35 @@
     "nameEn": "Eridanus",
     "season": "冬季",
     "areaRank": 6,
-    "mainStars": ["Achernar", "Cursa"],
-    "lines": [[1, 2]]
+    "mainStars": [
+      {
+        "name": "水委一",
+        "nameEn": "Achernar"
+      },
+      {
+        "name": "天苑一",
+        "nameEn": "Cursa"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ]
+    ],
+    "bestSeason": "冬季",
+    "lineVertices": [
+      [
+        [
+          1.6286,
+          -57.2367
+        ],
+        [
+          5.2013,
+          -5.0903
+        ]
+      ]
+    ]
   },
   {
     "id": "Cet",
@@ -266,7 +1722,34 @@
     "nameEn": "Cetus",
     "season": "秋季",
     "areaRank": 4,
-    "mainStars": ["Menkar", "Diphda"],
-    "lines": [[1, 2]]
+    "mainStars": [
+      {
+        "name": "天囷一",
+        "nameEn": "Menkar"
+      },
+      {
+        "name": "土司空",
+        "nameEn": "Diphda"
+      }
+    ],
+    "lines": [
+      [
+        1,
+        2
+      ]
+    ],
+    "bestSeason": "秋季",
+    "lineVertices": [
+      [
+        [
+          3.2522,
+          4.0883
+        ],
+        [
+          0.4265,
+          -17.9867
+        ]
+      ]
+    ]
   }
 ]
