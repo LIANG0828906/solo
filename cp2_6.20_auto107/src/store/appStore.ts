@@ -32,6 +32,15 @@ export interface MagnifierState {
   y: number
 }
 
+export interface SelectedCharacterData {
+  index: number
+  canvasSide: 'left' | 'right'
+  screenRect: { x: number; y: number; width: number; height: number }
+  char: string
+}
+
+export type SelectedCharacter = SelectedCharacterData | null
+
 export interface UIState {
   panelOpen: boolean
   exportModalOpen: boolean
@@ -54,6 +63,7 @@ interface AppState {
   comparisonSample: ComparisonSample | null
   dividerPosition: number
   magnifier: MagnifierState
+  selectedCharacter: SelectedCharacter
   uiState: UIState
   savedStyles: SavedStyle[]
 
@@ -64,6 +74,8 @@ interface AppState {
   setComparisonSample: (sample: ComparisonSample | null) => void
   setDividerPosition: (position: number) => void
   setMagnifier: (magnifier: Partial<MagnifierState>) => void
+  setSelectedCharacter: (selected: SelectedCharacter) => void
+  clearSelection: () => void
   setUIState: (state: Partial<UIState>) => void
   saveCurrentStyle: (name: string) => void
   deleteSavedStyle: (id: string) => void
@@ -94,6 +106,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     x: 0,
     y: 0,
   },
+  selectedCharacter: null,
   uiState: {
     panelOpen: true,
     exportModalOpen: false,
@@ -110,6 +123,12 @@ export const useAppStore = create<AppState>((set, get) => ({
   setDividerPosition: (position) => set({ dividerPosition: Math.max(10, Math.min(90, position)) }),
   setMagnifier: (magnifier) =>
     set((state) => ({ magnifier: { ...state.magnifier, ...magnifier } })),
+  setSelectedCharacter: (selected) => set({ selectedCharacter: selected }),
+  clearSelection: () =>
+    set({
+      selectedCharacter: null,
+      magnifier: { visible: false, x: 0, y: 0 },
+    }),
   setUIState: (state) =>
     set((prev) => ({ uiState: { ...prev.uiState, ...state } })),
   saveCurrentStyle: (name) => {
@@ -136,5 +155,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       background: defaultBackground,
       comparisonSample: null,
       magnifier: { visible: false, x: 0, y: 0 },
+      selectedCharacter: null,
     }),
 }))

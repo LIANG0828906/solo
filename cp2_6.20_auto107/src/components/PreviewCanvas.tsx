@@ -1,7 +1,15 @@
-import { useRef, useEffect, useState, useCallback } from 'react'
+import { useRef, useEffect, useState, useCallback, useMemo } from 'react'
 import { useAppStore } from '../store/appStore'
 import { generateHandwriting, type GeneratedResult } from '../modules/handwritingGenerator'
-import { renderCanvas, drawMagnifier } from '../modules/canvasRenderer'
+import {
+  renderCanvas,
+  drawMagnifier,
+  getCanvasTransform,
+  findCharacterAtPoint,
+  getCharacterScreenRect,
+  drawCharacterHighlight,
+  type CanvasTransform,
+} from '../modules/canvasRenderer'
 
 interface PreviewCanvasProps {}
 
@@ -23,8 +31,11 @@ export default function PreviewCanvas({}: PreviewCanvasProps) {
     comparisonSample,
     dividerPosition,
     magnifier,
+    selectedCharacter,
     setDividerPosition,
     setMagnifier,
+    setSelectedCharacter,
+    clearSelection,
   } = useAppStore()
 
   const [generatedResult, setGeneratedResult] = useState<GeneratedResult | null>(null)
@@ -145,7 +156,7 @@ export default function PreviewCanvas({}: PreviewCanvasProps) {
       }
 
       const overlay = overlayCanvasRef.current
-      if (overlay && magnifier.visible) {
+      if (overlay) {
         const ctx = overlay.getContext('2d')
         if (ctx) {
           ctx.setTransform(1, 0, 0, 1, 0, 0)
@@ -153,19 +164,23 @@ export default function PreviewCanvas({}: PreviewCanvasProps) {
           ctx.scale(dpr, dpr)
           ctx.clearRect(0, 0, rect.width, rect.height)
 
-          const sourceCanvas = magnifier.x < leftWidth + 3 ? leftCanvas : rightCanvas
-          if (sourceCanvas) {
-            let sourceX = magnifier.x
-            if (magnifier.x >= leftWidth + 6) {
-              sourceX = magnifier.x - (leftWidth + 6)
+          if (selectedCharacter) {
+            let highlightRect = { ...selectedCharacter.screenRect }
+            if (selectedCharacter.canvasSide === 'right') {
+              highlightRect = {
+                ...highlightRect,
+                x: highlightRect.x + leftWidth + 6,
+              }
             }
-            drawMagnifier(sourceCanvas, ctx, magnifier.x, magnifier.y, 60, 2)
+            drawCharacterHighlight(ctx, highlightRect)
           }
-        }
-      } else if (overlay) {
-        const ctx = overlay.getContext('2d')
-        if (ctx) {
-          ctx.clearRect(0, 0, overlay.width, overlay.height)
+
+          if (magnifier.visible) {
+            const sourceCanvas = magnifier.x < leftWidth + 3 ? leftCanvas : rightCanvas
+            if (sourceCanvas) {
+              drawMagnifier(sourceCanvas, ctx, magnifier.x, magnifier.y, 60, 2)
+            }
+          }
         }
       }
     }
@@ -264,22 +279,57 @@ export default function PreviewCanvas({}: PreviewCanvasProps) {
   }, [isDragging, setDividerPosition])
 
   const handleCanvasClick = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const y = e.clientY - rect.top
+    const container = containerRef.current
+    if (!container) return
 
-    if (magnifier.visible) {
-      setMagnifier({ visible: false, x: 0, y: 0 })
-    } else {
+    const containerRect = container.getBoundingClientRect()
+    const x = e.clientX - containerRect.left
+    const y = e.clientY - containerRect.top
+    const rect = container.getBoundingClientRect()
+    const leftWidth = (rect.width * dividerPosition) / 100 - 3
+
+    const isLeftSide = x < leftWidth + 3
+    const canvasSide: 'left' | 'right' = isLeftSide ? 'left' : 'right'
+    const result = isLeftSide ? generatedResult : comparisonResult || generatedResult
+    const canvasElement = isLeftSide ? leftCanvasRef.current : rightCanvasRef.current
+
+    if (!result || !canvasElement) {
+      clearSelection()
+      return
+    }
+
+    const adjustedX = isLeftSide ? x : x - (leftWidth + 6)
+    const canvasRect = canvasElement.getBoundingClientRect()
+    const transform = getCanvasTransform(canvasRect.width, canvasRect.height, result)
+    const hit = findCharacterAtPoint(adjustedX, y, result, transform)
+
+    if (hit) {
+      const screenRect = getCharacterScreenRect(hit.character, transform)
+      setSelectedCharacter({
+        index: hit.index,
+        canvasSide,
+        screenRect: {
+          x: isLeftSide ? screenRect.x : screenRect.x,
+          y: screenRect.y,
+          width: screenRect.width,
+          height: screenRect.height,
+        },
+        char: hit.character.char,
+      })
       setMagnifier({ visible: true, x, y })
+    } else {
+      clearSelection()
     }
   }
 
   const handleCanvasMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
     if (magnifier.visible) {
-      const rect = e.currentTarget.getBoundingClientRect()
-      const x = e.clientX - rect.left
-      const y = e.clientY - rect.top
+      const container = containerRef.current
+      if (!container) return
+
+      const containerRect = container.getBoundingClientRect()
+      const x = e.clientX - containerRect.left
+      const y = e.clientY - containerRect.top
       setMagnifier({ visible: true, x, y })
     }
   }

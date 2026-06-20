@@ -1,6 +1,14 @@
 import type { BackgroundTexture, StyleParams } from '../store/appStore'
 import type { CharacterPath, GeneratedResult, StrokePoint } from './handwritingGenerator'
 
+export interface CanvasTransform {
+  scale: number
+  offsetX: number
+  offsetY: number
+  width: number
+  height: number
+}
+
 export interface RenderOptions {
   canvas: HTMLCanvasElement
   result: GeneratedResult
@@ -226,6 +234,108 @@ function drawSystemFont(
     x += metrics.width + 4
   }
 
+  ctx.restore()
+}
+
+export function getCanvasTransform(
+  canvasWidth: number,
+  canvasHeight: number,
+  result: GeneratedResult
+): CanvasTransform {
+  const width = canvasWidth
+  const height = canvasHeight
+  const scaleX = (width - 80) / Math.max(result.totalWidth, 1)
+  const scaleY = (height - 80) / Math.max(result.totalHeight, 1)
+  const scale = Math.min(scaleX, scaleY, 1.5)
+  const offsetX = (width - result.totalWidth * scale) / 2
+  const offsetY = (height - result.totalHeight * scale) / 2
+  return { scale, offsetX, offsetY, width, height }
+}
+
+export function screenToCanvas(
+  screenX: number,
+  screenY: number,
+  transform: CanvasTransform
+): { x: number; y: number } {
+  return {
+    x: (screenX - transform.offsetX) / transform.scale,
+    y: (screenY - transform.offsetY) / transform.scale,
+  }
+}
+
+export function getCharacterScreenRect(
+  character: CharacterPath,
+  transform: CanvasTransform,
+  padding: number = 6
+): { x: number; y: number; width: number; height: number } {
+  const bx = character.boundingBox.x
+  const by = character.boundingBox.y
+  const bw = character.boundingBox.width
+  const bh = character.boundingBox.height
+
+  return {
+    x: bx * transform.scale + transform.offsetX - padding,
+    y: by * transform.scale + transform.offsetY - padding,
+    width: bw * transform.scale + padding * 2,
+    height: bh * transform.scale + padding * 2,
+  }
+}
+
+export function findCharacterAtPoint(
+  x: number,
+  y: number,
+  result: GeneratedResult,
+  transform: CanvasTransform
+): { index: number; character: CharacterPath } | null {
+  const canvasPoint = screenToCanvas(x, y, transform)
+  const hitPadding = 10
+
+  for (let i = 0; i < result.characters.length; i++) {
+    const char = result.characters[i]
+    const bx = char.boundingBox.x
+    const by = char.boundingBox.y
+    const bw = char.boundingBox.width
+    const bh = char.boundingBox.height
+
+    if (
+      canvasPoint.x >= bx - hitPadding &&
+      canvasPoint.x <= bx + bw + hitPadding &&
+      canvasPoint.y >= by - hitPadding &&
+      canvasPoint.y <= by + bh + hitPadding
+    ) {
+      return { index: i, character: char }
+    }
+  }
+
+  return null
+}
+
+export function drawCharacterHighlight(
+  ctx: CanvasRenderingContext2D,
+  rect: { x: number; y: number; width: number; height: number }
+) {
+  ctx.save()
+  ctx.fillStyle = 'rgba(255, 235, 130, 0.3)'
+  ctx.strokeStyle = 'rgba(200, 170, 50, 0.6)'
+  ctx.lineWidth = 2
+
+  const radius = 6
+  const { x, y, width, height } = rect
+
+  ctx.beginPath()
+  ctx.moveTo(x + radius, y)
+  ctx.lineTo(x + width - radius, y)
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius)
+  ctx.lineTo(x + width, y + height - radius)
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height)
+  ctx.lineTo(x + radius, y + height)
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius)
+  ctx.lineTo(x, y + radius)
+  ctx.quadraticCurveTo(x, y, x + radius, y)
+  ctx.closePath()
+
+  ctx.fill()
+  ctx.stroke()
   ctx.restore()
 }
 
