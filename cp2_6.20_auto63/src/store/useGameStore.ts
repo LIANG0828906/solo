@@ -52,6 +52,7 @@ interface GameState {
   nodes: EnergyNode[];
   runes: MatrixRune[];
   currentRuneIndex: number;
+  matrixCorrectSequence: number[];
   collectedCount: number;
   totalCount: number;
   levelName: string;
@@ -77,7 +78,8 @@ interface GameState {
   setNodeError: (nodeId: string) => void;
   clearNodeError: (nodeId: string) => void;
   showVoidRift: () => void;
-  initMatrix: () => void;
+  initMatrix: (runes: MatrixRune[], correctSequence: number[]) => void;
+  setMatrixCorrectSequence: (sequence: number[]) => void;
   activateRune: (runeId: number, correct: boolean) => void;
   setRuneError: (runeId: number) => void;
   clearRuneError: (runeId: number) => void;

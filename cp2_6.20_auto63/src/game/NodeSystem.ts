@@ -1,8 +1,7 @@
 import { useGameStore, type Fragment, type EnergyNode } from '@/store/useGameStore';
 import { SceneManager, type NodeObject } from './SceneManager';
 import { playMatchSuccess, playMatchFail } from '@/utils/audio';
-
-const MATCH_DISTANCE_THRESHOLD = 2.0;
+import { MATCH_DISTANCE_THRESHOLD, ANIMATION_SMOOTHNESS } from '@/utils/config';
 
 export class NodeSystem {
   private sceneManager: SceneManager;
@@ -17,7 +16,7 @@ export class NodeSystem {
     this.sceneManager = sceneManager;
   }
 
-  public handleDragStart(fragmentId: string) {
+  public handleDragStart(fragmentId: string): boolean {
     const store = useGameStore.getState();
     const fragment = store.fragments.find((f) => f.id === fragmentId);
     if (!fragment || fragment.isMatched) return false;
@@ -30,7 +29,7 @@ export class NodeSystem {
     clientX: number,
     clientY: number,
     domRect: DOMRect
-  ) {
+  ): void {
     const store = useGameStore.getState();
     if (store.draggingFragmentId !== fragmentId) return;
 
@@ -42,7 +41,7 @@ export class NodeSystem {
     store.addTrailPoint(worldPos, fragment.elementColor);
   }
 
-  public handleDragEnd(fragmentId: string) {
+  public handleDragEnd(fragmentId: string): void {
     const store = useGameStore.getState();
     if (store.draggingFragmentId !== fragmentId) {
       store.endDrag(fragmentId, false);
@@ -115,13 +114,13 @@ export class NodeSystem {
   ): boolean {
     if (!node) return false;
     if (node.data.isLit) return false;
-    if (distance > MATCH_DISTANCE_THRESHOLD) return false;
+    if (distance > MATCH_DISTANCE_THRESHOLD()) return false;
     if (fragment.elementColor !== node.data.acceptElement) return false;
     if (fragment.matchedNodeId !== node.data.id) return false;
     return true;
   }
 
-  private triggerMatchSuccess(fragment: Fragment, node: NodeObject) {
+  private triggerMatchSuccess(fragment: Fragment, node: NodeObject): void {
     const store = useGameStore.getState();
 
     playMatchSuccess();
@@ -145,7 +144,7 @@ export class NodeSystem {
     }, 400);
   }
 
-  private triggerMatchFail(fragment: Fragment, nearestNode: NodeObject | null) {
+  private triggerMatchFail(fragment: Fragment, nearestNode: NodeObject | null): void {
     const store = useGameStore.getState();
 
     playMatchFail();
@@ -169,7 +168,7 @@ export class NodeSystem {
     }
   }
 
-  private triggerVoidRift() {
+  private triggerVoidRift(): void {
     const store = useGameStore.getState();
     store.showVoidRift();
 
@@ -178,12 +177,14 @@ export class NodeSystem {
     }, 1500);
   }
 
-  public tick(dt: number) {
+  public tick(dt: number): void {
     const store = useGameStore.getState();
     store.cullTrailPoints();
 
+    const snapSpeed = 2 + ANIMATION_SMOOTHNESS() * 4;
+
     this.snapAnimations.forEach((anim, id) => {
-      anim.progress += dt * 3;
+      anim.progress += dt * snapSpeed;
       if (anim.progress >= 1) {
         store.updateFragmentPosition(id, anim.to);
         this.sceneManager.updateFragmentPosition(id, anim.to);
@@ -232,7 +233,7 @@ export class NodeSystem {
     return time / 0.5;
   }
 
-  public dispose() {
+  public dispose(): void {
     this.snapAnimations.clear();
     this.errorFlashTimers.clear();
     this.burstTimers.clear();
