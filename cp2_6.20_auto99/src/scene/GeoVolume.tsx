@@ -44,12 +44,18 @@ const hexToColor = (hex: string): THREE.Color => {
 
 export function GeoVolume({ onVoxelClick }: GeoVolumeProps) {
   const layerRefs = useRef<Map<string, THREE.InstancedMesh>>(new Map());
+  const edgeRefs = useRef<Map<string, THREE.InstancedMesh>>(new Map());
   const { geoData, gridSize, colorMode, sliceX, sliceY, sliceZ } = useGeoStore();
   const [hoveredInfo, setHoveredInfo] = useState<{ layerKey: string; index: number } | null>(null);
   const colorScale = getColorScale(colorMode);
 
   const dummy = useMemo(() => new THREE.Object3D(), []);
   const tempColor = useMemo(() => new THREE.Color(), []);
+
+  const edgeGeometry = useMemo(() => {
+    const box = new THREE.BoxGeometry(0.94, 0.94, 0.94);
+    return new THREE.EdgesGeometry(box);
+  }, []);
 
   const layeredVoxels = useMemo(() => {
     const layers = new Map<string, VoxelData[]>();
@@ -73,7 +79,7 @@ export function GeoVolume({ onVoxelClick }: GeoVolumeProps) {
           const xVisible = sliceX === 0 || x <= sliceIdxX;
           const yVisible = sliceY === 0 || y <= sliceIdxY;
           const zVisible = sliceZ === 0 || z <= sliceIdxZ;
-          
+
           if (!xVisible || !yVisible || !zVisible) continue;
 
           const rockType = getRockType(density);
@@ -167,12 +173,32 @@ export function GeoVolume({ onVoxelClick }: GeoVolumeProps) {
       if (mesh.instanceColor) {
         mesh.instanceColor.needsUpdate = true;
       }
+
+      const edgeMesh = edgeRefs.current.get(key);
+      if (edgeMesh) {
+        edgeMesh.count = voxels.length;
+        for (let i = 0; i < voxels.length; i++) {
+          const voxel = voxels[i];
+          dummy.position.set(voxel.position.x, voxel.position.y, voxel.position.z);
+          dummy.updateMatrix();
+          edgeMesh.setMatrixAt(i, dummy.matrix);
+        }
+        edgeMesh.instanceMatrix.needsUpdate = true;
+      }
     });
   }, [layerData, colorScale, dummy, tempColor]);
 
   useFrame(({ clock }) => {
+    layerData.forEach(({ key, depthLayer }) => {
+      const mesh = layerRefs.current.get(key);
+      if (mesh && mesh.material) {
+        (mesh.material as THREE.MeshStandardMaterial).emissiveIntensity =
+          0.08 + Math.sin(clock.elapsedTime * 1.2 + depthLayer * 0.8) * 0.06;
+      }
+    });
+
     if (!hoveredInfo) return;
-    
+
     const { layerKey, index } = hoveredInfo;
     const mesh = layerRefs.current.get(layerKey);
     if (!mesh) return;
@@ -197,7 +223,7 @@ export function GeoVolume({ onVoxelClick }: GeoVolumeProps) {
 
   const handlePointerOut = (layerKey: string) => (e: any) => {
     e.stopPropagation();
-    
+
     const mesh = layerRefs.current.get(layerKey);
     if (mesh && e.instanceId !== undefined) {
       const layer = layerData.find(l => l.key === layerKey);
@@ -220,7 +246,7 @@ export function GeoVolume({ onVoxelClick }: GeoVolumeProps) {
     const idx = e.instanceId;
     const layer = layerData.find(l => l.key === layerKey);
     if (!layer || idx === undefined || idx >= layer.voxels.length) return;
-    
+
     const voxel = layer.voxels[idx];
     onVoxelClick?.(voxel.position, voxel.density);
   };
@@ -230,6 +256,14 @@ export function GeoVolume({ onVoxelClick }: GeoVolumeProps) {
       layerRefs.current.set(key, mesh);
     } else {
       layerRefs.current.delete(key);
+    }
+  };
+
+  const setEdgeRef = (key: string) => (mesh: THREE.InstancedMesh | null) => {
+    if (mesh) {
+      edgeRefs.current.set(key, mesh);
+    } else {
+      edgeRefs.current.delete(key);
     }
   };
 
@@ -247,13 +281,26 @@ export function GeoVolume({ onVoxelClick }: GeoVolumeProps) {
           onClick={handleClick(key)}
         >
           <boxGeometry args={[0.92, 0.92, 0.92]} />
-          <meshStandardMaterial 
-            transparent 
+          <meshStandardMaterial
+            transparent
             opacity={opacity}
             roughness={roughness}
             metalness={0.15}
             emissive={baseColor}
             emissiveIntensity={0.08}
+          />
+        </instancedMesh>
+      ))}
+      {layerData.map(({ key, voxels, baseColor }) => (
+        <instancedMesh
+          key={`edge-${key}`}
+          ref={setEdgeRef(key)}
+          args={[edgeGeometry, undefined, voxels.length]}
+        >
+          <lineBasicMaterial
+            color={baseColor}
+            transparent
+            opacity={0.15}
           />
         </instancedMesh>
       ))}

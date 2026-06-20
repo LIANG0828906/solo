@@ -98,9 +98,19 @@ function SceneContent({ onVoxelClick, controlsRef }: SceneContentProps) {
 
   return (
     <>
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[10, 15, 10]} intensity={0.8} castShadow />
-      <directionalLight position={[-10, -5, -10]} intensity={0.3} />
+      <ambientLight intensity={0.35} />
+      <hemisphereLight args={['#4a6cf7', '#1e2029', 0.25]} />
+      <directionalLight
+        position={[10, 15, 10]}
+        intensity={1.0}
+        color="#f0f4ff"
+        castShadow
+        shadow-mapSize-width={1024}
+        shadow-mapSize-height={1024}
+      />
+      <directionalLight position={[-8, -3, -10]} intensity={0.25} color="#8b9cf7" />
+      <pointLight position={[0, 8, 0]} intensity={0.3} color="#4ade80" distance={25} decay={2} />
+      <pointLight position={[-6, -4, 6]} intensity={0.15} color="#f59e0b" distance={20} decay={2} />
       
       <Stars radius={100} depth={50} count={2000} factor={4} saturation={0} fade speed={1} />
       

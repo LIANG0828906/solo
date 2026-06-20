@@ -12,6 +12,8 @@ export function CrossSection({ axis }: CrossSectionProps) {
   const planeRef = useRef<THREE.Mesh>(null);
   const edgesRef = useRef<THREE.LineSegments>(null);
   const gridRef = useRef<THREE.GridHelper | null>(null);
+  const glowRingRef = useRef<THREE.Mesh>(null);
+  const particlesRef = useRef<THREE.Points>(null);
   const { geoData, gridSize, sliceX, sliceY, sliceZ, colorMode, isDraggingSlice } = useGeoStore();
   const colorScale = getColorScale(colorMode);
   const [showGrid, setShowGrid] = useState(false);
@@ -28,13 +30,14 @@ export function CrossSection({ axis }: CrossSectionProps) {
     }
   }, [isThisDragging, sliceValue]);
 
-  const { position, size, visible, textureData } = useMemo(() => {
+  const { position, size, visible, textureData, avgDensity } = useMemo(() => {
     if (!geoData || sliceValue === 0) {
       return { 
         position: { x: 0, y: 0, z: 0 }, 
         size: [1, 1] as [number, number], 
         visible: false,
-        textureData: null as { densities: number[][]; width: number; height: number } | null
+        textureData: null as { densities: number[][]; width: number; height: number } | null,
+        avgDensity: 0
       };
     }
 
@@ -42,7 +45,7 @@ export function CrossSection({ axis }: CrossSectionProps) {
     const halfY = gridSize.y / 2;
     const halfZ = gridSize.z / 2;
 
-    const { densities } = getDensityAtSlice(geoData, axis, sliceValue, gridSize);
+    const { densities, avgDensity: avg } = getDensityAtSlice(geoData, axis, sliceValue, gridSize);
 
     let pos = { x: 0, y: 0, z: 0 };
     let planeSize: [number, number] = [1, 1];
@@ -69,7 +72,8 @@ export function CrossSection({ axis }: CrossSectionProps) {
       position: pos, 
       size: planeSize, 
       visible: true,
-      textureData: texData
+      textureData: texData,
+      avgDensity: avg
     };
   }, [geoData, gridSize, sliceValue, axis]);
 
@@ -109,14 +113,54 @@ export function CrossSection({ axis }: CrossSectionProps) {
     return tex;
   }, [textureData, colorScale]);
 
+  const particlePositions = useMemo(() => {
+    if (!textureData || !visible) return null;
+    const { densities, width, height } = textureData;
+    const points: number[] = [];
+    const step = 2;
+
+    for (let y = 0; y < height; y += step) {
+      for (let x = 0; x < width; x += step) {
+        const d1 = densities[x][height - 1 - y] || 0;
+        const dRight = x + 1 < width ? (densities[x + 1][height - 1 - y] || 0) : d1;
+        const dUp = y + 1 < height ? (densities[x][height - 1 - y - 1] || 0) : d1;
+
+        if (Math.abs(d1 - dRight) > 0.08 || Math.abs(d1 - dUp) > 0.08) {
+          const px = (x / width - 0.5) * size[0];
+          const py = (0.5 - y / height) * size[1];
+          const pz = (Math.random() - 0.5) * 0.3;
+          points.push(px, py, pz);
+        }
+      }
+    }
+
+    if (points.length === 0) return null;
+    return new Float32Array(points);
+  }, [textureData, visible, size]);
+
   useFrame(({ clock }) => {
     if (!edgesRef.current || !visible) return;
-    const pulse = 0.5 + Math.sin(clock.elapsedTime * 2) * 0.2;
-    (edgesRef.current.material as THREE.Material).opacity = pulse;
+    const t = clock.elapsedTime;
+
+    const edgePulse = 0.5 + Math.sin(t * 2) * 0.2;
+    (edgesRef.current.material as THREE.Material).opacity = edgePulse;
 
     if (gridRef.current) {
       const gridMat = gridRef.current.material as THREE.Material;
-      gridMat.opacity = showGrid ? 0.35 + Math.sin(clock.elapsedTime * 4) * 0.1 : 0;
+      gridMat.opacity = showGrid ? 0.35 + Math.sin(t * 4) * 0.1 : 0;
+    }
+
+    if (glowRingRef.current) {
+      const glowMat = glowRingRef.current.material as THREE.MeshBasicMaterial;
+      glowMat.opacity = 0.2 + Math.sin(t * 1.5) * 0.1;
+      const s = 1.0 + Math.sin(t * 2) * 0.01;
+      glowRingRef.current.scale.set(s, s, s);
+    }
+
+    if (particlesRef.current) {
+      const mat = particlesRef.current.material as THREE.PointsMaterial;
+      mat.opacity = 0.4 + Math.sin(t * 3) * 0.25;
+      mat.size = 0.08 + Math.sin(t * 2.5) * 0.03;
     }
   });
 
@@ -146,6 +190,18 @@ export function CrossSection({ axis }: CrossSectionProps) {
           map={texture || undefined}
         />
       </mesh>
+
+      <mesh ref={glowRingRef} position={[0, 0, -0.01]}>
+        <planeGeometry args={[size[0] + 0.4, size[1] + 0.4]} />
+        <meshBasicMaterial
+          color="#4ade80"
+          transparent
+          opacity={0.2}
+          side={THREE.DoubleSide}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </mesh>
       
       <lineSegments ref={edgesRef}>
         <edgesGeometry args={[new THREE.PlaneGeometry(size[0], size[1])]} />
@@ -158,6 +214,28 @@ export function CrossSection({ axis }: CrossSectionProps) {
           args={[gridParams.size, gridParams.divisions, '#4ade80', '#22c55e']}
           position={[0, 0.01, 0]}
         />
+      )}
+
+      {particlePositions && (
+        <points ref={particlesRef}>
+          <bufferGeometry>
+            <bufferAttribute
+              attach="attributes-position"
+              count={particlePositions.length / 3}
+              array={particlePositions}
+              itemSize={3}
+            />
+          </bufferGeometry>
+          <pointsMaterial
+            color="#86efac"
+            size={0.08}
+            transparent
+            opacity={0.6}
+            sizeAttenuation
+            blending={THREE.AdditiveBlending}
+            depthWrite={false}
+          />
+        </points>
       )}
     </group>
   );
