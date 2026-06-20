@@ -12,6 +12,7 @@ const CARD_CONFIGS = [
     unit: '步',
     color: '#00d4ff',
     path: '/detail/steps',
+    goalKey: 'target_steps' as const,
     getValue: (r: any) => r?.steps || 0
   },
   {
@@ -21,7 +22,9 @@ const CARD_CONFIGS = [
     unit: 'kg',
     color: '#ff6b35',
     path: '/detail/weight',
-    getValue: (r: any) => r?.weight || 0
+    goalKey: 'target_weight' as const,
+    getValue: (r: any) => r?.weight || 0,
+    invertProgress: true
   },
   {
     key: 'sleep_hours',
@@ -30,6 +33,7 @@ const CARD_CONFIGS = [
     unit: '小时',
     color: '#a855f7',
     path: '/detail/sleep_hours',
+    goalKey: 'target_sleep' as const,
     getValue: (r: any) => r?.sleep_hours || 0
   },
   {
@@ -39,6 +43,7 @@ const CARD_CONFIGS = [
     unit: '杯',
     color: '#22c55e',
     path: '/detail/water_cups',
+    goalKey: 'target_water' as const,
     getValue: (r: any) => r?.water_cups || 0
   }
 ]
@@ -46,7 +51,7 @@ const CARD_CONFIGS = [
 const Dashboard: React.FC = () => {
   const navigate = useNavigate()
   const { user } = useUserStore()
-  const { todayRecord, fetchToday, fetchWeek, fetchGoal } = useHealthStore()
+  const { todayRecord, goal, fetchToday, fetchWeek, fetchGoal } = useHealthStore()
 
   useEffect(() => {
     if (user) {
@@ -100,17 +105,30 @@ const Dashboard: React.FC = () => {
       </div>
 
       <div className="card-grid">
-        {CARD_CONFIGS.map((config) => (
-          <Card
-            key={config.key}
-            icon={config.icon}
-            label={config.label}
-            value={config.getValue(todayRecord)}
-            unit={config.unit}
-            color={config.color}
-            onClick={() => navigate(config.path)}
-          />
-        ))}
+        {CARD_CONFIGS.map((config) => {
+          const currentValue = config.getValue(todayRecord)
+          const targetValue = goal ? (goal as any)[config.goalKey] : 0
+          let progress = 0
+          if (targetValue > 0) {
+            if (config.invertProgress) {
+              progress = currentValue > 0 && currentValue <= targetValue ? 100 : Math.max(0, 100 - ((currentValue - targetValue) / targetValue) * 100)
+            } else {
+              progress = (currentValue / targetValue) * 100
+            }
+          }
+          return (
+            <Card
+              key={config.key}
+              icon={config.icon}
+              label={config.label}
+              value={currentValue}
+              unit={config.unit}
+              color={config.color}
+              progress={progress}
+              onClick={() => navigate(config.path)}
+            />
+          )
+        })}
       </div>
     </div>
   )

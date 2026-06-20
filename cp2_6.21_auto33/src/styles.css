@@ -280,11 +280,17 @@ body {
   cursor: pointer;
   transition: all 0.3s ease;
   cursor: pointer;
+  position: relative;
+  overflow: hidden;
 }
 
 .health-card:hover {
   transform: scale(1.02);
   filter: brightness(1.15);
+}
+
+.health-card:hover .card-progress-fill {
+  filter: brightness(1.3);
 }
 
 .card-icon {
@@ -308,6 +314,25 @@ body {
 .card-unit {
   color: #aaaaaa;
   font-size: 0.8rem;
+  margin-bottom: 16px;
+}
+
+.card-progress-track {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: rgba(255, 255, 255, 0.1);
+  border-bottom-left-radius: 20px;
+  border-bottom-right-radius: 20px;
+  overflow: hidden;
+}
+
+.card-progress-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.3s ease, filter 0.3s ease;
 }
 
 .encouragement-bar {

@@ -1,6 +1,6 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import Auth from './pages/Auth'
 import Dashboard from './pages/Dashboard'
 import Detail from './pages/Detail'
@@ -10,12 +10,28 @@ import '@fortawesome/fontawesome-free/css/all.min.css'
 import { useUserStore } from './store/userStore'
 import { useEffect } from 'react'
 
+const LogoutHandler: React.FC = () => {
+  const { logout } = useUserStore()
+  useEffect(() => {
+    logout()
+  }, [logout])
+  return <Navigate to="/login" replace />
+}
+
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { isAuthenticated, loadFromStorage } = useUserStore()
+  const location = useLocation()
 
   useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    if (params.get('logout') === '1') {
+      localStorage.removeItem('token')
+      localStorage.removeItem('user')
+      window.location.href = '/login'
+      return
+    }
     loadFromStorage()
-  }, [loadFromStorage])
+  }, [loadFromStorage, location.search])
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />
@@ -26,6 +42,7 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 const App = () => {
   return (
     <Routes>
+      <Route path="/logout" element={<LogoutHandler />} />
       <Route path="/login" element={<Auth />} />
       <Route path="/" element={
         <ProtectedRoute>
