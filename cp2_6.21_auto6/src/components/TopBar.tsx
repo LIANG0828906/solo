@@ -1,14 +1,10 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef } from 'react';
 import { useStore } from '../store/useStore';
 import { themes } from '../types';
 import type { ThemeType } from '../types';
 import audioEngine from '../audioEngine';
 
-interface TopBarProps {
-  onRecordToggle?: (recording: boolean) => void;
-}
-
-export function TopBar({ onRecordToggle }: TopBarProps) {
+export function TopBar() {
   const theme = useStore((state) => state.theme);
   const setTheme = useStore((state) => state.setTheme);
   const isPlaying = useStore((state) => state.isPlaying);
@@ -23,6 +19,8 @@ export function TopBar({ onRecordToggle }: TopBarProps) {
   const themeColors = themes[theme];
   const fileInputRef = useRef<HTMLInputElement>(null);
   const progressRef = useRef<HTMLDivElement>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const recordedChunksRef = useRef<Blob[]>([]);
 
   const themeList: { key: ThemeType; name: string; colors: string[] }[] = [
     { key: 'cyberpunk', name: '赛博朋克', colors: ['#ff00ff', '#00ffff', '#ffff00'] },
@@ -81,11 +79,69 @@ export function TopBar({ onRecordToggle }: TopBarProps) {
   };
 
   const handleRecord = () => {
-    const newRecording = !isRecording;
-    setRecording(newRecording);
-    if (onRecordToggle) {
-      onRecordToggle(newRecording);
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
     }
+  };
+
+  const startRecording = () => {
+    const canvas = document.querySelector('canvas');
+    if (!canvas) {
+      console.warn('No canvas found for recording');
+      return;
+    }
+
+    try {
+      const stream = canvas.captureStream(60);
+
+      let mimeType = 'video/webm;codecs=vp9';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'video/webm;codecs=vp8';
+        if (!MediaRecorder.isTypeSupported(mimeType)) {
+          mimeType = 'video/webm';
+        }
+      }
+
+      const mediaRecorder = new MediaRecorder(stream, { mimeType });
+      mediaRecorderRef.current = mediaRecorder;
+      recordedChunksRef.current = [];
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          recordedChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        if (recordedChunksRef.current.length === 0) return;
+        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `music-visualizer-${Date.now()}.webm`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        recordedChunksRef.current = [];
+      };
+
+      mediaRecorder.start(100);
+      setRecording(true);
+    } catch (err) {
+      console.error('Failed to start recording:', err);
+      setRecording(false);
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    mediaRecorderRef.current = null;
+    setRecording(false);
   };
 
   const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
@@ -279,7 +335,7 @@ export function TopBar({ onRecordToggle }: TopBarProps) {
                 border: theme === t.key ? '2px solid white' : '2px solid transparent',
                 background: `linear-gradient(135deg, ${t.colors[0]}, ${t.colors[1]}, ${t.colors[2]})`,
                 cursor: 'pointer',
-                transition: 'all 0.3s ease',
+                transition: 'all 0.6s ease',
                 padding: 0,
               }}
               onMouseEnter={(e) => {
@@ -309,7 +365,7 @@ export function TopBar({ onRecordToggle }: TopBarProps) {
             justifyContent: 'center',
             fontSize: '14px',
             transition: 'all 0.3s ease',
-            animation: isRecording ? 'pulse 1s infinite' : 'none',
+            animation: isRecording ? 'topbar-pulse 1s infinite' : 'none',
           }}
           onMouseEnter={(e) => {
             e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.6)';
@@ -323,7 +379,7 @@ export function TopBar({ onRecordToggle }: TopBarProps) {
       </div>
 
       <style>{`
-        @keyframes pulse {
+        @keyframes topbar-pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.5; }
         }

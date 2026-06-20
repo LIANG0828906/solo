@@ -1,5 +1,5 @@
 import { useRef, useMemo } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
+import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { useStore } from './store/useStore';
@@ -13,20 +13,32 @@ import type { SceneElement } from './types';
 
 function SceneLighting() {
   const lightRef = useRef<THREE.DirectionalLight>(null);
+  const pointLightRef = useRef<THREE.PointLight>(null);
   const theme = useStore((state) => state.theme);
-  const frequencyData = useStore((state) => state.frequencyData);
 
   useFrame((state) => {
+    const storeState = useStore.getState();
+    const frequencyData = storeState.frequencyData;
+    const currentTheme = storeState.theme;
+    const themeColors = themes[currentTheme];
+
     if (lightRef.current) {
-      const lowFreq = frequencyData.slice(0, Math.floor(frequencyData.length * 0.2));
-      const lowAvg = lowFreq.length > 0
-        ? lowFreq.reduce((a, b) => a + b, 0) / lowFreq.length
-        : 0;
+      const lowEnd = Math.floor(frequencyData.length * 0.2);
+      let lowSum = 0;
+      for (let i = 0; i < lowEnd; i++) {
+        lowSum += frequencyData[i];
+      }
+      const lowAvg = lowEnd > 0 ? lowSum / lowEnd : 0;
       const normalizedLow = lowAvg / 255;
 
       lightRef.current.intensity = 0.5 + normalizedLow * 0.3;
       lightRef.current.position.x = Math.sin(state.clock.elapsedTime * 0.5) * 2 + normalizedLow * 0.5;
       lightRef.current.position.y = 3 + Math.sin(state.clock.elapsedTime * 0.3) * 0.5;
+      lightRef.current.color.set(themeColors.lightColor);
+    }
+
+    if (pointLightRef.current) {
+      pointLightRef.current.color.set(themeColors.secondary);
     }
   });
 
@@ -42,12 +54,26 @@ function SceneLighting() {
         color={themeColors.lightColor}
       />
       <pointLight
+        ref={pointLightRef}
         position={[-5, 2, -5]}
         intensity={0.3}
         color={themeColors.secondary}
       />
     </>
   );
+}
+
+function SceneBackground() {
+  const { scene } = useThree();
+  const theme = useStore((state) => state.theme);
+
+  useFrame(() => {
+    const currentTheme = useStore.getState().theme;
+    const themeColors = themes[currentTheme];
+    scene.background = new THREE.Color(themeColors.bg);
+  });
+
+  return null;
 }
 
 function ElementsRenderer() {
@@ -85,6 +111,7 @@ function ElementsRenderer() {
 function SceneContent() {
   return (
     <>
+      <SceneBackground />
       <SceneLighting />
       <Starfield />
       <ElementsRenderer />
@@ -98,11 +125,7 @@ function SceneContent() {
   );
 }
 
-interface SceneManagerProps {
-  canvasRef?: React.Ref<HTMLCanvasElement>;
-}
-
-export function SceneManager({ canvasRef }: SceneManagerProps) {
+export function SceneManager() {
   const theme = useStore((state) => state.theme);
   const themeColors = themes[theme];
 
@@ -112,7 +135,6 @@ export function SceneManager({ canvasRef }: SceneManagerProps) {
 
   return (
     <Canvas
-      ref={canvasRef as any}
       camera={{ position: [0, 2, 8], fov: 60 }}
       gl={{ antialias: true, alpha: false, preserveDrawingBuffer: true }}
       onCreated={({ gl, scene }) => {

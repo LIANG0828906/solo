@@ -11,10 +11,9 @@ interface ParticleGalaxyProps {
 
 export function ParticleGalaxy({ element }: ParticleGalaxyProps) {
   const pointsRef = useRef<THREE.Points>(null);
-  const theme = useStore((state) => state.theme);
-  const frequencyData = useStore((state) => state.frequencyData);
   const isSelected = useStore((state) => state.selectedElementId === element.id);
   const selectElement = useStore((state) => state.selectElement);
+  const theme = useStore((state) => state.theme);
 
   const particleCount = Math.min(element.particleCount || 1000, 3000);
   const sensitivity = element.sensitivity || 1;
@@ -43,31 +42,44 @@ export function ParticleGalaxy({ element }: ParticleGalaxyProps) {
     return { positions: pos, colors: col, sizes: siz };
   }, [particleCount]);
 
-  useFrame((state) => {
+  const originalPositions = useMemo(() => {
+    return new Float32Array(positions);
+  }, [positions]);
+
+  useFrame(() => {
     if (!pointsRef.current) return;
+
+    const storeState = useStore.getState();
+    const frequencyData = storeState.frequencyData;
+    const currentTheme = storeState.theme;
+    const themeColors = themes[currentTheme];
+    const primaryColor = new THREE.Color(themeColors.primary);
+    const secondaryColor = new THREE.Color(themeColors.secondary);
+    const accentColor = new THREE.Color(themeColors.accent);
+
+    const currentElement = storeState.elements.find((el) => el.id === element.id);
+    const currentSensitivity = currentElement?.sensitivity ?? sensitivity;
+    const currentScale = currentElement?.scale ?? element.scale;
+    const currentRotationSpeed = currentElement?.rotationSpeed ?? element.rotationSpeed;
 
     const geometry = pointsRef.current.geometry;
     const colorAttribute = geometry.attributes.color as THREE.BufferAttribute;
     const positionAttribute = geometry.attributes.position as THREE.BufferAttribute;
 
-    const themeColors = themes[theme];
-    const primaryColor = new THREE.Color(themeColors.primary);
-    const secondaryColor = new THREE.Color(themeColors.secondary);
-    const accentColor = new THREE.Color(themeColors.accent);
-
-    const midHighSum = frequencyData.slice(
-      Math.floor(frequencyData.length * 0.4),
-      Math.floor(frequencyData.length * 0.8)
-    );
-    const midHighAvg = midHighSum.length > 0
-      ? midHighSum.reduce((a, b) => a + b, 0) / midHighSum.length
-      : 0;
-    const normalizedMidHigh = (midHighAvg / 255) * sensitivity;
+    const midHighStart = Math.floor(frequencyData.length * 0.4);
+    const midHighEnd = Math.floor(frequencyData.length * 0.8);
+    let midHighSum = 0;
+    for (let i = midHighStart; i < midHighEnd; i++) {
+      midHighSum += frequencyData[i];
+    }
+    const midHighAvg = midHighEnd > midHighStart ? midHighSum / (midHighEnd - midHighStart) : 0;
+    const normalizedMidHigh = (midHighAvg / 255) * currentSensitivity;
 
     for (let i = 0; i < particleCount; i++) {
       const freqIndex = Math.floor((i / particleCount) * frequencyData.length * 0.5) + Math.floor(frequencyData.length * 0.3);
-      const value = frequencyData[Math.min(freqIndex, frequencyData.length - 1)] || 0;
-      const normalizedValue = (value / 255) * sensitivity;
+      const clampedIndex = Math.min(freqIndex, frequencyData.length - 1);
+      const value = frequencyData[clampedIndex] || 0;
+      const normalizedValue = (value / 255) * currentSensitivity;
 
       const colorMix = Math.min(normalizedValue * 2, 1);
       const baseColor = primaryColor.clone().lerp(secondaryColor, (i / particleCount) * 0.5 + 0.25);
@@ -76,29 +88,26 @@ export function ParticleGalaxy({ element }: ParticleGalaxyProps) {
       colorAttribute.setXYZ(i, finalColor.r, finalColor.g, finalColor.b);
 
       const pulse = 1 + normalizedValue * 0.3;
-      const x = positionAttribute.getX(i);
-      const y = positionAttribute.getY(i);
-      const z = positionAttribute.getZ(i);
-      const dist = Math.sqrt(x * x + y * y + z * z) || 1;
-      positionAttribute.setXYZ(
-        i,
-        (x / dist) * dist * pulse,
-        (y / dist) * dist * pulse,
-        (z / dist) * dist * pulse
-      );
+      const ox = originalPositions[i * 3];
+      const oy = originalPositions[i * 3 + 1];
+      const oz = originalPositions[i * 3 + 2];
+      positionAttribute.setXYZ(i, ox * pulse, oy * pulse, oz * pulse);
     }
 
     colorAttribute.needsUpdate = true;
     positionAttribute.needsUpdate = true;
 
-    const rotationSpeed = element.rotationSpeed * (0.5 + normalizedMidHigh) * 0.01;
+    const rotationSpeed = currentRotationSpeed * (0.5 + normalizedMidHigh) * 0.01;
     pointsRef.current.rotation.y += rotationSpeed;
+    pointsRef.current.scale.setScalar(currentScale);
   });
 
   const handleClick = (e: any) => {
     e.stopPropagation();
     selectElement(element.id);
   };
+
+  const themeColors = themes[theme];
 
   return (
     <group position={element.position} rotation={element.rotation as any}>
@@ -141,7 +150,7 @@ export function ParticleGalaxy({ element }: ParticleGalaxyProps) {
         <mesh scale={2.5}>
           <ringGeometry args={[1.5, 1.55, 64]} />
           <meshBasicMaterial
-            color={themes[theme].accent}
+            color={themeColors.accent}
             transparent
             opacity={0.6}
             side={THREE.DoubleSide}

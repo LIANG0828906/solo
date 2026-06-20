@@ -12,18 +12,12 @@ interface BeatBarsProps {
 export function BeatBars({ element }: BeatBarsProps) {
   const meshRef = useRef<THREE.InstancedMesh>(null);
   const dummy = useMemo(() => new THREE.Object3D(), []);
-  const theme = useStore((state) => state.theme);
-  const frequencyData = useStore((state) => state.frequencyData);
   const isSelected = useStore((state) => state.selectedElementId === element.id);
   const selectElement = useStore((state) => state.selectElement);
+  const theme = useStore((state) => state.theme);
 
   const barCount = element.barCount || 32;
   const sensitivity = element.sensitivity || 1;
-
-  const colors = useMemo(() => {
-    const colorArray = new Float32Array(barCount * 3);
-    return colorArray;
-  }, [barCount]);
 
   const positions = useMemo(() => {
     const pos: [number, number, number][] = [];
@@ -35,28 +29,36 @@ export function BeatBars({ element }: BeatBarsProps) {
     return pos;
   }, [barCount]);
 
-  useFrame((state) => {
+  useFrame(() => {
     if (!meshRef.current) return;
 
-    const themeColors = themes[theme];
+    const storeState = useStore.getState();
+    const frequencyData = storeState.frequencyData;
+    const currentTheme = storeState.theme;
+    const themeColors = themes[currentTheme];
     const primaryColor = new THREE.Color(themeColors.primary);
     const secondaryColor = new THREE.Color(themeColors.secondary);
+
+    const currentElement = storeState.elements.find((el) => el.id === element.id);
+    const currentSensitivity = currentElement?.sensitivity ?? sensitivity;
+    const currentScale = currentElement?.scale ?? element.scale;
+    const currentRotationSpeed = currentElement?.rotationSpeed ?? element.rotationSpeed;
 
     for (let i = 0; i < barCount; i++) {
       const freqIndex = Math.floor((i / barCount) * frequencyData.length * 0.3);
       const value = frequencyData[freqIndex] || 0;
-      const normalizedValue = (value / 255) * sensitivity;
+      const normalizedValue = (value / 255) * currentSensitivity;
       const height = 0.5 + normalizedValue * 1.5;
 
       dummy.position.set(
-        positions[i][0] * element.scale,
-        (height / 2) * element.scale,
-        positions[i][2] * element.scale
+        positions[i][0] * currentScale,
+        (height / 2) * currentScale,
+        positions[i][2] * currentScale
       );
       dummy.scale.set(
-        0.2 * element.scale,
-        height * element.scale,
-        0.2 * element.scale
+        0.2 * currentScale,
+        height * currentScale,
+        0.2 * currentScale
       );
 
       const colorMix = Math.min(normalizedValue * 1.5, 1);
@@ -72,15 +74,21 @@ export function BeatBars({ element }: BeatBarsProps) {
       meshRef.current.instanceColor.needsUpdate = true;
     }
 
-    if (element.rotationSpeed) {
-      meshRef.current.rotation.y += element.rotationSpeed * 0.01;
+    if (currentRotationSpeed) {
+      meshRef.current.rotation.y += currentRotationSpeed * 0.01;
     }
+
+    const material = meshRef.current.material as THREE.MeshStandardMaterial;
+    material.emissive.set(themeColors.primary);
+    material.emissiveIntensity = isSelected ? 0.5 : 0.3;
   });
 
   const handleClick = (e: any) => {
     e.stopPropagation();
     selectElement(element.id);
   };
+
+  const themeColors = themes[theme];
 
   return (
     <group position={element.position} rotation={element.rotation as any}>
@@ -92,8 +100,8 @@ export function BeatBars({ element }: BeatBarsProps) {
       >
         <boxGeometry args={[1, 1, 1]} />
         <meshStandardMaterial
-          emissive={themes[theme].primary}
-          emissiveIntensity={isSelected ? 0.5 : 0.3}
+          emissive={themeColors.primary}
+          emissiveIntensity={0.3}
           roughness={0.4}
           toneMapped={false}
         />
@@ -102,7 +110,7 @@ export function BeatBars({ element }: BeatBarsProps) {
         <mesh scale={element.scale * 1.1}>
           <ringGeometry args={[1.5, 1.6, 64]} />
           <meshBasicMaterial
-            color={themes[theme].accent}
+            color={themeColors.accent}
             transparent
             opacity={0.6}
             side={THREE.DoubleSide}

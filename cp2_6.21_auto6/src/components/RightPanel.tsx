@@ -391,6 +391,7 @@ export function RightPanel() {
           ⟳ 同步节拍
         </button>
       </div>
+      )}
     </div>
   );
 }

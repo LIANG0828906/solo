@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useStore } from './store/useStore';
 import audioEngine from './audioEngine';
 import { SceneManager } from './sceneManager';
@@ -16,14 +16,9 @@ function App() {
   const setCurrentTime = useStore((state) => state.setCurrentTime);
   const setPlaying = useStore((state) => state.setPlaying);
   const setFrequencyData = useStore((state) => state.setFrequencyData);
-  const setRecording = useStore((state) => state.setRecording);
   const addElement = useStore((state) => state.addElement);
 
-  const canvasContainerRef = useRef<HTMLDivElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const recordedChunksRef = useRef<Blob[]>([]);
-  const animationFrameRef = useRef<number | null>(null);
+  const [isDragOver, setIsDragOver] = useState(false);
 
   const themeColors = themes[theme];
 
@@ -46,76 +41,20 @@ function App() {
     };
   }, [setFrequencyData, setCurrentTime, setPlaying]);
 
-  useEffect(() => {
-    if (!isRecording) return;
-
-    const canvas = document.querySelector('canvas');
-    if (!canvas) {
-      console.warn('No canvas found for recording');
-      return;
-    }
-
-    canvasRef.current = canvas;
-
-    try {
-      const stream = canvas.captureStream(60);
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp9',
-      });
-
-      mediaRecorderRef.current = mediaRecorder;
-      recordedChunksRef.current = [];
-
-      mediaRecorder.ondataavailable = (event) => {
-        if (event.data.size > 0) {
-          recordedChunksRef.current.push(event.data);
-        }
-      };
-
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `music-visualizer-${Date.now()}.webm`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        recordedChunksRef.current = [];
-      };
-
-      mediaRecorder.start();
-    } catch (err) {
-      console.error('Failed to start recording:', err);
-      setRecording(false);
-    }
-
-    return () => {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop();
-      }
-    };
-  }, [isRecording, setRecording]);
-
-  const handleRecordToggle = (recording: boolean) => {
-    if (recording) {
-      setRecording(true);
-    } else {
-      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-        mediaRecorderRef.current.stop();
-      }
-      setRecording(false);
-    }
-  };
-
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
+    setIsDragOver(false);
     const elementType = e.dataTransfer.getData('elementType') as ElementType;
     if (elementType) {
       addElement(elementType);
@@ -137,12 +76,9 @@ function App() {
         position: 'relative',
       }}
     >
-      <TopBar onRecordToggle={handleRecordToggle} />
+      <TopBar />
 
       <div
-        ref={canvasContainerRef}
-        onDragOver={handleDragOver}
-        onDrop={handleDrop}
         style={{
           position: 'absolute',
           top: 0,
@@ -152,6 +88,42 @@ function App() {
         }}
       >
         <SceneManager />
+      </div>
+
+      <div
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          zIndex: 90,
+          pointerEvents: isDragOver ? 'auto' : 'none',
+          background: isDragOver ? `rgba(${themeColors.primary === '#ff00ff' ? '255,0,255' : themeColors.primary === '#0000ff' ? '0,0,255' : '255,51,0'},0.08)` : 'transparent',
+          transition: 'background 0.3s ease',
+        }}
+      >
+        {isDragOver && (
+          <div
+            style={{
+              position: 'absolute',
+              top: '50%',
+              left: '50%',
+              transform: 'translate(-50%, -50%)',
+              textAlign: 'center',
+              color: 'rgba(255, 255, 255, 0.7)',
+              pointerEvents: 'none',
+            }}
+          >
+            <div style={{ fontSize: '48px', marginBottom: '12px' }}>✨</div>
+            <div style={{ fontSize: '18px', fontWeight: 600 }}>
+              释放以添加元素
+            </div>
+          </div>
+        )}
       </div>
 
       <LeftPanel />
@@ -217,7 +189,7 @@ function App() {
             alignItems: 'center',
             gap: '8px',
             zIndex: 150,
-            animation: 'pulse 1s infinite',
+            animation: 'app-pulse 1s infinite',
           }}
         >
           <span style={{ fontSize: '10px' }}>●</span>
@@ -231,15 +203,15 @@ function App() {
           padding: 0;
           box-sizing: border-box;
         }
-        
+
         body {
           font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
           -webkit-font-smoothing: antialiased;
           -moz-osx-font-smoothing: grayscale;
           overflow: hidden;
         }
-        
-        @keyframes pulse {
+
+        @keyframes app-pulse {
           0%, 100% { opacity: 1; }
           50% { opacity: 0.6; }
         }

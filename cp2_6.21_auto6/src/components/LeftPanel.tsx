@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useStore } from '../store/useStore';
 import { themes } from '../types';
 import type { ElementType } from '../types';
@@ -13,10 +14,16 @@ export function LeftPanel() {
   const theme = useStore((state) => state.theme);
   const addElement = useStore((state) => state.addElement);
   const themeColors = themes[theme];
+  const [draggingType, setDraggingType] = useState<ElementType | null>(null);
 
   const handleDragStart = (e: React.DragEvent, type: ElementType) => {
     e.dataTransfer.setData('elementType', type);
     e.dataTransfer.effectAllowed = 'copy';
+    setDraggingType(type);
+  };
+
+  const handleDragEnd = () => {
+    setDraggingType(null);
   };
 
   const handleClick = (type: ElementType) => {
@@ -58,6 +65,7 @@ export function LeftPanel() {
             key={el.type}
             draggable
             onDragStart={(e) => handleDragStart(e, el.type)}
+            onDragEnd={handleDragEnd}
             onClick={() => handleClick(el.type)}
             style={{
               display: 'flex',
@@ -69,6 +77,7 @@ export function LeftPanel() {
               cursor: 'grab',
               transition: 'all 0.3s ease',
               border: '1px solid transparent',
+              opacity: draggingType === el.type ? 0.5 : 1,
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.transform = 'scale(1.02)';

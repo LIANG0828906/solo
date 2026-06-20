@@ -11,10 +11,9 @@ interface WaveSphereProps {
 
 export function WaveSphere({ element }: WaveSphereProps) {
   const meshRef = useRef<THREE.Mesh>(null);
-  const theme = useStore((state) => state.theme);
-  const frequencyData = useStore((state) => state.frequencyData);
   const isSelected = useStore((state) => state.selectedElementId === element.id);
   const selectElement = useStore((state) => state.selectElement);
+  const theme = useStore((state) => state.theme);
 
   const detail = Math.min(element.waveDetail || 32, 64);
   const sensitivity = element.sensitivity || 1;
@@ -29,11 +28,24 @@ export function WaveSphere({ element }: WaveSphereProps) {
   useFrame((state) => {
     if (!meshRef.current) return;
 
+    const storeState = useStore.getState();
+    const frequencyData = storeState.frequencyData;
+    const currentTheme = storeState.theme;
+    const themeColors = themes[currentTheme];
+
+    const currentElement = storeState.elements.find((el) => el.id === element.id);
+    const currentSensitivity = currentElement?.sensitivity ?? sensitivity;
+    const currentScale = currentElement?.scale ?? element.scale;
+    const currentRotationSpeed = currentElement?.rotationSpeed ?? element.rotationSpeed;
+
     const geometry = meshRef.current.geometry;
     const positionAttribute = geometry.attributes.position as THREE.BufferAttribute;
 
-    const totalVolume = frequencyData.reduce((a, b) => a + b, 0) / frequencyData.length;
-    const normalizedVolume = (totalVolume / 255) * sensitivity;
+    let totalVolume = 0;
+    for (let i = 0; i < frequencyData.length; i++) {
+      totalVolume += frequencyData[i];
+    }
+    const normalizedVolume = (totalVolume / frequencyData.length / 255) * currentSensitivity;
 
     const time = state.clock.elapsedTime;
 
@@ -50,7 +62,7 @@ export function WaveSphere({ element }: WaveSphereProps) {
 
       const freqIndex = Math.floor(((ny + 1) / 2) * frequencyData.length * 0.5);
       const freqValue = frequencyData[freqIndex] || 0;
-      const normalizedFreq = (freqValue / 255) * sensitivity;
+      const normalizedFreq = (freqValue / 255) * currentSensitivity;
 
       const waveNoise = Math.sin(nx * 5 + time * 2) * 0.1 +
         Math.cos(ny * 7 + time * 1.5) * 0.05 +
@@ -69,13 +81,16 @@ export function WaveSphere({ element }: WaveSphereProps) {
     positionAttribute.needsUpdate = true;
     geometry.computeVertexNormals();
 
-    if (element.rotationSpeed) {
-      meshRef.current.rotation.y += element.rotationSpeed * 0.01;
+    if (currentRotationSpeed) {
+      meshRef.current.rotation.y += currentRotationSpeed * 0.01;
     }
 
+    meshRef.current.scale.setScalar(currentScale);
+
     const material = meshRef.current.material as THREE.MeshStandardMaterial;
-    const emissiveIntensity = 0.3 + normalizedVolume * 0.3;
-    material.emissiveIntensity = emissiveIntensity;
+    material.color.set(themeColors.primary);
+    material.emissive.set(themeColors.secondary);
+    material.emissiveIntensity = 0.3 + normalizedVolume * 0.3;
   });
 
   const handleClick = (e: any) => {
