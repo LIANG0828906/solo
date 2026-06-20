@@ -9,6 +9,7 @@ import { useStore } from '@/store/useStore';
 interface IconProps {
   icon: DesktopIcon;
   isDragging?: boolean;
+  isDragOver?: boolean;
   showBadge?: boolean;
   badgeCount?: number;
   isMobile?: boolean;
@@ -43,7 +44,7 @@ const getIconComponent = (type: string, name: string) => {
   }
 };
 
-const Icon: React.FC<IconProps> = ({ icon, isDragging = false, showBadge = false, badgeCount = 0, isMobile = false }) => {
+const Icon: React.FC<IconProps> = ({ icon, isDragging = false, isDragOver = false, showBadge = false, badgeCount = 0, isMobile = false }) => {
   const clickTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const clickCountRef = useRef(0);
   
@@ -65,12 +66,17 @@ const Icon: React.FC<IconProps> = ({ icon, isDragging = false, showBadge = false
   const openFolder = useStore((state) => state.openFolder);
   const highlightIcon = useStore((state) => state.highlightIcon);
 
+  const baseTransform = CSS.Translate.toString(transform) || 'translate(0, 0)';
   const style: React.CSSProperties = isMobile ? {} : {
-    transform: CSS.Translate.toString(transform),
+    transform: `${baseTransform} scale(${isDragging ? 0.95 : 1})`,
+    transformOrigin: 'center center',
     left: icon.x,
     top: icon.y,
-    opacity: isDragging ? 0.3 : 1,
-    transition: isDragging ? 'opacity 200ms ease' : 'left 250ms cubic-bezier(0.25, 0.1, 0.25, 1), top 250ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity 200ms ease',
+    opacity: isDragging ? 0.35 : 1,
+    boxShadow: isDragging ? '0 4px 16px rgba(0, 0, 0, 0.15)' : 'none',
+    transition: isDragging 
+      ? 'opacity 200ms ease, transform 200ms cubic-bezier(0.25, 0.1, 0.25, 1), box-shadow 200ms ease'
+      : 'left 250ms cubic-bezier(0.25, 0.1, 0.25, 1), top 250ms cubic-bezier(0.25, 0.1, 0.25, 1), opacity 200ms ease, transform 250ms cubic-bezier(0.25, 0.1, 0.25, 1), box-shadow 250ms ease',
   };
 
   const handleClick = useCallback(() => {
@@ -117,7 +123,7 @@ const Icon: React.FC<IconProps> = ({ icon, isDragging = false, showBadge = false
     <div
       ref={setNodeRef}
       style={style}
-      className={`desktop-icon ${isDragging ? 'dragging' : ''} ${isSelected ? 'selected' : ''} ${isHighlighted ? 'highlighted' : ''}`}
+      className={`desktop-icon ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over-target' : ''} ${isSelected ? 'selected' : ''} ${isHighlighted ? 'highlighted' : ''}`}
       onClick={handleClick}
       onContextMenu={handleContextMenu}
       data-icon-id={icon.id}
@@ -132,7 +138,14 @@ const Icon: React.FC<IconProps> = ({ icon, isDragging = false, showBadge = false
       )}
       <div
         className="desktop-icon-content"
-        style={{ backgroundColor: icon.color || ICON_COLORS[icon.type] }}
+        style={{
+          backgroundColor: icon.color || ICON_COLORS[icon.type],
+          boxShadow: isDragOver
+            ? '0 0 0 3px rgba(107, 154, 196, 0.8), 0 0 20px rgba(107, 154, 196, 0.4)'
+            : 'var(--shadow-sm)',
+          transform: isDragOver ? 'scale(1.08)' : 'scale(1)',
+          transition: 'box-shadow 200ms cubic-bezier(0.25, 0.1, 0.25, 1), transform 250ms cubic-bezier(0.25, 0.1, 0.25, 1)',
+        }}
       >
         {getIconComponent(icon.type, icon.name)}
       </div>

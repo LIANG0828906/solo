@@ -32,6 +32,7 @@ const Desktop: React.FC = () => {
     height: number;
   } | null>(null);
   const [containerSize, setContainerSize] = useState({ width: 0, height: 0 });
+  const [overFolderId, setOverFolderId] = useState<string | null>(null);
 
   const icons = useStore((state) => state.icons);
   const folders = useStore((state) => state.folders);
@@ -80,6 +81,7 @@ const Desktop: React.FC = () => {
     if (locked) return;
     const { active } = event;
     setActiveId(active.id as string);
+    setOverFolderId(null);
     selectIcon(active.id as string);
   }, [locked, selectIcon]);
 
@@ -115,11 +117,22 @@ const Desktop: React.FC = () => {
         if (overIcon?.type === 'folder' && overIcon.metadata?.folderId) {
           if (activeIcon.type !== 'folder') {
             setDropPlaceholder(null);
+            if (overFolderId !== over.id) {
+              setOverFolderId(over.id as string);
+            }
           }
+        } else {
+          if (overFolderId) {
+            setOverFolderId(null);
+          }
+        }
+      } else {
+        if (overFolderId) {
+          setOverFolderId(null);
         }
       }
     },
-    [locked, icons]
+    [locked, icons, overFolderId]
   );
 
   const handleDragEnd = useCallback(
@@ -169,6 +182,7 @@ const Desktop: React.FC = () => {
 
       setActiveId(null);
       setDropPlaceholder(null);
+      setOverFolderId(null);
     },
     [locked, icons, moveIcon, moveIconToFolder]
   );
@@ -254,6 +268,7 @@ const Desktop: React.FC = () => {
                 key={icon.id}
                 icon={icon}
                 isDragging={activeId === icon.id}
+                isDragOver={overFolderId === icon.id && activeId !== icon.id && icon.type === 'folder'}
                 showBadge={isFolder}
                 badgeCount={folder?.iconIds.length || 0}
                 isMobile={isMobile}
@@ -293,9 +308,11 @@ const Desktop: React.FC = () => {
                 alignItems: 'center',
                 justifyContent: 'center',
                 transform: 'scale(1.1)',
-                opacity: 0.9,
+                opacity: 0.95,
                 cursor: 'grabbing',
-                animation: 'drag-overlay-pop 200ms cubic-bezier(0.25, 0.1, 0.25, 1)',
+                animation: overFolderId ? 'drag-overlay-glow 0.6s ease-in-out infinite' : 'drag-overlay-pop 200ms cubic-bezier(0.25, 0.1, 0.25, 1)',
+                filter: overFolderId ? 'drop-shadow(0 0 8px rgba(107, 154, 196, 0.6))' : 'none',
+                transition: 'filter 200ms ease',
               }}
             >
               <div
@@ -311,7 +328,10 @@ const Desktop: React.FC = () => {
                   fontWeight: 600,
                   marginBottom: 8,
                   backgroundColor: activeIcon.color,
-                  boxShadow: '0 12px 40px rgba(0,0,0,0.35)',
+                  boxShadow: overFolderId
+                    ? '0 0 0 3px rgba(107, 154, 196, 0.8), 0 16px 48px rgba(0,0,0,0.4)'
+                    : '0 12px 40px rgba(0,0,0,0.35)',
+                  transition: 'box-shadow 200ms ease',
                 }}
               >
                 {activeIcon.name.charAt(0).toUpperCase()}
@@ -327,6 +347,19 @@ const Desktop: React.FC = () => {
               >
                 {activeIcon.label}
               </div>
+              {overFolderId && (
+                <div
+                  style={{
+                    marginTop: 6,
+                    fontSize: 11,
+                    color: 'var(--color-app)',
+                    fontWeight: 600,
+                    animation: 'pulse-soft 1s ease-in-out infinite',
+                  }}
+                >
+                  释放以放入文件夹
+                </div>
+              )}
             </div>
           )}
         </DragOverlay>
@@ -346,6 +379,43 @@ const Desktop: React.FC = () => {
             }
             100% {
               transform: scale(1.1);
+            }
+          }
+          
+          @keyframes drag-overlay-glow {
+            0%, 100% {
+              transform: scale(1.1);
+              filter: drop-shadow(0 0 8px rgba(107, 154, 196, 0.6));
+            }
+            50% {
+              transform: scale(1.13);
+              filter: drop-shadow(0 0 16px rgba(107, 154, 196, 0.8));
+            }
+          }
+          
+          @keyframes pulse-soft {
+            0%, 100% {
+              opacity: 0.8;
+            }
+            50% {
+              opacity: 1;
+            }
+          }
+          
+          .desktop-icon.drag-over-target {
+            z-index: 20;
+          }
+          
+          .desktop-icon.drag-over-target .desktop-icon-content {
+            animation: folder-pulse 0.8s ease-in-out infinite;
+          }
+          
+          @keyframes folder-pulse {
+            0%, 100% {
+              box-shadow: 0 0 0 0px rgba(107, 154, 196, 0.4);
+            }
+            50% {
+              box-shadow: 0 0 0 8px rgba(107, 154, 196, 0.1);
             }
           }
           
