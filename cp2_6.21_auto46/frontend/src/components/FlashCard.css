@@ -27,6 +27,8 @@
   user-select: none;
   touch-action: none;
   overflow: hidden;
+  will-change: transform;
+  transition: transform 0.2s ease-out;
 }
 
 .flashcard:active {
@@ -125,27 +127,31 @@
   padding: 20px;
   width: 100%;
   margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 }
 
 .example-label {
   font-size: 13px;
   color: #888;
-  margin-bottom: 8px;
   font-weight: 500;
 }
 
 .example-sentence {
-  font-size: 15px;
+  font-size: 17px;
   color: #4a4a4a;
   font-style: italic;
-  line-height: 1.6;
-  margin-bottom: 8px;
+  line-height: 1.7;
+  font-weight: 500;
 }
 
 .example-translation {
-  font-size: 14px;
-  color: #777;
-  line-height: 1.5;
+  font-size: 13px;
+  color: #999;
+  line-height: 1.6;
+  padding-top: 4px;
+  border-top: 1px solid #eee;
 }
 
 .swipe-indicator {

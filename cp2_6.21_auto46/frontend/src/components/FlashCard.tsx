@@ -41,6 +41,7 @@ function FlashCard({ words, currentIndex, onSwipe, onNext }: FlashCardProps) {
       y: 0,
       rotation: 0,
       scale: 1,
+      config: { mass: 0.4, tension: 400, friction: 20 },
     });
   }, [api]);
 
@@ -147,8 +148,26 @@ function FlashCard({ words, currentIndex, onSwipe, onNext }: FlashCardProps) {
     }
   };
 
-  const handlePlayAudio = () => {
-    if (!currentWord?.audio_url) return;
+  const handlePlayAudio = (e: React.MouseEvent | React.TouchEvent) => {
+    e.stopPropagation();
+    if (!currentWord?.word) return;
+
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      try {
+        window.speechSynthesis.cancel();
+        const utterance = new SpeechSynthesisUtterance(currentWord.word);
+        utterance.lang = 'en-US';
+        utterance.rate = 0.8;
+        utterance.onstart = () => setIsPlaying(true);
+        utterance.onend = () => setIsPlaying(false);
+        utterance.onerror = () => setIsPlaying(false);
+        window.speechSynthesis.speak(utterance);
+        return;
+      } catch (err) {
+        console.warn('Speech synthesis error:', err);
+      }
+    }
+
     setIsPlaying(true);
     setTimeout(() => setIsPlaying(false), 1500);
   };
@@ -243,10 +262,9 @@ function FlashCard({ words, currentIndex, onSwipe, onNext }: FlashCardProps) {
               <div className="flashcard-word">{currentWord.word}</div>
               <button
                 className="audio-btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handlePlayAudio();
-                }}
+                onClick={handlePlayAudio}
+                onMouseDown={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
               >
                 <span className="audio-icon">{isPlaying ? '🔊' : '🔈'}</span>
                 <span className="audio-text">{isPlaying ? '播放中...' : '播放发音'}</span>
