@@ -1,0 +1,98 @@
+[
+  {
+    "id": "mercury",
+    "name": "水星",
+    "nameEn": "Mercury",
+    "color": "#b0b0b0",
+    "semiMajorAxis": 0.39,
+    "eccentricity": 0.206,
+    "orbitalPeriod": 88,
+    "distanceFromSun": "5790万公里",
+    "moons": 0,
+    "isInnerPlanet": true
+  },
+  {
+    "id": "venus",
+    "name": "金星",
+    "nameEn": "Venus",
+    "color": "#e8c547",
+    "semiMajorAxis": 0.72,
+    "eccentricity": 0.007,
+    "orbitalPeriod": 225,
+    "distanceFromSun": "1.082亿公里",
+    "moons": 0,
+    "isInnerPlanet": true
+  },
+  {
+    "id": "earth",
+    "name": "地球",
+    "nameEn": "Earth",
+    "color": "#4a9eff",
+    "semiMajorAxis": 1.0,
+    "eccentricity": 0.017,
+    "orbitalPeriod": 365,
+    "distanceFromSun": "1.496亿公里",
+    "moons": 1,
+    "isInnerPlanet": true
+  },
+  {
+    "id": "mars",
+    "name": "火星",
+    "nameEn": "Mars",
+    "color": "#e27b58",
+    "semiMajorAxis": 1.52,
+    "eccentricity": 0.093,
+    "orbitalPeriod": 687,
+    "distanceFromSun": "2.279亿公里",
+    "moons": 2,
+    "isInnerPlanet": true
+  },
+  {
+    "id": "jupiter",
+    "name": "木星",
+    "nameEn": "Jupiter",
+    "color": "#d4a574",
+    "semiMajorAxis": 5.2,
+    "eccentricity": 0.049,
+    "orbitalPeriod": 4333,
+    "distanceFromSun": "7.783亿公里",
+    "moons": 95,
+    "isInnerPlanet": false
+  },
+  {
+    "id": "saturn",
+    "name": "土星",
+    "nameEn": "Saturn",
+    "color": "#e8d5a3",
+    "semiMajorAxis": 9.58,
+    "eccentricity": 0.057,
+    "orbitalPeriod": 10759,
+    "distanceFromSun": "14.27亿公里",
+    "moons": 146,
+    "isInnerPlanet": false
+  },
+  {
+    "id": "uranus",
+    "name": "天王星",
+    "nameEn": "Uranus",
+    "color": "#7de3ed",
+    "semiMajorAxis": 19.22,
+    "eccentricity": 0.046,
+    "orbitalPeriod": 30687,
+    "distanceFromSun": "28.71亿公里",
+    "moons": 27,
+    "isInnerPlanet": false
+  },
+  {
+    "id": "neptune",
+    "name": "海王星",
+    "nameEn": "Neptune",
+    "color": "#4169e1",
+    "semiMajorAxis": 30.05,
+    "eccentricity": 0.011,
+    "orbitalPeriod": 60190,
+    "distanceFromSun": "44.98亿公里",
+    "moons": 16,
+    "isInnerPlanet": false
+  }
+]

@@ -1,0 +1,272 @@
+[
+  {
+    "id": "UMa",
+    "name": "大熊座",
+    "nameEn": "Ursa Major",
+    "season": "春季",
+    "areaRank": 3,
+    "mainStars": ["Dubhe", "Merak", "Phecda", "Megrez", "Alioth", "Mizar", "Alkaid"],
+    "lines": [[1, 2], [2, 3], [3, 4], [4, 5], [5, 6], [6, 7], [4, 1]]
+  },
+  {
+    "id": "UMi",
+    "name": "小熊座",
+    "nameEn": "Ursa Minor",
+    "season": "全年",
+    "areaRank": 56,
+    "mainStars": ["Polaris", "Kochab", "Pherkad"],
+    "lines": [[1, 2], [2, 3]]
+  },
+  {
+    "id": "Ori",
+    "name": "猎户座",
+    "nameEn": "Orion",
+    "season": "冬季",
+    "areaRank": 26,
+    "mainStars": ["Betelgeuse", "Rigel", "Bellatrix", "Alnitak", "Alnilam", "Mintaka", "Saiph"],
+    "lines": [[1, 3], [3, 6], [6, 2], [2, 7], [7, 1], [4, 5], [5, 6], [4, 7]]
+  },
+  {
+    "id": "Tau",
+    "name": "金牛座",
+    "nameEn": "Taurus",
+    "season": "冬季",
+    "areaRank": 17,
+    "mainStars": ["Aldebaran", "Alnath", "Alcyone"],
+    "lines": [[1, 2], [1, 3]]
+  },
+  {
+    "id": "Gem",
+    "name": "双子座",
+    "nameEn": "Gemini",
+    "season": "冬季",
+    "areaRank": 30,
+    "mainStars": ["Castor", "Pollux", "Alhena"],
+    "lines": [[1, 2], [1, 3], [2, 3]]
+  },
+  {
+    "id": "CMa",
+    "name": "大犬座",
+    "nameEn": "Canis Major",
+    "season": "冬季",
+    "areaRank": 43,
+    "mainStars": ["Sirius"],
+    "lines": []
+  },
+  {
+    "id": "CMi",
+    "name": "小犬座",
+    "nameEn": "Canis Minor",
+    "season": "冬季",
+    "areaRank": 71,
+    "mainStars": ["Procyon", "Gomeisa"],
+    "lines": [[1, 2]]
+  },
+  {
+    "id": "Leo",
+    "name": "狮子座",
+    "nameEn": "Leo",
+    "season": "春季",
+    "areaRank": 12,
+    "mainStars": ["Regulus", "Denebola", "Algieba", "Zosma"],
+    "lines": [[1, 3], [3, 4], [4, 2]]
+  },
+  {
+    "id": "Vir",
+    "name": "室女座",
+    "nameEn": "Virgo",
+    "season": "春季",
+    "areaRank": 2,
+    "mainStars": ["Spica", "Porrima", "Zavijava"],
+    "lines": [[1, 2], [2, 3]]
+  },
+  {
+    "id": "Boo",
+    "name": "牧夫座",
+    "nameEn": "Bootes",
+    "season": "春季",
+    "areaRank": 13,
+    "mainStars": ["Arcturus", "Seginus"],
+    "lines": [[1, 2]]
+  },
+  {
+    "id": "Sco",
+    "name": "天蝎座",
+    "nameEn": "Scorpius",
+    "season": "夏季",
+    "areaRank": 33,
+    "mainStars": ["Antares", "Acrab", "Dschubba", "Shaula", "Sargas"],
+    "lines": [[1, 3], [3, 2], [1, 4], [4, 5]]
+  },
+  {
+    "id": "Sgr",
+    "name": "人马座",
+    "nameEn": "Sagittarius",
+    "season": "夏季",
+    "areaRank": 15,
+    "mainStars": ["Kaus Australis", "Nunki", "Kaus Media", "Kaus Borealis", "Alnasl"],
+    "lines": [[1, 2], [2, 3], [3, 4], [4, 5], [5, 1]]
+  },
+  {
+    "id": "Aql",
+    "name": "天鹰座",
+    "nameEn": "Aquila",
+    "season": "夏季",
+    "areaRank": 22,
+    "mainStars": ["Altair", "Tarazed", "Alshain"],
+    "lines": [[1, 2], [1, 3]]
+  },
+  {
+    "id": "Lyr",
+    "name": "天琴座",
+    "nameEn": "Lyra",
+    "season": "夏季",
+    "areaRank": 52,
+    "mainStars": ["Vega", "Sulafat", "Sheliak"],
+    "lines": [[1, 2], [2, 3], [1, 3]]
+  },
+  {
+    "id": "Cyg",
+    "name": "天鹅座",
+    "nameEn": "Cygnus",
+    "season": "秋季",
+    "areaRank": 16,
+    "mainStars": ["Deneb", "Albireo", "Sadr"],
+    "lines": [[1, 3], [3, 2]]
+  },
+  {
+    "id": "Peg",
+    "name": "飞马座",
+    "nameEn": "Pegasus",
+    "season": "秋季",
+    "areaRank": 7,
+    "mainStars": ["Markab", "Scheat", "Algenib", "Enif"],
+    "lines": [[1, 2], [2, 3], [3, 1], [2, 4]]
+  },
+  {
+    "id": "And",
+    "name": "仙女座",
+    "nameEn": "Andromeda",
+    "season": "秋季",
+    "areaRank": 19,
+    "mainStars": ["Alpheratz", "Mirach", "Almach"],
+    "lines": [[1, 2], [2, 3]]
+  },
+  {
+    "id": "Psc",
+    "name": "双鱼座",
+    "nameEn": "Pisces",
+    "season": "秋季",
+    "areaRank": 14,
+    "mainStars": ["Alrescha", "Fomalhaut"],
+    "lines": [[1, 2]]
+  },
+  {
+    "id": "Ari",
+    "name": "白羊座",
+    "nameEn": "Aries",
+    "season": "秋季",
+    "areaRank": 39,
+    "mainStars": ["Hamal", "Sheratan", "Mesarthim"],
+    "lines": [[1, 2], [2, 3]]
+  },
+  {
+    "id": "Cnc",
+    "name": "巨蟹座",
+    "nameEn": "Cancer",
+    "season": "春季",
+    "areaRank": 31,
+    "mainStars": ["Acubens", "Tarf", "Asellus Borealis"],
+    "lines": [[1, 2], [1, 3]]
+  },
+  {
+    "id": "Lib",
+    "name": "天秤座",
+    "nameEn": "Libra",
+    "season": "夏季",
+    "areaRank": 29,
+    "mainStars": ["Zubenelgenubi", "Zubeneschamali"],
+    "lines": [[1, 2]]
+  },
+  {
+    "id": "Cap",
+    "name": "摩羯座",
+    "nameEn": "Capricornus",
+    "season": "秋季",
+    "areaRank": 40,
+    "mainStars": ["Algedi", "Dabih", "Nashira"],
+    "lines": [[1, 2], [2, 3]]
+  },
+  {
+    "id": "Aqr",
+    "name": "宝瓶座",
+    "nameEn": "Aquarius",
+    "season": "秋季",
+    "areaRank": 10,
+    "mainStars": ["Sadalmelik", "Sadalsuud", "Sadachbia"],
+    "lines": [[1, 2], [2, 3]]
+  },
+  {
+    "id": "Per",
+    "name": "英仙座",
+    "nameEn": "Perseus",
+    "season": "冬季",
+    "areaRank": 24,
+    "mainStars": ["Mirfak", "Algol"],
+    "lines": [[1, 2]]
+  },
+  {
+    "id": "Aur",
+    "name": "御夫座",
+    "nameEn": "Auriga",
+    "season": "冬季",
+    "areaRank": 21,
+    "mainStars": ["Capella", "Menkalinan"],
+    "lines": [[1, 2]]
+  },
+  {
+    "id": "Hya",
+    "name": "长蛇座",
+    "nameEn": "Hydra",
+    "season": "春季",
+    "areaRank": 1,
+    "mainStars": ["Alphard", "Ukdah"],
+    "lines": [[1, 2]]
+  },
+  {
+    "id": "Cen",
+    "name": "半人马座",
+    "nameEn": "Centaurus",
+    "season": "春季",
+    "areaRank": 9,
+    "mainStars": ["Alpha Centauri", "Hadar"],
+    "lines": [[1, 2]]
+  },
+  {
+    "id": "Car",
+    "name": "船底座",
+    "nameEn": "Carina",
+    "season": "冬季",
+    "areaRank": 34,
+    "mainStars": ["Canopus", "Miaplacidus"],
+    "lines": [[1, 2]]
+  },
+  {
+    "id": "Eri",
+    "name": "波江座",
+    "nameEn": "Eridanus",
+    "season": "冬季",
+    "areaRank": 6,
+    "mainStars": ["Achernar", "Cursa"],
+    "lines": [[1, 2]]
+  },
+  {
+    "id": "Cet",
+    "name": "鲸鱼座",
+    "nameEn": "Cetus",
+    "season": "秋季",
+    "areaRank": 4,
+    "mainStars": ["Menkar", "Diphda"],
+    "lines": [[1, 2]]
+  }
+]
