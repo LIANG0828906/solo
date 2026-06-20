@@ -35,7 +35,7 @@ export default function ControlPanel({
     { value: 'wireframe', label: '线框' },
   ]
 
-  const handleAnnotationClick = (atomId: string) => {
+  const handleAnnotationClick = (atomId: number) => {
     if (highlightedAtomId === atomId) {
       setHighlightedAtomId(null)
     } else {
@@ -43,7 +43,7 @@ export default function ControlPanel({
     }
   }
 
-  const getAtomById = (atomId: string) => {
+  const getAtomById = (atomId: number) => {
     return molecule.atoms.find((a) => a.id === atomId)
   }
 
@@ -197,7 +197,7 @@ export default function ControlPanel({
                     />
                     <div className="annotation-info">
                       <div className="annotation-name">
-                        {atom.elementName} - {atom.element}
+                        [{atom.id}] {atom.elementName} - {atom.element}
                       </div>
                       <div className="annotation-note">
                         {ann.note || '无备注'}

@@ -102,14 +102,14 @@ function App() {
     }
   }, [molecule.name])
 
-  const handleAtomClick = useCallback((atomId: string) => {
+  const handleAtomClick = useCallback((atomId: number) => {
     const annotation = getAnnotationByAtomId(atomId)
     if (annotation) {
       setHighlightedAtomId(atomId)
     }
   }, [getAnnotationByAtomId, setHighlightedAtomId])
 
-  const handleAtomDoubleClick = useCallback((atomId: string) => {
+  const handleAtomDoubleClick = useCallback((atomId: number) => {
     setSelectedAtomId(atomId)
   }, [setSelectedAtomId])
 
@@ -121,11 +121,11 @@ function App() {
     }
   }, [resetTrigger])
 
-  const selectedAtom = selectedAtomId
+  const selectedAtom = selectedAtomId !== null
     ? molecule.atoms.find((a) => a.id === selectedAtomId) || null
     : null
 
-  const existingAnnotation = selectedAtomId
+  const existingAnnotation = selectedAtomId !== null
     ? getAnnotationByAtomId(selectedAtomId)
     : undefined
 
@@ -136,7 +136,7 @@ function App() {
   }, [selectedAtomId, existingAnnotation?.note])
 
   const handleSaveAnnotation = () => {
-    if (selectedAtomId) {
+    if (selectedAtomId !== null) {
       addAnnotation(selectedAtomId, annotationNote.trim())
       setSelectedAtomId(null)
     }
@@ -298,7 +298,7 @@ function App() {
                 </div>
                 <div>
                   <div className="annotation-card-name">{selectedAtom.elementName}原子</div>
-                  <div className="annotation-card-number">原子序号: {selectedAtom.atomicNumber}</div>
+                  <div className="annotation-card-number">原子序号: {selectedAtom.id}</div>
                 </div>
               </div>
               <button className="annotation-card-close" onClick={handleCancelAnnotation} aria-label="关闭">

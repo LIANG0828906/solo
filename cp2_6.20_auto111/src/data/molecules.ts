@@ -1,6 +1,6 @@
 export interface Atom {
-  id: string
-  indexId: number
+  id: number
+  elementId: string
   element: string
   elementName: string
   atomicNumber: number
@@ -22,6 +22,15 @@ export interface Molecule {
   description: string
   formula: string
   atoms: Atom[]
+  bonds: Bond[]
+}
+
+interface MoleculeData {
+  id: string
+  name: string
+  description: string
+  formula: string
+  atoms: Omit<Atom, 'id'>[]
   bonds: Bond[]
 }
 
@@ -77,10 +86,9 @@ const ELEMENT_NUMBERS: Record<string, number> = {
   I: 53,
 }
 
-function createAtom(id: string, element: string, x: number, y: number, z: number): Atom {
+function createAtom(elementId: string, element: string, x: number, y: number, z: number): Omit<Atom, 'id'> {
   return {
-    id,
-    indexId: 0,
+    elementId,
     element,
     elementName: ELEMENT_NAMES[element] || element,
     atomicNumber: ELEMENT_NUMBERS[element] || 0,
@@ -90,7 +98,7 @@ function createAtom(id: string, element: string, x: number, y: number, z: number
   }
 }
 
-const WATER: Molecule = {
+const WATER: MoleculeData = {
   id: 'water',
   name: '水',
   description: '水分子 H₂O',
@@ -106,8 +114,8 @@ const WATER: Molecule = {
   ],
 }
 
-const BENZENE: Molecule = (() => {
-  const atoms: Atom[] = []
+const BENZENE: MoleculeData = (() => {
+  const atoms: Omit<Atom, 'id'>[] = []
   const bonds: Bond[] = []
   const radius = 1.4
   for (let i = 0; i < 6; i++) {
@@ -143,8 +151,8 @@ const BENZENE: Molecule = (() => {
   }
 })()
 
-const AMINO_ACID: Molecule = (() => {
-  const atoms: Atom[] = [
+const AMINO_ACID: MoleculeData = (() => {
+  const atoms: Omit<Atom, 'id'>[] = [
     createAtom('c_alpha', 'C', 0, 0, 0),
     createAtom('c_carboxyl', 'C', 1.51, 0, 0),
     createAtom('o1', 'O', 2.23, 1.06, 0),
@@ -199,8 +207,8 @@ const AMINO_ACID: Molecule = (() => {
   }
 })()
 
-const GLUCOSE: Molecule = (() => {
-  const atoms: Atom[] = []
+const GLUCOSE: MoleculeData = (() => {
+  const atoms: Omit<Atom, 'id'>[] = []
   const bonds: Bond[] = []
   const ringAtoms = ['C1', 'C2', 'C3', 'C4', 'C5', 'O5']
   const ringPos: Record<string, [number, number, number]> = {
@@ -260,8 +268,8 @@ const GLUCOSE: Molecule = (() => {
   }
 })()
 
-const CAFFEINE: Molecule = (() => {
-  const atoms: Atom[] = [
+const CAFFEINE: MoleculeData = (() => {
+  const atoms: Omit<Atom, 'id'>[] = [
     createAtom('n1', 'N', 0, 0, 0),
     createAtom('c2', 'C', 1.43, 0, 0),
     createAtom('n3', 'N', 2.15, 1.20, 0),
@@ -335,7 +343,7 @@ export const MOLECULES: Molecule[] = [WATER, BENZENE, AMINO_ACID, GLUCOSE, CAFFE
     ...mol,
     atoms: mol.atoms.map((atom, index) => ({
       ...atom,
-      indexId: index,
+      id: index,
     })),
   })
 )

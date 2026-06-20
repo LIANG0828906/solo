@@ -1,4 +1,4 @@
-import { useRef, useMemo, useEffect, useState, forwardRef, useImperativeHandle } from 'react'
+import { useRef, useMemo, useEffect } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import type { Atom, Molecule, Bond } from '../data/molecules'
@@ -7,11 +7,11 @@ import type { DisplayMode } from '../stores/atomsStore'
 interface SceneProps {
   molecule: Molecule
   displayMode: DisplayMode
-  highlightedAtomId: string | null
+  highlightedAtomId: number | null
   hoveredAtom: { atom: Atom; screenPosition: { x: number; y: number } } | null
   setHoveredAtom: (hovered: { atom: Atom; screenPosition: { x: number; y: number } } | null) => void
-  onAtomClick: (atomId: string) => void
-  onAtomDoubleClick: (atomId: string) => void
+  onAtomClick: (atomId: number) => void
+  onAtomDoubleClick: (atomId: number) => void
   moleculeChanged: string
 }
 
@@ -20,11 +20,8 @@ interface AtomComponentProps {
   displayMode: DisplayMode
   sphereSegments: number
   isHighlighted: boolean
-  onPointerOver: (atom: Atom, e: any) => void
-  onPointerOut: (atom: Atom, e: any) => void
-  onPointerMove: (atom: Atom, e: any) => void
-  onClick: (atom: Atom, e: any) => void
-  onScaleRef: (id: string, ref: THREE.Mesh | null, baseScale: number) => void
+  isHovered: boolean
+  onScaleRef: (id: number, ref: THREE.Mesh | null, baseScale: number) => void
 }
 
 function AtomComponent({
@@ -32,10 +29,7 @@ function AtomComponent({
   displayMode,
   sphereSegments,
   isHighlighted,
-  onPointerOver,
-  onPointerOut,
-  onPointerMove,
-  onClick,
+  isHovered,
   onScaleRef,
 }: AtomComponentProps) {
   const meshRef = useRef<THREE.Mesh>(null)
@@ -51,27 +45,28 @@ function AtomComponent({
     }
   }
 
-  const scale = getAtomScale(atom.radius)
-  const emissiveColor = isHighlighted
-    ? new THREE.Color(atom.color).multiplyScalar(0.3)
-    : new THREE.Color(0x000000)
+  const baseScale = getAtomScale(atom.radius)
+  const targetScale = isHovered ? 1.15 : isHighlighted ? 1.2 : 1.0
 
   useEffect(() => {
-    onScaleRef(atom.id, meshRef.current, scale)
+    onScaleRef(atom.id, meshRef.current, baseScale)
     return () => {
       onScaleRef(atom.id, null, 0)
     }
-  }, [atom.id, scale, onScaleRef])
+  }, [atom.id, baseScale, onScaleRef])
+
+  const emissiveColor = isHighlighted
+    ? new THREE.Color(atom.color).multiplyScalar(0.3)
+    : isHovered
+    ? new THREE.Color(atom.color).multiplyScalar(0.15)
+    : new THREE.Color(0x000000)
 
   return (
     <mesh
       ref={meshRef}
       position={atom.position}
-      scale={[scale, scale, scale]}
-      onPointerOver={(e) => onPointerOver(atom, e)}
-      onPointerOut={(e) => onPointerOut(atom, e)}
-      onPointerMove={(e) => onPointerMove(atom, e)}
-      onClick={(e) => onClick(atom, e)}
+      scale={[baseScale * targetScale, baseScale * targetScale, baseScale * targetScale]}
+      userData={{ atomId: atom.id }}
       castShadow
       receiveShadow
     >
@@ -193,11 +188,14 @@ export default function Scene({
   onAtomDoubleClick,
   moleculeChanged,
 }: SceneProps) {
-  const { camera, size, gl } = useThree()
+  const { camera, size, gl, scene } = useThree()
   const moleculeGroupRef = useRef<THREE.Group>(null)
-  const atomMeshMap = useRef<Map<string, { mesh: THREE.Mesh | null; baseScale: number }>>(new Map())
-  const hoveredAtomIdRef = useRef<string | null>(null)
-  const lastClickTimeRef = useRef<Map<string, number>>(new Map())
+  const atomMeshMap = useRef<Map<number, { mesh: THREE.Mesh | null; baseScale: number }>>(new Map())
+  const hoveredAtomIdRef = useRef<number | null>(null)
+  const lastClickTimeRef = useRef<Map<number, number>>(new Map())
+
+  const raycaster = useRef(new THREE.Raycaster())
+  const mouse = useRef(new THREE.Vector2())
 
   const atomCount = molecule.atoms.length
   const sphereSegments = useMemo(() => {
@@ -219,13 +217,94 @@ export default function Scene({
     setHoveredAtom(null)
   }, [moleculeChanged, setHoveredAtom])
 
-  const handleScaleRef = (id: string, mesh: THREE.Mesh | null, baseScale: number) => {
+  const handleScaleRef = (id: number, mesh: THREE.Mesh | null, baseScale: number) => {
     if (mesh) {
       atomMeshMap.current.set(id, { mesh, baseScale })
     } else {
       atomMeshMap.current.delete(id)
     }
   }
+
+  const projectToScreen = (position: [number, number, number]) => {
+    const vector = new THREE.Vector3(...position)
+    if (moleculeGroupRef.current) {
+      moleculeGroupRef.current.localToWorld(vector)
+    }
+    vector.project(camera)
+    return {
+      x: (vector.x * 0.5 + 0.5) * size.width,
+      y: (-vector.y * 0.5 + 0.5) * size.height,
+    }
+  }
+
+  useEffect(() => {
+    const canvas = gl.domElement
+    const handlePointerMove = (event: PointerEvent) => {
+      const rect = canvas.getBoundingClientRect()
+      mouse.current.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
+      mouse.current.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
+
+      raycaster.current.setFromCamera(mouse.current, camera)
+      const meshes: THREE.Object3D[] = []
+      atomMeshMap.current.forEach((data) => {
+        if (data.mesh) meshes.push(data.mesh)
+      })
+
+      const intersects = raycaster.current.intersectObjects(meshes, false)
+
+      if (intersects.length > 0) {
+        const hit = intersects[0]
+        const mesh = hit.object as THREE.Mesh
+        const atomId = mesh.userData.atomId as number
+        const atom = molecule.atoms.find((a) => a.id === atomId)
+
+        if (atom && hoveredAtomIdRef.current !== atomId) {
+          hoveredAtomIdRef.current = atomId
+          canvas.style.cursor = 'pointer'
+          const screenPos = projectToScreen(atom.position)
+          setHoveredAtom({ atom, screenPosition: screenPos })
+        } else if (atom) {
+          const screenPos = projectToScreen(atom.position)
+          setHoveredAtom({ atom, screenPosition: screenPos })
+        }
+      } else if (hoveredAtomIdRef.current !== null) {
+        hoveredAtomIdRef.current = null
+        canvas.style.cursor = 'default'
+        setHoveredAtom(null)
+      }
+    }
+
+    const handleClick = (event: PointerEvent) => {
+      if (hoveredAtomIdRef.current !== null) {
+        const atomId = hoveredAtomIdRef.current
+        const now = Date.now()
+        const lastTime = lastClickTimeRef.current.get(atomId) || 0
+
+        if (now - lastTime < 350) {
+          onAtomDoubleClick(atomId)
+          lastClickTimeRef.current.delete(atomId)
+        } else {
+          lastClickTimeRef.current.set(atomId, now)
+          const atomIdCopy = atomId
+          const clickTime = now
+          setTimeout(() => {
+            if (lastClickTimeRef.current.get(atomIdCopy) === clickTime) {
+              onAtomClick(atomIdCopy)
+              lastClickTimeRef.current.delete(atomIdCopy)
+            }
+          }, 300)
+        }
+      }
+    }
+
+    canvas.addEventListener('pointermove', handlePointerMove)
+    canvas.addEventListener('click', handleClick)
+
+    return () => {
+      canvas.removeEventListener('pointermove', handlePointerMove)
+      canvas.removeEventListener('click', handleClick)
+    }
+  }, [camera, gl.domElement, molecule.atoms, onAtomClick, onAtomDoubleClick, setHoveredAtom, size.width, size.height])
 
   useFrame((_, delta) => {
     atomMeshMap.current.forEach((data, atomId) => {
@@ -246,70 +325,9 @@ export default function Scene({
     })
   })
 
-  const projectToScreen = (position: [number, number, number]) => {
-    const vector = new THREE.Vector3(...position)
-    if (moleculeGroupRef.current) {
-      moleculeGroupRef.current.localToWorld(vector)
-    }
-    vector.project(camera)
-    return {
-      x: (vector.x * 0.5 + 0.5) * size.width,
-      y: (-vector.y * 0.5 + 0.5) * size.height,
-    }
-  }
-
-  const handlePointerOver = (atom: Atom, event: any) => {
-    event.stopPropagation()
-    const mesh = event.target as THREE.Mesh
-    if (mesh.material && (mesh.material as THREE.MeshStandardMaterial).emissive) {
-      ;(mesh.material as THREE.MeshStandardMaterial).emissive.setHex?.(0x444444)
-    }
-    gl.domElement.style.cursor = 'pointer'
-    hoveredAtomIdRef.current = atom.id
-    const screenPos = projectToScreen(atom.position)
-    setHoveredAtom({ atom, screenPosition: screenPos })
-  }
-
-  const handlePointerOut = (atom: Atom, event: any) => {
-    event.stopPropagation()
-    const mesh = event.target as THREE.Mesh
-    if (mesh.material && (mesh.material as THREE.MeshStandardMaterial).emissive) {
-      ;(mesh.material as THREE.MeshStandardMaterial).emissive.setHex?.(0x000000)
-    }
-    gl.domElement.style.cursor = 'default'
-    hoveredAtomIdRef.current = null
-    setHoveredAtom(null)
-  }
-
-  const handlePointerMove = (atom: Atom, _event: any) => {
-    if (hoveredAtomIdRef.current === atom.id) {
-      const screenPos = projectToScreen(atom.position)
-      setHoveredAtom({ atom, screenPosition: screenPos })
-    }
-  }
-
-  const handleClick = (atom: Atom, _event: any) => {
-    const now = Date.now()
-    const lastTime = lastClickTimeRef.current.get(atom.id) || 0
-    if (now - lastTime < 350) {
-      onAtomDoubleClick(atom.id)
-      lastClickTimeRef.current.delete(atom.id)
-    } else {
-      lastClickTimeRef.current.set(atom.id, now)
-      const atomIdCopy = atom.id
-      const clickTime = now
-      setTimeout(() => {
-        if (lastClickTimeRef.current.get(atomIdCopy) === clickTime) {
-          onAtomClick(atomIdCopy)
-          lastClickTimeRef.current.delete(atomIdCopy)
-        }
-      }, 300)
-    }
-  }
-
   const atomMap = useMemo(() => {
     const map = new Map<string, Atom>()
-    molecule.atoms.forEach((a) => map.set(a.id, a))
+    molecule.atoms.forEach((a) => map.set(a.elementId, a))
     return map
   }, [molecule.atoms])
 
@@ -329,10 +347,7 @@ export default function Scene({
             displayMode={displayMode}
             sphereSegments={sphereSegments}
             isHighlighted={highlightedAtomId === atom.id}
-            onPointerOver={handlePointerOver}
-            onPointerOut={handlePointerOut}
-            onPointerMove={handlePointerMove}
-            onClick={handleClick}
+            isHovered={hoveredAtomIdRef.current === atom.id}
             onScaleRef={handleScaleRef}
           />
         ))}

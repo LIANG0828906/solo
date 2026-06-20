@@ -6,7 +6,7 @@ export type DisplayMode = 'ballstick' | 'spacefill' | 'wireframe'
 
 export interface Annotation {
   id: string
-  atomId: string
+  atomId: number
   note: string
   createdAt: number
 }
@@ -23,23 +23,23 @@ interface AtomsState {
   rotationSpeed: number
   autoRotate: boolean
   annotations: Annotation[]
-  highlightedAtomId: string | null
+  highlightedAtomId: number | null
   hoveredAtom: HoveredAtom | null
-  selectedAtomId: string | null
+  selectedAtomId: number | null
   resetTrigger: number
 
   setSelectedMoleculeId: (id: string) => void
   setDisplayMode: (mode: DisplayMode) => void
   setRotationSpeed: (speed: number) => void
   setAutoRotate: (auto: boolean) => void
-  addAnnotation: (atomId: string, note: string) => void
+  addAnnotation: (atomId: number, note: string) => void
   updateAnnotation: (id: string, note: string) => void
   deleteAnnotation: (id: string) => void
-  setHighlightedAtomId: (id: string | null) => void
+  setHighlightedAtomId: (id: number | null) => void
   setHoveredAtom: (hovered: HoveredAtom | null) => void
-  setSelectedAtomId: (id: string | null) => void
+  setSelectedAtomId: (id: number | null) => void
   resetView: () => void
-  getAnnotationByAtomId: (atomId: string) => Annotation | undefined
+  getAnnotationByAtomId: (atomId: number) => Annotation | undefined
 }
 
 export const useAtomsStore = create<AtomsState>((set, get) => ({

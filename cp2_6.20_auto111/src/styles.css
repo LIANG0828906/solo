@@ -764,7 +764,7 @@ body {
   }
 
   .annotation-card-name {
-    font-size: 14px;
+    font-size: 10px;
   }
 
   .annotation-card-number {
@@ -776,13 +776,26 @@ body {
   }
 
   .annotation-field-value {
-    font-size: 11px;
+    font-size: 10px;
     padding: 6px 8px;
   }
 
   .annotation-textarea {
-    font-size: 12px;
+    font-size: 10px;
     min-height: 60px;
+  }
+
+  .annotation-card-symbol {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+    border-radius: 8px;
+  }
+
+  .secondary-btn,
+  .primary-btn {
+    font-size: 10px;
+    padding: 8px 12px;
   }
 
   .annotation-label {
