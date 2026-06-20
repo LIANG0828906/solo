@@ -45,9 +45,9 @@ export default function ClimateLayer() {
     return Object.keys(climateData).map(Number).sort((a, b) => a - b)
   }, [climateData])
 
-  const { yearDataList, count, isLowDetail } = useMemo(() => {
+  const { fixedPositions, yearColorList, count, isLowDetail } = useMemo(() => {
     if (years.length === 0) {
-      return { yearDataList: [], count: 0, isLowDetail: false }
+      return { fixedPositions: new Float32Array(), yearColorList: [], count: 0, isLowDetail: false }
     }
 
     const firstYear = years[0]
@@ -57,41 +57,40 @@ export default function ClimateLayer() {
     const isLowDetail = limitedCount > 2000
     const colorScale = getColorScale(dataType)
 
-    const yearDataList: Array<{
-      positions: Float32Array
-      colors: Float32Array
-    }> = []
+    const fixedPositions = new Float32Array(limitedCount * 3)
+    for (let i = 0; i < limitedCount; i++) {
+      const point = firstDataPoints[i]
+      const [x, yp, z] = latLonToVector3(point.lat, point.lon, 1.05)
+      fixedPositions[i * 3] = x
+      fixedPositions[i * 3 + 1] = yp
+      fixedPositions[i * 3 + 2] = z
+    }
+
+    const yearColorList: Array<Float32Array> = []
 
     for (let y = 0; y < years.length; y++) {
       const year = years[y]
       const yearData = climateData[year]
       const dataPoints = yearData?.[dataType] || []
 
-      const posArray = new Float32Array(limitedCount * 3)
       const colArray = new Float32Array(limitedCount * 3)
 
       for (let i = 0; i < limitedCount; i++) {
         const point = dataPoints[i] || firstDataPoints[i]
-
-        const [x, yp, z] = latLonToVector3(point.lat, point.lon, 1.02)
-        posArray[i * 3] = x
-        posArray[i * 3 + 1] = yp
-        posArray[i * 3 + 2] = z
-
         const color = new THREE.Color(colorScale(point.value))
         colArray[i * 3] = color.r
         colArray[i * 3 + 1] = color.g
         colArray[i * 3 + 2] = color.b
       }
 
-      yearDataList.push({ positions: posArray, colors: colArray })
+      yearColorList.push(colArray)
     }
 
-    return { yearDataList, count: limitedCount, isLowDetail }
+    return { fixedPositions, yearColorList, count: limitedCount, isLowDetail }
   }, [climateData, dataType, years])
 
   useEffect(() => {
-    if (pointsRef.current && yearDataList.length > 0) {
+    if (pointsRef.current && count > 0) {
       const geometry = pointsRef.current.geometry
       const posAttr = geometry.attributes.position
       const colAttr = geometry.attributes.color
@@ -100,18 +99,17 @@ export default function ClimateLayer() {
         colAttr.needsUpdate = true
       }
     }
-  }, [yearDataList, count])
+  }, [fixedPositions, yearColorList, count])
 
   useFrame((_state, delta) => {
     displayYearRef.current += (currentYear - displayYearRef.current) * delta * 2
 
-    if (!pointsRef.current || yearDataList.length === 0) return
+    if (!pointsRef.current || yearColorList.length === 0) return
     const geometry = pointsRef.current.geometry
     if (!geometry) return
 
-    const posAttr = geometry.attributes.position
     const colAttr = geometry.attributes.color
-    if (!posAttr || !colAttr) return
+    if (!colAttr) return
 
     let year0 = years[0]
     let year1 = years[years.length - 1]
@@ -144,31 +142,24 @@ export default function ClimateLayer() {
     const t = year1 !== year0 ? (displayYearRef.current - year0) / (year1 - year0) : 0
     const clampedT = Math.max(0, Math.min(1, t))
 
-    const posArray = posAttr.array as Float32Array
     const colArray = colAttr.array as Float32Array
-    const data0 = yearDataList[idx0]
-    const data1 = yearDataList[idx1]
+    const colors0 = yearColorList[idx0]
+    const colors1 = yearColorList[idx1]
 
     for (let i = 0; i < count; i++) {
       const i3 = i * 3
-      posArray[i3] = lerp(data0.positions[i3], data1.positions[i3], clampedT)
-      posArray[i3 + 1] = lerp(data0.positions[i3 + 1], data1.positions[i3 + 1], clampedT)
-      posArray[i3 + 2] = lerp(data0.positions[i3 + 2], data1.positions[i3 + 2], clampedT)
-
-      colArray[i3] = lerp(data0.colors[i3], data1.colors[i3], clampedT)
-      colArray[i3 + 1] = lerp(data0.colors[i3 + 1], data1.colors[i3 + 1], clampedT)
-      colArray[i3 + 2] = lerp(data0.colors[i3 + 2], data1.colors[i3 + 2], clampedT)
+      colArray[i3] = lerp(colors0[i3], colors1[i3], clampedT)
+      colArray[i3 + 1] = lerp(colors0[i3 + 1], colors1[i3 + 1], clampedT)
+      colArray[i3 + 2] = lerp(colors0[i3 + 2], colors1[i3 + 2], clampedT)
     }
 
-    posAttr.needsUpdate = true
     colAttr.needsUpdate = true
   })
 
-  const particleSize = isLowDetail ? 0.02 : 0.025
+  const particleSize = isLowDetail ? 0.04 : 0.06
   const opacity = isLowDetail ? 0.7 : 0.9
 
-  const initialPositions = yearDataList.length > 0 ? yearDataList[0].positions : new Float32Array()
-  const initialColors = yearDataList.length > 0 ? yearDataList[0].colors : new Float32Array()
+  const initialColors = yearColorList.length > 0 ? yearColorList[0] : new Float32Array()
 
   return (
     <points ref={pointsRef}>
@@ -176,7 +167,7 @@ export default function ClimateLayer() {
         <bufferAttribute
           attach="attributes-position"
           count={count}
-          array={initialPositions}
+          array={fixedPositions}
           itemSize={3}
         />
         <bufferAttribute

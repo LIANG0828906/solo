@@ -13,15 +13,15 @@ interface PresetPosition {
 
 const PRESET_POSITIONS: Record<ViewPreset, PresetPosition> = {
   global: {
-    position: [0, 0, 3],
+    position: [0, 0, 4.5],
     target: [0, 0, 0],
   },
   northPole: {
-    position: [0, 2.5, 0.5],
+    position: [0, 4, 0.8],
     target: [0, 0, 0],
   },
   equator: {
-    position: [3, 0, 0],
+    position: [4.5, 0, 0.5],
     target: [0, 0, 0],
   },
 }

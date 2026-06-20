@@ -21,8 +21,8 @@ const atmosphereFragmentShader = `
   varying vec3 vViewPosition;
   void main() {
     vec3 viewDir = normalize(vViewPosition);
-    float fresnel = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 3.0);
-    gl_FragColor = vec4(glowColor, fresnel * 0.4);
+    float fresnel = pow(1.0 - max(dot(vNormal, viewDir), 0.0), 2.5);
+    gl_FragColor = vec4(glowColor, fresnel * 0.5);
   }
 `
 
@@ -30,19 +30,17 @@ export default function AtmosphereEffect() {
   const atmosphereRef = useRef<Mesh>(null)
   const cloudsRef = useRef<Points>(null)
   const dataType = useClimateStore((state) => state.dataType)
+  const targetColorRef = useRef(new THREE.Color('#60a5fa'))
 
-  const glowColor = useMemo(() => {
-    switch (dataType) {
-      case 'temperature':
-        return '#ff6b4a'
-      case 'precipitation':
-        return '#4ade80'
-      case 'wind':
-        return '#a78bfa'
-      default:
-        return '#60a5fa'
-    }
-  }, [dataType])
+  targetColorRef.current.set(
+    dataType === 'temperature'
+      ? '#ff6b4a'
+      : dataType === 'precipitation'
+      ? '#4ade80'
+      : dataType === 'wind'
+      ? '#a78bfa'
+      : '#60a5fa'
+  )
 
   const cloudParticles = useMemo(() => {
     const count = 200
@@ -50,7 +48,7 @@ export default function AtmosphereEffect() {
     for (let i = 0; i < count; i++) {
       const lat = (Math.random() - 0.5) * 180
       const lon = Math.random() * 360 - 180
-      const radius = 1.05 + Math.random() * 0.03
+      const radius = 1.08 + Math.random() * 0.05
       const phi = (90 - lat) * (Math.PI / 180)
       const theta = (lon + 180) * (Math.PI / 180)
       positions[i * 3] = -radius * Math.sin(phi) * Math.cos(theta)
@@ -60,16 +58,10 @@ export default function AtmosphereEffect() {
     return positions
   }, [])
 
-  useFrame((_state, delta) => {
-    if (cloudsRef.current) {
-      cloudsRef.current.rotation.y += delta * 0.02
-    }
-  })
-
   const atmosphereMaterial = useMemo(() => {
     return new THREE.ShaderMaterial({
       uniforms: {
-        glowColor: { value: new THREE.Color(glowColor) },
+        glowColor: { value: new THREE.Color('#ff6b4a') },
       },
       vertexShader: atmosphereVertexShader,
       fragmentShader: atmosphereFragmentShader,
@@ -77,11 +69,21 @@ export default function AtmosphereEffect() {
       transparent: true,
       blending: THREE.AdditiveBlending,
     })
-  }, [glowColor])
+  }, [])
+
+  useFrame((_state, delta) => {
+    if (cloudsRef.current) {
+      cloudsRef.current.rotation.y += delta * 0.02
+    }
+    const mat = atmosphereRef.current?.material as THREE.ShaderMaterial | undefined
+    if (mat?.uniforms?.glowColor) {
+      mat.uniforms.glowColor.value.lerp(targetColorRef.current, Math.min(1, delta * 4))
+    }
+  })
 
   return (
     <>
-      <mesh ref={atmosphereRef} scale={1.08}>
+      <mesh ref={atmosphereRef} scale={1.25}>
         <sphereGeometry args={[1, 64, 64]} />
         <primitive object={atmosphereMaterial} attach="material" />
       </mesh>
@@ -96,10 +98,10 @@ export default function AtmosphereEffect() {
           />
         </bufferGeometry>
         <pointsMaterial
-          size={0.03}
+          size={0.045}
           color="#ffffff"
           transparent
-          opacity={0.3}
+          opacity={0.4}
           sizeAttenuation
         />
       </points>

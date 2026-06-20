@@ -121,9 +121,9 @@ export default function Earth() {
 
   return (
     <>
-      <ambientLight intensity={0.5} />
+      <ambientLight intensity={0.6} />
       <directionalLight position={[5, 3, 5]} intensity={1.5} />
-      <directionalLight position={[-3, 0, -5]} intensity={0.3} />
+      <directionalLight position={[-5, 2, -5]} intensity={0.4} />
 
       <group ref={earthRef}>
         <mesh ref={earthMeshRef}>
@@ -139,8 +139,8 @@ export default function Earth() {
         ref={controlsRef}
         enableDamping
         dampingFactor={0.05}
-        minDistance={1.5}
-        maxDistance={9}
+        minDistance={2.5}
+        maxDistance={15}
         enablePan={false}
       />
     </>

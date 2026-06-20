@@ -4,7 +4,7 @@ import * as THREE from 'three'
 
 export default function Stars() {
   const starsRef = useRef<THREE.Points>(null)
-  const count = 2000
+  const count = 1500
 
   const { positions, colors, phases } = useMemo(() => {
     const positions = new Float32Array(count * 3)
@@ -60,10 +60,10 @@ export default function Stars() {
         />
       </bufferGeometry>
       <pointsMaterial
-        size={0.1}
+        size={0.08}
         vertexColors
         transparent
-        opacity={0.9}
+        opacity={0.85}
         sizeAttenuation
       />
     </points>

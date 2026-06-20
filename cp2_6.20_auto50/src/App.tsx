@@ -24,7 +24,7 @@ export default function App() {
     <div className="relative w-screen h-screen overflow-hidden">
       <Canvas
         style={{ background: '#0a0e27' }}
-        camera={{ position: [0, 0, 4.5], fov: 45 }}
+        camera={{ position: [0, 0, 4.5], fov: 50 }}
       >
         <Stars />
         <Earth />
