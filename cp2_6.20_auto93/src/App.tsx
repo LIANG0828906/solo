@@ -12,11 +12,15 @@ const App: React.FC = () => {
   const [mouseX, setMouseX] = useState(0)
   const [mouseY, setMouseY] = useState(0)
   const [zoom, setZoom] = useState(1)
+  const [isGridAligning, setIsGridAligning] = useState(false)
 
   const canvasRef = useRef<DoodleCanvasHandle>(null)
 
   const handleGridAlign = () => {
+    if (selectedCount === 0) return
+    setIsGridAligning(true)
     canvasRef.current?.alignToGrid()
+    setTimeout(() => setIsGridAligning(false), 600)
   }
 
   const handleExport = (format: 'png' | 'svg') => {
@@ -30,7 +34,17 @@ const App: React.FC = () => {
     }
   }
 
-  const statusMode: StatusMode = mode === 'brush' ? 'brush' : mode === 'select' ? 'select' : 'grid'
+  const handleModeChange = (newMode: CanvasMode) => {
+    setMode(newMode)
+    setIsGridAligning(false)
+  }
+
+  let statusMode: StatusMode
+  if (isGridAligning) {
+    statusMode = 'grid'
+  } else {
+    statusMode = mode === 'brush' ? 'brush' : 'select'
+  }
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
@@ -39,17 +53,21 @@ const App: React.FC = () => {
         mode={mode}
         brushColor={brushColor}
         brushThickness={brushThickness}
-        onSelectionChange={setSelectedCount}
+        onSelectionChange={(count) => {
+          setSelectedCount(count)
+        }}
         onMouseMove={(x, y) => {
           setMouseX(x)
           setMouseY(y)
         }}
-        onZoomChange={setZoom}
+        onZoomChange={(newZoom) => {
+          setZoom(newZoom)
+        }}
       />
 
       <Toolbar
         mode={mode as ToolbarMode}
-        onModeChange={setMode}
+        onModeChange={handleModeChange}
         brushColor={brushColor}
         onBrushColorChange={setBrushColor}
         brushThickness={brushThickness}

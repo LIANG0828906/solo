@@ -23,6 +23,8 @@ const GRID_COLOR = '#e0d8c8'
 const BG_COLOR = '#faf3e0'
 const MIN_ZOOM = 0.1
 const MAX_ZOOM = 5
+const JITTER_AMOUNT = 0.6
+const TIP_LENGTH_RATIO = 0.25
 
 type HandlePosition = 'nw' | 'n' | 'ne' | 'e' | 'se' | 's' | 'sw' | 'w' | 'rotate'
 
@@ -41,6 +43,17 @@ interface InteractionState {
   originalStroke: DoodleStroke | null
   rotateOrigin: { x: number; y: number }
   originalRotation: number
+  shiftPressed: boolean
+}
+
+interface BounceAnimation {
+  id: string
+  startX: number
+  startY: number
+  targetX: number
+  targetY: number
+  startTime: number
+  duration: number
 }
 
 const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
@@ -59,13 +72,14 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [offset, setOffset] = useState({ x: 0, y: 0 })
   const [zoom, setZoom] = useState(1)
-  const [, setAnimatingStrokes] = useState<Set<string>>(new Set())
   const [displayRotation, setDisplayRotation] = useState<{ id: string; angle: number } | null>(null)
+  const [bounceAnimations, setBounceAnimations] = useState<BounceAnimation[]>([])
 
   const offsetRef = useRef(offset)
   const zoomRef = useRef(zoom)
   const strokesRef = useRef(strokes)
   const selectedIdsRef = useRef(selectedIds)
+  const bounceAnimationsRef = useRef<BounceAnimation[]>([])
   const interactionRef = useRef<InteractionState>({
     isDrawing: false,
     isPanning: false,
@@ -81,6 +95,7 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
     originalStroke: null,
     rotateOrigin: { x: 0, y: 0 },
     originalRotation: 0,
+    shiftPressed: false,
   })
   const inertiaRef = useRef({ vx: 0, vy: 0, lastX: 0, lastY: 0, lastTime: 0 })
   const touchRef = useRef<{ distance: number; midX: number; midY: number } | null>(null)
@@ -90,6 +105,7 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
   useEffect(() => { zoomRef.current = zoom }, [zoom])
   useEffect(() => { strokesRef.current = strokes }, [strokes])
   useEffect(() => { selectedIdsRef.current = selectedIds }, [selectedIds])
+  useEffect(() => { bounceAnimationsRef.current = bounceAnimations }, [bounceAnimations])
 
   const screenToCanvas = useCallback((sx: number, sy: number): Point => {
     return {
@@ -98,18 +114,18 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
     }
   }, [])
 
-
-
-  const getTransformedBounds = useCallback((stroke: DoodleStroke) => {
-    const cx = stroke.x + stroke.width / 2
-    const cy = stroke.y + stroke.height / 2
+  const getTransformedBounds = useCallback((stroke: DoodleStroke, overridePos?: { x: number; y: number }) => {
+    const sx = overridePos?.x ?? stroke.x
+    const sy = overridePos?.y ?? stroke.y
+    const cx = sx + stroke.width / 2
+    const cy = sy + stroke.height / 2
     const cos = Math.cos(stroke.rotation)
     const sin = Math.sin(stroke.rotation)
     const corners = [
-      { x: stroke.x, y: stroke.y },
-      { x: stroke.x + stroke.width * stroke.scaleX, y: stroke.y },
-      { x: stroke.x + stroke.width * stroke.scaleX, y: stroke.y + stroke.height * stroke.scaleY },
-      { x: stroke.x, y: stroke.y + stroke.height * stroke.scaleY },
+      { x: sx, y: sy },
+      { x: sx + stroke.width * stroke.scaleX, y: sy },
+      { x: sx + stroke.width * stroke.scaleX, y: sy + stroke.height * stroke.scaleY },
+      { x: sx, y: sy + stroke.height * stroke.scaleY },
     ].map(p => {
       const dx = p.x - cx
       const dy = p.y - cy
@@ -151,11 +167,11 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
 
   const hitTestHandle = useCallback((pt: Point, stroke: DoodleStroke): HandlePosition | null => {
     const bounds = getTransformedBounds(stroke)
-    const handleSize = 10 / zoomRef.current
+    const handleSize = 12 / zoomRef.current
     const { minX, minY, maxX, maxY } = bounds
     const midX = (minX + maxX) / 2
     const midY = (minY + maxY) / 2
-    const handleDist = 22 / zoomRef.current
+    const handleDist = 24 / zoomRef.current
     const rotateX = midX
     const rotateY = minY - handleDist
 
@@ -176,11 +192,71 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
       }
     }
 
-    if (Math.abs(pt.x - rotateX) <= handleSize * 1.2 && Math.abs(pt.y - rotateY) <= handleSize * 1.2) {
+    if (Math.abs(pt.x - rotateX) <= handleSize * 1.4 && Math.abs(pt.y - rotateY) <= handleSize * 1.4) {
       return 'rotate'
     }
     return null
   }, [getTransformedBounds])
+
+  const easeOutBounce = (t: number): number => {
+    const n1 = 7.5625
+    const d1 = 2.75
+    if (t < 1 / d1) return n1 * t * t
+    if (t < 2 / d1) return n1 * (t -= 1.5 / d1) * t + 0.75
+    if (t < 2.5 / d1) return n1 * (t -= 2.25 / d1) * t + 0.9375
+    return n1 * (t -= 2.625 / d1) * t + 0.984375
+  }
+
+  const drawStrokeWithJitterAndTip = useCallback((
+    ctx: CanvasRenderingContext2D,
+    pts: Point[],
+    color: string,
+    baseThickness: number,
+  ) => {
+    if (pts.length < 2) return
+
+    const totalLen = pts.length
+    const tipStartIdx = Math.max(0, totalLen - Math.floor(totalLen * TIP_LENGTH_RATIO))
+
+    ctx.strokeStyle = color
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+
+    for (let i = 1; i < pts.length; i++) {
+      const p0 = pts[i - 1]
+      const p1 = pts[i]
+
+      let thickness = baseThickness
+      if (i >= tipStartIdx) {
+        const progress = (i - tipStartIdx) / Math.max(1, (totalLen - 1) - tipStartIdx)
+        thickness = baseThickness * (1 - progress * 0.85)
+      }
+      if (i <= 3) {
+        const startProgress = i / 3
+        thickness = baseThickness * Math.min(1, startProgress * 1.2)
+      }
+
+      const jitter = JITTER_AMOUNT * (baseThickness / 8)
+      const cp0x = p0.x + (Math.random() - 0.5) * jitter
+      const cp0y = p0.y + (Math.random() - 0.5) * jitter
+      const cp1x = p1.x + (Math.random() - 0.5) * jitter
+      const cp1y = p1.y + (Math.random() - 0.5) * jitter
+      const cpx = (cp0x + cp1x) / 2
+      const cpy = (cp0y + cp1y) / 2
+
+      ctx.lineWidth = Math.max(0.5, thickness)
+      ctx.beginPath()
+      ctx.moveTo(p0.x, p0.y)
+      ctx.quadraticCurveTo(cp0x, cp0y, cpx, cpy)
+      ctx.stroke()
+
+      ctx.lineWidth = Math.max(0.3, thickness * 0.9)
+      ctx.beginPath()
+      ctx.moveTo(cpx, cpy)
+      ctx.quadraticCurveTo(cp1x, cp1y, p1.x, p1.y)
+      ctx.stroke()
+    }
+  }, [])
 
   const render = useCallback(() => {
     const canvas = canvasRef.current
@@ -213,81 +289,73 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
     ctx.translate(ox, oy)
     ctx.scale(z, z)
 
+    const now = performance.now()
+    const activeBounces = bounceAnimationsRef.current.filter(b => now - b.startTime < b.duration)
+
     strokesRef.current.forEach(stroke => {
       if (stroke.points.length < 2) return
       ctx.save()
-      const cx = stroke.x + stroke.width / 2
-      const cy = stroke.y + stroke.height / 2
+
+      let renderX = stroke.x
+      let renderY = stroke.y
+      const bounce = activeBounces.find(b => b.id === stroke.id)
+      if (bounce) {
+        const t = Math.min(1, (now - bounce.startTime) / bounce.duration)
+        const eased = easeOutBounce(t)
+        renderX = bounce.startX + (bounce.targetX - bounce.startX) * eased
+        renderY = bounce.startY + (bounce.targetY - bounce.startY) * eased
+      }
+
+      const cx = renderX + stroke.width / 2
+      const cy = renderY + stroke.height / 2
       ctx.translate(cx, cy)
       ctx.rotate(stroke.rotation)
       ctx.scale(stroke.scaleX, stroke.scaleY)
       ctx.translate(-stroke.width / 2, -stroke.height / 2)
 
-      ctx.strokeStyle = stroke.color
-      ctx.lineCap = 'round'
-      ctx.lineJoin = 'round'
-
-      const pts = stroke.points
-      ctx.lineWidth = stroke.thickness
-      ctx.beginPath()
-      ctx.moveTo(pts[0].x, pts[0].y)
-
-      for (let i = 1; i < pts.length; i++) {
-        const p0 = pts[i - 1]
-        const p1 = pts[i]
-        const cpx = (p0.x + p1.x) / 2
-        const cpy = (p0.y + p1.y) / 2
-        ctx.quadraticCurveTo(p0.x, p0.y, cpx, cpy)
-      }
-      if (pts.length >= 2) {
-        const last = pts[pts.length - 1]
-        ctx.lineTo(last.x, last.y)
-      }
-      ctx.stroke()
+      drawStrokeWithJitterAndTip(ctx, stroke.points, stroke.color, stroke.thickness)
 
       ctx.restore()
     })
 
+    if (bounceAnimationsRef.current.length !== activeBounces.length) {
+      setBounceAnimations(activeBounces)
+    }
+
     if (currentStroke && currentStroke.length >= 2) {
-      ctx.strokeStyle = brushColor
-      ctx.lineWidth = brushThickness
-      ctx.lineCap = 'round'
-      ctx.lineJoin = 'round'
-      ctx.beginPath()
-      const pts = currentStroke
-      ctx.moveTo(pts[0].x, pts[0].y)
-      for (let i = 1; i < pts.length; i++) {
-        const p0 = pts[i - 1]
-        const p1 = pts[i]
-        const cpx = (p0.x + p1.x) / 2
-        const cpy = (p0.y + p1.y) / 2
-        ctx.quadraticCurveTo(p0.x, p0.y, cpx, cpy)
-      }
-      if (pts.length >= 2) {
-        const last = pts[pts.length - 1]
-        ctx.lineTo(last.x, last.y)
-      }
-      ctx.stroke()
+      drawStrokeWithJitterAndTip(ctx, currentStroke, brushColor, brushThickness)
     }
 
     selectedIdsRef.current.forEach(id => {
       const stroke = strokesRef.current.find(s => s.id === id)
       if (!stroke) return
-      const bounds = getTransformedBounds(stroke)
+
+      let renderX = stroke.x
+      let renderY = stroke.y
+      const bounce = activeBounces.find(b => b.id === stroke.id)
+      if (bounce) {
+        const t = Math.min(1, (now - bounce.startTime) / bounce.duration)
+        const eased = easeOutBounce(t)
+        renderX = bounce.startX + (bounce.targetX - bounce.startX) * eased
+        renderY = bounce.startY + (bounce.targetY - bounce.startY) * eased
+      }
+
+      const bounds = getTransformedBounds(stroke, { x: renderX, y: renderY })
       const { minX, minY, maxX, maxY, cx, cy } = bounds
       const bw = maxX - minX
       const bh = maxY - minY
 
       ctx.save()
       ctx.strokeStyle = '#3498db'
-      ctx.lineWidth = 1.5 / z
-      ctx.setLineDash([6 / z, 4 / z])
+      ctx.lineWidth = 1.8 / z
+      ctx.setLineDash([7 / z, 5 / z])
       ctx.strokeRect(minX, minY, bw, bh)
 
       ctx.setLineDash([])
       ctx.fillStyle = 'white'
       ctx.strokeStyle = '#3498db'
-      const handleSize = 8 / z
+      ctx.lineWidth = 1.5 / z
+      const handleSize = 9 / z
       const handlePositions = [
         { x: minX, y: minY },
         { x: (minX + maxX) / 2, y: minY },
@@ -305,33 +373,43 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
         ctx.stroke()
       })
 
-      const handleDist = 22 / z
+      const handleDist = 24 / z
       const rotateX = (minX + maxX) / 2
       const rotateY = minY - handleDist
       ctx.beginPath()
-      ctx.arc(rotateX, rotateY, 7 / z, 0, Math.PI * 2)
+      ctx.arc(rotateX, rotateY, 8 / z, 0, Math.PI * 2)
       ctx.fillStyle = '#fff'
       ctx.fill()
       ctx.strokeStyle = '#3498db'
+      ctx.lineWidth = 1.5 / z
       ctx.stroke()
 
       ctx.beginPath()
-      ctx.setLineDash([3 / z, 3 / z])
-      ctx.moveTo(rotateX, rotateY + 7 / z)
+      ctx.setLineDash([4 / z, 3 / z])
+      ctx.lineWidth = 1 / z
+      ctx.moveTo(rotateX, rotateY + 8 / z)
       ctx.lineTo(rotateX, minY)
       ctx.stroke()
       ctx.setLineDash([])
 
       if (displayRotation && displayRotation.id === id) {
         const angleText = `${Math.round((displayRotation.angle * 180) / Math.PI)}°`
-        ctx.font = `${12 / z}px sans-serif`
+        ctx.font = `bold ${13 / z}px -apple-system, BlinkMacSystemFont, sans-serif`
         ctx.textAlign = 'center'
-        ctx.fillStyle = 'rgba(138, 127, 110, 0.9)'
         const tw = ctx.measureText(angleText).width
-        ctx.fillStyle = 'rgba(250, 243, 224, 0.9)'
-        const padX = 8 / z
-        const padY = 4 / z
-        ctx.fillRect(cx - tw / 2 - padX, cy - 10 / z - padY, tw + padX * 2, 20 / z + padY * 2)
+        const padX = 10 / z
+        const padY = 5 / z
+        ctx.fillStyle = 'rgba(250, 243, 224, 0.95)'
+        ctx.strokeStyle = 'rgba(212, 203, 184, 0.6)'
+        ctx.lineWidth = 1 / z
+        const bgW = tw + padX * 2
+        const bgH = 22 / z
+        const bgX = cx - bgW / 2
+        const bgY = cy - bgH / 2
+        ctx.beginPath()
+        ctx.roundRect(bgX, bgY, bgW, bgH, 4 / z)
+        ctx.fill()
+        ctx.stroke()
         ctx.fillStyle = '#6b5f4e'
         ctx.fillText(angleText, cx, cy + 4 / z)
       }
@@ -340,7 +418,7 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
     })
 
     ctx.restore()
-  }, [brushColor, brushThickness, currentStroke, displayRotation, getTransformedBounds])
+  }, [brushColor, brushThickness, currentStroke, displayRotation, getTransformedBounds, drawStrokeWithJitterAndTip])
 
   useEffect(() => {
     const loop = () => {
@@ -397,14 +475,22 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      interactionRef.current.shiftPressed = e.shiftKey
       if ((e.key === 'Delete' || e.key === 'Backspace') && selectedIdsRef.current.size > 0) {
         setStrokes(prev => prev.filter(s => !selectedIdsRef.current.has(s.id)))
         setSelectedIds(new Set())
         onSelectionChange(0)
       }
     }
+    const handleKeyUp = (e: KeyboardEvent) => {
+      interactionRef.current.shiftPressed = e.shiftKey
+    }
     window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
+    window.addEventListener('keyup', handleKeyUp)
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown)
+      window.removeEventListener('keyup', handleKeyUp)
+    }
   }, [onSelectionChange])
 
   const addJitter = (p: Point, amount: number = 0.5): Point => {
@@ -443,7 +529,7 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
       if (hitStroke && hitHandle) {
         if (hitHandle === 'rotate') {
           interactionRef.current.isRotating = true
-          interactionRef.current.originalStroke = hitStroke
+          interactionRef.current.originalStroke = { ...hitStroke }
           const bounds = getTransformedBounds(hitStroke)
           interactionRef.current.rotateOrigin = { x: bounds.cx, y: bounds.cy }
           interactionRef.current.originalRotation = hitStroke.rotation
@@ -472,23 +558,29 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
       }
 
       if (clickedStroke) {
+        let newSelectedSet: Set<string>
         if (e.shiftKey) {
-          const newSet = new Set(selectedIdsRef.current)
-          if (newSet.has(clickedStroke.id)) newSet.delete(clickedStroke.id)
-          else newSet.add(clickedStroke.id)
-          setSelectedIds(newSet)
-          onSelectionChange(newSet.size)
-        } else if (!selectedIdsRef.current.has(clickedStroke.id)) {
-          const newSet = new Set([clickedStroke.id])
-          setSelectedIds(newSet)
-          onSelectionChange(1)
+          newSelectedSet = new Set(selectedIdsRef.current)
+          if (newSelectedSet.has(clickedStroke.id)) {
+            newSelectedSet.delete(clickedStroke.id)
+          } else {
+            newSelectedSet.add(clickedStroke.id)
+          }
+        } else if (selectedIdsRef.current.has(clickedStroke.id)) {
+          newSelectedSet = new Set(selectedIdsRef.current)
+        } else {
+          newSelectedSet = new Set([clickedStroke.id])
         }
 
-        if (selectedIdsRef.current.size > 0 || (e.shiftKey && false)) {
+        setSelectedIds(newSelectedSet)
+        selectedIdsRef.current = newSelectedSet
+        onSelectionChange(newSelectedSet.size)
+
+        if (newSelectedSet.size > 0) {
           interactionRef.current.isDragging = true
           interactionRef.current.dragStart = { x: pt.x, y: pt.y }
           const originals = new Map<string, { x: number; y: number }>()
-          selectedIdsRef.current.forEach(id => {
+          newSelectedSet.forEach(id => {
             const s = strokesRef.current.find(st => st.id === id)
             if (s) originals.set(id, { x: s.x, y: s.y })
           })
@@ -497,6 +589,7 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
       } else {
         if (!e.shiftKey) {
           setSelectedIds(new Set())
+          selectedIdsRef.current = new Set()
           onSelectionChange(0)
         }
         interactionRef.current.isPanning = true
@@ -519,8 +612,13 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
     const ia = interactionRef.current
 
     if (ia.isDrawing && currentStroke) {
-      const jittered = addJitter(pt, 0.4)
-      setCurrentStroke(prev => prev ? [...prev, jittered] : [jittered])
+      const lastPt = currentStroke[currentStroke.length - 1]
+      const dist = Math.sqrt((pt.x - lastPt.x) ** 2 + (pt.y - lastPt.y) ** 2)
+      if (dist > 1.5) {
+        const jitterAmount = JITTER_AMOUNT * (brushThickness / 10)
+        const jittered = addJitter(pt, jitterAmount)
+        setCurrentStroke(prev => prev ? [...prev, jittered] : [jittered])
+      }
     } else if (ia.isPanning) {
       const now = performance.now()
       const dt = Math.max(1, now - inertiaRef.current.lastTime)
@@ -556,13 +654,16 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
       if (ia.resizeHandle.includes('s')) newH = Math.max(10, baseH + dy)
       if (ia.resizeHandle.includes('n')) { newH = Math.max(10, baseH - dy); newY = orig.y + (baseH - newH) }
 
-      if (e.shiftKey || ia.resizeHandle.length === 1) {
-        if (ia.resizeHandle.length === 2) {
-          const ratio = Math.max(newW / baseW, newH / baseH)
-          newW = baseW * ratio
-          newH = baseH * ratio
-          if (ia.resizeHandle.includes('w')) newX = orig.x + (baseW - newW)
+      const isCorner = ia.resizeHandle.length === 2
+      const shouldPreserveRatio = e.shiftKey || ia.shiftPressed || isCorner
+      if (shouldPreserveRatio && isCorner) {
+        const origRatio = baseW / baseH
+        if (newW / baseW > newH / baseH) {
+          newH = newW / origRatio
           if (ia.resizeHandle.includes('n')) newY = orig.y + (baseH - newH)
+        } else {
+          newW = newH * origRatio
+          if (ia.resizeHandle.includes('w')) newX = orig.x + (baseW - newW)
         }
       }
 
@@ -580,7 +681,7 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
       ))
       setDisplayRotation({ id: ia.originalStroke.id, angle: newRot })
     }
-  }, [currentStroke, onMouseMove, screenToCanvas])
+  }, [brushThickness, currentStroke, onMouseMove, screenToCanvas])
 
   const handleMouseUp = useCallback((_e: React.MouseEvent) => {
     const ia = interactionRef.current
@@ -593,7 +694,7 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
         if (p.x > maxX) maxX = p.x
         if (p.y > maxY) maxY = p.y
       })
-      const padding = brushThickness
+      const padding = brushThickness * 1.5
       const newStroke: DoodleStroke = {
         id: `stroke-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
         points: currentStroke,
@@ -629,7 +730,7 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
     }
 
     if (ia.isRotating) {
-      setTimeout(() => setDisplayRotation(null), 500)
+      setTimeout(() => setDisplayRotation(null), 600)
     }
 
     setCurrentStroke(null)
@@ -648,13 +749,14 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
       originalStroke: null,
       rotateOrigin: { x: 0, y: 0 },
       originalRotation: 0,
+      shiftPressed: interactionRef.current.shiftPressed,
     }
   }, [brushColor, brushThickness, currentStroke])
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (e.touches.length === 1) {
       const touch = e.touches[0]
-      const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY } as React.MouseEvent
+      const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY, shiftKey: false } as React.MouseEvent
       handleMouseDown(fakeEvent)
     } else if (e.touches.length === 2) {
       e.preventDefault()
@@ -676,7 +778,7 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
     e.preventDefault()
     if (e.touches.length === 1 && !touchRef.current) {
       const touch = e.touches[0]
-      const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY } as React.MouseEvent
+      const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY, shiftKey: false } as React.MouseEvent
       handleMouseMove(fakeEvent)
     } else if (e.touches.length === 2 && touchRef.current) {
       const t1 = e.touches[0]
@@ -723,7 +825,10 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
 
   const alignToGrid = useCallback(() => {
     if (selectedIdsRef.current.size === 0) return
-    const animating = new Set<string>()
+
+    const now = performance.now()
+    const newBounces: BounceAnimation[] = []
+
     setStrokes(prev => prev.map(s => {
       if (!selectedIdsRef.current.has(s.id)) return s
       const bounds = getTransformedBounds(s)
@@ -733,11 +838,21 @@ const DoodleCanvas = forwardRef<DoodleCanvasHandle, DoodleCanvasProps>(({
       const targetY = Math.round(cy / GRID_SIZE) * GRID_SIZE
       const dx = targetX - cx
       const dy = targetY - cy
-      animating.add(s.id)
+
+      newBounces.push({
+        id: s.id,
+        startX: s.x,
+        startY: s.y,
+        targetX: s.x + dx,
+        targetY: s.y + dy,
+        startTime: now,
+        duration: 500,
+      })
+
       return { ...s, x: s.x + dx, y: s.y + dy }
     }))
-    setAnimatingStrokes(animating)
-    setTimeout(() => setAnimatingStrokes(new Set()), 600)
+
+    setBounceAnimations(prev => [...prev.filter(b => now - b.startTime < b.duration), ...newBounces])
   }, [getTransformedBounds])
 
   const getExportBounds = useCallback(() => {
