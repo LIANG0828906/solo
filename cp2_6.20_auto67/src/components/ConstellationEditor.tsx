@@ -1,15 +1,31 @@
 import { useRef, useEffect, useCallback } from 'react';
-import { useThree } from '@react-three/fiber';
 import { useStarStore } from '@/store/starStore';
 import { worldToScreen, formatDistance, getMidpoint } from '@/utils/coordinates';
+import * as THREE from 'three';
 import './ConstellationEditor.css';
 
 export function ConstellationEditor() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationId = useRef<number | null>(null);
+  const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
 
-  const { camera, gl } = useThree();
   const dpr = window.devicePixelRatio || 1;
+
+  useEffect(() => {
+    const getCamera = () => {
+      const canvas = document.querySelector('.app-container canvas:first-of-type');
+      if (canvas) {
+        const fiber = (canvas as any).__r3f;
+        if (fiber && fiber.state) {
+          cameraRef.current = fiber.state.camera as THREE.PerspectiveCamera;
+        }
+      }
+    };
+    
+    getCamera();
+    const interval = setInterval(getCamera, 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   const stars = useStarStore((state) => state.stars);
   const constellationLines = useStarStore((state) => state.constellationLines);
@@ -21,18 +37,18 @@ export function ConstellationEditor() {
   const getStarScreenPos = useCallback(
     (starId: string) => {
       const star = getStarById(starId);
-      if (!star) return null;
+      if (!star || !cameraRef.current) return null;
 
       const { x, y, visible } = worldToScreen(
         [star.x, star.y, star.z],
-        camera,
+        cameraRef.current,
         window.innerWidth,
         window.innerHeight
       );
 
       return { x, y, visible, star };
     },
-    [camera, getStarById]
+    [getStarById]
   );
 
   const drawCurvedLine = useCallback(
@@ -138,12 +154,12 @@ export function ConstellationEditor() {
       }
     });
 
-    if (isDragging && dragStartStarId && dragCurrentPosition) {
+    if (isDragging && dragStartStarId && dragCurrentPosition && cameraRef.current) {
       const start = getStarScreenPos(dragStartStarId);
       if (start && start.visible) {
         const { x: endX, y: endY } = worldToScreen(
           [dragCurrentPosition.x, dragCurrentPosition.y, dragCurrentPosition.z],
-          camera,
+          cameraRef.current,
           window.innerWidth,
           window.innerHeight
         );
@@ -163,7 +179,6 @@ export function ConstellationEditor() {
     isDragging,
     dragStartStarId,
     dragCurrentPosition,
-    camera,
     getStarScreenPos,
     drawGlowLine,
     drawDistanceLabel,

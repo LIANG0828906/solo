@@ -3,10 +3,12 @@ import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, Stars } from '@react-three/drei';
 import * as THREE from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
+import type { Star } from '@/types';
 import { StarField } from './components/StarField';
 import { GalaxyBackground } from './components/GalaxyBackground';
 import { StarInfo } from './components/StarInfo';
 import { ConstellationEditor } from './components/ConstellationEditor';
+import { DistanceLabels } from './components/DistanceLabels';
 import { SearchBar } from './components/SearchBar';
 import { ControlButtons } from './components/ControlButtons';
 import { useStarStore } from './store/starStore';
@@ -43,7 +45,12 @@ function Scene3D({ onCameraReady }: { onCameraReady: (ctx: CameraContextType) =>
     maxDistance: 200,
   });
 
-  const handleStarClick = useCallback(() => {}, []);
+  const handleStarClick = useCallback(
+    (star: Star) => {
+      flyTo([star.x, star.y, star.z], star.id);
+    },
+    [flyTo]
+  );
 
   const handleStarDragStart = useCallback(() => {
     if (controlsRef.current) {
@@ -78,6 +85,7 @@ function Scene3D({ onCameraReady }: { onCameraReady: (ctx: CameraContextType) =>
         onStarDragStart={handleStarDragStart}
         onStarDragEnd={handleStarDragEnd}
       />
+      <DistanceLabels />
 
       <OrbitControls
         ref={controlsRef}
