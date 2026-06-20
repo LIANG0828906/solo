@@ -322,6 +322,16 @@ body {
   z-index: 20;
 }
 
+.gantt-header-label {
+  width: 180px;
+  padding: 12px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #64748b;
+  flex-shrink: 0;
+  background: #ffffff;
+}
+
 .gantt-header-cell {
   flex: 1;
   padding: 12px 8px;

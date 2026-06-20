@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { Objective, KeyResult } from '../store/okrStore'
+import { memo, useState } from 'react'
+import { Objective } from '../store/okrStore'
 import KeyResultEditor from './KeyResultEditor'
 
 interface ObjectiveCardProps {
@@ -9,16 +9,25 @@ interface ObjectiveCardProps {
   onDrop: (e: React.DragEvent, id: string) => void
   onDragEnd: () => void
   isDragOver: boolean
+  isDragDisabled?: boolean
 }
 
-export default function ObjectiveCard({ objective, onDragStart, onDragOver, onDrop, onDragEnd, isDragOver }: ObjectiveCardProps) {
+const ObjectiveCard = memo(function ObjectiveCard({
+  objective,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  isDragOver,
+  isDragDisabled,
+}: ObjectiveCardProps) {
   const [showEditor, setShowEditor] = useState(false)
 
   return (
     <>
       <div
         className={`objective-card${isDragOver ? ' drag-over' : ''}`}
-        draggable
+        draggable={!isDragDisabled}
         onDragStart={(e) => onDragStart(e, objective.id)}
         onDragOver={(e) => onDragOver(e, objective.id)}
         onDrop={(e) => onDrop(e, objective.id)}
@@ -45,4 +54,6 @@ export default function ObjectiveCard({ objective, onDragStart, onDragOver, onDr
       )}
     </>
   )
-}
+})
+
+export default ObjectiveCard

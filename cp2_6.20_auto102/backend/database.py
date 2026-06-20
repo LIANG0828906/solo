@@ -1,5 +1,3 @@
-from .models import ObjectiveBase, KeyResultBase, MilestoneBase, UserBase
-
 objectives_db: dict[str, dict] = {}
 milestones_db: dict[str, dict] = {}
 users_db: dict[str, dict] = {}

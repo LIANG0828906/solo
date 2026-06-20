@@ -34,14 +34,23 @@ export interface Toast {
   timestamp: number
 }
 
+export interface CurrentUser {
+  id: string
+  name: string
+}
+
 interface OKRStore {
   objectives: Objective[]
   milestones: Milestone[]
   selectedObjective: Objective | null
   toasts: Toast[]
   socket: Socket | null
+  currentUser: CurrentUser
+  isDragLoading: boolean
   setObjectives: (objectives: Objective[]) => void
   setSelectedObjective: (objective: Objective | null) => void
+  setCurrentUser: (user: CurrentUser) => void
+  setDragLoading: (loading: boolean) => void
   fetchObjectives: () => Promise<void>
   createObjective: (data: Partial<Objective>) => Promise<void>
   updateObjective: (id: string, data: Partial<Objective>) => Promise<void>
@@ -53,7 +62,7 @@ interface OKRStore {
   removeToast: (id: string) => void
   initSocket: () => void
   disconnectSocket: () => void
-  broadcastUpdate: (event: string, data: any) => void
+  broadcastUpdate: (event: string, data: any) => boolean
 }
 
 let toastIdCounter = 0
@@ -64,9 +73,13 @@ export const useOKRStore = create<OKRStore>((set, get) => ({
   selectedObjective: null,
   toasts: [],
   socket: null,
+  currentUser: { id: 'user-1', name: '张三' },
+  isDragLoading: false,
 
   setObjectives: (objectives) => set({ objectives }),
   setSelectedObjective: (objective) => set({ selectedObjective: objective }),
+  setCurrentUser: (user) => set({ currentUser: user }),
+  setDragLoading: (loading) => set({ isDragLoading: loading }),
 
   fetchObjectives: async () => {
     const data = await okrAPI.getObjectives()
@@ -90,13 +103,21 @@ export const useOKRStore = create<OKRStore>((set, get) => ({
   },
 
   broadcastUpdate: (event: string, data: any) => {
-    const { socket } = get()
-    if (socket) {
-      socket.emit('message', JSON.stringify({
+    const { socket, currentUser, addToast } = get()
+    if (!socket || !socket.connected) {
+      addToast('WebSocket未连接，广播未发送，但数据已保存')
+      return false
+    }
+    try {
+      socket.emit('objectiveUpdated', JSON.stringify({
         event,
         data,
-        user: '当前用户'
+        user: currentUser.name,
       }))
+      return true
+    } catch (e) {
+      addToast('广播发送失败，但数据已保存')
+      return false
     }
   },
 

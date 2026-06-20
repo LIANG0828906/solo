@@ -1,6 +1,5 @@
 import { useEffect, useState, useRef } from 'react'
 import { useOKRStore, Milestone } from '../store/okrStore'
-import dayjs from 'dayjs'
 
 const MONTHS = Array.from({ length: 12 }, (_, i) => `${i + 1}月`)
 
@@ -15,15 +14,23 @@ export default function MilestoneGantt() {
     fetchMilestones()
   }, [fetchMilestones])
 
+  useEffect(() => {
+    const handleClickOutside = () => setEditingId(null)
+    if (editingId) {
+      document.addEventListener('click', handleClickOutside)
+      return () => document.removeEventListener('click', handleClickOutside)
+    }
+  }, [editingId])
+
   const handleBarClick = (e: React.MouseEvent, milestone: Milestone) => {
     e.stopPropagation()
     setEditingId(milestone.id)
     setEditProgress(milestone.progress)
     const rect = (e.target as HTMLElement).getBoundingClientRect()
     const containerRect = containerRef.current?.getBoundingClientRect()
-    if (containerRect) {
+    if (containerRect && containerRef.current) {
       setPopupPos({
-        top: rect.bottom - containerRect.top + containerRef.current!.scrollTop + 8,
+        top: rect.bottom - containerRect.top + containerRef.current.scrollTop + 8,
         left: rect.left - containerRect.left,
       })
     }
@@ -40,9 +47,13 @@ export default function MilestoneGantt() {
   return (
     <div>
       <h2 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24, color: '#1e293b' }}>里程碑甘特图</h2>
-      <div className="gantt-container" ref={containerRef} style={{ maxHeight: '70vh' }}>
+      <div
+        className="gantt-container"
+        ref={containerRef}
+        style={{ maxHeight: '70vh', overflowY: 'auto' }}
+      >
         <div className="gantt-header">
-          <div style={{ width: 180, padding: '12px 16px', fontSize: 13, fontWeight: 600, color: '#64748b', flexShrink: 0 }}>里程碑</div>
+          <div className="gantt-header-label">里程碑</div>
           {MONTHS.map((m) => (
             <div key={m} className="gantt-header-cell">{m}</div>
           ))}
@@ -85,6 +96,7 @@ export default function MilestoneGantt() {
           <div
             className="gantt-popup"
             style={{ top: popupPos.top, left: popupPos.left }}
+            onClick={(e) => e.stopPropagation()}
           >
             <div style={{ fontSize: 13, fontWeight: 600 }}>完成百分比</div>
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>

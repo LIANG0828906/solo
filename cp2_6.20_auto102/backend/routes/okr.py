@@ -1,7 +1,7 @@
 import uuid
 from fastapi import APIRouter, HTTPException
 from ..database import objectives_db
-from ..models import ObjectiveBase, ObjectiveCreate, ObjectiveUpdate, ObjectiveMove, KeyResultBase
+from ..models import ObjectiveCreate, ObjectiveUpdate, ObjectiveMove, KeyResultBase
 from .websocket import manager
 
 router = APIRouter()

@@ -7,10 +7,11 @@ interface KeyResultEditorProps {
 }
 
 export default function KeyResultEditor({ objective, onClose }: KeyResultEditorProps) {
-  const { updateObjective, broadcastUpdate } = useOKRStore()
+  const { updateObjective, broadcastUpdate, addToast } = useOKRStore()
   const [keyResults, setKeyResults] = useState<KeyResult[]>(
     objective.keyResults.map((kr) => ({ ...kr }))
   )
+  const [isSaving, setIsSaving] = useState(false)
 
   const handleKRChange = (index: number, field: keyof KeyResult, value: string | number) => {
     const updated = [...keyResults]
@@ -19,9 +20,20 @@ export default function KeyResultEditor({ objective, onClose }: KeyResultEditorP
   }
 
   const handleSave = async () => {
-    await updateObjective(objective.id, { keyResults })
-    broadcastUpdate('objective_updated', { ...objective, keyResults })
-    onClose()
+    setIsSaving(true)
+    try {
+      await updateObjective(objective.id, { keyResults })
+      const updatedData = { ...objective, keyResults }
+      const broadcastOk = broadcastUpdate('objective_updated', updatedData)
+      if (!broadcastOk) {
+        addToast('数据已保存，但实时广播未成功')
+      }
+      onClose()
+    } catch (e) {
+      addToast('保存失败，请重试')
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   return (
@@ -64,7 +76,9 @@ export default function KeyResultEditor({ objective, onClose }: KeyResultEditorP
             </div>
           </div>
         ))}
-        <button className="save-btn" onClick={handleSave}>保存并广播</button>
+        <button className="save-btn" onClick={handleSave} disabled={isSaving} style={{ opacity: isSaving ? 0.6 : 1 }}>
+          {isSaving ? '保存中...' : '保存并广播'}
+        </button>
       </div>
     </div>
   )
