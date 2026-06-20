@@ -1,6 +1,8 @@
 import { WeatherMode, ControlParams } from './types';
 
 export class UIManager {
+  private static thumbSizeCache: { width: number; height: number } | null = null;
+
   private container: HTMLElement;
   private onWeatherChange: (mode: WeatherMode) => void;
   private onParamsChange: (params: Partial<ControlParams>) => void;
@@ -15,6 +17,49 @@ export class UIManager {
     windStrength: HTMLSpanElement;
     terrainScale: HTMLSpanElement;
   } | null = null;
+
+  private static getThumbSize(sliderEl: HTMLInputElement): { width: number; height: number } {
+    if (UIManager.thumbSizeCache) {
+      return UIManager.thumbSizeCache;
+    }
+
+    const styles = window.getComputedStyle(sliderEl);
+    let width = 20;
+    let height = 20;
+
+    const cssVarWidth = styles.getPropertyValue('--slider-thumb-width').trim();
+    const cssVarHeight = styles.getPropertyValue('--slider-thumb-height').trim();
+
+    if (cssVarWidth) {
+      const parsed = parseFloat(cssVarWidth);
+      if (!isNaN(parsed)) width = parsed;
+    }
+    if (cssVarHeight) {
+      const parsed = parseFloat(cssVarHeight);
+      if (!isNaN(parsed)) height = parsed;
+    }
+
+    const probe = document.createElement('div');
+    probe.style.cssText = `
+      width: ${width}px;
+      height: ${height}px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ffffff 0%, #dddddd 100%);
+      border: 2px solid rgba(0, 191, 255, 0.5);
+      position: absolute;
+      visibility: hidden;
+      pointer-events: none;
+    `;
+    document.body.appendChild(probe);
+
+    const rect = probe.getBoundingClientRect();
+    const size = { width: rect.width, height: rect.height };
+
+    document.body.removeChild(probe);
+
+    UIManager.thumbSizeCache = size;
+    return size;
+  }
 
   constructor(
     container: HTMLElement,
@@ -233,9 +278,11 @@ export class UIManager {
       const updateTooltipPosition = (sliderEl: HTMLInputElement) => {
         const val = parseFloat(sliderEl.value);
         const percent = (val - min) / (max - min);
-        const trackWidth = sliderEl.offsetWidth;
-        const thumbHalf = 10;
-        const percentAdjusted = percent * (trackWidth - thumbHalf * 2) / trackWidth + thumbHalf / trackWidth;
+        const trackRect = sliderEl.getBoundingClientRect();
+        const trackWidth = trackRect.width;
+        const thumbSize = UIManager.getThumbSize(sliderEl);
+        const thumbHalfWidth = thumbSize.width / 2;
+        const percentAdjusted = percent * (trackWidth - thumbSize.width) / trackWidth + thumbHalfWidth / trackWidth;
         const leftPercent = percentAdjusted * 100;
         valueDisplay.style.left = `${leftPercent}%`;
       };
@@ -246,6 +293,8 @@ export class UIManager {
       slider.max = String(max);
       slider.step = String(step);
       slider.value = String(value);
+      slider.style.setProperty('--slider-thumb-width', '20px');
+      slider.style.setProperty('--slider-thumb-height', '20px');
       slider.style.width = '100%';
       slider.style.height = '6px';
       slider.style.borderRadius = '3px';
@@ -263,8 +312,8 @@ export class UIManager {
         input[type="range"]::-webkit-slider-thumb {
           -webkit-appearance: none;
           appearance: none;
-          width: 20px;
-          height: 20px;
+          width: var(--slider-thumb-width, 20px);
+          height: var(--slider-thumb-height, 20px);
           border-radius: 50%;
           background: linear-gradient(135deg, #ffffff 0%, #dddddd 100%);
           cursor: pointer;
@@ -282,8 +331,8 @@ export class UIManager {
           border-radius: 3px;
         }
         input[type="range"]::-moz-range-thumb {
-          width: 20px;
-          height: 20px;
+          width: var(--slider-thumb-width, 20px);
+          height: var(--slider-thumb-height, 20px);
           border-radius: 50%;
           background: linear-gradient(135deg, #ffffff 0%, #dddddd 100%);
           cursor: pointer;

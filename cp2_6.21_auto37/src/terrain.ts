@@ -170,10 +170,7 @@ export class Terrain {
           vHeight = pos.y * heightScale;
           
           float phase = aRandomPhase;
-          float windX = sin(time * 0.5 + pos.x * 2.0 + pos.z * 1.5 + phase);
-          float windZ = cos(time * 0.5 + pos.z * 2.0 + pos.x * 1.5 + phase * 1.3);
-          float combinedWind = (windX + windZ) * 0.5;
-          float windOffset = combinedWind * 0.05 * windStrength;
+          float windOffset = sin(time * 0.5 + phase) * 0.05 * windStrength;
           pos.y += windOffset;
           pos.y *= heightScale;
           
