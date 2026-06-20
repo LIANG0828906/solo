@@ -24,14 +24,17 @@ interface StatCardProps {
 
 const StatCard: React.FC<StatCardProps> = ({ label, value, unit, trend, trendValue, suffix }) => {
   const [displayValue, setDisplayValue] = useState(value);
+  const [prevValue, setPrevValue] = useState(value);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [trendBounceKey, setTrendBounceKey] = useState(0);
 
   useEffect(() => {
-    if (value !== displayValue && typeof value === 'number') {
+    if (value !== displayValue && typeof value === 'number' && typeof displayValue === 'number') {
+      setPrevValue(displayValue);
       setIsAnimating(true);
-      const startValue = typeof displayValue === 'number' ? displayValue : 0;
+      const startValue = displayValue;
       const diff = value - startValue;
-      const duration = 500;
+      const duration = 600;
       const startTime = Date.now();
 
       const animate = () => {
@@ -49,23 +52,44 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, unit, trend, trendVal
       };
 
       requestAnimationFrame(animate);
+      
+      if (trend && trend !== 'stable') {
+        setTrendBounceKey(prev => prev + 1);
+      }
     }
-  }, [value]);
+  }, [value, trend]);
 
   const trendIcon = trend === 'up' ? '↑' : trend === 'down' ? '↓' : '→';
   const trendColor = trend === 'up' ? '#2ecc71' : trend === 'down' ? '#e74c3c' : '#95a5a6';
+  const valueDirection = typeof value === 'number' && typeof prevValue === 'number'
+    ? value > prevValue ? 'up' : value < prevValue ? 'down' : 'stable'
+    : 'stable';
 
   return (
     <div className={`stat-card ${isAnimating ? 'animating' : ''}`}>
       <div className="stat-label">{label}</div>
       <div className="stat-value-row">
-        <span className="stat-value">
-          {unit && <span className="stat-unit">{unit}</span>}
-          {displayValue}
-          {suffix && <span className="stat-suffix">{suffix}</span>}
+        <span className="stat-value-container">
+          <span className="stat-value" key={`${displayValue}-${isAnimating}`}>
+            {unit && <span className="stat-unit">{unit}</span>}
+            {displayValue}
+            {suffix && <span className="stat-suffix">{suffix}</span>}
+          </span>
         </span>
-        {trend && (
-          <span className="stat-trend" style={{ color: trendColor }}>
+        {trend && trend !== 'stable' && (
+          <span
+            key={trendBounceKey}
+            className={`stat-trend trend-bounce-${trend}`}
+            style={{ color: trendColor }}
+          >
+            {trendIcon} {trendValue}
+          </span>
+        )}
+        {trend && trend === 'stable' && (
+          <span
+            className="stat-trend"
+            style={{ color: trendColor }}
+          >
             {trendIcon} {trendValue}
           </span>
         )}
@@ -73,7 +97,7 @@ const StatCard: React.FC<StatCardProps> = ({ label, value, unit, trend, trendVal
       <div className="stat-sparkline">
         <svg width="60" height="20" viewBox="0 0 60 20">
           <path
-            d={generateSparkline(trend)}
+            d={generateSparkline(valueDirection === 'stable' ? trend : valueDirection)}
             fill="none"
             stroke={trendColor}
             strokeWidth="1.5"
@@ -105,7 +129,7 @@ function generateSparkline(trend?: string): string {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="custom-tooltip">
+      <div className="custom-tooltip tooltip-animate-in">
         <div className="tooltip-label">{label}</div>
         {payload.map((entry: any, index: number) => (
           <div key={index} className="tooltip-item">
@@ -236,6 +260,10 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ simulationTime }) => {
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackTime, setPlaybackTime] = useState(0);
+  const [startHour, setStartHour] = useState(0);
+  const [startMinute, setStartMinute] = useState(0);
+  const [endHour, setEndHour] = useState(23);
+  const [endMinute, setEndMinute] = useState(59);
 
   const speeds = [1, 2, 4];
 
@@ -266,11 +294,63 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ simulationTime }) => {
       .padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
   };
 
+  const formatTimeInput = (hour: number, minute: number) => {
+    return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+  };
+
+  const handleStartTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const [h, m] = e.target.value.split(':').map(Number);
+    setStartHour(h);
+    setStartMinute(m);
+  };
+
+  const handleEndTimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const [h, m] = e.target.value.split(':').map(Number);
+    setEndHour(h);
+    setEndMinute(m);
+  };
+
+  const applyTimeRange = () => {
+    const startMs = (startHour * 3600 + startMinute * 60) * 1000;
+    const endMs = (endHour * 3600 + endMinute * 60) * 1000;
+    if (startMs < endMs && endMs <= simulationTime) {
+      setPlaybackTime(startMs);
+    }
+  };
+
   const progress = simulationTime > 0 ? (playbackTime / simulationTime) * 100 : 0;
 
   return (
     <div className="tab-content history-tab">
       <div className="history-controls">
+        <div className="time-range-selector">
+          <div className="time-range-label">时间段选择:</div>
+          <div className="time-range-inputs">
+            <div className="time-input-group">
+              <label>开始:</label>
+              <input
+                type="time"
+                value={formatTimeInput(startHour, startMinute)}
+                onChange={handleStartTimeChange}
+                className="time-input"
+              />
+            </div>
+            <span className="time-range-separator">至</span>
+            <div className="time-input-group">
+              <label>结束:</label>
+              <input
+                type="time"
+                value={formatTimeInput(endHour, endMinute)}
+                onChange={handleEndTimeChange}
+                className="time-input"
+              />
+            </div>
+            <button className="apply-time-btn" onClick={applyTimeRange}>
+              应用
+            </button>
+          </div>
+        </div>
+
         <div className="playback-time">
           <span className="time-label">回放时间:</span>
           <span className="time-value">{formatTime(playbackTime)}</span>
@@ -299,11 +379,11 @@ const HistoryTab: React.FC<HistoryTabProps> = ({ simulationTime }) => {
             {isPlaying ? '⏸ 暂停' : '▶ 播放'}
           </button>
 
-          <div className="speed-buttons">
+          <div className="speed-pill-group">
             {speeds.map((speed) => (
               <button
                 key={speed}
-                className={`speed-btn ${playbackSpeed === speed ? 'active' : ''}`}
+                className={`speed-pill ${playbackSpeed === speed ? 'active' : ''}`}
                 onClick={() => setPlaybackSpeed(speed)}
               >
                 {speed}x
