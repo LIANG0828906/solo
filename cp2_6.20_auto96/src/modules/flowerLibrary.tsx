@@ -1,4 +1,4 @@
-import { useCallback, useState, useRef } from 'react'
+import { useCallback, useState, useRef, useEffect } from 'react'
 import { useFlowerStore } from '../store/flowerStore'
 import type { Flower } from '../services/api'
 
@@ -12,6 +12,7 @@ const SEASON_STYLES: Record<string, { bg: string; color: string }> = {
 interface PreviewState {
   flower: Flower
   rect: DOMRect
+  visible: boolean
 }
 
 function FlowerLibrary() {
@@ -19,6 +20,7 @@ function FlowerLibrary() {
   const [preview, setPreview] = useState<PreviewState | null>(null)
   const previewTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
   const hideTimeout = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const containerRef = useRef<HTMLDivElement>(null)
 
   const filteredFlowers = activeCategory
     ? allFlowers.filter((f) => f.category === activeCategory)
@@ -56,11 +58,15 @@ function FlowerLibrary() {
         hideTimeout.current = null
       }
       const rect = e.currentTarget.getBoundingClientRect()
+      if (preview && preview.flower.id === flower.id) {
+        setPreview({ ...preview, visible: true })
+        return
+      }
       previewTimeout.current = setTimeout(() => {
-        setPreview({ flower, rect })
+        setPreview({ flower, rect, visible: true })
       }, 120)
     },
-    []
+    [preview]
   )
 
   const handleCardMouseLeave = useCallback(() => {
@@ -68,9 +74,10 @@ function FlowerLibrary() {
       clearTimeout(previewTimeout.current)
       previewTimeout.current = null
     }
+    setPreview((prev) => (prev ? { ...prev, visible: false } : prev))
     hideTimeout.current = setTimeout(() => {
       setPreview(null)
-    }, 80)
+    }, 220)
   }, [])
 
   const handlePreviewEnter = useCallback(() => {
@@ -78,41 +85,61 @@ function FlowerLibrary() {
       clearTimeout(hideTimeout.current)
       hideTimeout.current = null
     }
+    setPreview((prev) => (prev ? { ...prev, visible: true } : prev))
   }, [])
 
   const handlePreviewLeave = useCallback(() => {
-    setPreview(null)
+    setPreview((prev) => (prev ? { ...prev, visible: false } : prev))
+    hideTimeout.current = setTimeout(() => {
+      setPreview(null)
+    }, 220)
   }, [])
 
   const getPreviewPosition = (rect: DOMRect) => {
     const previewWidth = 200
     const previewHeight = 260
     const gap = 12
+    const scrollOffsetX = containerRef.current?.scrollLeft || 0
 
-    const spaceRight = window.innerWidth - rect.right
-    const spaceLeft = rect.left
+    const viewportWidth = window.innerWidth
+    const viewportHeight = window.innerHeight
 
-    let left: number | undefined
-    let right: number | undefined
-    if (spaceRight >= previewWidth + gap) {
-      left = rect.right + gap
-    } else if (spaceLeft >= previewWidth + gap) {
-      right = window.innerWidth - rect.left + gap
-    } else {
-      left = Math.min(rect.right + gap, window.innerWidth - previewWidth - 8)
+    let left = rect.right + gap + scrollOffsetX
+    let top = rect.top
+
+    if (left + previewWidth + 8 > viewportWidth) {
+      left = rect.left - gap - previewWidth
+    }
+    if (left < 8) {
+      left = Math.max(8, viewportWidth - previewWidth - 8)
+    }
+    if (top + previewHeight + 8 > viewportHeight) {
+      top = Math.max(8, viewportHeight - previewHeight - 8)
+    }
+    if (top < 8) {
+      top = 8
     }
 
-    const top = Math.max(8, Math.min(rect.top, window.innerHeight - previewHeight - 8))
-
-    return { left, right, top }
+    return { left, top }
   }
+
+  useEffect(() => {
+    if (!preview) return
+    const onScroll = () => {
+      setPreview(null)
+    }
+    containerRef.current?.addEventListener('scroll', onScroll, { passive: true })
+    return () => containerRef.current?.removeEventListener('scroll', onScroll)
+  }, [preview])
 
   return (
     <div
+      ref={containerRef}
       style={{
         flex: 1,
         overflowY: 'auto',
         padding: '14px',
+        position: 'relative',
       }}
     >
       {loading && (
@@ -205,7 +232,6 @@ function FlowerLibrary() {
               }}
               className="flower-card"
               onMouseDown={(e) => (e.currentTarget.style.cursor = 'grabbing')}
-              onMouseUp={(e) => (e.currentTarget.style.cursor = 'grab')}
             >
               <div
                 style={{
@@ -325,14 +351,7 @@ function FlowerLibrary() {
           onMouseLeave={handlePreviewLeave}
           style={{
             position: 'fixed',
-            ...(() => {
-              const pos = getPreviewPosition(preview.rect)
-              return {
-                left: pos.left !== undefined ? pos.left : undefined,
-                right: pos.right !== undefined ? pos.right : undefined,
-                top: pos.top,
-              }
-            })(),
+            ...getPreviewPosition(preview.rect),
             width: '200px',
             background: 'var(--bg-glass-strong)',
             backdropFilter: 'blur(16px) saturate(180%)',
@@ -342,8 +361,10 @@ function FlowerLibrary() {
             boxShadow: '0 12px 36px rgba(74, 55, 40, 0.18), 0 4px 12px rgba(74, 55, 40, 0.08)',
             zIndex: 1000,
             overflow: 'hidden',
-            animation: 'previewFadeIn 0.2s ease both',
             pointerEvents: 'auto',
+            opacity: preview.visible ? 1 : 0,
+            transform: preview.visible ? 'translateX(0) scale(1)' : 'translateX(8px) scale(0.96)',
+            transition: 'opacity 0.2s ease, transform 0.2s ease',
           }}
         >
           <div

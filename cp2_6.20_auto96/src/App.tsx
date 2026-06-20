@@ -14,6 +14,14 @@ const CATEGORY_ICONS: Record<string, string> = {
   填充花类: '✨',
 }
 
+const CATEGORY_COLORS: Record<string, string> = {
+  玫瑰类: 'var(--cat-rose)',
+  百合类: 'var(--cat-lily)',
+  菊类: 'var(--cat-chrysanthemum)',
+  配叶类: 'var(--cat-foliage)',
+  填充花类: 'var(--cat-filler)',
+}
+
 const CATEGORY_GRADIENTS: Record<string, string> = {
   玫瑰类: 'var(--rose-gradient)',
   百合类: 'var(--lily-gradient)',
@@ -418,6 +426,7 @@ function App() {
                         borderRadius: '10px 10px 0 0',
                         position: 'relative',
                         transition: 'all 0.2s ease',
+                        ['--category-color' as any]: CATEGORY_COLORS[cat],
                       }}
                     >
                       <span style={{ fontSize: '18px' }}>{CATEGORY_ICONS[cat]}</span>
@@ -440,7 +449,8 @@ function App() {
                             right: '8px',
                             height: '8px',
                             borderRadius: '4px 4px 0 0',
-                            background: CATEGORY_FADE_GRADIENTS[cat],
+                            background:
+                              'linear-gradient(90deg, var(--category-color), transparent)',
                             animation: 'fadeIn 0.3s ease',
                           }}
                         />
