@@ -14,10 +14,11 @@ import {
 const CANVAS_WIDTH = 800;
 const CANVAS_HEIGHT = 500;
 const MIN_SIZE = 20;
+const DRAG_THRESHOLD = 3;
 
 type InteractionMode =
   | { kind: 'none' }
-  | { kind: 'move'; startX: number; startY: number; origLayer: Layer }
+  | { kind: 'move'; startX: number; startY: number; origLayer: Layer; moved: boolean }
   | { kind: 'resize'; handle: HandleType; startX: number; startY: number; origLayer: Layer }
   | { kind: 'rotate'; startAngle: number; startRotation: number; layerId: string };
 
@@ -33,10 +34,14 @@ export default function Canvas() {
 
   const [interaction, setInteraction] = useState<InteractionMode>({ kind: 'none' });
   const [isDragging, setIsDragging] = useState(false);
+  const [cursor, setCursor] = useState<string>('default');
   const lastClickTime = useRef(0);
   const rafId = useRef<number | null>(null);
   const interactionRef = useRef(interaction);
   const layersRef = useRef(layers);
+  const selectedRef = useRef(selectedLayerId);
+  const deleteLayerRef = useRef(deleteLayer);
+  const pushHistoryRef = useRef(pushHistory);
 
   useEffect(() => {
     interactionRef.current = interaction;
@@ -45,6 +50,10 @@ export default function Canvas() {
   useEffect(() => {
     layersRef.current = layers;
   }, [layers]);
+
+  useEffect(() => {
+    selectedRef.current = selectedLayerId;
+  }, [selectedLayerId]);
 
   const render = useCallback(() => {
     const canvas = canvasRef.current;
@@ -83,6 +92,30 @@ export default function Canvas() {
     Promise.all(promises).then(() => render());
   }, [layers, render]);
 
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      const target = e.target as HTMLElement;
+      const isInput =
+        target.tagName === 'INPUT' ||
+        target.tagName === 'TEXTAREA' ||
+        target.tagName === 'SELECT' ||
+        target.isContentEditable;
+      if (isInput) return;
+
+      const selId = selectedRef.current;
+      if (!selId) return;
+
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        e.preventDefault();
+        pushHistoryRef.current();
+        deleteLayerRef.current(selId);
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
+
   function getCanvasCoords(e: React.MouseEvent | MouseEvent): { x: number; y: number } {
     const canvas = canvasRef.current;
     if (!canvas) return { x: 0, y: 0 };
@@ -93,6 +126,59 @@ export default function Canvas() {
       x: (e.clientX - rect.left) * scaleX,
       y: (e.clientY - rect.top) * scaleY,
     };
+  }
+
+  function updateCursor(px: number, py: number) {
+    const selId = selectedLayerId;
+    if (selId) {
+      const selLayer = layers.find((l) => l.id === selId);
+      if (selLayer) {
+        const handle = getHandleAtPoint(selLayer, px, py);
+        if (handle === 'rotate') {
+          setCursor('grab');
+          return;
+        }
+        if (handle) {
+          switch (handle) {
+            case 'tl':
+            case 'br':
+              setCursor('nwse-resize');
+              return;
+            case 'tr':
+            case 'bl':
+              setCursor('nesw-resize');
+              return;
+            case 'tm':
+            case 'bm':
+              setCursor('ns-resize');
+              return;
+            case 'ml':
+            case 'mr':
+              setCursor('ew-resize');
+              return;
+          }
+        }
+        if (isPointInLayer(selLayer, px, py)) {
+          setCursor('move');
+          return;
+        }
+      }
+    }
+
+    for (let i = layers.length - 1; i >= 0; i--) {
+      if (isPointInLayer(layers[i], px, py)) {
+        setCursor('pointer');
+        return;
+      }
+    }
+
+    setCursor('default');
+  }
+
+  function handleMouseMove(e: React.MouseEvent) {
+    if (isDragging) return;
+    const { x, y } = getCanvasCoords(e);
+    updateCursor(x, y);
   }
 
   function handleMouseDown(e: React.MouseEvent) {
@@ -116,6 +202,7 @@ export default function Canvas() {
           interactionRef.current = newInteraction;
           pushHistory();
           setIsDragging(true);
+          setCursor('grabbing');
           e.preventDefault();
           return;
         }
@@ -148,16 +235,23 @@ export default function Canvas() {
         }
         lastClickTime.current = now;
 
+        const wasSelected = layer.id === selectedLayerId;
         setSelectedLayer(layer.id);
+
         const newInteraction: InteractionMode = {
           kind: 'move',
           startX: x,
           startY: y,
           origLayer: { ...layer },
+          moved: false,
         };
         setInteraction(newInteraction);
         interactionRef.current = newInteraction;
         setIsDragging(true);
+        if (wasSelected) {
+          pushHistory();
+        }
+        setCursor('grabbing');
         e.preventDefault();
         return;
       }
@@ -177,6 +271,11 @@ export default function Canvas() {
       if (cur.kind === 'move') {
         const dx = x - cur.startX;
         const dy = y - cur.startY;
+        if (!cur.moved && (Math.abs(dx) > DRAG_THRESHOLD || Math.abs(dy) > DRAG_THRESHOLD)) {
+          const updated: InteractionMode = { ...cur, moved: true };
+          setInteraction(updated);
+          interactionRef.current = updated;
+        }
         updateLayer(cur.origLayer.id, {
           x: cur.origLayer.x + dx,
           y: cur.origLayer.y + dy,
@@ -264,10 +363,15 @@ export default function Canvas() {
     }
 
     function onMouseUp() {
+      const cur = interactionRef.current;
+      if (cur.kind === 'move' && !cur.moved) {
+      } else if (cur.kind !== 'none') {
+      }
       setIsDragging(false);
       const none: InteractionMode = { kind: 'none' };
       setInteraction(none);
       interactionRef.current = none;
+      setCursor('default');
     }
 
     window.addEventListener('mousemove', onMouseMove);
@@ -280,6 +384,14 @@ export default function Canvas() {
 
   const selectedLayer = layers.find((l) => l.id === selectedLayerId);
 
+  const cursorStyle = isDragging
+    ? cursor === 'grab'
+      ? 'grabbing'
+      : cursor === 'move'
+        ? 'grabbing'
+        : cursor
+    : cursor;
+
   return (
     <div className="canvas-wrapper">
       <div className="canvas-container">
@@ -289,7 +401,8 @@ export default function Canvas() {
           width={CANVAS_WIDTH}
           height={CANVAS_HEIGHT}
           onMouseDown={handleMouseDown}
-          style={{ cursor: isDragging ? 'grabbing' : 'default' }}
+          onMouseMove={handleMouseMove}
+          style={{ cursor: cursorStyle }}
         />
       </div>
 
@@ -313,6 +426,9 @@ export default function Canvas() {
                 </option>
               ))}
             </select>
+          </div>
+          <div className="prop-hint">
+            提示：按 <kbd>Delete</kbd> 或双击可删除选中元素
           </div>
         </div>
       )}

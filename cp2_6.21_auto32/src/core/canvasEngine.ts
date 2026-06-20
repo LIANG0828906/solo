@@ -186,27 +186,52 @@ export function drawSelectionHandles(
   const halfW = layer.width / 2;
   const halfH = layer.height / 2;
 
-  ctx.strokeStyle = '#3b82f6';
-  ctx.lineWidth = 1.5;
-  ctx.setLineDash([5, 3]);
-  ctx.strokeRect(-halfW, -halfH, layer.width, layer.height);
-  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(59, 130, 246, 0.08)';
+  ctx.fillRect(-halfW, -halfH, layer.width, layer.height);
 
-  const handleSize = 8;
-  const handlePositions = [
-    [-halfW, -halfH],
-    [0, -halfH],
-    [halfW, -halfH],
-    [halfW, 0],
-    [halfW, halfH],
-    [0, halfH],
-    [-halfW, halfH],
-    [-halfW, 0],
+  ctx.strokeStyle = '#3b82f6';
+  ctx.lineWidth = 2.5;
+  ctx.strokeRect(-halfW, -halfH, layer.width, layer.height);
+
+  ctx.shadowColor = 'rgba(59, 130, 246, 0.4)';
+  ctx.shadowBlur = 6;
+  ctx.strokeStyle = '#3b82f6';
+  ctx.lineWidth = 1;
+  ctx.strokeRect(-halfW, -halfH, layer.width, layer.height);
+  ctx.shadowBlur = 0;
+
+  const cornerSize = 9;
+  const edgeSize = 7;
+  const cornerPositions = [
+    { x: -halfW, y: -halfH, size: cornerSize, cursor: 'nwse' },
+    { x: halfW, y: -halfH, size: cornerSize, cursor: 'nesw' },
+    { x: halfW, y: halfH, size: cornerSize, cursor: 'nwse' },
+    { x: -halfW, y: halfH, size: cornerSize, cursor: 'nesw' },
+  ];
+  const edgePositions = [
+    { x: 0, y: -halfH, size: edgeSize, cursor: 'ns' },
+    { x: halfW, y: 0, size: edgeSize, cursor: 'ew' },
+    { x: 0, y: halfH, size: edgeSize, cursor: 'ns' },
+    { x: -halfW, y: 0, size: edgeSize, cursor: 'ew' },
   ];
 
-  for (const [hx, hy] of handlePositions) {
+  for (const { x, y, size } of cornerPositions) {
     ctx.beginPath();
-    ctx.arc(hx, hy, handleSize / 2, 0, Math.PI * 2);
+    ctx.arc(x, y, size / 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#ffffff';
+    ctx.fill();
+    ctx.strokeStyle = '#3b82f6';
+    ctx.lineWidth = 2.5;
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(x, y, size / 2 - 2, 0, Math.PI * 2);
+    ctx.fillStyle = '#3b82f6';
+    ctx.fill();
+  }
+
+  for (const { x, y, size } of edgePositions) {
+    ctx.beginPath();
+    ctx.arc(x, y, size / 2, 0, Math.PI * 2);
     ctx.fillStyle = '#ffffff';
     ctx.fill();
     ctx.strokeStyle = '#3b82f6';
@@ -214,21 +239,26 @@ export function drawSelectionHandles(
     ctx.stroke();
   }
 
-  const handleY = -halfH - 20;
+  const rotateHandleY = -halfH - 22;
   ctx.beginPath();
   ctx.moveTo(0, -halfH);
-  ctx.lineTo(0, handleY + 6);
+  ctx.lineTo(0, rotateHandleY + 7);
   ctx.strokeStyle = '#22c55e';
-  ctx.lineWidth = 1.5;
+  ctx.lineWidth = 2;
   ctx.stroke();
 
   ctx.beginPath();
-  ctx.arc(0, handleY, 6, 0, Math.PI * 2);
+  ctx.arc(0, rotateHandleY, 7, 0, Math.PI * 2);
   ctx.fillStyle = '#22c55e';
   ctx.fill();
   ctx.strokeStyle = '#ffffff';
   ctx.lineWidth = 2;
   ctx.stroke();
+
+  ctx.beginPath();
+  ctx.arc(0, rotateHandleY, 3, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffffff';
+  ctx.fill();
 
   ctx.restore();
 }

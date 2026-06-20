@@ -64,7 +64,8 @@ ColorPalette ◀──颜色样本── useStore ◀──提取结果── co
 |------|--------|
 | 撤销 | Ctrl + Z |
 | 重做 | Ctrl + Shift + Z (或 Ctrl + Y) |
-| 删除图层 | 双击图层 |
+| 删除图层 | Delete / Backspace / 双击图层 |
+| 选中图层 | 单击图层 |
 
 ## 混合模式说明
 

@@ -243,6 +243,26 @@ body {
   border-color: #3b82f6;
 }
 
+.prop-hint {
+  font-size: 11px;
+  color: #94a3b8;
+  padding-top: 2px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  padding-top: 6px;
+}
+
+.prop-hint kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  font-size: 10px;
+  font-family: "SF Mono", Menlo, Consolas, monospace;
+  color: #475569;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+  box-shadow: 0 1px 0 rgba(0, 0, 0, 0.05);
+}
+
 /* ========== ColorPalette 右侧调色板 ========== */
 .color-palette {
   width: 250px;
