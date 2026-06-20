@@ -181,12 +181,12 @@ export const useMoleculeStore = create<MoleculeState>((set, get) => ({
   },
 
   addParticles: (position, color) => {
-    const particleCount = 10;
+    const particleCount = 20;
     const particles: Particle[] = [];
     for (let i = 0; i < particleCount; i++) {
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      const speed = 1.5 + Math.random() * 1.5;
+      const speed = 2.5 + Math.random() * 2.5;
       particles.push({
         id: generateId(),
         position: [...position] as [number, number, number],

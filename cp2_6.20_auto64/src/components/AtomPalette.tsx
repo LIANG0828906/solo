@@ -23,13 +23,15 @@ export const AtomPalette: React.FC = () => {
       </h3>
       {ELEMENT_LIST.map((element) => {
         const config = ELEMENT_CONFIG[element];
+        const hoverScale = 1.2;
+        const glowIntensity = '0 0 18px ' + config.color + ', 0 0 36px ' + config.color + '99, 0 0 60px ' + config.color + '44';
         return (
           <div
             key={element}
             draggable
             onDragStart={(e) => handleDragStart(e, element)}
             onDragEnd={handleDragEnd}
-            className="group flex items-center gap-3 p-3 rounded-xl cursor-grab active:cursor-grabbing
+            className="group relative flex items-center gap-3 p-3 rounded-xl cursor-grab active:cursor-grabbing
                        bg-[#1a1f2e]/60 backdrop-blur-sm border border-white/5
                        hover:bg-[#1a1f2e]/90 hover:border-white/10
                        hover:brightness-110 active:scale-95
@@ -38,30 +40,54 @@ export const AtomPalette: React.FC = () => {
               transitionTimingFunction: 'cubic-bezier(0.4, 0, 0.2, 1)',
             }}
           >
-            <div
-              className="relative flex-shrink-0 rounded-full transition-all duration-200 ease-out
-                         group-hover:scale-125"
-              style={{
-                width: config.radius * 40,
-                height: config.radius * 40,
-                backgroundColor: config.color,
-                boxShadow: `0 0 0px ${config.color}`,
-                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLDivElement).style.boxShadow = 
-                  `0 0 20px ${config.color}, 0 0 40px ${config.color}66`;
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLDivElement).style.boxShadow = `0 0 0px ${config.color}`;
-              }}
-            >
+            <div className="relative flex-shrink-0">
               <div
-                className="absolute inset-0 rounded-full opacity-40"
+                className="absolute inset-0 rounded-full pointer-events-none transition-all duration-200 ease-out"
                 style={{
-                  background: `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.8), transparent 60%)`,
+                  width: config.radius * 40,
+                  height: config.radius * 40,
+                  backgroundColor: config.color,
+                  opacity: 0,
+                  filter: 'blur(8px)',
+                  transform: 'scale(1)',
+                  transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.opacity = '0.6';
+                  (e.currentTarget as HTMLDivElement).style.transform = `scale(${hoverScale * 1.3})`;
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.opacity = '0';
+                  (e.currentTarget as HTMLDivElement).style.transform = 'scale(1)';
                 }}
               />
+              <div
+                className="relative rounded-full transition-all duration-200 ease-out z-10"
+                style={{
+                  width: config.radius * 40,
+                  height: config.radius * 40,
+                  backgroundColor: config.color,
+                  boxShadow: `0 0 0px ${config.color}`,
+                  transform: 'scale(1)',
+                  transition: 'all 0.25s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.transform = `scale(${hoverScale})`;
+                  (e.currentTarget as HTMLDivElement).style.boxShadow = glowIntensity;
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLDivElement).style.transform = 'scale(1)';
+                  (e.currentTarget as HTMLDivElement).style.boxShadow = `0 0 0px ${config.color}`;
+                }}
+              >
+                <div
+                  className="absolute inset-0 rounded-full"
+                  style={{
+                    background: `radial-gradient(circle at 30% 30%, rgba(255,255,255,0.85), transparent 55%)`,
+                    opacity: 0.5,
+                  }}
+                />
+              </div>
             </div>
             <div className="flex flex-col">
               <span className="text-sm font-bold text-white">{config.name}</span>

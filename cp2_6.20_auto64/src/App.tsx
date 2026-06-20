@@ -77,7 +77,122 @@ const App: React.FC = () => {
 
   const MobileLayout = () => (
     <div className="w-full h-full flex flex-col relative">
-      <div className="h-14 flex items-center justify-between px-3 gap-2 border-b border-white/5 bg-[#0d1117]/90 backdrop-blur-sm">
+      <div className="h-14 flex items-center justify-between px-3 gap-2 border-b border-white/5 bg-[#0d1117]/90 backdrop-blur-sm z-30">
         <button
           onClick={() => setShowLeftDrawer(true)}
-          className="p-2 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 transition
+          className="p-2 rounded-lg bg-white/5 hover:bg-white/10 active:scale-95 transition-all"
+        >
+          <Menu size={18} className="text-white" />
+        </button>
+        <div className="flex-1 flex justify-center">
+          <BondToolbar />
+        </div>
+        <PresetMenu />
+      </div>
+      <div className="flex-1 relative">
+        <MoleculeViewer />
+        {showIntro && (
+          <div
+            className="absolute top-3 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-lg
+                       bg-[#1a1f2e]/95 backdrop-blur-md border border-cyan-500/30
+                       text-[10px] text-cyan-300 flex items-center gap-1.5 animate-pulse z-20"
+          >
+            <Info size={12} />
+            <span>点击左上角菜单打开原子面板</span>
+            <button
+              onClick={() => setShowIntro(false)}
+              className="ml-1 text-gray-400 hover:text-white"
+            >
+              <X size={10} />
+            </button>
+          </div>
+        )}
+        <button
+          onClick={() => setShowBottomDrawer(true)}
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 rounded-xl
+                     bg-[#1a1f2e]/90 backdrop-blur-md border border-white/10
+                     text-xs text-white hover:brightness-110 active:scale-95 transition-all z-20"
+        >
+          查看属性面板
+        </button>
+      </div>
+
+      {showLeftDrawer && (
+        <div className="fixed inset-0 z-40">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowLeftDrawer(false)} />
+          <div
+            className="absolute left-0 top-0 bottom-0 w-[75%] max-w-[280px]
+                       bg-[#0d1117]/95 backdrop-blur-md border-r border-white/10
+                       shadow-2xl"
+            style={{
+              animation: 'slideInLeft 0.3s ease-out',
+            }}
+          >
+            <div className="h-14 flex items-center justify-between px-4 border-b border-white/10">
+              <h2 className="text-sm font-bold text-cyan-400">原子元素</h2>
+              <button
+                onClick={() => setShowLeftDrawer(false)}
+                className="p-1.5 rounded-lg hover:bg-white/10 active:scale-95 transition-all"
+              >
+                <X size={18} className="text-gray-400" />
+              </button>
+            </div>
+            <div className="h-[calc(100%-3.5rem)] overflow-hidden">
+              <AtomPalette />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showBottomDrawer && (
+        <div className="fixed inset-0 z-40">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowBottomDrawer(false)} />
+          <div
+            className="absolute left-0 right-0 bottom-0 max-h-[70%]
+                       bg-[#0d1117]/95 backdrop-blur-md border-t border-white/10
+                       shadow-2xl rounded-t-2xl"
+            style={{
+              animation: 'slideInBottom 0.4s ease-out',
+            }}
+          >
+            <div className="h-12 flex items-center justify-between px-4 border-b border-white/10">
+              <h2 className="text-sm font-bold text-cyan-400">属性面板</h2>
+              <button
+                onClick={() => setShowBottomDrawer(false)}
+                className="p-1.5 rounded-lg hover:bg-white/10 active:scale-95 transition-all"
+              >
+                <X size={18} className="text-gray-400" />
+              </button>
+            </div>
+            <div className="h-[calc(100%-3rem)] overflow-hidden">
+              <PropertyPanel />
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <div className="w-full h-full text-white overflow-hidden">
+      {isMobile ? <MobileLayout /> : <DesktopLayout />}
+      <DragPreview />
+      <style>{`
+        @keyframes slideInLeft {
+          from { transform: translateX(-100%); opacity: 0.5; }
+          to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideInBottom {
+          from { transform: translateY(100%); opacity: 0.5; }
+          to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes bondUnderline {
+          from { transform: scaleX(0); opacity: 0; }
+          to { transform: scaleX(1); opacity: 1; }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+export default App;

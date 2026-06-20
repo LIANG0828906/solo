@@ -215,31 +215,42 @@ interface ParticleMeshProps {
 
 const ParticleMesh: React.FC<ParticleMeshProps> = ({ particle }) => {
   const meshRef = useRef<THREE.Mesh>(null);
+  const glowRef = useRef<THREE.Mesh>(null);
 
   useFrame(() => {
-    if (meshRef.current) {
+    if (meshRef.current && glowRef.current) {
       const elapsed = Date.now() - particle.createdAt;
       const progress = Math.min(elapsed / particle.lifetime, 1);
-      const scale = 1 - progress * 0.7;
+      const scale = (1 - progress * 0.6) * 1.4;
       meshRef.current.scale.setScalar(scale);
+      glowRef.current.scale.setScalar(scale * 1.8);
       const material = meshRef.current.material as THREE.MeshBasicMaterial;
+      const glowMaterial = glowRef.current.material as THREE.MeshBasicMaterial;
       material.opacity = 1 - progress;
+      glowMaterial.opacity = (1 - progress) * 0.5;
     }
   });
 
   return (
-    <mesh ref={meshRef} position={particle.position}>
-      <sphereGeometry args={[0.08, 8, 8]} />
-      <meshBasicMaterial color={particle.color} transparent opacity={1} />
-    </mesh>
+    <group>
+      <mesh ref={meshRef} position={particle.position}>
+        <sphereGeometry args={[0.1, 10, 10]} />
+        <meshBasicMaterial color={particle.color} transparent opacity={1} />
+      </mesh>
+      <mesh ref={glowRef} position={particle.position}>
+        <sphereGeometry args={[0.1, 10, 10]} />
+        <meshBasicMaterial color={particle.color} transparent opacity={0.5} side={THREE.BackSide} depthWrite={false} />
+      </mesh>
+    </group>
   );
 };
 
 interface SceneContentProps {
   containerRef: React.RefObject<HTMLDivElement>;
+  mousePositionRef: React.MutableRefObject<{ x: number; y: number }>;
 }
 
-const SceneContent: React.FC<SceneContentProps> = ({ containerRef }) => {
+const SceneContent: React.FC<SceneContentProps> = ({ containerRef, mousePositionRef }) => {
   const atoms = useMoleculeStore((s) => s.atoms);
   const bonds = useMoleculeStore((s) => s.bonds);
   const particles = useMoleculeStore((s) => s.particles);
@@ -251,12 +262,43 @@ const SceneContent: React.FC<SceneContentProps> = ({ containerRef }) => {
   const addBond = useMoleculeStore((s) => s.addBond);
   const selectedBondType = useMoleculeStore((s) => s.selectedBondType);
   const getAtomById = useMoleculeStore((s) => s.getAtomById);
+  const draggingElement = useMoleculeStore((s) => s.draggingElement);
+  const isOverScene = useMoleculeStore((s) => s.isOverScene);
+
+  const { camera, viewport, size } = useThree();
+  const previewRef = useRef<THREE.Mesh>(null);
+  const previewGlowRef = useRef<THREE.Mesh>(null);
 
   const lowPerfMode = atoms.length > 200;
 
-  useFrame(() => {
+  useFrame((state) => {
     if (particles.length > 0) {
       updateParticles();
+    }
+
+    if (draggingElement && previewRef.current && previewGlowRef.current && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const ndcX = ((mousePositionRef.current.x - rect.left) / rect.width) * 2 - 1;
+      const ndcY = -((mousePositionRef.current.y - rect.top) / rect.height) * 2 + 1;
+
+      const distance = 6;
+      const fov = 50;
+      const aspect = rect.width / rect.height;
+      const height3d = 2 * Math.tan((fov * Math.PI) / 360) * distance;
+      const width3d = height3d * aspect;
+
+      const targetX = ndcX * width3d * 0.5;
+      const targetY = ndcY * height3d * 0.5;
+      const targetZ = 0;
+
+      previewRef.current.position.x += (targetX - previewRef.current.position.x) * 0.2;
+      previewRef.current.position.y += (targetY - previewRef.current.position.y) * 0.2;
+      previewRef.current.position.z += (targetZ - previewRef.current.position.z) * 0.2;
+
+      previewGlowRef.current.position.copy(previewRef.current.position);
+
+      const pulse = 1 + Math.sin(state.clock.elapsedTime * 6) * 0.08;
+      previewGlowRef.current.scale.setScalar(pulse);
     }
   });
 
@@ -330,6 +372,37 @@ const SceneContent: React.FC<SceneContentProps> = ({ containerRef }) => {
         );
       })()}
 
+      {draggingElement && (() => {
+        const config = ELEMENT_CONFIG[draggingElement];
+        const borderColor = isOverScene ? '#4ade80' : '#f87171';
+        return (
+          <group>
+            <mesh ref={previewRef}>
+              <sphereGeometry args={[config.radius, 32, 32]} />
+              <meshStandardMaterial
+                color={config.color}
+                transparent
+                opacity={0.55}
+                emissive={borderColor}
+                emissiveIntensity={0.4}
+                roughness={0.3}
+                metalness={0.2}
+              />
+            </mesh>
+            <mesh ref={previewGlowRef}>
+              <sphereGeometry args={[config.radius * 1.6, 24, 24]} />
+              <meshBasicMaterial
+                color={borderColor}
+                transparent
+                opacity={isOverScene ? 0.25 : 0.15}
+                side={THREE.BackSide}
+                depthWrite={false}
+              />
+            </mesh>
+          </group>
+        );
+      })()}
+
       <OrbitControls
         enablePan
         enableZoom
@@ -344,15 +417,25 @@ const SceneContent: React.FC<SceneContentProps> = ({ containerRef }) => {
 
 export const MoleculeViewer: React.FC = () => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const mousePositionRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
   const addAtom = useMoleculeStore((s) => s.addAtom);
   const addParticles = useMoleculeStore((s) => s.addParticles);
   const setIsOverScene = useMoleculeStore((s) => s.setIsOverScene);
   const setDraggingElement = useMoleculeStore((s) => s.setDraggingElement);
   const draggingElement = useMoleculeStore((s) => s.draggingElement);
 
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      mousePositionRef.current = { x: e.clientX, y: e.clientY };
+    };
+    window.addEventListener('mousemove', handleMouseMove);
+    return () => window.removeEventListener('mousemove', handleMouseMove);
+  }, []);
+
   const handleDragOver = (e: React.DragEvent) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
+    mousePositionRef.current = { x: e.clientX, y: e.clientY };
     setIsOverScene(true);
   };
 
@@ -412,7 +495,7 @@ export const MoleculeViewer: React.FC = () => {
         style={{ width: '100%', height: '100%' }}
       >
         <fog attach="fog" args={['#0d1117', 10, 30]} />
-        <SceneContent containerRef={containerRef} />
+        <SceneContent containerRef={containerRef} mousePositionRef={mousePositionRef} />
       </Canvas>
       {draggingElement && (
         <div
