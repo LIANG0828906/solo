@@ -25,47 +25,50 @@ export const ENERGY_GAIN = 10;
 export const ENERGY_LOSS = 5;
 export const MAX_HINTS = 3;
 
-const BASE_SOLUTION: CrystalType[] = [
-  'fire', 'ice', 'thunder',
-  'nature', 'shadow', 'fire',
-  'ice', 'thunder', 'nature',
-];
-
-function isSolutionValid(solution: CrystalType[]): boolean {
-  const emptyGrid = createEmptyGrid();
-  for (let i = 0; i < solution.length; i++) {
-    if (!validatePlacement(emptyGrid, i, solution[i])) {
-      return false;
-    }
-    emptyGrid[i] = solution[i];
+function backtrackSolution(
+  grid: (CrystalType | null)[],
+  index: number,
+  types: CrystalType[]
+): boolean {
+  if (index === CELL_COUNT) {
+    return true;
   }
-  return true;
+
+  const shuffledTypes = shuffleArray([...types]);
+  for (const type of shuffledTypes) {
+    if (validatePlacement(grid, index, type)) {
+      grid[index] = type;
+      if (backtrackSolution(grid, index + 1, types)) {
+        return true;
+      }
+      grid[index] = null;
+    }
+  }
+  return false;
+}
+
+function selectCrystalTypes(): CrystalType[] {
+  const usedCount = 3 + Math.floor(Math.random() * 4);
+  const shuffledAll = shuffleArray([...CRYSTAL_TYPES]);
+  return shuffledAll.slice(0, Math.min(usedCount, CRYSTAL_TYPES.length));
 }
 
 function generateValidSolution(): CrystalType[] {
-  const shuffledTypes = shuffleArray([...CRYSTAL_TYPES]);
-  const typeMapping = new Map<CrystalType, CrystalType>();
-  
-  const usedTypes = new Set(BASE_SOLUTION);
-  const baseUniqueTypes = Array.from(usedTypes);
-  
-  baseUniqueTypes.forEach((type, i) => {
-    typeMapping.set(type, shuffledTypes[i]);
-  });
-  
-  const remainingTypes = shuffledTypes.slice(baseUniqueTypes.length);
-  const unmappedTypes = CRYSTAL_TYPES.filter(t => !usedTypes.has(t));
-  unmappedTypes.forEach((type, i) => {
-    typeMapping.set(type, remainingTypes[i] || shuffledTypes[0]);
-  });
-  
-  const solution = BASE_SOLUTION.map(type => typeMapping.get(type) || type);
-  
-  if (isSolutionValid(solution)) {
-    return solution;
+  const maxAttempts = 50;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    const grid = createEmptyGrid();
+    const selectedTypes = selectCrystalTypes();
+
+    if (backtrackSolution(grid, 0, selectedTypes)) {
+      return grid as CrystalType[];
+    }
   }
-  
-  return [...BASE_SOLUTION];
+
+  const grid = createEmptyGrid();
+  const fallbackTypes = CRYSTAL_TYPES.slice(0, 5);
+  backtrackSolution(grid, 0, fallbackTypes);
+  return grid as CrystalType[];
 }
 
 export function generateCrystalPool(): CrystalType[] {

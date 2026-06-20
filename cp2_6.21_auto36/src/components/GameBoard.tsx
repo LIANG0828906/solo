@@ -18,6 +18,29 @@ interface Particle {
   type: 'success' | 'error';
 }
 
+interface ExplosionParticle {
+  id: number;
+  angle: number;
+  color: string;
+  glowColor: string;
+  speed: number;
+}
+
+interface ToastMessage {
+  id: number;
+  text: string;
+  type: 'error' | 'info';
+}
+
+const EXPLOSION_COLORS: { color: string; glowColor: string }[] = [
+  { color: '#ffd700', glowColor: '#ffed4a' },
+  { color: '#ff6347', glowColor: '#ff4500' },
+  { color: '#00bfff', glowColor: '#87ceeb' },
+  { color: '#9370db', glowColor: '#8a2be2' },
+  { color: '#90ee90', glowColor: '#32cd32' },
+  { color: '#ffffff', glowColor: '#ffffff' },
+];
+
 const GameBoard = () => {
   const {
     grid,
@@ -39,14 +62,16 @@ const GameBoard = () => {
   const [particles, setParticles] = useState<Particle[]>([]);
   const [particleId, setParticleId] = useState(0);
   const [showFlash, setShowFlash] = useState(false);
-  const [explosionParticles, setExplosionParticles] = useState<
-    { id: number; angle: number }[]
-  >([]);
+  const [explosionParticles, setExplosionParticles] = useState<ExplosionParticle[]>([]);
+  const [explosionRadius, setExplosionRadius] = useState(120);
 
   const [windowWidth, setWindowWidth] = useState(
     typeof window !== 'undefined' ? window.innerWidth : 1200
   );
   const [explosionCenter, setExplosionCenter] = useState<{ x: number; y: number } | null>(null);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [toastId, setToastId] = useState(0);
+  const [energyKey, setEnergyKey] = useState(0);
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -61,6 +86,26 @@ const GameBoard = () => {
   const crystalSize = cellSize * 0.6;
   const gap = 8;
   const gridPadding = 16;
+
+  const showToast = useCallback(
+    (text: string, type: 'error' | 'info' = 'info') => {
+      const id = toastId;
+      setToastId((prev) => prev + 1);
+      setToasts((prev) => [...prev, { id, text, type }]);
+      setTimeout(() => {
+        setToasts((prev) => prev.filter((t) => t.id !== id));
+      }, 2000);
+    },
+    [toastId]
+  );
+
+  const handleHintClick = useCallback(() => {
+    if (hintsRemaining <= 0) {
+      showToast('提示次数已用尽！', 'error');
+      return;
+    }
+    useHint();
+  }, [hintsRemaining, useHint, showToast]);
 
   useEffect(() => {
     if (lastFeedback && feedbackCell !== null && gridContainerRef.current) {
@@ -117,10 +162,20 @@ const GameBoard = () => {
 
       setExplosionCenter({ x: relativeX, y: relativeY });
 
-      const newParticles = Array.from({ length: 10 }, (_, i) => ({
-        id: i,
-        angle: (i / 10) * 360,
-      }));
+      const containerSize = Math.min(containerRect.width, containerRect.height);
+      const radius = containerSize * 0.8;
+      setExplosionRadius(radius);
+
+      const newParticles: ExplosionParticle[] = Array.from({ length: 10 }, (_, i) => {
+        const colorIdx = Math.floor(Math.random() * EXPLOSION_COLORS.length);
+        return {
+          id: i,
+          angle: (i / 10) * 360 + (Math.random() - 0.5) * 20,
+          color: EXPLOSION_COLORS[colorIdx].color,
+          glowColor: EXPLOSION_COLORS[colorIdx].glowColor,
+          speed: 0.7 + Math.random() * 0.6,
+        };
+      });
       setExplosionParticles(newParticles);
 
       const flashTimer = setTimeout(() => setShowFlash(false), 300);
@@ -135,6 +190,10 @@ const GameBoard = () => {
       };
     }
   }, [gameStatus, cellSize, gap, gridPadding]);
+
+  useEffect(() => {
+    setEnergyKey((prev) => prev + 1);
+  }, [energy]);
 
   const onDragEnd = useCallback(
     (result: DropResult) => {
@@ -196,7 +255,7 @@ const GameBoard = () => {
           <motion.button
             whileHover={{ scale: hintsRemaining > 0 ? 1.1 : 1 }}
             whileTap={{ scale: hintsRemaining > 0 ? 0.9 : 1 }}
-            onClick={useHint}
+            onClick={handleHintClick}
             disabled={hintsRemaining <= 0 || gameStatus === 'won'}
             className="w-10 h-10 rounded-full flex items-center justify-center relative"
             style={{
@@ -204,6 +263,7 @@ const GameBoard = () => {
               boxShadow:
                 hintsRemaining > 0 ? '0 2px 8px rgba(0, 0, 139, 0.5)' : 'none',
               cursor: hintsRemaining > 0 ? 'pointer' : 'not-allowed',
+              opacity: hintsRemaining <= 0 ? 0.6 : 1,
             }}
             title={`提示 (剩余${hintsRemaining}次)`}
           >
@@ -227,26 +287,40 @@ const GameBoard = () => {
           }}
         >
           <motion.div
+            key={energyKey}
             className="h-full rounded-full"
-            initial={{ width: '0%' }}
-            animate={{ width: `${energy}%` }}
-            transition={{ type: 'spring', stiffness: 200, damping: 15 }}
+            initial={{ width: '0%', scale: 1 }}
+            animate={{
+              width: `${energy}%`,
+              scale: [1, 1.05, 1],
+            }}
+            transition={{
+              width: { type: 'spring', stiffness: 200, damping: 15 },
+              scale: { duration: 0.4, ease: 'easeInOut' },
+            }}
             style={{
               background: 'linear-gradient(90deg, #b8860b, #ffd700, #ffed4a)',
               boxShadow: '0 0 10px rgba(255, 215, 0, 0.6)',
             }}
           />
-          <div className="absolute inset-0 flex items-center justify-center">
-            <span
-              className="text-sm font-bold"
-              style={{
-                color: '#f5deb3',
-                textShadow: '0 1px 2px rgba(0,0,0,0.5)',
-              }}
-            >
-              能量: {energy}/100
-            </span>
-          </div>
+          <motion.span
+            key={`label-${energyKey}`}
+            className="absolute inset-0 flex items-center justify-center text-sm font-bold"
+            initial={{ scale: 1, color: '#f5deb3' }}
+            animate={{
+              scale: [1, 1.15, 1],
+              color: ['#f5deb3', '#ffffff', '#f5deb3'],
+            }}
+            transition={{
+              scale: { type: 'spring', stiffness: 500, damping: 25 },
+              color: { duration: 0.4, ease: 'easeInOut' },
+            }}
+            style={{
+              textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+            }}
+          >
+            能量: {energy}/100
+          </motion.span>
         </div>
       </div>
 
@@ -459,28 +533,33 @@ const GameBoard = () => {
                 top: explosionCenter.y,
               }}
             >
-              {explosionParticles.map((particle) => (
-                <motion.div
-                  key={particle.id}
-                  className="absolute rounded-full"
-                  initial={{ scale: 0, x: 0, y: 0, opacity: 1 }}
-                  animate={{
-                    scale: [0, 1.5, 0],
-                    x: Math.cos((particle.angle * Math.PI) / 180) * 150,
-                    y: Math.sin((particle.angle * Math.PI) / 180) * 150,
-                    opacity: [1, 1, 0],
-                  }}
-                  transition={{ duration: 0.6, ease: 'easeOut' }}
-                  style={{
-                    width: 20,
-                    height: 20,
-                    backgroundColor: '#ffd700',
-                    boxShadow: '0 0 20px #ffd700, 0 0 40px #ffd700',
-                    marginLeft: -10,
-                    marginTop: -10,
-                  }}
-                />
-              ))}
+              {explosionParticles.map((particle) => {
+                const distance = explosionRadius * particle.speed;
+                const dx = Math.cos((particle.angle * Math.PI) / 180) * distance;
+                const dy = Math.sin((particle.angle * Math.PI) / 180) * distance;
+                return (
+                  <motion.div
+                    key={particle.id}
+                    className="absolute rounded-full"
+                    initial={{ scale: 0, x: 0, y: 0, opacity: 1 }}
+                    animate={{
+                      scale: [0, 1.5, 0],
+                      x: dx,
+                      y: dy,
+                      opacity: [1, 1, 0],
+                    }}
+                    transition={{ duration: 0.6, ease: 'easeOut' }}
+                    style={{
+                      width: 20,
+                      height: 20,
+                      backgroundColor: particle.color,
+                      boxShadow: `0 0 20px ${particle.glowColor}, 0 0 40px ${particle.color}`,
+                      marginLeft: -10,
+                      marginTop: -10,
+                    }}
+                  />
+                );
+              })}
             </div>
           )}
         </AnimatePresence>
@@ -529,6 +608,31 @@ const GameBoard = () => {
             </span>
           </div>
         ))}
+      </div>
+
+      <div className="fixed top-6 left-1/2 z-50 flex flex-col gap-2 pointer-events-none" style={{ transform: 'translateX(-50%)' }}>
+        <AnimatePresence>
+          {toasts.map((toast) => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, y: -20, scale: 0.9 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -20, scale: 0.9 }}
+              transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+              className="px-5 py-2.5 rounded-lg shadow-lg font-bold text-sm whitespace-nowrap"
+              style={{
+                backgroundColor: toast.type === 'error' ? 'rgba(139, 0, 0, 0.95)' : 'rgba(0, 0, 139, 0.95)',
+                color: '#fff',
+                border: `2px solid ${toast.type === 'error' ? '#ff4500' : '#00bfff'}`,
+                boxShadow: `0 0 15px ${toast.type === 'error' ? 'rgba(255, 69, 0, 0.5)' : 'rgba(0, 191, 255, 0.5)'}`,
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+              }}
+            >
+              {toast.text}
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
     </div>
   );
