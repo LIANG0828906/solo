@@ -2,6 +2,10 @@ import React, { useState, useCallback, useRef, useEffect } from 'react'
 import { useAppStore } from './store'
 import { Skill } from './types'
 
+const ZOOM_SCALE = 1.2
+const ANIMATION_DURATION = 200
+const DRAG_THRESHOLD = 10
+
 const SkillCard: React.FC<{
   skill: Skill
   onDragStart: (skill: Skill, e: React.DragEvent<HTMLDivElement>) => void
@@ -28,7 +32,7 @@ const SkillCard: React.FC<{
         flexDirection: 'column',
         alignItems: 'center',
         gap: 6,
-        transition: 'all 0.2s ease',
+        transition: `all ${ANIMATION_DURATION}ms ease`,
         userSelect: 'none',
       }}
       onMouseEnter={(e) => {
@@ -106,8 +110,10 @@ const Slot: React.FC<SlotProps> = ({
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     e.dataTransfer.dropEffect = e.dataTransfer.types.includes('slotIndex') ? 'move' : 'copy'
-    setIsDragOver(true)
-    onDragOverSlot(index)
+    if (!isDragOver) {
+      setIsDragOver(true)
+      onDragOverSlot(index)
+    }
   }
 
   const handleDragLeave = () => {
@@ -163,9 +169,10 @@ const Slot: React.FC<SlotProps> = ({
           alignItems: 'center',
           justifyContent: 'center',
           position: 'relative',
-          transition: 'all 0.2s ease',
+          transition: `all ${ANIMATION_DURATION}ms ease`,
           cursor: showEmptyState ? 'default' : skill ? (isPlaying ? 'default' : 'grab') : 'copy',
-          transform: isActive ? 'scale(1.1)' : isHighlighted ? 'scale(1.15)' : 'scale(1)',
+          transform: isActive ? `scale(${ZOOM_SCALE})` : isHighlighted ? `scale(${ZOOM_SCALE})` : 'scale(1)',
+          transformOrigin: 'center center',
           boxShadow: isActive
             ? '0 0 20px rgba(74, 222, 128, 0.5)'
             : isHighlighted
@@ -176,11 +183,13 @@ const Slot: React.FC<SlotProps> = ({
         {skill && !showEmptyState && (
           <>
             <span
-              className={`slot-icon ${isHighlighted ? 'slot-icon-enlarged' : ''}`}
+              className="slot-icon"
               style={{
                 fontSize: 28,
-                transition: 'all 0.2s ease',
-                transform: isHighlighted ? 'scale(1.3)' : 'scale(1)',
+                transition: `transform ${ANIMATION_DURATION}ms ease`,
+                transform: isHighlighted ? `scale(${ZOOM_SCALE})` : 'scale(1)',
+                display: 'inline-block',
+                transformOrigin: 'center center',
               }}
             >
               {skill.icon}
@@ -217,12 +226,16 @@ const Slot: React.FC<SlotProps> = ({
         )}
         {!skill && (
           <span
-            className={`slot-placeholder ${isHighlighted ? 'slot-placeholder-enlarged' : ''}`}
+            className="slot-placeholder"
             style={{
               color: isHighlighted ? '#e94560' : 'rgba(255,255,255,0.3)',
-              fontSize: isHighlighted ? 14 : 11,
-              transition: 'all 0.2s ease',
+              fontSize: 11,
               fontWeight: isHighlighted ? 600 : 400,
+              transition: `transform ${ANIMATION_DURATION}ms ease`,
+              transform: isHighlighted ? `scale(${ZOOM_SCALE})` : 'scale(1)',
+              transformOrigin: 'center center',
+              whiteSpace: 'nowrap',
+              display: 'inline-block',
             }}
           >
             {isHighlighted ? '放置' : '拖入'}
@@ -265,16 +278,17 @@ const Slot: React.FC<SlotProps> = ({
 const DragPreview: React.FC<{
   visible: boolean
   position: { x: number; y: number }
+  offset: { x: number; y: number }
   icon: string | null
-}> = ({ visible, position, icon }) => {
+}> = ({ visible, position, offset, icon }) => {
   if (!visible || !icon) return null
 
   return (
     <div
       style={{
         position: 'fixed',
-        left: position.x + 15,
-        top: position.y + 15,
+        left: position.x - offset.x,
+        top: position.y - offset.y,
         width: 50,
         height: 50,
         borderRadius: 8,
@@ -289,7 +303,7 @@ const DragPreview: React.FC<{
         transform: 'rotate(-5deg)',
         boxShadow: '0 8px 32px rgba(233, 69, 96, 0.5)',
         opacity: 0.9,
-        transition: 'transform 0.1s ease',
+        transition: 'opacity 0.1s ease',
       }}
     >
       {icon}
@@ -312,12 +326,22 @@ const SkillEditor: React.FC = () => {
   const [draggedSlotIndex, setDraggedSlotIndex] = useState<number | null>(null)
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null)
   const [dragPosition, setDragPosition] = useState({ x: 0, y: 0 })
+  const [dragStartPosition, setDragStartPosition] = useState({ x: 0, y: 0 })
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
+  const [hasMoved, setHasMoved] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
 
   const handleDragMove = useCallback((e: MouseEvent) => {
     setDragPosition({ x: e.clientX, y: e.clientY })
-  }, [])
+    if (!hasMoved) {
+      const dx = Math.abs(e.clientX - dragStartPosition.x)
+      const dy = Math.abs(e.clientY - dragStartPosition.y)
+      if (dx > DRAG_THRESHOLD || dy > DRAG_THRESHOLD) {
+        setHasMoved(true)
+      }
+    }
+  }, [dragStartPosition, hasMoved])
 
   useEffect(() => {
     if (isDragging) {
@@ -329,17 +353,31 @@ const SkillEditor: React.FC = () => {
   }, [isDragging, handleDragMove])
 
   const handleSkillDragStart = useCallback((skill: Skill, e: React.DragEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const offsetX = e.clientX - rect.left
+    const offsetY = e.clientY - rect.top
+
     setDraggedSkillId(skill.id)
     setDraggedSlotIndex(null)
     setIsDragging(true)
+    setHasMoved(false)
     setDragPosition({ x: e.clientX, y: e.clientY })
+    setDragStartPosition({ x: e.clientX, y: e.clientY })
+    setDragOffset({ x: offsetX, y: offsetY })
   }, [])
 
   const handleSlotDragStart = useCallback((index: number, e: React.DragEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const offsetX = e.clientX - rect.left
+    const offsetY = e.clientY - rect.top
+
     setDraggedSlotIndex(index)
     setDraggedSkillId(null)
     setIsDragging(true)
+    setHasMoved(false)
     setDragPosition({ x: e.clientX, y: e.clientY })
+    setDragStartPosition({ x: e.clientX, y: e.clientY })
+    setDragOffset({ x: offsetX, y: offsetY })
   }, [])
 
   const handleSlotDragOver = useCallback((index: number) => {
@@ -352,6 +390,11 @@ const SkillEditor: React.FC = () => {
 
   const handleDrop = useCallback(
     (slotId: string) => {
+      if (!hasMoved) {
+        handleDragEnd()
+        return
+      }
+
       if (draggedSkillId) {
         setSkillToSlot(slotId, draggedSkillId)
       } else if (draggedSlotIndex !== null) {
@@ -364,8 +407,9 @@ const SkillEditor: React.FC = () => {
       setDraggedSlotIndex(null)
       setDragOverIndex(null)
       setIsDragging(false)
+      setHasMoved(false)
     },
-    [draggedSkillId, draggedSlotIndex, comboSlots, setSkillToSlot, reorderSlots]
+    [draggedSkillId, draggedSlotIndex, hasMoved, comboSlots, setSkillToSlot, reorderSlots]
   )
 
   const handleDragEnd = useCallback(() => {
@@ -373,6 +417,7 @@ const SkillEditor: React.FC = () => {
     setDraggedSlotIndex(null)
     setDragOverIndex(null)
     setIsDragging(false)
+    setHasMoved(false)
   }, [])
 
   const handleContainerDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -422,7 +467,12 @@ const SkillEditor: React.FC = () => {
         position: 'relative',
       }}
     >
-      <DragPreview visible={isDragging} position={dragPosition} icon={draggedIcon} />
+      <DragPreview
+        visible={isDragging && hasMoved}
+        position={dragPosition}
+        offset={dragOffset}
+        icon={draggedIcon}
+      />
 
       <div>
         <h3
@@ -489,7 +539,7 @@ const SkillEditor: React.FC = () => {
                     color: 'rgba(255,255,255,0.3)',
                     fontSize: 18,
                     marginTop: -16,
-                    transition: 'all 0.2s ease',
+                    transition: `all ${ANIMATION_DURATION}ms ease`,
                     opacity: dragOverIndex === index || dragOverIndex === index + 1 ? 0.6 : 1,
                   }}
                 >
