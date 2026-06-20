@@ -232,12 +232,35 @@ const GameCanvas: React.FC = () => {
             ctx.shadowBlur = 0;
           }
 
-          if (isShiftPressed && selectedBuilding && building === 'empty' && hoveredCell) {
+          if (selectedBuilding && building === 'empty' && isHovered) {
             const canBuild = canBuildAt(grid, x, y, selectedBuilding, resources.money);
-            ctx.fillStyle = canBuild 
-              ? `${BUILDING_CONFIGS[selectedBuilding].color}40`
-              : 'rgba(255, 0, 0, 0.2)';
-            ctx.fillRect(px + 1, py + 1, cellSize - 2, cellSize - 2);
+            const baseColor = BUILDING_CONFIGS[selectedBuilding].color;
+            
+            if (canBuild) {
+              ctx.fillStyle = `${baseColor}55`;
+              ctx.fillRect(px + 2, py + 2, cellSize - 4, cellSize - 4);
+              
+              ctx.strokeStyle = `${baseColor}aa`;
+              ctx.lineWidth = 2;
+              ctx.setLineDash([4, 4]);
+              ctx.strokeRect(px + 2, py + 2, cellSize - 4, cellSize - 4);
+              ctx.setLineDash([]);
+            } else {
+              ctx.fillStyle = 'rgba(255, 50, 50, 0.35)';
+              ctx.fillRect(px + 2, py + 2, cellSize - 4, cellSize - 4);
+              
+              ctx.strokeStyle = 'rgba(255, 80, 80, 0.8)';
+              ctx.lineWidth = 2;
+              ctx.setLineDash([4, 4]);
+              ctx.strokeRect(px + 2, py + 2, cellSize - 4, cellSize - 4);
+              ctx.setLineDash([]);
+              
+              ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+              ctx.font = `${Math.floor(cellSize * 0.5)}px monospace`;
+              ctx.textAlign = 'center';
+              ctx.textBaseline = 'middle';
+              ctx.fillText('✕', px + cellSize / 2, py + cellSize / 2);
+            }
           }
         }
       }
