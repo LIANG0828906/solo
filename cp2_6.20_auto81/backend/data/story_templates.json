@@ -1,0 +1,682 @@
+{
+  "stories": {
+    "medieval": {
+      "nodes": [
+        {
+          "id": "medieval_start",
+          "text": "你在一片迷雾笼罩的森林中醒来。\n\n空气寒冷而潮湿，远处传来狼嚎声。你环顾四周，发现自己身处一条古老的石径上，路的左边通向一座隐约可见的城堡，右边则延伸至一个冒着炊烟的村庄。\n\n你的脑海中一片空白，唯一记得的只有自己的名字...",
+          "choices": [
+            {
+              "id": "m_choice_1",
+              "text": "走向神秘的城堡",
+              "next_node_id": "medieval_castle_gate",
+              "effect": { "sanity": -5 }
+            },
+            {
+              "id": "m_choice_2",
+              "text": "前往有人烟的村庄",
+              "next_node_id": "medieval_village",
+              "effect": { "charisma": 5 }
+            },
+            {
+              "id": "m_choice_3",
+              "text": "就地探索周围的森林",
+              "next_node_id": "medieval_forest_explore",
+              "effect": { "health": -5 }
+            }
+          ]
+        },
+        {
+          "id": "medieval_castle_gate",
+          "text": "你沿着石径走了大约半个时辰，终于来到了城堡前。\n\n这是一座哥特式的古老城堡，黑色的石墙爬满了枯萎的藤蔓。城门前站着一位身披银甲的骑士，他用警惕的目光打量着你。\n\n\"陌生人，报上你的来意。\"骑士沉声道，手已按在了剑柄上。",
+          "choices": [
+            {
+              "id": "m_castle_1",
+              "text": "礼貌地说明自己失去了记忆，请求帮助",
+              "next_node_id": "medieval_castle_inside",
+              "condition": { "charisma": 40 },
+              "effect": { "charisma": 10, "add_item": "knight_blessing" }
+            },
+            {
+              "id": "m_castle_2",
+              "text": "尝试强行闯入",
+              "next_node_id": "medieval_castle_fight",
+              "effect": { "health": -30 }
+            },
+            {
+              "id": "m_castle_3",
+              "text": "转身离开，改去村庄",
+              "next_node_id": "medieval_village",
+              "effect": { "sanity": 5 }
+            }
+          ]
+        },
+        {
+          "id": "medieval_village",
+          "text": "村庄比你想象的要小，只有十几间木屋围绕着一个中央广场。\n\n广场中央有一口古井，井边坐着一位正在编织的老妇人。她抬头看见了你，浑浊的眼睛里闪过一丝惊讶。\n\n\"你...你是从外面来的?\"她站起身，\"已经很久没有外人来过我们这个地方了...\"",
+          "choices": [
+            {
+              "id": "m_village_1",
+              "text": "向老妇人打听这里的情况",
+              "next_node_id": "medieval_village_info",
+              "effect": { "sanity": 10, "add_item": "old_map" }
+            },
+            {
+              "id": "m_village_2",
+              "text": "去村里的酒馆看看",
+              "next_node_id": "medieval_tavern",
+              "effect": { "gold": -10, "charisma": 5 }
+            },
+            {
+              "id": "m_village_3",
+              "text": "询问是否有可以赚钱的工作",
+              "next_node_id": "medieval_quest",
+              "effect": { "gold": 20 }
+            }
+          ]
+        },
+        {
+          "id": "medieval_forest_explore",
+          "text": "你决定在森林里四处探索。\n\n拨开茂密的灌木丛，你发现了一处被藤蔓覆盖的古老遗迹。遗迹中央有一个闪烁着微光的石台，上面放着一把锈迹斑斑的剑。\n\n空气中弥漫着一种说不出的诡异感觉...",
+          "choices": [
+            {
+              "id": "m_forest_1",
+              "text": "拿起那把剑",
+              "next_node_id": "medieval_cursed_sword",
+              "effect": { "sanity": -20, "add_item": "ancient_blade" }
+            },
+            {
+              "id": "m_forest_2",
+              "text": "仔细搜索遗迹其他地方",
+              "next_node_id": "medieval_ruins_treasure",
+              "effect": { "gold": 50 }
+            },
+            {
+              "id": "m_forest_3",
+              "text": "感到不安，立刻离开",
+              "next_node_id": "medieval_village",
+              "effect": { "sanity": 5 }
+            }
+          ]
+        },
+        {
+          "id": "medieval_castle_inside",
+          "text": "骑士审视了你片刻，最终点了点头。\n\n\"跟我来，领主或许愿意见你。\"\n\n你跟随着骑士穿过城堡大厅。墙上挂满了祖先的画像，他们的目光似乎都在追随着你。在王座厅，一位年迈的领主正坐在宝座上，若有所思地看着你。\n\n\"传说中的旅人...你终于来了。\"",
+          "choices": [
+            {
+              "id": "m_throne_1",
+              "text": "询问领主关于自己身世的事",
+              "next_node_id": "medieval_truth_revealed",
+              "effect": { "sanity": -10 }
+            },
+            {
+              "id": "m_throne_2",
+              "text": "表示愿意为领主攻劳",
+              "next_node_id": "medieval_good_ending",
+              "effect": { "charisma": 20, "gold": 100 },
+              "condition": { "has_item": "knight_blessing" }
+            },
+            {
+              "id": "m_throne_3",
+              "text": "拒绝相信，转身离开",
+              "next_node_id": "medieval_neutral_ending"
+            }
+          ]
+        },
+        {
+          "id": "medieval_castle_fight",
+          "text": "你猛地向前冲去！\n\n但骑士的反应比你快得多。他轻松一闪，用剑柄重重地敲在你的后脑勺上。\n\n...\n\n当你再次醒来时，发现自己被关在城堡的地牢里。铁门紧锁，墙壁渗着冷水...",
+          "choices": [
+            {
+              "id": "m_dungeon_1",
+              "text": "寻找逃狱的方法",
+              "next_node_id": "medieval_dungeon_escape",
+              "effect": { "health": -10 }
+            },
+            {
+              "id": "m_dungeon_2",
+              "text": "大声呼救",
+              "next_node_id": "medieval_bad_ending"
+            }
+          ]
+        },
+        {
+          "id": "medieval_village_info",
+          "text": "老妇人叹了口气，拉着你坐了下来。\n\n\"这个村子叫做'遗忘之村'...凡是来到这里的人，都会失去过去的记忆。\"\n\n她从怀中掏出一张泛黄的地图递给你：\"这是我年轻时画的，或许对你有用。村北的山里有一座遗迹，传说那里藏着恢复记忆的秘密...\"",
+          "choices": [
+            {
+              "id": "m_info_1",
+              "text": "前往北方遗迹",
+              "next_node_id": "medieval_forest_explore",
+              "effect": { "sanity": 5 }
+            },
+            {
+              "id": "m_info_2",
+              "text": "先在村子里休息一晚",
+              "next_node_id": "medieval_tavern",
+              "effect": { "health": 20 }
+            },
+            {
+              "id": "m_info_3",
+              "text": "询问更多关于城堡的事",
+              "next_node_id": "medieval_castle_gate",
+              "effect": { "charisma": 5 }
+            }
+          ]
+        },
+        {
+          "id": "medieval_tavern",
+          "text": "酒馆里弥漫着啤酒和烤肉的香味。\n\n你找了个位置坐下，花了几枚金币点了一份餐食。邻桌坐着几位神色彪悍的冒险者，其中一位大胡子注意到了你。\n\n\"嘿，新来的! 要不要加入我们? 我们正要去讨伐山里的巨龙，报酬丰厚!\"",
+          "choices": [
+            {
+              "id": "m_tavern_1",
+              "text": "接受邀请，加入冒险队伍",
+              "next_node_id": "medieval_dragon_quest",
+              "condition": { "health": 50 },
+              "effect": { "health": -20, "gold": 100 }
+            },
+            {
+              "id": "m_tavern_2",
+              "text": "婉拒，只想安静地吃饭",
+              "next_node_id": "medieval_village_info",
+              "effect": { "health": 10, "sanity": 10 }
+            },
+            {
+              "id": "m_tavern_3",
+              "text": "和他们喝酒套近乎，打听消息",
+              "next_node_id": "medieval_quest",
+              "effect": { "gold": -5, "charisma": 10 }
+            }
+          ]
+        },
+        {
+          "id": "medieval_quest",
+          "text": "村长听说了你的事，找到了你。\n\n\"年轻人，我这里有个任务...最近森林里的野狼越来越猖獗，如果你能帮我们除掉狼群的首领，我会给你丰厚的报酬。\"\n\n他顿了顿：\"当然，如果你成功了，我还会告诉你一个关于你身世的秘密...\"",
+          "choices": [
+            {
+              "id": "m_quest_1",
+              "text": "接受任务，前往森林猎杀狼首",
+              "next_node_id": "medieval_wolf_fight",
+              "condition": { "health": 40 },
+              "effect": { "health": -15, "gold": 30 }
+            },
+            {
+              "id": "m_quest_2",
+              "text": "询问是否有其他更安全的工作",
+              "next_node_id": "medieval_neutral_ending",
+              "effect": { "gold": 10 }
+            }
+          ]
+        },
+        {
+          "id": "medieval_cursed_sword",
+          "text": "你伸手握住了剑柄。\n\n刹那间，无数诡异的画面涌入你的脑海——尸山血海、燃烧的城市、一个戴着王冠的身影...\n\n你跪倒在地，头痛欲裂。当你重新抬起头时，你的眼中已多了一丝不属于你的疯狂...",
+          "choices": [
+            {
+              "id": "m_cursed_1",
+              "text": "带着剑前往城堡，寻找真相",
+              "next_node_id": "medieval_castle_gate",
+              "effect": { "sanity": -10 }
+            },
+            {
+              "id": "m_cursed_2",
+              "text": "丢弃这把被诅咒的剑",
+              "next_node_id": "medieval_forest_explore",
+              "condition": { "sanity": 30 },
+              "effect": { "sanity": 15, "remove_item": "ancient_blade" }
+            }
+          ]
+        },
+        {
+          "id": "medieval_ruins_treasure",
+          "text": "你在遗迹的角落里发现了一个暗格。\n\n打开后，里面是一个装满金币的钱袋，还有一枚看起来很古老的徽章。你将它们收入囊中。\n\n就在这时，你听到远处传来了脚步声...",
+          "choices": [
+            {
+              "id": "m_treasure_1",
+              "text": "躲藏起来观察",
+              "next_node_id": "medieval_ruins_encounter",
+              "effect": { "sanity": -5 }
+            },
+            {
+              "id": "m_treasure_2",
+              "text": "带着战利品快速离开",
+              "next_node_id": "medieval_village",
+              "effect": { "charisma": 5 }
+            }
+          ]
+        },
+        {
+          "id": "medieval_truth_revealed",
+          "text": "领主站起身，缓缓走到你面前。\n\n\"你是...王国的王子。二十年前，宫廷政变，你被忠臣送出宫去。那把诅咒之剑，本是你父亲的遗物...\"\n\n他的话像一把钥匙，打开了你记忆的闸门。过往的一切如潮水般涌来...",
+          "choices": [
+            {
+              "id": "m_truth_1",
+              "text": "接受命运，准备夺回王位",
+              "next_node_id": "medieval_good_ending",
+              "condition": { "has_item": "ancient_blade", "sanity": 50 }
+            },
+            {
+              "id": "m_truth_2",
+              "text": "拒绝王位，只想过普通人的生活",
+              "next_node_id": "medieval_neutral_ending"
+            },
+            {
+              "id": "m_truth_3",
+              "text": "这一定是阴谋，拔刀相向",
+              "next_node_id": "medieval_bad_ending",
+              "condition": { "sanity": 30 }
+            }
+          ]
+        },
+        {
+          "id": "medieval_good_ending",
+          "text": "═══════════════════════════════\n\n              ✦ 完美结局 ✦\n\n═══════════════════════════════\n\n在领主和骑士们的拥护下，你夺回了属于自己的王位。\n\n诅咒之剑在你的手中褪去了锈迹，闪耀着正义的光芒。在你的治理下，王国迎来了久违的和平与繁荣。\n\n多年后，当人们谈起你时，都会尊称你为——\n\n'被遗忘后归来的贤明之王'\n\n【恭喜完成故事！】",
+          "end": true,
+          "ending_type": "good",
+          "choices": []
+        },
+        {
+          "id": "medieval_bad_ending",
+          "text": "═══════════════════════════════\n\n              ✗ 悲惨结局 ✗\n\n═══════════════════════════════\n\n你的选择带来了无法挽回的后果。\n\n在这片遗忘之地，你最终迷失了自我，成为了又一个徘徊的幽魂...\n\n也许在某个平行的世界，你会做出不同的选择。\n\n【故事结束，请重新开始】",
+          "end": true,
+          "ending_type": "bad",
+          "choices": []
+        },
+        {
+          "id": "medieval_neutral_ending",
+          "text": "═══════════════════════════════\n\n              ○ 普通结局 ○\n\n═══════════════════════════════\n\n你选择了一条平凡的道路。\n\n虽然没有找回所有的记忆，但你在这个小村庄里安顿了下来，娶妻生子，过上了平静的生活。\n\n偶尔在夜深人静时，你会梦到一座燃烧的城堡和一把闪光的剑...但那也只是梦而已。\n\n【故事完成！】",
+          "end": true,
+          "ending_type": "neutral",
+          "choices": []
+        },
+        {
+          "id": "medieval_dungeon_escape",
+          "text": "你在牢房里四处摸索，发现一块松动的石砖。\n\n费了九牛二虎之力，你终于移开了石砖，露出一条狭窄的通道。匍匐前进了不知多久，你终于从城堡的另一侧逃了出来。\n\n自由的空气真好...但你身无分文，记忆也没有恢复。",
+          "choices": [
+            {
+              "id": "m_escape_1",
+              "text": "前往村庄寻找机会",
+              "next_node_id": "medieval_village",
+              "effect": { "sanity": 5 }
+            }
+          ]
+        },
+        {
+          "id": "medieval_dragon_quest",
+          "text": "你和冒险者们花了三天时间终于找到了龙穴。\n\n经过一场惊心动魄的战斗，你们成功击败了幼龙。你受了不轻的伤，但分到了丰厚的战利品。\n\n大胡子拍了拍你的肩膀：\"好样的，小子！以后有活再叫你！\"",
+          "choices": [
+            {
+              "id": "m_dragon_1",
+              "text": "带着战利品返回村庄",
+              "next_node_id": "medieval_village_info",
+              "effect": { "health": 20 }
+            }
+          ]
+        },
+        {
+          "id": "medieval_wolf_fight",
+          "text": "你独自深入森林，找到了狼群的藏身之处。\n\n狼王比你想象的要大得多，眼睛闪着诡异的红光。经过一番殊死搏斗，你终于将利刃刺入了狼王的心脏。\n\n它在咽气前发出了一声长长的哀嚎，狼群四散奔逃...",
+          "choices": [
+            {
+              "id": "m_wolf_1",
+              "text": "拖着狼尸回村领赏",
+              "next_node_id": "medieval_truth_revealed",
+              "effect": { "health": 10, "charisma": 15 }
+            }
+          ]
+        },
+        {
+          "id": "medieval_ruins_encounter",
+          "text": "你躲在石柱后，看到来人是一位身穿白色长袍的老者。\n\n\"出来吧，年轻人。我知道你在那里。\"老者的声音温和而有穿透力。\n\n你只好现身。老者打量着你：\"我等你很久了...你愿意听我讲一个故事吗?\"",
+          "choices": [
+            {
+              "id": "m_encounter_1",
+              "text": "耐心听老者讲述",
+              "next_node_id": "medieval_truth_revealed",
+              "effect": { "sanity": 10 }
+            }
+          ]
+        }
+      ]
+    },
+    "space": {
+      "nodes": [
+        {
+          "id": "space_start",
+          "text": "警告：主引擎离线。氧气存量：37%。\n\n你从冷冻休眠中醒来，发现自己漂浮在一艘破损的宇宙飞船中。红色警报灯不断闪烁，刺耳的警报声回荡在走廊里。\n\n你最后的记忆是——飞船遭遇了不明撞击，然后...就没有然后了。\n\n飞船的控制台上显示着两条通道：左侧通往引擎室，右侧通往逃生舱。",
+          "choices": [
+            {
+              "id": "s_choice_1",
+              "text": "前往引擎室尝试修复飞船",
+              "next_node_id": "space_engine_room",
+              "effect": { "sanity": -5 }
+            },
+            {
+              "id": "s_choice_2",
+              "text": "直奔逃生舱，保命要紧",
+              "next_node_id": "space_escape_pod",
+              "effect": { "health": 5 }
+            },
+            {
+              "id": "s_choice_3",
+              "text": "先去驾驶舱查看情况",
+              "next_node_id": "space_bridge",
+              "effect": { "sanity": 5 }
+            }
+          ]
+        },
+        {
+          "id": "space_engine_room",
+          "text": "引擎室一片狼藉。\n\n主反应堆核心出现了裂缝，辐射读数正在缓慢上升。你看到了几个闪烁的指示灯——如果能修复冷却系统，也许能稳定反应堆。\n\n但你的宇航服上并没有辐射防护装置...",
+          "choices": [
+            {
+              "id": "s_engine_1",
+              "text": "冒险手动修复冷却系统",
+              "next_node_id": "space_engine_repair",
+              "condition": { "health": 60 },
+              "effect": { "health": -40 }
+            },
+            {
+              "id": "s_engine_2",
+              "text": "寻找防护服再行动",
+              "next_node_id": "space_storage",
+              "effect": { "sanity": -5 }
+            },
+            {
+              "id": "s_engine_3",
+              "text": "太危险了，撤退去逃生舱",
+              "next_node_id": "space_escape_pod",
+              "effect": { "sanity": 5 }
+            }
+          ]
+        },
+        {
+          "id": "space_escape_pod",
+          "text": "你找到了逃生舱区域。\n\n一共有三个逃生舱：一号显示'燃料不足'，二号显示'系统正常'，三号显示'未知错误'。\n\n时间不等人，飞船随时可能解体...",
+          "choices": [
+            {
+              "id": "s_pod_1",
+              "text": "选择二号逃生舱（系统正常）",
+              "next_node_id": "space_pod_launch",
+              "effect": { "health": 10 }
+            },
+            {
+              "id": "s_pod_2",
+              "text": "尝试修复一号逃生舱",
+              "next_node_id": "space_pod_fix",
+              "effect": { "sanity": -10 }
+            },
+            {
+              "id": "s_pod_3",
+              "text": "检查三号逃生舱的错误",
+              "next_node_id": "space_pod_mystery",
+              "effect": { "sanity": -5 }
+            }
+          ]
+        },
+        {
+          "id": "space_bridge",
+          "text": "驾驶舱里，主屏幕还在运作。\n\n屏幕显示你们的飞船漂流在一个未知的星系中，距离最近的有人星球还有3.2光年。更诡异的是，通讯频道里传来断断续续的求救信号——来自船内的某个区域。\n\n你环顾四周，发现舰长的座位上有一滩已经干涸的血迹...",
+          "choices": [
+            {
+              "id": "s_bridge_1",
+              "text": "追踪求救信号的来源",
+              "next_node_id": "space_distress_signal",
+              "effect": { "sanity": -10 }
+            },
+            {
+              "id": "s_bridge_2",
+              "text": "搜索舰长的遗物寻找线索",
+              "next_node_id": "space_captain_log",
+              "effect": { "sanity": 5, "add_item": "captain_badge" }
+            },
+            {
+              "id": "s_bridge_3",
+              "text": "设置自动驾驶前往最近星球",
+              "next_node_id": "space_auto_pilot",
+              "effect": { "charisma": 10 }
+            }
+          ]
+        },
+        {
+          "id": "space_storage",
+          "text": "你来到了储物间。\n\n这里堆满了各种各样的补给品和设备。在角落里，你找到了一套完整的EVA防护服。但就在你准备穿上它时，你听到储物架后面传来奇怪的声响...",
+          "choices": [
+            {
+              "id": "s_storage_1",
+              "text": "穿好防护服后去调查声响",
+              "next_node_id": "space_alien_encounter",
+              "effect": { "health": -10 }
+            },
+            {
+              "id": "s_storage_2",
+              "text": "拿上防护服立刻离开",
+              "next_node_id": "space_engine_room",
+              "effect": { "sanity": 5 }
+            },
+            {
+              "id": "s_storage_3",
+              "text": "找点武器防身",
+              "next_node_id": "space_find_weapon",
+              "effect": { "add_item": "plasma_pistol", "gold": 0 }
+            }
+          ]
+        },
+        {
+          "id": "space_engine_repair",
+          "text": "你强忍着辐射的灼烧感，将手伸进了反应堆核心的缝隙。\n\n时间一分一秒过去，你的皮肤开始出现红斑...但你成功了！冷却系统重新启动，反应堆的辐射值开始下降。\n\n你瘫坐在地上，大口喘息着。飞船暂时安全了，但你知道自己...可能时日无多。",
+          "choices": [
+            {
+              "id": "s_repair_1",
+              "text": "返回驾驶舱发送求救信号",
+              "next_node_id": "space_good_ending",
+              "condition": { "health": 20 }
+            },
+            {
+              "id": "s_repair_2",
+              "text": "知道自己命不久矣，启动逃生舱送走自己",
+              "next_node_id": "space_neutral_ending"
+            }
+          ]
+        },
+        {
+          "id": "space_pod_launch",
+          "text": "你爬进二号逃生舱，启动了发射程序。\n\n\"3...2...1...发射！\"\n\n逃生舱脱离了母舰，你看着破损的飞船越来越小，最终消失在星海中。\n\n导航系统显示：距离最近的殖民星还有14天航程。舱内的补给...应该够吧?",
+          "choices": [
+            {
+              "id": "s_launch_1",
+              "text": "检查补给和通讯设备",
+              "next_node_id": "space_neutral_ending",
+              "effect": { "sanity": 10 }
+            }
+          ]
+        },
+        {
+          "id": "space_pod_fix",
+          "text": "你打开一号逃生舱的控制面板。\n\n问题出在燃料管线上——一个小小的阀门卡住了。你花了几分钟修理，成功让燃料系统恢复了运作。\n\n就在这时，你注意到逃生舱里有一个黑色的飞行记录仪...",
+          "choices": [
+            {
+              "id": "s_fix_1",
+              "text": "查看飞行记录仪的内容",
+              "next_node_id": "space_truth_revealed",
+              "effect": { "sanity": -15 }
+            },
+            {
+              "id": "s_fix_2",
+              "text": "立刻发射逃生舱",
+              "next_node_id": "space_pod_launch",
+              "effect": { "health": 5 }
+            }
+          ]
+        },
+        {
+          "id": "space_pod_mystery",
+          "text": "你检查了三号逃生舱的错误日志。\n\n日志上写着：\"警告：检测到非人类生命体...\"\n\n就在你读取日志时，三号逃生舱的门突然从内部被敲了三下——\n\n砰。砰。砰。",
+          "choices": [
+            {
+              "id": "s_mystery_1",
+              "text": "打开舱门查看",
+              "next_node_id": "space_alien_encounter",
+              "effect": { "sanity": -20 }
+            },
+            {
+              "id": "s_mystery_2",
+              "text": "吓得立刻跑向其他逃生舱",
+              "next_node_id": "space_escape_pod",
+              "effect": { "sanity": -5 }
+            }
+          ]
+        },
+        {
+          "id": "space_distress_signal",
+          "text": "你循着信号来到了医疗舱。\n\n这里的景象让你倒吸一口凉气——医疗舱的墙壁上布满了爪痕，玻璃碎片散落一地。在手术室的灯源下，你看到了...某种非人类的生物正在啃食着什么。\n\n它似乎注意到了你的到来...",
+          "choices": [
+            {
+              "id": "s_signal_1",
+              "text": "悄悄后退，不发出任何声音",
+              "next_node_id": "space_bridge",
+              "condition": { "sanity": 40 },
+              "effect": { "sanity": -10 }
+            },
+            {
+              "id": "s_signal_2",
+              "text": "转身就跑",
+              "next_node_id": "space_alien_chase",
+              "effect": { "health": -15 }
+            },
+            {
+              "id": "s_signal_3",
+              "text": "尝试与它交流",
+              "next_node_id": "space_good_ending",
+              "condition": { "charisma": 60 }
+            }
+          ]
+        },
+        {
+          "id": "space_captain_log",
+          "text": "你打开了舰长的私人日志。\n\n\"...第147天...我们发现了那个东西...一个来自另一个维度的存在...船员们开始失踪...我知道我们不该打开那扇门...但它...它在呼唤我们...\"\n\n日志到这里就中断了。最后一行用潦草的字迹写着：\"如果你正在读这段话...去...引擎室...自毁...它不能...回到地球...\"",
+          "choices": [
+            {
+              "id": "s_log_1",
+              "text": "听从舰长警告，去引擎室启动自毁",
+              "next_node_id": "space_good_ending",
+              "effect": { "sanity": 10 }
+            },
+            {
+              "id": "s_log_2",
+              "text": "无视警告，赶紧坐逃生舱离开",
+              "next_node_id": "space_bad_ending",
+              "effect": { "sanity": -20 }
+            }
+          ]
+        },
+        {
+          "id": "space_good_ending",
+          "text": "═══════════════════════════════\n\n              ✦ 完美结局 ✦\n\n═══════════════════════════════\n\n你做出了正确的选择。\n\n当救援队发现你的信号时，你已经在太空中漂流了整整三天。你成功地阻止了那个未知的存在返回地球——至少在这条时间线上是如此。\n\n后来，你成为了星际舰队最年轻的指挥官。每次出航前，你都会看着星海中的某一点，默默提醒自己：\n\n有些门，永远不应该被打开。\n\n【恭喜完成故事！】",
+          "end": true,
+          "ending_type": "good",
+          "choices": []
+        },
+        {
+          "id": "space_bad_ending",
+          "text": "═══════════════════════════════\n\n              ✗ 悲惨结局 ✗\n\n═══════════════════════════════\n\n你以为自己逃掉了。\n\n在逃生舱的第三天，你开始做梦——梦见了无数双眼睛在黑暗中注视着你。在第七天，你终于明白——\n\n它从来就不在船上。它一直在...你身上。\n\n三个月后，你的逃生舱降落在了地球上。\n\n然后，一切都开始了。\n\n【故事结束，请重新开始】",
+          "end": true,
+          "ending_type": "bad",
+          "choices": []
+        },
+        {
+          "id": "space_neutral_ending",
+          "text": "═══════════════════════════════\n\n              ○ 普通结局 ○\n\n═══════════════════════════════\n\n你在第十四天看到了那颗蓝色的星球。\n\n救援队接回了你，却没有人追问飞船上到底发生了什么。你也从未告诉任何人——那个存在、那些失踪的船员、还有舰长日志里的每一个字。\n\n你选择了遗忘。\n\n有时在深夜，你仍会梦见那片星海。但你知道，你活下来了。这就够了。\n\n【故事完成！】",
+          "end": true,
+          "ending_type": "neutral",
+          "choices": []
+        },
+        {
+          "id": "space_alien_encounter",
+          "text": "那东西...你无法用语言描述它的形态。\n\n它既是实体又是虚影，既存在于这个维度又似乎游离于其外。它没有眼睛，但你知道它正在看着你。\n\n你感到一股无形的力量正渗入你的思想...",
+          "choices": [
+            {
+              "id": "s_alien_1",
+              "text": "用意志力抵抗精神入侵",
+              "next_node_id": "space_distress_signal",
+              "condition": { "sanity": 50 },
+              "effect": { "sanity": -20, "health": -10 }
+            },
+            {
+              "id": "s_alien_2",
+              "text": "放弃抵抗，任由它进入",
+              "next_node_id": "space_bad_ending",
+              "effect": { "sanity": -50 }
+            }
+          ]
+        },
+        {
+          "id": "space_alien_chase",
+          "text": "你没命地奔跑！\n\n身后传来令人牙酸的摩擦声和非人的嘶吼。你不知道那东西是什么，但你知道被它追上就死定了。\n\n一个拐角出现在面前——往左是引擎室，往右是逃生舱区。",
+          "choices": [
+            {
+              "id": "s_chase_1",
+              "text": "冲向引擎室",
+              "next_node_id": "space_engine_room",
+              "effect": { "sanity": -10 }
+            },
+            {
+              "id": "s_chase_2",
+              "text": "冲向逃生舱区",
+              "next_node_id": "space_escape_pod",
+              "effect": { "health": -10 }
+            }
+          ]
+        },
+        {
+          "id": "space_truth_revealed",
+          "text": "飞行记录仪里记录了一切。\n\n你们的船并不是被陨石撞击，而是主动打开了某个...东西。是舰长下令的。录像的最后，你看到所有船员都站在传送舱门前，脸上带着诡异的微笑...\n\n除了一个人——是你。你当时在试图阻止他们。然后...你被打晕了。",
+          "choices": [
+            {
+              "id": "s_truth_1",
+              "text": "明白了一切，去引擎室启动自毁程序",
+              "next_node_id": "space_good_ending",
+              "effect": { "sanity": 10 }
+            },
+            {
+              "id": "s_truth_2",
+              "text": "决定逃跑，不管后果如何",
+              "next_node_id": "space_pod_launch",
+              "effect": { "sanity": -10 }
+            }
+          ]
+        },
+        {
+          "id": "space_auto_pilot",
+          "text": "你启动了自动导航程序。\n\n飞船开始缓慢地转向目标星球。虽然主引擎损坏了，但辅助推进器应该足够支撑到目的地。\n\n你松了一口气，瘫坐在舰长的座位上。现在...只能等了。",
+          "choices": [
+            {
+              "id": "s_auto_1",
+              "text": "查看舰长日志打发时间",
+              "next_node_id": "space_captain_log",
+              "effect": { "sanity": 5 }
+            }
+          ]
+        },
+        {
+          "id": "space_find_weapon",
+          "text": "你在储物柜里找到了一把等离子手枪。\n\n虽然电量只够发射三发，但聊胜于无。你把枪别在腰间，深吸一口气...",
+          "choices": [
+            {
+              "id": "s_weapon_1",
+              "text": "调查储物间里的声响",
+              "next_node_id": "space_alien_encounter",
+              "effect": { "health": -5 }
+            },
+            {
+              "id": "s_weapon_2",
+              "text": "带上防护服去引擎室",
+              "next_node_id": "space_engine_room",
+              "effect": { "sanity": 5 }
+            }
+          ]
+        }
+      ]
+    }
+  }
+}
