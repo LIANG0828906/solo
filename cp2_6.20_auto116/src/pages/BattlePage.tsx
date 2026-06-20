@@ -8,6 +8,54 @@ import { ControlPanel } from '../components/ControlPanel';
 import { BoardCard, Position, GamePhase, TurnPlayer } from '../modules/card/CardTypes';
 import { ArrowLeft, RotateCcw, Trophy, Skull } from 'lucide-react';
 
+const AI_ACTION_DELAY = 1500;
+
+const skillEffectTexts: Record<string, string> = {
+  damage_all: '全体伤害',
+  damage_front: '前方打击',
+  heal: '治疗恢复',
+  draw: '抽牌效果',
+  freeze: '冰冻效果',
+  burn: '灼烧效果',
+  lifesteal: '生命吸取',
+  pierce: '穿透攻击',
+};
+
+function getSkillEffectText(effectKey: string): string {
+  if (!effectKey) return '技能触发';
+  const prefix = effectKey.replace(/_\d+$/, '');
+  return skillEffectTexts[prefix] || '技能触发';
+}
+
+const SkillEffectTip: React.FC<{ effect: string | null; onDone: () => void }> = ({
+  effect,
+  onDone,
+}) => {
+  useEffect(() => {
+    if (effect) {
+      const timer = setTimeout(onDone, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [effect, onDone]);
+
+  if (!effect) return null;
+
+  return (
+    <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-50">
+      <div
+        className="px-8 py-4 rounded-xl text-white text-2xl font-bold"
+        style={{
+          background: 'linear-gradient(135deg, rgba(255, 215, 0, 0.9), rgba(255, 140, 0, 0.9))',
+          boxShadow: '0 0 40px rgba(255, 215, 0, 0.5)',
+          animation: 'skillEffectAnim 2s ease-out forwards',
+        }}
+      >
+        ⚡ {getSkillEffectText(effect)} ⚡
+      </div>
+    </div>
+  );
+};
+
 export const BattlePage: React.FC = () => {
   const navigate = useNavigate();
   const {
@@ -25,7 +73,7 @@ export const BattlePage: React.FC = () => {
   } = useGameStore();
 
   const [dragInfo, setDragInfo] = useState<{ index: number; cost: number } | null>(null);
-  const [showSkillEffect, setShowSkillEffect] = useState<string | null>(null);
+  const [skillEffect, setSkillEffect] = useState<string | null>(null);
 
   const isPlayerTurn = gameState.turn === TurnPlayer.PLAYER;
   const isGameOver = gameState.phase === GamePhase.ENDED;
@@ -44,20 +92,24 @@ export const BattlePage: React.FC = () => {
     ) {
       const timer = setTimeout(() => {
         executeAIActions();
-      }, 1000);
+      }, AI_ACTION_DELAY);
       return () => clearTimeout(timer);
     }
   }, [gameState.turn, gameState.phase, isGameOver, executeAIActions]);
 
   useEffect(() => {
     if (gameState.skillEffectPlaying) {
-      setShowSkillEffect(gameState.skillEffectPlaying);
+      setSkillEffect(gameState.skillEffectPlaying);
       const timer = setTimeout(() => {
-        setShowSkillEffect(null);
-      }, 1500);
+        setSkillEffect(null);
+      }, 2000);
       return () => clearTimeout(timer);
     }
   }, [gameState.skillEffectPlaying]);
+
+  const handleSkillEffectDone = useCallback(() => {
+    setSkillEffect(null);
+  }, []);
 
   const handleCardSelect = useCallback(
     (index: number) => {
@@ -74,7 +126,6 @@ export const BattlePage: React.FC = () => {
       if (card && card.cost <= gameState.player.mana) {
         setDragInfo({ index, cost: card.cost });
         setSelectedCardIndex(index);
-        e.dataTransfer.effectAllowed = 'move';
       }
     },
     [isPlayerTurn, isGameOver, gameState.player.hand, gameState.player.mana, setSelectedCardIndex]
@@ -93,12 +144,16 @@ export const BattlePage: React.FC = () => {
     (position: Position) => {
       if (!dragInfo || !isPlayerTurn || isGameOver) return;
 
-      const success = playCard(dragInfo.index, position);
-      if (success) {
-        setDragInfo(null);
+      const card = gameState.player.hand[dragInfo.index];
+      if (card && card.cost <= gameState.player.mana) {
+        const success = playCard(dragInfo.index, position);
+        if (success) {
+          setDragInfo(null);
+          setSelectedCardIndex(null);
+        }
       }
     },
-    [dragInfo, isPlayerTurn, isGameOver, playCard]
+    [dragInfo, isPlayerTurn, isGameOver, gameState.player.hand, gameState.player.mana, playCard, setSelectedCardIndex]
   );
 
   const handleBoardCardClick = useCallback(
@@ -205,21 +260,7 @@ export const BattlePage: React.FC = () => {
           </div>
         </div>
 
-        {showSkillEffect && (
-          <div className="fixed inset-0 pointer-events-none flex items-center justify-center z-50">
-            <div
-              className="px-8 py-4 rounded-xl text-white text-2xl font-bold
-                         animate-pulse"
-              style={{
-                background: 'linear-gradient(135deg, rgba(255, 215, 0, 0.9), rgba(255, 140, 0, 0.9))',
-                boxShadow: '0 0 40px rgba(255, 215, 0, 0.5)',
-                animation: 'skillEffect 1.5s ease-out',
-              }}
-            >
-              技能触发！
-            </div>
-          </div>
-        )}
+        <SkillEffectTip effect={skillEffect} onDone={handleSkillEffectDone} />
 
         {isGameOver && (
           <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
@@ -270,18 +311,22 @@ export const BattlePage: React.FC = () => {
       </div>
 
       <style>{`
-        @keyframes skillEffect {
+        @keyframes skillEffectAnim {
           0% {
             opacity: 0;
             transform: scale(0.5);
           }
-          50% {
+          20% {
             opacity: 1;
             transform: scale(1.1);
           }
+          70% {
+            opacity: 1;
+            transform: scale(1);
+          }
           100% {
             opacity: 0;
-            transform: scale(1);
+            transform: scale(0.9) translateY(-20px);
           }
         }
       `}</style>

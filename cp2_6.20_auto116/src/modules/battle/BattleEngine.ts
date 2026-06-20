@@ -104,10 +104,11 @@ export function startGame(state: GameState): GameState {
 export function applyPassiveBuffs(
   board: BoardCard[],
   owner: 'player' | 'ai'
-): BoardCard[] {
+): { board: BoardCard[]; logs: BattleLogEntry[] } {
   const ownedCards = board.filter((card) => card.owner === owner);
   let totalAttackBuff = 0;
   let totalDefenseBuff = 0;
+  const logs: BattleLogEntry[] = [];
 
   for (const card of ownedCards) {
     if (
@@ -115,16 +116,26 @@ export function applyPassiveBuffs(
       card.skillEffect === SkillEffect.BUFF_ATTACK_ALLIES
     ) {
       totalAttackBuff += card.skillValue;
+      const ownerName = owner === 'player' ? '你的' : 'AI的';
+      logs.push(createLogEntry(
+        LogType.SYSTEM,
+        `${ownerName}被动技能${card.name}生效，所有友方卡牌攻击力+${card.skillValue}`
+      ));
     }
     if (
       card.skillType === SkillType.PASSIVE_GLOBAL &&
       card.skillEffect === SkillEffect.BUFF_DEFENSE_ALLIES
     ) {
       totalDefenseBuff += card.skillValue;
+      const ownerName = owner === 'player' ? '你的' : 'AI的';
+      logs.push(createLogEntry(
+        LogType.SYSTEM,
+        `${ownerName}被动技能${card.name}生效，所有友方卡牌防御力+${card.skillValue}`
+      ));
     }
   }
 
-  return board.map((card) => {
+  const newBoard = board.map((card) => {
     if (card.owner === owner) {
       const baseAttack = card.attack;
       const baseDefense = card.maxDefense;
@@ -140,6 +151,8 @@ export function applyPassiveBuffs(
     }
     return card;
   });
+
+  return { board: newBoard, logs };
 }
 
 export function playCard(
@@ -182,7 +195,7 @@ export function playCard(
 
   let newState = { ...state };
   const allBoard = [...newBoard, ...(player === 'player' ? state.ai.board : state.player.board)];
-  const buffedBoard = applyPassiveBuffs(allBoard, player);
+  const { board: buffedBoard, logs: buffLogs } = applyPassiveBuffs(allBoard, player);
 
   const playerBoard = buffedBoard.filter((c) => c.owner === player);
   const enemyBoard = buffedBoard.filter((c) => c.owner !== player);
@@ -208,7 +221,7 @@ export function playCard(
   const logType = player === 'player' ? LogType.PLAYER : LogType.AI;
   const playerName = player === 'player' ? '你' : 'AI';
   const log = createLogEntry(logType, `${playerName}召唤了${card.name}`);
-  newState.logs = [...newState.logs, log];
+  newState.logs = [...newState.logs, ...buffLogs, log];
 
   if (card.skillType === SkillType.ACTIVE_SUMMON && card.skillEffect) {
     newState = applySummonSkill(newState, boardCard, player);
@@ -255,7 +268,7 @@ function applySummonSkill(
         `${ownerName}${card.name}的技能触发，对所有敌方卡牌造成${card.skillValue}点伤害`
       );
       newState.logs = [...newState.logs, log];
-      newState.skillEffectPlaying = card.skillEffect;
+      newState.skillEffectPlaying = `damage_all_${card.skillValue}`;
       break;
     }
 
@@ -266,7 +279,7 @@ function applySummonSkill(
       );
 
       if (frontEnemy) {
-        let damagedEnemy = {
+        const damagedEnemy = {
           ...frontEnemy,
           currentDefense: frontEnemy.currentDefense - card.skillValue,
         };
@@ -308,6 +321,7 @@ function applySummonSkill(
           `${ownerName}${card.name}的技能触发，对${frontEnemy.name}造成${card.skillValue}点伤害`
         );
         newState.logs = [...newState.logs, log];
+        newState.skillEffectPlaying = `damage_front_${card.skillValue}`;
       }
       break;
     }
@@ -330,6 +344,7 @@ function applySummonSkill(
         `${ownerName}${card.name}的技能触发，为所有友方卡牌恢复${card.skillValue}点防御`
       );
       newState.logs = [...newState.logs, log];
+      newState.skillEffectPlaying = `heal_${card.skillValue}`;
       break;
     }
 
@@ -352,31 +367,28 @@ function applySummonSkill(
         `${ownerName}${card.name}的技能触发，抽了${drawn.length}张牌`
       );
       newState.logs = [...newState.logs, log];
+      newState.skillEffectPlaying = `draw_${drawn.length}`;
       break;
     }
 
     case SkillEffect.FREEZE: {
       const enemies = enemyOwner === 'player' ? newState.player.board : newState.ai.board;
-      const targets = enemies.slice(0, card.skillValue).map((e) => ({
-        ...e,
-        isFrozen: true,
-      }));
+      const shuffled = [...enemies].sort(() => Math.random() - 0.5);
+      const targets = shuffled.slice(0, card.skillValue).map((e) => e.instanceId);
 
       if (enemyOwner === 'player') {
         newState.player = {
           ...newState.player,
-          board: newState.player.board.map((e) => {
-            const target = targets.find((t) => t.instanceId === e.instanceId);
-            return target || e;
-          }),
+          board: newState.player.board.map((e) =>
+            targets.includes(e.instanceId) ? { ...e, isFrozen: true } : e
+          ),
         };
       } else {
         newState.ai = {
           ...newState.ai,
-          board: newState.ai.board.map((e) => {
-            const target = targets.find((t) => t.instanceId === e.instanceId);
-            return target || e;
-          }),
+          board: newState.ai.board.map((e) =>
+            targets.includes(e.instanceId) ? { ...e, isFrozen: true } : e
+          ),
         };
       }
 
@@ -385,6 +397,7 @@ function applySummonSkill(
         `${ownerName}${card.name}的技能触发，冻结了${targets.length}个敌方卡牌`
       );
       newState.logs = [...newState.logs, log];
+      newState.skillEffectPlaying = `freeze_${targets.length}`;
       break;
     }
 
@@ -639,6 +652,7 @@ function applyAttackSkill(
         `${ownerName}${attacker.name}的灼烧效果触发，${target.name}受到${attacker.skillValue}点灼烧伤害`
       );
       newState.logs = [...newState.logs, log];
+      newState.skillEffectPlaying = `burn_${attacker.skillValue}`;
       break;
     }
 
@@ -660,6 +674,7 @@ function applyAttackSkill(
         `${ownerName}${attacker.name}的冰冻效果触发，${target.name}被冻结`
       );
       newState.logs = [...newState.logs, log];
+      newState.skillEffectPlaying = `freeze_1`;
       break;
     }
 
@@ -683,6 +698,59 @@ function applyAttackSkill(
         `${ownerName}${attacker.name}的技能触发，抽了${attacker.skillValue}张牌`
       );
       newState.logs = [...newState.logs, log];
+      newState.skillEffectPlaying = `draw_${attacker.skillValue}`;
+      break;
+    }
+
+    case SkillEffect.LIFESTEAL: {
+      const log = createLogEntry(
+        LogType.SYSTEM,
+        `${ownerName}${attacker.name}的生命吸取效果触发`
+      );
+      newState.logs = [...newState.logs, log];
+      newState.skillEffectPlaying = `lifesteal_${attacker.skillValue}`;
+      break;
+    }
+
+    case SkillEffect.PIERCE: {
+      const log = createLogEntry(
+        LogType.SYSTEM,
+        `${ownerName}${attacker.name}的穿透效果触发`
+      );
+      newState.logs = [...newState.logs, log];
+      newState.skillEffectPlaying = `pierce_${attacker.skillValue}`;
+      break;
+    }
+
+    case SkillEffect.DAMAGE_ALL_ENEMIES: {
+      const enemies = defenderOwner === 'player' ? newState.player.board : newState.ai.board;
+      const damagedEnemies = enemies.map((e) => ({
+        ...e,
+        currentDefense: e.currentDefense - attacker.skillValue,
+      }));
+      const deadEnemies = damagedEnemies.filter((e) => e.currentDefense <= 0);
+      const aliveEnemies = damagedEnemies.filter((e) => e.currentDefense > 0);
+
+      if (defenderOwner === 'player') {
+        newState.player = {
+          ...newState.player,
+          board: aliveEnemies,
+          graveyard: [...newState.player.graveyard, ...deadEnemies.map((e) => e as unknown as Card)],
+        };
+      } else {
+        newState.ai = {
+          ...newState.ai,
+          board: aliveEnemies,
+          graveyard: [...newState.ai.graveyard, ...deadEnemies.map((e) => e as unknown as Card)],
+        };
+      }
+
+      const log = createLogEntry(
+        LogType.SYSTEM,
+        `${ownerName}${attacker.name}的技能触发，对所有敌方卡牌造成${attacker.skillValue}点伤害`
+      );
+      newState.logs = [...newState.logs, log];
+      newState.skillEffectPlaying = `damage_all_${attacker.skillValue}`;
       break;
     }
 
@@ -778,8 +846,8 @@ export function endTurn(state: GameState): GameState {
   }
 
   const allBoard = [...newState.player.board, ...newState.ai.board];
-  const playerBuffed = applyPassiveBuffs(allBoard, 'player');
-  const aiBuffed = applyPassiveBuffs(playerBuffed, 'ai');
+  const { board: playerBuffed, logs: playerBuffLogs } = applyPassiveBuffs(allBoard, 'player');
+  const { board: aiBuffed, logs: aiBuffLogs } = applyPassiveBuffs(playerBuffed, 'ai');
 
   newState.player = {
     ...newState.player,
@@ -791,8 +859,8 @@ export function endTurn(state: GameState): GameState {
   };
 
   const playerName = nextPlayer === TurnPlayer.PLAYER ? '你的' : 'AI的';
-  const log = createLogEntry(LogType.SYSTEM, `${playerName}回合开始`);
-  newState.logs = [...newState.logs, log];
+  const turnLog = createLogEntry(LogType.SYSTEM, `${playerName}回合开始`);
+  newState.logs = [...newState.logs, ...playerBuffLogs, ...aiBuffLogs, turnLog];
 
   newState = checkGameEnd(newState);
 

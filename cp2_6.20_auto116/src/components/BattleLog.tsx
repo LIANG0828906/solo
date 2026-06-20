@@ -1,17 +1,25 @@
 import React, { useRef, useEffect } from 'react';
+import { Tag } from 'antd';
 import { BattleLogEntry, LogType } from '../modules/card/CardTypes';
-import { ScrollText } from 'lucide-react';
 
 interface BattleLogProps {
   logs: BattleLogEntry[];
   className?: string;
 }
 
-const logTypeColors: Record<LogType, string> = {
-  [LogType.PLAYER]: '#4a9eff',
-  [LogType.AI]: '#ff6b6b',
-  [LogType.SYSTEM]: '#888888',
+const logTypeConfig: Record<LogType, { color: string; label: string }> = {
+  [LogType.PLAYER]: { color: 'blue', label: '玩家' },
+  [LogType.AI]: { color: 'red', label: 'AI' },
+  [LogType.SYSTEM]: { color: 'default', label: '系统' },
 };
+
+function formatTime(timestamp: number): string {
+  const date = new Date(timestamp);
+  const h = date.getHours().toString().padStart(2, '0');
+  const m = date.getMinutes().toString().padStart(2, '0');
+  const s = date.getSeconds().toString().padStart(2, '0');
+  return `${h}:${m}:${s}`;
+}
 
 export const BattleLog: React.FC<BattleLogProps> = ({ logs, className = '' }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -21,11 +29,6 @@ export const BattleLog: React.FC<BattleLogProps> = ({ logs, className = '' }) =>
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
   }, [logs]);
-
-  const formatTime = (timestamp: number): string => {
-    const date = new Date(timestamp);
-    return `${date.getHours().toString().padStart(2, '0')}:${date.getMinutes().toString().padStart(2, '0')}:${date.getSeconds().toString().padStart(2, '0')}`;
-  };
 
   return (
     <div
@@ -37,13 +40,13 @@ export const BattleLog: React.FC<BattleLogProps> = ({ logs, className = '' }) =>
       }}
     >
       <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-700/50">
-        <ScrollText size={18} className="text-yellow-400" />
+        <span className="text-yellow-400 font-bold text-sm">📜</span>
         <h3 className="text-yellow-400 font-bold text-sm">对战日志</h3>
       </div>
 
       <div
         ref={scrollRef}
-        className="flex-1 overflow-y-auto p-3 space-y-2"
+        className="flex-1 overflow-y-auto p-3 space-y-1.5"
         style={{ maxHeight: '300px' }}
       >
         {logs.length === 0 ? (
@@ -51,16 +54,32 @@ export const BattleLog: React.FC<BattleLogProps> = ({ logs, className = '' }) =>
             暂无对战记录
           </div>
         ) : (
-          logs.map((log) => (
-            <div
-              key={log.id}
-              className="text-xs leading-relaxed"
-              style={{ color: logTypeColors[log.type] }}
-            >
-              <span className="text-gray-500 mr-2">[{formatTime(log.timestamp)}]</span>
-              {log.message}
-            </div>
-          ))
+          logs.map((log) => {
+            const config = logTypeConfig[log.type];
+            return (
+              <div
+                key={log.id}
+                className="flex items-start gap-2 text-xs leading-relaxed"
+              >
+                <span className="text-gray-500 flex-shrink-0 mt-0.5">
+                  [{formatTime(log.timestamp)}]
+                </span>
+                <Tag
+                  color={config.color}
+                  style={{
+                    margin: 0,
+                    fontSize: '10px',
+                    lineHeight: '18px',
+                    padding: '0 4px',
+                    flexShrink: 0,
+                  }}
+                >
+                  {config.label}
+                </Tag>
+                <span className="text-gray-300">{log.message}</span>
+              </div>
+            );
+          })
         )}
       </div>
     </div>

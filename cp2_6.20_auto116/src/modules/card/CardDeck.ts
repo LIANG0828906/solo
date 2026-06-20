@@ -1,5 +1,6 @@
 import { Card, BoardCard, Position } from './CardTypes';
 import { v4 as uuidv4 } from 'uuid';
+import { cardPool } from './CardData';
 
 export const MAX_DECK_SIZE = 40;
 export const MIN_DECK_SIZE = 20;
@@ -9,12 +10,12 @@ export const BOARD_ROWS = 6;
 export const BOARD_COLS = 4;
 
 export function shuffleDeck(deck: Card[]): Card[] {
-  const shuffled = [...deck];
-  for (let i = shuffled.length - 1; i > 0; i--) {
+  const arr = [...deck];
+  for (let i = arr.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+    [arr[i], arr[j]] = [arr[j], arr[i]];
   }
-  return shuffled;
+  return arr;
 }
 
 export function drawCards(
@@ -209,8 +210,7 @@ export function createStarterDeck(): Card[] {
     'card_042', 'card_043', 'card_043', 'card_044', 'card_045',
   ];
 
-  const { cardPool } = require('./CardData');
   return starterCards
-    .map((id) => cardPool.find((c: Card) => c.id === id))
-    .filter(Boolean);
+    .map((id) => cardPool.find((c) => c.id === id))
+    .filter((c): c is Card => c !== undefined);
 }

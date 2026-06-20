@@ -138,7 +138,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
     const { states } = executeAITurn(gameState);
     
     for (let i = 0; i < states.length; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      await new Promise((resolve) => setTimeout(resolve, 1500));
       set({ gameState: states[i] });
     }
   },

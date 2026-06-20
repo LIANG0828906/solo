@@ -1,9 +1,8 @@
-import { GameState, BoardCard, Position, Card } from '../card/CardTypes';
+import { GameState, BoardCard, Position, Card, SkillType } from '../card/CardTypes';
 import {
   playCard,
   attack,
   endTurn,
-  canPlayCard,
 } from '../battle/BattleEngine';
 import { getEmptyPositions, hasTauntEnemies, getTauntEnemies } from '../card/CardDeck';
 
@@ -17,7 +16,6 @@ export interface AIAction {
 
 export function makeAIDecision(state: GameState): AIAction | null {
   const hand = state.ai.hand;
-  const board = state.ai.board;
   const mana = state.ai.mana;
 
   const playableCards = hand
@@ -31,14 +29,15 @@ export function makeAIDecision(state: GameState): AIAction | null {
   );
 
   if (playableCards.length > 0 && emptyPositions.length > 0) {
-    const cardToPlay = playableCards[0];
-    const position = selectBestPosition(state, cardToPlay.card);
-    if (position) {
-      return {
-        type: 'play_card',
-        cardIndex: cardToPlay.index,
-        position,
-      };
+    for (const { card, index } of playableCards) {
+      const position = selectBestPosition(state, card);
+      if (position) {
+        return {
+          type: 'play_card',
+          cardIndex: index,
+          position,
+        };
+      }
     }
   }
 
@@ -116,17 +115,22 @@ function selectAttackTarget(
     };
   }
 
-  for (const attacker of attackers) {
-    const target = findLowestHealthTarget(playerBoard);
-    if (target && attacker.currentAttack >= target.currentDefense) {
-      return {
-        attackerId: attacker.instanceId,
-        targetId: target.instanceId,
-      };
+  const sortedEnemies = [...playerBoard].sort(
+    (a, b) => a.currentDefense - b.currentDefense
+  );
+
+  for (const attacker of attackers.sort((a, b) => b.currentAttack - a.currentAttack)) {
+    for (const target of sortedEnemies) {
+      if (attacker.currentAttack >= target.currentDefense) {
+        return {
+          attackerId: attacker.instanceId,
+          targetId: target.instanceId,
+        };
+      }
     }
   }
 
-  for (const attacker of attackers) {
+  for (const attacker of attackers.sort((a, b) => b.currentAttack - a.currentAttack)) {
     const target = findLowestHealthTarget(playerBoard);
     if (target) {
       return {
@@ -141,7 +145,6 @@ function selectAttackTarget(
 
 function findLowestHealthTarget(enemies: BoardCard[]): BoardCard | null {
   if (enemies.length === 0) return null;
-
   return [...enemies].sort((a, b) => a.currentDefense - b.currentDefense)[0];
 }
 
@@ -155,8 +158,9 @@ export function executeAITurn(state: GameState): {
   let currentState = state;
   let maxIterations = 20;
   let iterations = 0;
+  let failedActions = 0;
 
-  while (iterations < maxIterations) {
+  while (iterations < maxIterations && failedActions < 3) {
     iterations++;
     const action = makeAIDecision(currentState);
 
@@ -180,8 +184,11 @@ export function executeAITurn(state: GameState): {
         actions.push(action);
         currentState = result.state;
         states.push(currentState);
+        failedActions = 0;
         continue;
       }
+      failedActions++;
+      continue;
     }
 
     if (action.type === 'attack' && action.attackerId) {
@@ -195,8 +202,11 @@ export function executeAITurn(state: GameState): {
         actions.push(action);
         currentState = result.state;
         states.push(currentState);
+        failedActions = 0;
         continue;
       }
+      failedActions++;
+      continue;
     }
 
     break;
@@ -220,6 +230,7 @@ export function evaluateBoardState(state: GameState, player: 'player' | 'ai'): n
     if (card.hasTaunt) score += 2;
     if (card.hasCharge) score += 1;
     if (card.isFrozen) score -= 2;
+    if (card.skillType === SkillType.PASSIVE_GLOBAL) score += 3;
   }
 
   for (const card of enemyState.board) {
