@@ -9,6 +9,8 @@ interface StepSequencerProps {
   onToggleCell: (trackIdx: number, stepIdx: number) => void;
 }
 
+const instrumentClassNames = ['inst-drums', 'inst-bass', 'inst-guitar', 'inst-keys'];
+
 export const StepSequencer: React.FC<StepSequencerProps> = ({
   tracks,
   grid,
@@ -51,16 +53,25 @@ export const StepSequencer: React.FC<StepSequencerProps> = ({
                     key={stepIdx}
                     className={`cell 
                       ${isActive ? 'active' : 'inactive'}
+                      ${isActive ? instrumentClassNames[trackIdx] : ''}
                       ${isCurrent ? 'current' : ''}
                       ${isBeat ? 'beat-col' : ''}
                     `}
                     style={{
                       '--instrument-color': track.color,
                       '--instrument-color-glow': track.color + '80',
+                      '--instrument-color-bright': track.color + 'ff',
+                      '--instrument-color-dim': track.color + '40',
                     } as React.CSSProperties}
                     onClick={() => onToggleCell(trackIdx, stepIdx)}
                   >
                     <div className="cell-inner" />
+                    {isActive && isCurrent && (
+                      <>
+                        <div className="ripple" />
+                        <div className="flash" />
+                      </>
+                    )}
                   </div>
                 );
               })}

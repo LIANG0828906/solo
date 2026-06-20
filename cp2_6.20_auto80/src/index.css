@@ -433,16 +433,46 @@ body {
   box-shadow: 
     0 8px 32px rgba(0, 0, 0, 0.3),
     inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+.step-sequencer::-webkit-scrollbar {
+  width: 6px;
+}
+
+.step-sequencer::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 3px;
+}
+
+.step-sequencer::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+
+.step-sequencer::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
 }
 
 .sequencer-header {
   display: flex;
   margin-bottom: 8px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: linear-gradient(to bottom, #16213e 0%, #16213e 80%, transparent 100%);
+  padding-top: 2px;
+  padding-bottom: 6px;
 }
 
 .header-spacer {
   width: 80px;
   flex-shrink: 0;
+  position: sticky;
+  left: 0;
+  background: #16213e;
+  z-index: 6;
 }
 
 .step-label {
@@ -479,6 +509,10 @@ body {
   flex-shrink: 0;
   display: flex;
   align-items: center;
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: #16213e;
 }
 
 .instrument-badge {
@@ -525,6 +559,141 @@ body {
     inset 0 0 12px var(--instrument-color-glow),
     0 0 8px var(--instrument-color-glow);
   transition: all 0.15s ease;
+}
+
+.cell.active.inst-drums .cell-inner {
+  animation: breatheDrums 0.8s ease-in-out infinite;
+}
+
+.cell.active.inst-bass .cell-inner {
+  animation: breatheBass 1.2s ease-in-out infinite;
+}
+
+.cell.active.inst-guitar .cell-inner {
+  animation: breatheGuitar 1.6s ease-in-out infinite;
+}
+
+.cell.active.inst-keys .cell-inner {
+  animation: breatheKeys 1.0s ease-in-out infinite;
+}
+
+@keyframes breatheDrums {
+  0%, 100% {
+    background: var(--instrument-color);
+    box-shadow:
+      inset 0 0 8px var(--instrument-color-dim),
+      0 0 4px var(--instrument-color-glow);
+    filter: brightness(0.85);
+  }
+  50% {
+    background: var(--instrument-color-bright);
+    box-shadow:
+      inset 0 0 16px var(--instrument-color-glow),
+      0 0 16px var(--instrument-color-glow);
+    filter: brightness(1.15);
+  }
+}
+
+@keyframes breatheBass {
+  0%, 100% {
+    background: var(--instrument-color);
+    box-shadow:
+      inset 0 0 8px var(--instrument-color-dim),
+      0 0 4px var(--instrument-color-glow);
+    filter: brightness(0.85);
+  }
+  50% {
+    background: var(--instrument-color-bright);
+    box-shadow:
+      inset 0 0 16px var(--instrument-color-glow),
+      0 0 16px var(--instrument-color-glow);
+    filter: brightness(1.15);
+  }
+}
+
+@keyframes breatheGuitar {
+  0%, 100% {
+    background: var(--instrument-color);
+    box-shadow:
+      inset 0 0 8px var(--instrument-color-dim),
+      0 0 4px var(--instrument-color-glow);
+    filter: brightness(0.85);
+  }
+  50% {
+    background: var(--instrument-color-bright);
+    box-shadow:
+      inset 0 0 16px var(--instrument-color-glow),
+      0 0 16px var(--instrument-color-glow);
+    filter: brightness(1.15);
+  }
+}
+
+@keyframes breatheKeys {
+  0%, 100% {
+    background: var(--instrument-color);
+    box-shadow:
+      inset 0 0 8px var(--instrument-color-dim),
+      0 0 4px var(--instrument-color-glow);
+    filter: brightness(0.85);
+  }
+  50% {
+    background: var(--instrument-color-bright);
+    box-shadow:
+      inset 0 0 16px var(--instrument-color-glow),
+      0 0 16px var(--instrument-color-glow);
+    filter: brightness(1.15);
+  }
+}
+
+.cell .ripple {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10%;
+  height: 10%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  border: 2px solid var(--instrument-color);
+  pointer-events: none;
+  z-index: 4;
+  animation: rippleExpand 0.5s ease-out forwards;
+}
+
+@keyframes rippleExpand {
+  0% {
+    width: 10%;
+    height: 10%;
+    opacity: 1;
+  }
+  100% {
+    width: 250%;
+    height: 250%;
+    opacity: 0;
+  }
+}
+
+.cell .flash {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: 6px;
+  background: white;
+  pointer-events: none;
+  z-index: 5;
+  animation: flashFade 0.25s ease-out forwards;
+}
+
+@keyframes flashFade {
+  0% {
+    opacity: 0.8;
+    filter: brightness(1.5);
+  }
+  100% {
+    opacity: 0;
+    filter: brightness(1);
+  }
 }
 
 .cell.inactive:hover {

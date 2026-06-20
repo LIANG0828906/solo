@@ -1,8 +1,8 @@
 {
   "task_name": "auto80",
-  "round": 2,
+  "round": 3,
   "folder_name": "cp2_6.20_auto80",
-  "uploaded_at": "2026-06-20T03:10:39Z",
+  "uploaded_at": "2026-06-20T03:33:55Z",
   "note": "placeholder metadata to ensure every round has a verifiable commit",
   "empty_fields": {
     "github_url": "",
