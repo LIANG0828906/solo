@@ -1,4 +1,4 @@
-import { useRef, useMemo, useState, useEffect } from 'react'
+import { useRef, useMemo, useState, useEffect, Suspense } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import {
   OrbitControls,
@@ -8,82 +8,10 @@ import {
   Sparkles,
   Line,
   Text,
+  useGLTF,
 } from '@react-three/drei'
 import * as THREE from 'three'
-import { create } from 'zustand'
-
-export type WeaponType = 'sword' | 'bow' | 'staff'
-export type RuneType = 'fire' | 'ice' | 'thunder' | 'shadow' | 'holy' | null
-
-export interface RuneSlot {
-  id: number
-  rune: RuneType
-  level: number
-}
-
-export interface ParticleBurst {
-  id: number
-  type: RuneType
-  time: number
-}
-
-export interface ForgeState {
-  weaponType: WeaponType
-  runeSlots: RuneSlot[]
-  enhanceLevel: number
-  effectStatus: {
-    enhancing: boolean
-    lastResult: 'success' | 'fail' | null
-    effectTime: number
-  }
-  particleBursts: ParticleBurst[]
-  setWeaponType: (type: WeaponType) => void
-  setRune: (slotId: number, rune: RuneType, level: number) => void
-  setEnhanceLevel: (level: number) => void
-  triggerEnhanceEffect: (success: boolean) => void
-  addParticleBurst: (type: RuneType) => void
-}
-
-export const useForgeStore = create<ForgeState>((set) => ({
-  weaponType: 'sword',
-  runeSlots: [
-    { id: 0, rune: null, level: 0 },
-    { id: 1, rune: null, level: 0 },
-    { id: 2, rune: null, level: 0 },
-    { id: 3, rune: null, level: 0 },
-    { id: 4, rune: null, level: 0 },
-  ],
-  enhanceLevel: 0,
-  effectStatus: {
-    enhancing: false,
-    lastResult: null,
-    effectTime: 0,
-  },
-  particleBursts: [],
-  setWeaponType: (type) => set({ weaponType: type }),
-  setRune: (slotId, rune, level) =>
-    set((state) => ({
-      runeSlots: state.runeSlots.map((slot) =>
-        slot.id === slotId ? { ...slot, rune, level } : slot,
-      ),
-    })),
-  setEnhanceLevel: (level) => set({ enhanceLevel: level }),
-  triggerEnhanceEffect: (success) =>
-    set({
-      effectStatus: {
-        enhancing: true,
-        lastResult: success ? 'success' : 'fail',
-        effectTime: Date.now(),
-      },
-    }),
-  addParticleBurst: (type) =>
-    set((state) => ({
-      particleBursts: [
-        ...state.particleBursts,
-        { id: Date.now() + Math.random(), type, time: Date.now() },
-      ].slice(-10),
-    })),
-}))
+import { useForgeStore, RuneType, WeaponType } from './store'
 
 const RUNE_COLORS: Record<string, string> = {
   fire: '#ff6b35',
@@ -99,16 +27,10 @@ const WEAPON_BASE_COLOR: Record<WeaponType, string> = {
   staff: '#4a4a4a',
 }
 
-function getDominantRune(slots: RuneSlot[]) {
-  let dominant: RuneType = null
-  let maxLevel = 0
-  slots.forEach((slot) => {
-    if (slot.rune && slot.level >= maxLevel) {
-      maxLevel = slot.level
-      dominant = slot.rune
-    }
-  })
-  return dominant
+const MODEL_PATHS: Record<WeaponType, string> = {
+  sword: '/models/sword.glb',
+  bow: '/models/bow.glb',
+  staff: '/models/staff.glb',
 }
 
 function hexToThreeColor(hex: string): THREE.Color {
@@ -119,13 +41,100 @@ function lerpColor(color1: THREE.Color, color2: THREE.Color, t: number): THREE.C
   return color1.clone().lerp(color2, t)
 }
 
-interface SwordProps {
+interface GLTFModelProps {
+  url: string
   color: THREE.Color
   emissive: THREE.Color
   emissiveIntensity: number
+  scale?: number
 }
 
-function SwordModel({ color, emissive, emissiveIntensity }: SwordProps) {
+function GLTFModel({ url, color, emissive, emissiveIntensity, scale = 1 }: GLTFModelProps) {
+  const groupRef = useRef<THREE.Group>(null)
+  const { scene } = useGLTF(url)
+
+  useFrame((_, delta) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y += delta * 0.5
+    }
+  })
+
+  useEffect(() => {
+    scene.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        child.castShadow = true
+        child.receiveShadow = true
+        if (child.material) {
+          const materials = Array.isArray(child.material) ? child.material : [child.material]
+          materials.forEach((mat) => {
+            if (mat instanceof THREE.MeshStandardMaterial) {
+              mat.color.copy(color)
+              mat.emissive.copy(emissive)
+              mat.emissiveIntensity = emissiveIntensity
+              mat.needsUpdate = true
+            }
+          })
+        }
+      }
+    })
+  }, [scene, color, emissive, emissiveIntensity])
+
+  return (
+    <group ref={groupRef} scale={scale}>
+      <primitive object={scene} />
+    </group>
+  )
+}
+
+function ModelLoader({
+  weaponType,
+  color,
+  emissive,
+  emissiveIntensity,
+}: {
+  weaponType: WeaponType
+  color: THREE.Color
+  emissive: THREE.Color
+  emissiveIntensity: number
+}) {
+  const [modelScale, setModelScale] = useState(1)
+
+  useEffect(() => {
+    switch (weaponType) {
+      case 'sword':
+        setModelScale(1.2)
+        break
+      case 'bow':
+        setModelScale(1.3)
+        break
+      case 'staff':
+        setModelScale(1.0)
+        break
+    }
+  }, [weaponType])
+
+  return (
+    <GLTFModel
+      url={MODEL_PATHS[weaponType]}
+      color={color}
+      emissive={emissive}
+      emissiveIntensity={emissiveIntensity}
+      scale={modelScale}
+    />
+  )
+}
+
+function FallbackWeapon({
+  weaponType,
+  color,
+  emissive,
+  emissiveIntensity,
+}: {
+  weaponType: WeaponType
+  color: THREE.Color
+  emissive: THREE.Color
+  emissiveIntensity: number
+}) {
   const groupRef = useRef<THREE.Group>(null)
 
   useFrame((_, delta) => {
@@ -138,156 +147,131 @@ function SwordModel({ color, emissive, emissiveIntensity }: SwordProps) {
     () =>
       new THREE.MeshStandardMaterial({
         color,
-        metalness: 0.9,
-        roughness: 0.15,
+        metalness: 0.7,
+        roughness: 0.3,
         emissive,
         emissiveIntensity,
       }),
     [color, emissive, emissiveIntensity],
   )
 
-  return (
-    <group ref={groupRef}>
-      <mesh material={material} rotation={[0, 0, Math.PI / 2]} position={[0, 0.8, 0]}>
-        <boxGeometry args={[1.6, 0.08, 0.18]} />
-      </mesh>
-      <mesh material={material} position={[0.05, 0.05, 0]} rotation={[0, 0, Math.PI / 6]}>
-        <coneGeometry args={[0.12, 0.25, 4]} />
-      </mesh>
-      <mesh material={material} position={[0, -0.15, 0]}>
-        <boxGeometry args={[0.55, 0.08, 0.1]} />
-      </mesh>
-      <mesh material={material} position={[0, -0.6, 0]}>
-        <cylinderGeometry args={[0.06, 0.08, 0.8, 16]} />
-      </mesh>
-      <mesh material={material} position={[0, -1.05, 0]}>
-        <sphereGeometry args={[0.12, 16, 16]} />
-      </mesh>
-    </group>
-  )
-}
+  if (weaponType === 'sword') {
+    return (
+      <group ref={groupRef}>
+        <mesh material={material} rotation={[0, 0, Math.PI / 2]} position={[0, 0.8, 0]}>
+          <boxGeometry args={[1.6, 0.08, 0.18]} />
+        </mesh>
+        <mesh material={material} position={[0, -0.15, 0]}>
+          <boxGeometry args={[0.55, 0.08, 0.1]} />
+        </mesh>
+        <mesh material={material} position={[0, -0.6, 0]}>
+          <cylinderGeometry args={[0.06, 0.08, 0.8, 16]} />
+        </mesh>
+      </group>
+    )
+  }
 
-interface BowProps {
-  color: THREE.Color
-  emissive: THREE.Color
-  emissiveIntensity: number
-}
-
-function BowModel({ color, emissive, emissiveIntensity }: BowProps) {
-  const groupRef = useRef<THREE.Group>(null)
-
-  useFrame((_, delta) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.5
-    }
-  })
-
-  const woodMaterial = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color,
-        metalness: 0.1,
-        roughness: 0.7,
-        emissive,
-        emissiveIntensity,
-      }),
-    [color, emissive, emissiveIntensity],
-  )
-
-  const stringPoints = useMemo(() => {
-    const points: [number, number, number][] = []
-    for (let i = 0; i <= 20; i++) {
-      const t = i / 20
-      const y = (1 - 2 * t) * 1.4
-      points.push([0.08 * (t > 0.5 ? 1 - t : t) * 0.3, y, 0])
-    }
-    return points
-  }, [])
+  if (weaponType === 'bow') {
+    return (
+      <group ref={groupRef}>
+        <mesh material={material}>
+          <torusGeometry args={[1.3, 0.07, 16, 32, Math.PI]} />
+        </mesh>
+        <mesh material={material} position={[0, 0, 0]}>
+          <boxGeometry args={[0.12, 0.25, 0.1]} />
+        </mesh>
+      </group>
+    )
+  }
 
   return (
     <group ref={groupRef}>
-      <mesh material={woodMaterial} rotation={[0, 0, 0]}>
-        <torusGeometry args={[1.3, 0.07, 16, 32, Math.PI]} />
-      </mesh>
-      <mesh material={woodMaterial} position={[0, 0, 0]}>
-        <boxGeometry args={[0.12, 0.25, 0.1]} />
-      </mesh>
-      <Line points={stringPoints} color="#f5f5dc" lineWidth={1.5} />
-    </group>
-  )
-}
-
-interface StaffProps {
-  color: THREE.Color
-  emissive: THREE.Color
-  emissiveIntensity: number
-  crystalColor: THREE.Color
-}
-
-function StaffModel({ color, emissive, emissiveIntensity, crystalColor }: StaffProps) {
-  const groupRef = useRef<THREE.Group>(null)
-  const crystalRef = useRef<THREE.Mesh>(null)
-
-  useFrame((_, delta) => {
-    if (groupRef.current) {
-      groupRef.current.rotation.y += delta * 0.5
-    }
-    if (crystalRef.current) {
-      crystalRef.current.rotation.x += delta * 0.8
-      crystalRef.current.rotation.z += delta * 0.6
-    }
-  })
-
-  const woodMaterial = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color,
-        metalness: 0.3,
-        roughness: 0.6,
-        emissive,
-        emissiveIntensity,
-      }),
-    [color, emissive, emissiveIntensity],
-  )
-
-  const crystalMaterial = useMemo(
-    () =>
-      new THREE.MeshStandardMaterial({
-        color: crystalColor,
-        metalness: 0.5,
-        roughness: 0.1,
-        emissive: crystalColor,
-        emissiveIntensity: 0.8 + emissiveIntensity * 0.5,
-        transparent: true,
-        opacity: 0.9,
-      }),
-    [crystalColor, emissiveIntensity],
-  )
-
-  return (
-    <group ref={groupRef}>
-      <mesh material={woodMaterial} position={[0, -0.3, 0]}>
+      <mesh material={material} position={[0, -0.3, 0]}>
         <cylinderGeometry args={[0.07, 0.09, 2, 16]} />
       </mesh>
-      <mesh material={woodMaterial} position={[0, 0.72, 0]}>
+      <mesh material={material} position={[0, 0.72, 0]}>
         <torusGeometry args={[0.13, 0.04, 8, 16]} />
       </mesh>
-      <mesh ref={crystalRef} material={crystalMaterial} position={[0, 1, 0]}>
+      <mesh material={material} position={[0, 1, 0]}>
         <icosahedronGeometry args={[0.22, 0]} />
       </mesh>
-      <mesh position={[0, 1, 0]} material={crystalMaterial}>
-        <icosahedronGeometry args={[0.14, 0]} />
+    </group>
+  )
+}
+
+function LoadingPlaceholder() {
+  const groupRef = useRef<THREE.Group>(null)
+  const [progress, setProgress] = useState(0)
+
+  useFrame((_, delta) => {
+    if (groupRef.current) {
+      groupRef.current.rotation.y += delta * 0.8
+      groupRef.current.rotation.x = Math.sin(Date.now() * 0.002) * 0.2
+    }
+    setProgress((prev) => (prev + delta * 30) % 100)
+  })
+
+  return (
+    <group ref={groupRef}>
+      <mesh>
+        <torusGeometry args={[0.8, 0.04, 16, 48]} />
+        <meshBasicMaterial color="#e6b800" transparent opacity={0.6} />
       </mesh>
-      <mesh material={woodMaterial} position={[0, -1.3, 0]}>
-        <sphereGeometry args={[0.1, 16, 16]} />
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <torusGeometry args={[0.8, 0.04, 16, 48]} />
+        <meshBasicMaterial color="#4a90d9" transparent opacity={0.6} />
       </mesh>
+      <mesh rotation={[0, 0, Math.PI / 2]}>
+        <torusGeometry args={[0.8, 0.04, 16, 48]} />
+        <meshBasicMaterial color="#27ae60" transparent opacity={0.6} />
+      </mesh>
+      <mesh position={[0, 0, 0]}>
+        <octahedronGeometry args={[0.3, 0]} />
+        <meshBasicMaterial color="#e6b800" wireframe />
+      </mesh>
+      <Html center position={[0, -1.5, 0]} distanceFactor={8}>
+        <div
+          style={{
+            color: '#e6b800',
+            fontSize: '14px',
+            fontWeight: 'bold',
+            textAlign: 'center',
+            background: 'rgba(0,0,0,0.7)',
+            padding: '10px 20px',
+            borderRadius: '8px',
+            border: '1px solid rgba(230, 184, 0, 0.5)',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          <div style={{ marginBottom: '6px' }}>⏳ 正在加载武器模型...</div>
+          <div
+            style={{
+              width: '120px',
+              height: '6px',
+              background: 'rgba(255,255,255,0.1)',
+              borderRadius: '3px',
+              overflow: 'hidden',
+            }}
+          >
+            <div
+              style={{
+                width: `${progress}%`,
+                height: '100%',
+                background: 'linear-gradient(90deg, #e6b800, #ffd700)',
+                borderRadius: '3px',
+                transition: 'width 0.1s ease',
+              }}
+            />
+          </div>
+        </div>
+      </Html>
     </group>
   )
 }
 
 interface WeaponSwitchProps {
   enhanceLevel: number
-  dominantRune: RuneType
+  dominantRune: RuneType | null
 }
 
 function WeaponSwitch({ enhanceLevel, dominantRune }: WeaponSwitchProps) {
@@ -308,6 +292,7 @@ function WeaponSwitch({ enhanceLevel, dominantRune }: WeaponSwitchProps) {
   const [displayColor, setDisplayColor] = useState(baseColor)
   const [transitionProgress, setTransitionProgress] = useState(0)
   const prevDominantRef = useRef(dominantRune)
+  const [loadError, setLoadError] = useState(false)
 
   useEffect(() => {
     if (prevDominantRef.current !== dominantRune) {
@@ -315,6 +300,10 @@ function WeaponSwitch({ enhanceLevel, dominantRune }: WeaponSwitchProps) {
       prevDominantRef.current = dominantRune
     }
   }, [dominantRune])
+
+  useEffect(() => {
+    setLoadError(false)
+  }, [weaponType])
 
   useFrame((_, delta) => {
     if (transitionProgress < 1) {
@@ -349,47 +338,38 @@ function WeaponSwitch({ enhanceLevel, dominantRune }: WeaponSwitchProps) {
   useFrame((_, delta) => {
     if (enhanceLevel >= 5) {
       rainbowRef.current += delta * 0.5
-      const hue = (rainbowRef.current % 1)
+      const hue = rainbowRef.current % 1
       setRainbowEmissive(new THREE.Color().setHSL(hue, 1, 0.5))
     } else {
       setRainbowEmissive(emissiveColor)
     }
   })
 
-  const crystalColor = dominantRune
-    ? hexToThreeColor(RUNE_COLORS[dominantRune])
-    : new THREE.Color(0x88ccff)
+  if (loadError) {
+    return (
+      <FallbackWeapon
+        weaponType={weaponType}
+        color={displayColor}
+        emissive={enhanceLevel >= 5 ? rainbowEmissive : emissiveColor}
+        emissiveIntensity={emissiveIntensity}
+      />
+    )
+  }
 
-  if (weaponType === 'sword') {
-    return (
-      <SwordModel
-        color={displayColor}
-        emissive={enhanceLevel >= 5 ? rainbowEmissive : emissiveColor}
-        emissiveIntensity={emissiveIntensity}
-      />
-    )
-  }
-  if (weaponType === 'bow') {
-    return (
-      <BowModel
-        color={displayColor}
-        emissive={enhanceLevel >= 5 ? rainbowEmissive : emissiveColor}
-        emissiveIntensity={emissiveIntensity}
-      />
-    )
-  }
   return (
-    <StaffModel
-      color={displayColor}
-      emissive={enhanceLevel >= 5 ? rainbowEmissive : emissiveColor}
-      emissiveIntensity={emissiveIntensity}
-      crystalColor={crystalColor}
-    />
+    <Suspense fallback={<LoadingPlaceholder />}>
+      <ModelLoader
+        weaponType={weaponType}
+        color={displayColor}
+        emissive={enhanceLevel >= 5 ? rainbowEmissive : emissiveColor}
+        emissiveIntensity={emissiveIntensity}
+      />
+    </Suspense>
   )
 }
 
 interface RuneSlotModelProps {
-  slot: RuneSlot
+  slot: { id: number; rune: RuneType | null; level: number }
   index: number
 }
 
@@ -476,6 +456,12 @@ function RuneSlotModel({ slot, index }: RuneSlotModelProps) {
       )}
     </group>
   )
+}
+
+interface ParticleBurst {
+  id: number
+  type: RuneType
+  time: number
 }
 
 interface ParticleSystemProps {
@@ -726,8 +712,12 @@ function ParticleSystem({ bursts }: ParticleSystemProps) {
 }
 
 interface EnhanceEffectProps {
-  status: ForgeState['effectStatus']
-  runeSlots: RuneSlot[]
+  status: {
+    enhancing: boolean
+    lastResult: 'success' | 'fail' | null
+    effectTime: number
+  }
+  runeSlots: { rune: RuneType | null; level: number }[]
 }
 
 function EnhanceEffect({ status, runeSlots }: EnhanceEffectProps) {
@@ -746,6 +736,18 @@ function EnhanceEffect({ status, runeSlots }: EnhanceEffectProps) {
       effectStartRef.current = Date.now()
     }
   }, [status.effectTime, status.enhancing, status.lastResult])
+
+  const getDominantRune = (slots: { rune: RuneType | null; level: number }[]) => {
+    let dominant: RuneType | null = null
+    let maxLevel = 0
+    slots.forEach((slot) => {
+      if (slot.rune && slot.level >= maxLevel) {
+        maxLevel = slot.level
+        dominant = slot.rune
+      }
+    })
+    return dominant
+  }
 
   const failParticleData = useMemo(() => {
     const count = 200
@@ -913,7 +915,7 @@ function EnhanceEffect({ status, runeSlots }: EnhanceEffectProps) {
   )
 }
 
-function RuneLightSources({ slots }: { slots: RuneSlot[] }) {
+function RuneLightSources({ slots }: { slots: { id: number; rune: RuneType | null; level: number }[] }) {
   return (
     <>
       {slots.map((slot) => {
@@ -938,12 +940,43 @@ function RuneLightSources({ slots }: { slots: RuneSlot[] }) {
 
 function Scene() {
   const weaponType = useForgeStore((state) => state.weaponType)
-  const runeSlots = useForgeStore((state) => state.runeSlots)
-  const enhanceLevel = useForgeStore((state) => state.enhanceLevel)
-  const effectStatus = useForgeStore((state) => state.effectStatus)
-  const particleBursts = useForgeStore((state) => state.particleBursts)
+  const slots = useForgeStore((state) => state.slots)
+  const enhanceLevel = useForgeStore((state) => state.upgradeLevel)
+  const effectStatus = useForgeStore((state) => ({
+    enhancing: state.animation !== '',
+    lastResult: state.animation === 'success' ? 'success' : state.animation === 'fail' ? 'fail' : null,
+    effectTime: state.animation ? Date.now() : 0,
+  }))
+  const particleType = useForgeStore((state) => state.effects.particleType)
 
-  const dominantRune = getDominantRune(runeSlots)
+  const [particleBursts, setParticleBursts] = useState<ParticleBurst[]>([])
+
+  useEffect(() => {
+    if (particleType) {
+      setParticleBursts((prev) => [
+        ...prev,
+        { id: Date.now() + Math.random(), type: particleType, time: Date.now() },
+      ].slice(-10))
+    }
+  }, [particleType])
+
+  const getDominantRune = (slots: { rune: RuneType | null; level: number }[]) => {
+    let dominant: RuneType | null = null
+    let maxLevel = 0
+    slots.forEach((slot) => {
+      if (slot.rune && slot.level >= maxLevel) {
+        maxLevel = slot.level
+        dominant = slot.rune
+      }
+    })
+    return dominant
+  }
+
+  const dominantRune = getDominantRune(slots)
+  const runeSlotsForEffect = slots.map((s) => ({
+    rune: s.rune,
+    level: s.rune ? s.rune.level : 0,
+  }))
 
   return (
     <>
@@ -1002,15 +1035,25 @@ function Scene() {
         <WeaponSwitch enhanceLevel={enhanceLevel} dominantRune={dominantRune} />
       </Float>
 
-      {runeSlots.map((slot) => (
-        <RuneSlotModel key={slot.id} slot={slot} index={slot.id} />
+      {slots.map((slot, index) => (
+        <RuneSlotModel
+          key={slot.id}
+          slot={{ id: slot.id, rune: slot.rune?.type || null, level: slot.rune?.level || 0 }}
+          index={index}
+        />
       ))}
 
-      <RuneLightSources slots={runeSlots} />
+      <RuneLightSources
+        slots={slots.map((s) => ({
+          id: s.id,
+          rune: s.rune?.type || null,
+          level: s.rune?.level || 0,
+        }))}
+      />
 
       <ParticleSystem bursts={particleBursts} />
 
-      <EnhanceEffect status={effectStatus} runeSlots={runeSlots} />
+      <EnhanceEffect status={effectStatus} runeSlots={runeSlotsForEffect} />
 
       <Sparkles
         count={enhanceLevel * 15}
@@ -1038,5 +1081,9 @@ export default function Forge() {
     </Canvas>
   )
 }
+
+useGLTF.preload('/models/sword.glb')
+useGLTF.preload('/models/bow.glb')
+useGLTF.preload('/models/staff.glb')
 
 export { useForgeStore }

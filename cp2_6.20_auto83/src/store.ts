@@ -3,6 +3,16 @@ import { create } from 'zustand';
 export type WeaponType = 'sword' | 'bow' | 'staff';
 export type RuneType = 'fire' | 'ice' | 'thunder' | 'shadow' | 'holy';
 
+export interface Rune {
+  type: RuneType;
+  level: number;
+}
+
+export interface Slot {
+  id: number;
+  rune: Rune | null;
+}
+
 export interface RuneSlot {
   type: RuneType | null;
   level: number;
@@ -16,8 +26,16 @@ export interface EffectState {
 
 export interface StoreState {
   weaponType: WeaponType;
-  runeSlots: RuneSlot[];
+  weaponName: string;
+  attack: number;
+  elementDamage: number;
+  critRate: number;
+  gold: number;
   upgradeLevel: number;
+  upgradeChance: number;
+  slots: Slot[];
+  animation: 'success' | 'fail' | '';
+  runeSlots: RuneSlot[];
   consecutiveFailures: number;
   failurePenaltyCount: number;
   baseAttack: number;
@@ -26,14 +44,36 @@ export interface StoreState {
   thunderDamage: number;
   shadowDamage: number;
   holyDamage: number;
-  critRate: number;
-  gold: number;
   effects: EffectState;
   setWeaponType: (type: WeaponType) => void;
   setRune: (slotIndex: number, type: RuneType, level: number) => void;
+  setRuneInSlot: (slotIndex: number, rune: Rune) => void;
+  removeRuneFromSlot: (slotIndex: number) => void;
   removeRune: (slotIndex: number) => void;
   upgrade: () => { success: boolean; guaranteed: boolean };
 }
+
+export const availableRunes: Record<RuneType, Rune[]> = {
+  fire: [{ type: 'fire', level: 1 }],
+  ice: [{ type: 'ice', level: 1 }],
+  thunder: [{ type: 'thunder', level: 1 }],
+  shadow: [{ type: 'shadow', level: 1 }],
+  holy: [{ type: 'holy', level: 1 }],
+};
+
+export const runeMultipliers: Record<RuneType, number> = {
+  fire: 1.0,
+  ice: 1.0,
+  thunder: 1.0,
+  shadow: 1.0,
+  holy: 1.0,
+};
+
+const WEAPON_NAMES: Record<WeaponType, string> = {
+  sword: '精钢长剑',
+  bow: '猎鹰长弓',
+  staff: '奥术法杖',
+};
 
 const BASE_ATTACK_MAP: Record<WeaponType, number> = {
   sword: 100,
@@ -114,42 +154,120 @@ const calculateAttributes = (
   };
 };
 
+const calculateDerivedStats = (
+  weaponType: WeaponType,
+  runeSlots: RuneSlot[],
+  upgradeLevel: number,
+  failurePenaltyCount: number
+) => {
+  const baseAttrs = calculateAttributes(weaponType, runeSlots, upgradeLevel, failurePenaltyCount);
+  const elementDamage =
+    baseAttrs.fireDamage +
+    baseAttrs.iceDamage +
+    baseAttrs.thunderDamage +
+    baseAttrs.shadowDamage +
+    baseAttrs.holyDamage;
+  return {
+    ...baseAttrs,
+    attack: baseAttrs.baseAttack,
+    elementDamage,
+    critRate: baseAttrs.critRate,
+  };
+};
+
+const createEmptySlotsV2 = (): Slot[] =>
+  Array.from({ length: 5 }, (_, i) => ({ id: i, rune: null }));
+
+const syncSlots = (slots: Slot[]): RuneSlot[] =>
+  slots.map((s) => ({
+    type: s.rune?.type || null,
+    level: s.rune?.level || 1,
+  }));
+
 export const useStore = create<StoreState>((set, get) => {
-  const initialAttrs = calculateAttributes('sword', createEmptySlots(), 0, 0);
+  const initialAttrs = calculateDerivedStats('sword', createEmptySlots(), 0, 0);
   return {
     weaponType: 'sword',
-    runeSlots: createEmptySlots(),
-    upgradeLevel: 0,
-    consecutiveFailures: 0,
-    failurePenaltyCount: 0,
+    weaponName: WEAPON_NAMES['sword'],
     ...initialAttrs,
     gold: 10000,
+    upgradeLevel: 0,
+    upgradeChance: UPGRADE_PROBABILITIES[0],
+    slots: createEmptySlotsV2(),
+    animation: '',
+    runeSlots: createEmptySlots(),
+    consecutiveFailures: 0,
+    failurePenaltyCount: 0,
     effects: {
       particleType: null,
       successAnimation: false,
       failureAnimation: false,
     },
     setWeaponType: (type: WeaponType) => {
-      const { runeSlots, upgradeLevel, failurePenaltyCount } = get();
-      const attrs = calculateAttributes(type, runeSlots, upgradeLevel, failurePenaltyCount);
-      set({ weaponType: type, ...attrs });
+      const { slots, upgradeLevel, failurePenaltyCount } = get();
+      const runeSlots = syncSlots(slots);
+      const attrs = calculateDerivedStats(type, runeSlots, upgradeLevel, failurePenaltyCount);
+      set({
+        weaponType: type,
+        weaponName: WEAPON_NAMES[type],
+        ...attrs,
+      });
     },
     setRune: (slotIndex: number, type: RuneType, level: number) => {
-      const { runeSlots, weaponType, upgradeLevel, failurePenaltyCount } = get();
-      const newSlots = [...runeSlots];
-      newSlots[slotIndex] = { type, level: Math.max(1, Math.min(5, level)) };
-      const attrs = calculateAttributes(weaponType, newSlots, upgradeLevel, failurePenaltyCount);
-      set({ runeSlots: newSlots, ...attrs, effects: { ...get().effects, particleType: type } });
+      const { slots, weaponType, upgradeLevel, failurePenaltyCount } = get();
+      const newSlots = [...slots];
+      newSlots[slotIndex] = { ...newSlots[slotIndex], rune: { type, level: Math.max(1, Math.min(5, level)) } };
+      const runeSlots = syncSlots(newSlots);
+      const attrs = calculateDerivedStats(weaponType, runeSlots, upgradeLevel, failurePenaltyCount);
+      set({
+        slots: newSlots,
+        runeSlots,
+        ...attrs,
+        effects: { ...get().effects, particleType: type },
+      });
       setTimeout(() => {
         set((state) => ({ effects: { ...state.effects, particleType: null } }));
       }, 800);
     },
+    setRuneInSlot: (slotIndex: number, rune: Rune) => {
+      const { slots, weaponType, upgradeLevel, failurePenaltyCount } = get();
+      const newSlots = [...slots];
+      newSlots[slotIndex] = { ...newSlots[slotIndex], rune: { ...rune, level: Math.max(1, Math.min(5, rune.level)) } };
+      const runeSlots = syncSlots(newSlots);
+      const attrs = calculateDerivedStats(weaponType, runeSlots, upgradeLevel, failurePenaltyCount);
+      set({
+        slots: newSlots,
+        runeSlots,
+        ...attrs,
+        effects: { ...get().effects, particleType: rune.type },
+      });
+      setTimeout(() => {
+        set((state) => ({ effects: { ...state.effects, particleType: null } }));
+      }, 800);
+    },
+    removeRuneFromSlot: (slotIndex: number) => {
+      const { slots, weaponType, upgradeLevel, failurePenaltyCount } = get();
+      const newSlots = [...slots];
+      newSlots[slotIndex] = { ...newSlots[slotIndex], rune: null };
+      const runeSlots = syncSlots(newSlots);
+      const attrs = calculateDerivedStats(weaponType, runeSlots, upgradeLevel, failurePenaltyCount);
+      set({
+        slots: newSlots,
+        runeSlots,
+        ...attrs,
+      });
+    },
     removeRune: (slotIndex: number) => {
-      const { runeSlots, weaponType, upgradeLevel, failurePenaltyCount } = get();
-      const newSlots = [...runeSlots];
-      newSlots[slotIndex] = { type: null, level: 1 };
-      const attrs = calculateAttributes(weaponType, newSlots, upgradeLevel, failurePenaltyCount);
-      set({ runeSlots: newSlots, ...attrs });
+      const { slots, weaponType, upgradeLevel, failurePenaltyCount } = get();
+      const newSlots = [...slots];
+      newSlots[slotIndex] = { ...newSlots[slotIndex], rune: null };
+      const runeSlots = syncSlots(newSlots);
+      const attrs = calculateDerivedStats(weaponType, runeSlots, upgradeLevel, failurePenaltyCount);
+      set({
+        slots: newSlots,
+        runeSlots,
+        ...attrs,
+      });
     },
     upgrade: () => {
       const state = get();
@@ -164,32 +282,58 @@ export const useStore = create<StoreState>((set, get) => {
 
       if (success) {
         const newLevel = state.upgradeLevel + 1;
-        const attrs = calculateAttributes(state.weaponType, state.runeSlots, newLevel, state.failurePenaltyCount);
+        const runeSlots = syncSlots(state.slots);
+        const attrs = calculateDerivedStats(state.weaponType, runeSlots, newLevel, state.failurePenaltyCount);
+        const newChance = UPGRADE_PROBABILITIES[Math.min(newLevel, 5)];
         set({
           upgradeLevel: newLevel,
+          upgradeChance: newChance,
           consecutiveFailures: 0,
           ...attrs,
+          animation: 'success',
           effects: { ...state.effects, successAnimation: true },
         });
         setTimeout(() => {
-          set((s) => ({ effects: { ...s.effects, successAnimation: false } }));
+          set((s) => ({
+            animation: '',
+            effects: { ...s.effects, successAnimation: false },
+          }));
         }, 1000);
         return { success: true, guaranteed };
       } else {
         const newFailures = state.consecutiveFailures + 1;
-        const newPenaltyCount = state.failurePenaltyCount + 1;
-        const attrs = calculateAttributes(state.weaponType, state.runeSlots, state.upgradeLevel, newPenaltyCount);
+        let newPenaltyCount = state.failurePenaltyCount;
+        let newLevel = state.upgradeLevel;
+
+        if (newFailures >= 3) {
+          newLevel = state.upgradeLevel + 1;
+          newFailures = 0;
+        } else {
+          newPenaltyCount = state.failurePenaltyCount + 1;
+        }
+
+        const runeSlots = syncSlots(state.slots);
+        const attrs = calculateDerivedStats(state.weaponType, runeSlots, newLevel, newPenaltyCount);
+        const newChance = UPGRADE_PROBABILITIES[Math.min(newLevel, 5)];
         set({
+          upgradeLevel: newLevel,
+          upgradeChance: newChance,
           consecutiveFailures: newFailures,
           failurePenaltyCount: newPenaltyCount,
           ...attrs,
+          animation: 'fail',
           effects: { ...state.effects, failureAnimation: true },
         });
         setTimeout(() => {
-          set((s) => ({ effects: { ...s.effects, failureAnimation: false } }));
+          set((s) => ({
+            animation: '',
+            effects: { ...s.effects, failureAnimation: false },
+          }));
         }, 1000);
         return { success: false, guaranteed: false };
       }
     },
   };
 });
+
+export const useForgeStore = useStore;
