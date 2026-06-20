@@ -103,7 +103,7 @@ const SceneContent: React.FC<SceneContentProps> = ({ waveSimulator }) => {
       />
       <pointLight position={[-10, 10, -10]} intensity={0.3} color="#4fc3f7" />
 
-      <EarthBlock density={density} />
+      <EarthBlock />
       <Hypocenter position={hypocenter} magnitude={magnitude} />
       <WaveFront waveData={waveData} hypocenter={hypocenter} magnitude={magnitude} waveSimulator={waveSimulator} currentTime={currentTime} />
       <SurfaceWave

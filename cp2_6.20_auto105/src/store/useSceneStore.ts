@@ -1,6 +1,6 @@
 import { create } from 'zustand';
-import type { SceneState, SceneActions, Hypocenter } from '@/types';
-import { DEFAULT_STATE } from '@/types';
+import type { SceneState, SceneActions, Hypocenter, GeologicLayerConfig } from '@/types';
+import { DEFAULT_STATE, DEFAULT_GEOLOGIC_LAYERS } from '@/types';
 
 type Store = SceneState & SceneActions;
 
@@ -61,6 +61,40 @@ export const useSceneStore = create<Store>((set, get) => ({
       isPlaying: false,
       currentTime: 0,
     })),
+
+  setGeologicLayer: (index: number, config: Partial<GeologicLayerConfig>) =>
+    set((state) => {
+      const newLayers = state.geologicLayers.layers.map((layer, i) =>
+        i === index ? { ...layer, ...config } : layer
+      );
+      return {
+        geologicLayers: {
+          ...state.geologicLayers,
+          layers: newLayers,
+        },
+      };
+    }),
+
+  setShowGrid: (show: boolean) =>
+    set((state) => ({
+      geologicLayers: {
+        ...state.geologicLayers,
+        showGrid: show,
+      },
+    })),
+
+  setGridOpacity: (opacity: number) =>
+    set((state) => ({
+      geologicLayers: {
+        ...state.geologicLayers,
+        gridOpacity: opacity,
+      },
+    })),
+
+  resetGeologicLayers: () =>
+    set(() => ({
+      geologicLayers: DEFAULT_GEOLOGIC_LAYERS,
+    })),
 }));
 
 export const selectHypocenter = (state: Store) => state.hypocenter;
@@ -69,6 +103,7 @@ export const selectDensity = (state: Store) => state.density;
 export const selectElasticity = (state: Store) => state.elasticity;
 export const selectIsPlaying = (state: Store) => state.isPlaying;
 export const selectCurrentTime = (state: Store) => state.currentTime;
+export const selectGeologicLayers = (state: Store) => state.geologicLayers;
 export const selectSceneState = (state: Store): SceneState => ({
   hypocenter: state.hypocenter,
   magnitude: state.magnitude,
@@ -76,4 +111,5 @@ export const selectSceneState = (state: Store): SceneState => ({
   elasticity: state.elasticity,
   isPlaying: state.isPlaying,
   currentTime: state.currentTime,
+  geologicLayers: state.geologicLayers,
 });

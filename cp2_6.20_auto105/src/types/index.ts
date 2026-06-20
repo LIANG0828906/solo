@@ -4,6 +4,20 @@ export interface Hypocenter {
   z: number;
 }
 
+export interface GeologicLayerConfig {
+  name: string;
+  thickness: number;
+  baseColor: string;
+  opacity: number;
+  baseDensity: number;
+}
+
+export interface GeologicLayersState {
+  layers: GeologicLayerConfig[];
+  showGrid: boolean;
+  gridOpacity: number;
+}
+
 export interface SceneState {
   hypocenter: Hypocenter;
   magnitude: number;
@@ -11,6 +25,7 @@ export interface SceneState {
   elasticity: number;
   isPlaying: boolean;
   currentTime: number;
+  geologicLayers: GeologicLayersState;
 }
 
 export interface SceneActions {
@@ -22,6 +37,10 @@ export interface SceneActions {
   setCurrentTime: (time: number) => void;
   resetSimulation: () => void;
   setStateFromUrl: (state: Partial<SceneState>) => void;
+  setGeologicLayer: (index: number, config: Partial<GeologicLayerConfig>) => void;
+  setShowGrid: (show: boolean) => void;
+  setGridOpacity: (opacity: number) => void;
+  resetGeologicLayers: () => void;
 }
 
 export interface Reflection {
@@ -62,6 +81,16 @@ export const GEOLOGIC_LAYERS: GeologicLayer[] = [
   { name: '地核', yMin: 1.66, yMax: 5, baseColor: '#FFD700', baseDensity: 13000 },
 ];
 
+export const DEFAULT_GEOLOGIC_LAYERS: GeologicLayersState = {
+  layers: [
+    { name: '表土层', thickness: 1.5, baseColor: '#8B7355', opacity: 0.75, baseDensity: 2000 },
+    { name: '沉积岩层', thickness: 3.0, baseColor: '#A0522D', opacity: 0.65, baseDensity: 2500 },
+    { name: '基岩层', thickness: 5.5, baseColor: '#696969', opacity: 0.55, baseDensity: 3000 },
+  ],
+  showGrid: true,
+  gridOpacity: 0.3,
+};
+
 export const ANIMATION_DURATION = 5;
 
 export const DEFAULT_STATE: SceneState = {
@@ -71,6 +100,7 @@ export const DEFAULT_STATE: SceneState = {
   elasticity: 10,
   isPlaying: false,
   currentTime: 0,
+  geologicLayers: DEFAULT_GEOLOGIC_LAYERS,
 };
 
 export interface SliderConfig {
