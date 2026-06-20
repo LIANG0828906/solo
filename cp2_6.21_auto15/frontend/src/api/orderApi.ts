@@ -22,22 +22,33 @@ export const createOrder = async (data: {
   total: number;
   address: string;
 }): Promise<Order> => {
-  const response = await api.post<Order>('/orders', data);
+  const transformedItems = data.items.map((item) => ({
+    product_id: item.product.id,
+    product_name: item.product.name,
+    price: item.product.price,
+    quantity: item.quantity,
+  }));
+  const response = await api.post<Order>('/orders', {
+    user: data.user,
+    items: transformedItems,
+    total: data.total,
+    address: data.address,
+  });
   return response.data;
 };
 
 export const mergeOrders = async (orderIds: number[]): Promise<DeliveryOrder> => {
-  const response = await api.post<DeliveryOrder>('/delivery/merge', { orderIds });
+  const response = await api.put<DeliveryOrder>('/orders/merge', { order_ids: orderIds });
   return response.data;
 };
 
 export const optimizeRoute = async (deliveryId: number): Promise<DeliveryOrder> => {
-  const response = await api.post<DeliveryOrder>(`/delivery/${deliveryId}/optimize`);
+  const response = await api.post<DeliveryOrder>('/delivery/optimize', { delivery_id: deliveryId });
   return response.data;
 };
 
 export const getDeliveryOrders = async (): Promise<DeliveryOrder[]> => {
-  const response = await api.get<DeliveryOrder[]>('/delivery');
+  const response = await api.get<DeliveryOrder[]>('/delivery/list');
   return response.data;
 };
 

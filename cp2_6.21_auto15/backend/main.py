@@ -65,6 +65,7 @@ class OrderCreate(BaseModel):
     user: str
     items: List[OrderItem]
     total: float
+    address: Optional[str] = ""
 
 
 class OrderResponse(BaseModel):
@@ -73,10 +74,21 @@ class OrderResponse(BaseModel):
     items: List[OrderItem]
     total: float
     status: str
+    address: str
     created_at: datetime
 
     class Config:
         orm_mode = True
+
+
+class StockUpdateBody(BaseModel):
+    stock: int
+
+
+class OptimizeRouteRequest(BaseModel):
+    delivery_id: Optional[int] = None
+    order_ids: Optional[List[int]] = None
+    addresses: Optional[List[str]] = None
 
 
 class MergeOrderRequest(BaseModel):
@@ -109,21 +121,27 @@ def optimize_route(addresses: List[str]) -> List[str]:
 @app.on_event("startup")
 def init_mock_data():
     db = next(get_db())
-    if db.query(Product).count() == 0:
-        mock_products = [
-            Product(name="苹果 iPhone 15", category="手机数码", price=5999.0, stock=100, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=iPhone%2015%20smartphone%20product%20photo&image_size=square"),
-            Product(name="华为 Mate 60", category="手机数码", price=6999.0, stock=80, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Huawei%20Mate%2060%20smartphone%20product%20photo&image_size=square"),
-            Product(name="小米 14", category="手机数码", price=3999.0, stock=150, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Xiaomi%2014%20smartphone%20product%20photo&image_size=square"),
-            Product(name="MacBook Pro", category="电脑办公", price=12999.0, stock=50, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=MacBook%20Pro%20laptop%20product%20photo&image_size=square"),
-            Product(name="ThinkPad X1", category="电脑办公", price=9999.0, stock=60, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=ThinkPad%20X1%20laptop%20product%20photo&image_size=square"),
-            Product(name="Nike Air Max", category="运动户外", price=899.0, stock=200, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Nike%20Air%20Max%20sneakers%20product%20photo&image_size=square"),
-            Product(name="Adidas Ultraboost", category="运动户外", price=1099.0, stock=180, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Adidas%20Ultraboost%20sneakers%20product%20photo&image_size=square"),
-            Product(name="戴森吸尘器", category="家用电器", price=2999.0, stock=70, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Dyson%20vacuum%20cleaner%20product%20photo&image_size=square"),
-            Product(name="美的空调", category="家用电器", price=3599.0, stock=40, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Midea%20air%20conditioner%20product%20photo&image_size=square"),
-            Product(name="SK-II 神仙水", category="美妆个护", price=1590.0, stock=90, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=SK-II%20facial%20treatment%20essence%20product%20photo&image_size=square"),
-        ]
-        db.add_all(mock_products)
-        db.commit()
+    try:
+        if db.query(Product).count() == 0:
+            mock_products = [
+                Product(name="新鲜红富士苹果", category="水果", price=6.9, stock=15, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=fresh%20red%20fuji%20apple%20pile%20on%20white%20background%20product%20photo&image_size=square_hd"),
+                Product(name="海南香蕉", category="水果", price=4.5, stock=30, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=yellow%20banana%20bunch%20tropical%20fruit%20product%20photo&image_size=square_hd"),
+                Product(name="阳光玫瑰葡萄", category="水果", price=28.0, stock=12, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=shine%20muscat%20green%20grape%20premium%20fruit%20product%20photo&image_size=square_hd"),
+                Product(name="有机胡萝卜", category="蔬菜", price=3.8, stock=50, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=organic%20carrots%20fresh%20vegetable%20on%20white%20background&image_size=square_hd"),
+                Product(name="上海青", category="蔬菜", price=2.5, stock=3, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=shanghai%20green%20bok%20choy%20fresh%20vegetable%20product&image_size=square_hd"),
+                Product(name="本地土鸡蛋", category="肉蛋", price=18.8, stock=18, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=farm%20fresh%20brown%20eggs%20in%20basket%20product%20photo&image_size=square_hd"),
+                Product(name="散养土鸡", category="肉蛋", price=68.0, stock=8, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=raw%20whole%20free%20range%20chicken%20meat%20product%20photo&image_size=square_hd"),
+                Product(name="金典纯牛奶", category="乳品", price=65.0, stock=45, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=milk%20carton%20box%20dairy%20product%20photo&image_size=square_hd"),
+                Product(name="安慕希酸奶", category="乳品", price=55.0, stock=22, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=greek%20yogurt%20drink%20bottles%20dairy%20product&image_size=square_hd"),
+                Product(name="金龙鱼食用油5L", category="粮油", price=79.9, stock=35, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=cooking%20oil%20bottle%205%20liter%20kitchen%20product&image_size=square_hd"),
+                Product(name="东北大米10kg", category="粮油", price=69.0, stock=5, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=northeast%20china%20rice%20bag%2010kg%20grain%20product&image_size=square_hd"),
+                Product(name="维达抽纸", category="日用品", price=29.9, stock=60, image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=tissue%20paper%20box%20household%20product%20photo&image_size=square_hd"),
+            ]
+            db.add_all(mock_products)
+            db.commit()
+    except Exception as e:
+        print(f"Init data error: {e}")
+        db.rollback()
 
 
 @app.get("/api/products", response_model=List[ProductResponse])
@@ -167,17 +185,18 @@ def update_product(product_id: int, product: ProductUpdate, db: Session = Depend
 
 
 @app.put("/api/products/{product_id}/stock")
-def update_stock(product_id: int, quantity: int, db: Session = Depends(get_db)):
+def update_stock(product_id: int, body: StockUpdateBody, db: Session = Depends(get_db)):
     product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="商品不存在")
     
-    if product.stock + quantity < 0:
-        raise HTTPException(status_code=400, detail="库存不足")
+    if body.stock < 0:
+        raise HTTPException(status_code=400, detail="库存不能为负数")
     
-    product.stock += quantity
+    product.stock = body.stock
     db.commit()
-    return {"message": "库存更新成功", "new_stock": product.stock}
+    db.refresh(product)
+    return product
 
 
 @app.post("/api/cart/add")
@@ -224,7 +243,8 @@ def create_order(order: OrderCreate, db: Session = Depends(get_db)):
         user=order.user,
         items=[item.dict() for item in order.items],
         total=order.total,
-        status="pending"
+        status="pending",
+        address=order.address or ""
     )
     db.add(db_order)
     db.commit()
@@ -232,7 +252,7 @@ def create_order(order: OrderCreate, db: Session = Depends(get_db)):
     return db_order
 
 
-@app.put("/api/orders/merge")
+@app.put("/api/orders/merge", response_model=DeliveryOrderResponse)
 def merge_orders(request: MergeOrderRequest, db: Session = Depends(get_db)):
     if len(request.order_ids) < 2:
         raise HTTPException(status_code=400, detail="至少需要2个订单才能合并")
@@ -244,68 +264,67 @@ def merge_orders(request: MergeOrderRequest, db: Session = Depends(get_db)):
     if any(order.status != "pending" for order in orders):
         raise HTTPException(status_code=400, detail="只能合并待处理的订单")
     
-    merged_items = []
-    total = 0.0
+    addresses = []
     for order in orders:
-        merged_items.extend(order.items)
-        total += order.total
+        addr = order.address if order.address else f"{order.user}的地址-订单{order.id}"
+        addresses.append(addr)
     
-    item_map = {}
-    for item in merged_items:
-        pid = item["product_id"]
-        if pid in item_map:
-            item_map[pid]["quantity"] += item["quantity"]
-        else:
-            item_map[pid] = item.copy()
-    
-    final_items = list(item_map.values())
-    
-    merged_order = Order(
-        user=orders[0].user,
-        items=final_items,
-        total=sum(item["price"] * item["quantity"] for item in final_items),
-        status="pending"
-    )
-    db.add(merged_order)
-    
-    for order in orders:
-        order.status = "merged"
-    
-    db.commit()
-    db.refresh(merged_order)
-    
-    return {
-        "message": "订单合并成功",
-        "merged_order_id": merged_order.id,
-        "merged_from": request.order_ids
-    }
-
-
-@app.post("/api/delivery/optimize", response_model=DeliveryOrderResponse)
-def optimize_delivery(request: DeliveryOrderRequest, db: Session = Depends(get_db)):
-    orders = db.query(Order).filter(Order.id.in_(request.order_ids)).all()
-    if len(orders) != len(request.order_ids):
-        raise HTTPException(status_code=404, detail="部分订单不存在")
-    
-    if len(request.addresses) != len(request.order_ids):
-        raise HTTPException(status_code=400, detail="地址数量与订单数量不匹配")
-    
-    optimized_route = optimize_route(request.addresses)
+    optimized_route = optimize_route(addresses)
     
     delivery = DeliveryOrder(
         order_ids=request.order_ids,
-        addresses=request.addresses,
+        addresses=addresses,
         optimized_route=optimized_route
     )
     db.add(delivery)
     
     for order in orders:
-        order.status = "delivering"
+        order.status = "merged"
     
     db.commit()
     db.refresh(delivery)
     
     return delivery
+
+
+@app.post("/api/delivery/optimize", response_model=DeliveryOrderResponse)
+def optimize_delivery(request: OptimizeRouteRequest, db: Session = Depends(get_db)):
+    if request.delivery_id:
+        delivery = db.query(DeliveryOrder).filter(DeliveryOrder.id == request.delivery_id).first()
+        if not delivery:
+            raise HTTPException(status_code=404, detail="配送单不存在")
+        addresses = delivery.addresses
+    elif request.order_ids and request.addresses:
+        addresses = request.addresses
+    else:
+        raise HTTPException(status_code=400, detail="请提供配送单ID或订单ID列表与地址")
+    
+    import random
+    shuffled = addresses.copy()
+    random.shuffle(shuffled)
+    optimized_route = shuffled + [f"配送完成 - 回到仓库"]
+    
+    if request.delivery_id:
+        delivery.optimized_route = optimized_route
+        db.commit()
+        db.refresh(delivery)
+        return delivery
+    else:
+        delivery = DeliveryOrder(
+            order_ids=request.order_ids or [],
+            addresses=request.addresses or [],
+            optimized_route=optimized_route
+        )
+        db.add(delivery)
+        db.commit()
+        db.refresh(delivery)
+        return delivery
+
+
+@app.get("/api/delivery/list", response_model=List[DeliveryOrderResponse])
+def get_delivery_list(db: Session = Depends(get_db)):
+    deliveries = db.query(DeliveryOrder).order_by(DeliveryOrder.id.desc()).all()
+    return deliveries
 
 
 @app.get("/api/delivery/{delivery_id}", response_model=DeliveryOrderResponse)

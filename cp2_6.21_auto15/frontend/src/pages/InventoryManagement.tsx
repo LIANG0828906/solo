@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useStore from '../store/useStore';
 import { getGoodsList, createProduct, updateProduct, updateStock } from '../api/goodsApi';
@@ -29,9 +29,15 @@ const InventoryManagement: React.FC = () => {
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<number | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showWarning, setShowWarning] = useState(false);
+  const warningRef = useRef<HTMLDivElement>(null);
 
   const hasLowStock = useMemo(() => {
     return products.some((p) => p.stock < 20);
+  }, [products]);
+
+  const lowStockProducts = useMemo(() => {
+    return products.filter((p) => p.stock < 20);
   }, [products]);
 
   useEffect(() => {
@@ -49,13 +55,26 @@ const InventoryManagement: React.FC = () => {
     return () => clearInterval(interval);
   }, [isLoggedIn, navigate, showToast]);
 
+  useEffect(() => {
+    if (hasLowStock) {
+      setShowWarning(true);
+      const timer = setTimeout(() => {
+        setShowWarning(false);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [hasLowStock]);
+
   const fetchProducts = async () => {
     try {
+      setLoading(true);
       const data = await getGoodsList();
       setProducts(data);
       loadProducts(data);
     } catch (error) {
       showToast('获取商品列表失败', 'error');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -81,6 +100,7 @@ const InventoryManagement: React.FC = () => {
       image_url: product.image_url,
     });
     setShowModal(true);
+    setShowWarning(false);
   };
 
   const handleDeleteClick = async (productId: number) => {
@@ -108,338 +128,302 @@ const InventoryManagement: React.FC = () => {
         category: formData.category.trim(),
         price: parseFloat(formData.price),
         stock: parseInt(formData.stock),
-        image_url: formData.image_url.trim() || 'https://via.placeholder.com/200',
+        image_url: formData.image_url.trim() || '',
       };
 
       if (editingProduct) {
-        const updated = await updateProduct(editingProduct.id, productData);
-        setProducts((prev) => prev.map((p) => (p.id === editingProduct.id ? updated : p)));
+        await updateProduct(editingProduct.id, productData);
         showToast('商品更新成功', 'success');
       } else {
-        const created = await createProduct(productData);
-        setProducts((prev) => [...prev, created]);
-        showToast('商品添加成功', 'success');
+        await createProduct(productData);
+        showToast('商品创建成功', 'success');
       }
       setShowModal(false);
+      fetchProducts();
     } catch (error) {
-      showToast(editingProduct ? '更新失败' : '添加失败', 'error');
+      showToast(editingProduct ? '更新失败' : '创建失败', 'error');
     } finally {
       setSaving(false);
     }
   };
 
-  const handleStockChange = async (productId: number, newStock: number) => {
-    if (newStock < 0) return;
-    try {
-      const updated = await updateStock(productId, newStock);
-      setProducts((prev) => prev.map((p) => (p.id === productId ? updated : p)));
-      showToast('库存已更新', 'success');
-    } catch (error) {
-      showToast('库存更新失败', 'error');
-    }
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  if (!isLoggedIn) {
-    return null;
-  }
+  const getStockStatus = (stock: number) => {
+    if (stock === 0) return { text: '已售罄', color: '#ef4444', bg: '#fee2e2' };
+    if (stock < 20) return { text: '即将售罄', color: '#dc2626', bg: '#fef2f2' };
+    if (stock < 50) return { text: '库存紧张', color: '#f59e0b', bg: '#fffbeb' };
+    return { text: '库存充足', color: '#10b981', bg: '#ecfdf5' };
+  };
 
   return (
-    <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px 20px' }}>
-      {hasLowStock && (
+    <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '24px 20px' }}>
+      {showWarning && hasLowStock && (
         <div
+          ref={warningRef}
+          onClick={() => lowStockProducts.length > 0 && handleEditClick(lowStockProducts[0])}
           style={{
+            position: 'relative',
             backgroundColor: '#fee2e2',
             color: '#991b1b',
             padding: '16px 24px',
             borderRadius: '12px',
             marginBottom: '24px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            animation: 'shake 0.5s ease-in-out infinite',
+            cursor: lowStockProducts.length > 0 ? 'pointer' : 'default',
+            border: '1px solid #fecaca',
+            animation: 'shake 0.5s ease-in-out, fadeInOut 3s ease-in-out forwards',
           }}
         >
-          <span style={{ fontSize: '24px' }}>⚠️</span>
-          <div>
-            <span style={{ fontWeight: 600 }}>库存预警：</span>
-            有商品库存低于20%，请及时补货！
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+              <line x1="12" y1="9" x2="12" y2="13"></line>
+              <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: '15px', marginBottom: '4px' }}>
+                库存预警：有 {lowStockProducts.length} 个商品库存不足
+              </div>
+              <div style={{ fontSize: '13px', opacity: 0.9 }}>
+                点击跳转至第一个低库存商品进行编辑
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+              {lowStockProducts.slice(0, 3).map((p) => (
+                <span
+                  key={p.id}
+                  style={{
+                    backgroundColor: 'rgba(239, 68, 68, 0.15)',
+                    padding: '4px 10px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    fontWeight: 500,
+                  }}
+                >
+                  {p.name}: {p.stock}
+                </span>
+              ))}
+            </div>
           </div>
-          <style>{`
-            @keyframes shake {
-              0%, 100% { transform: translateX(0); }
-              10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
-              20%, 40%, 60%, 80% { transform: translateX(4px); }
-            }
-          `}</style>
         </div>
       )}
 
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          marginBottom: '24px',
-        }}
-      >
-        <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#1f2937', margin: 0 }}>
-          库存管理
-        </h1>
-        <RippleButton onClick={handleAddClick} style={{ padding: '12px 24px', fontSize: '14px' }}>
-          <span style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <span style={{ fontSize: '18px' }}>+</span>
-            新增商品
-          </span>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+        <div>
+          <h1 style={{ fontSize: '28px', fontWeight: 'bold', color: '#1f2937', margin: '0 0 8px 0' }}>
+            库存管理
+          </h1>
+          <p style={{ color: '#6b7280', fontSize: '14px', margin: 0 }}>
+            管理商品信息和库存，每5秒自动刷新
+          </p>
+        </div>
+        <RippleButton
+          onClick={handleAddClick}
+          style={{
+            padding: '12px 24px',
+            fontSize: '14px',
+            fontWeight: 500,
+          }}
+        >
+          <span style={{ marginRight: '6px' }}>+</span>
+          新增商品
         </RippleButton>
       </div>
 
       <div
         style={{
           backgroundColor: '#ffffff',
-          borderRadius: '16px',
-          boxShadow: '0 2px 8px rgba(0, 0, 0, 0.06)',
+          borderRadius: '12px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
           overflow: 'hidden',
         }}
       >
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ backgroundColor: '#f9fafb' }}>
-                <th
-                  style={{
-                    padding: '16px',
-                    textAlign: 'left',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    color: '#6b7280',
-                  }}
-                >
-                  商品图片
-                </th>
-                <th
-                  style={{
-                    padding: '16px',
-                    textAlign: 'left',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    color: '#6b7280',
-                  }}
-                >
-                  商品名称
-                </th>
-                <th
-                  style={{
-                    padding: '16px',
-                    textAlign: 'left',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    color: '#6b7280',
-                  }}
-                >
-                  分类
-                </th>
-                <th
-                  style={{
-                    padding: '16px',
-                    textAlign: 'left',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    color: '#6b7280',
-                  }}
-                >
-                  价格
-                </th>
-                <th
-                  style={{
-                    padding: '16px',
-                    textAlign: 'left',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    color: '#6b7280',
-                  }}
-                >
-                  库存
-                </th>
-                <th
-                  style={{
-                    padding: '16px',
-                    textAlign: 'right',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    color: '#6b7280',
-                  }}
-                >
-                  操作
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {products.map((product) => (
-                <tr
-                  key={product.id}
-                  style={{
-                    borderTop: '1px solid #f3f4f6',
-                    transition: 'background-color 0.2s ease',
-                  }}
-                  onMouseEnter={(e) => {
-                    e.currentTarget.style.backgroundColor = '#fafafa';
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.backgroundColor = 'transparent';
-                  }}
-                >
-                  <td style={{ padding: '16px' }}>
-                    <img
-                      src={product.image_url}
-                      alt={product.name}
+        {loading ? (
+          <div style={{ padding: '80px 0', textAlign: 'center' }}>
+            <div
+              style={{
+                width: '40px',
+                height: '40px',
+                border: '3px solid #e5e7eb',
+                borderTopColor: '#4f46e5',
+                borderRadius: '50%',
+                animation: 'spin 1s linear infinite',
+                margin: '0 auto',
+              }}
+            />
+          </div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ backgroundColor: '#f9fafb' }}>
+                  <th style={thStyle}>商品</th>
+                  <th style={thStyle}>分类</th>
+                  <th style={thStyle}>价格</th>
+                  <th style={thStyle}>库存</th>
+                  <th style={thStyle}>状态</th>
+                  <th style={thStyle}>操作</th>
+                </tr>
+              </thead>
+              <tbody>
+                {products.map((product) => {
+                  const status = getStockStatus(product.stock);
+                  const isLow = product.stock < 20;
+                  return (
+                    <tr
+                      key={product.id}
                       style={{
-                        width: '60px',
-                        height: '60px',
-                        borderRadius: '10px',
-                        objectFit: 'cover',
+                        borderTop: '1px solid #e5e7eb',
+                        transition: 'background-color 0.2s ease',
+                        backgroundColor: isLow ? 'rgba(254, 226, 226, 0.3)' : 'transparent',
                       }}
-                    />
-                  </td>
-                  <td style={{ padding: '16px' }}>
-                    <span
-                      style={{
-                        fontSize: '15px',
-                        fontWeight: 500,
-                        color: '#1f2937',
+                      onMouseEnter={(e) => {
+                        e.currentTarget.style.backgroundColor = isLow
+                          ? 'rgba(254, 226, 226, 0.5)'
+                          : '#f9fafb';
+                      }}
+                      onMouseLeave={(e) => {
+                        e.currentTarget.style.backgroundColor = isLow
+                          ? 'rgba(254, 226, 226, 0.3)'
+                          : 'transparent';
                       }}
                     >
-                      {product.name}
-                    </span>
-                  </td>
-                  <td style={{ padding: '16px' }}>
-                    <span
-                      style={{
-                        padding: '4px 12px',
-                        backgroundColor: '#ede9fe',
-                        color: '#7c3aed',
-                        borderRadius: '20px',
-                        fontSize: '13px',
-                        fontWeight: 500,
-                      }}
-                    >
-                      {product.category}
-                    </span>
-                  </td>
-                  <td style={{ padding: '16px' }}>
-                    <span
-                      style={{
-                        fontSize: '16px',
-                        fontWeight: 'bold',
-                        color: '#4f46e5',
-                      }}
-                    >
-                      ¥{product.price.toFixed(2)}
-                    </span>
-                  </td>
-                  <td style={{ padding: '16px' }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '8px',
-                      }}
-                    >
-                      <button
-                        onClick={() => handleStockChange(product.id, product.stock - 1)}
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '6px',
-                          border: '1px solid #e5e7eb',
-                          backgroundColor: '#ffffff',
-                          cursor: 'pointer',
-                          fontSize: '16px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#6b7280',
-                        }}
-                      >
-                        -
-                      </button>
-                      <span
-                        style={{
-                          minWidth: '50px',
-                          textAlign: 'center',
-                          fontSize: '15px',
-                          fontWeight: product.stock < 20 ? 600 : 500,
-                          color: product.stock < 20 ? '#ef4444' : '#1f2937',
-                        }}
-                      >
-                        {product.stock}
-                      </span>
-                      <button
-                        onClick={() => handleStockChange(product.id, product.stock + 1)}
-                        style={{
-                          width: '28px',
-                          height: '28px',
-                          borderRadius: '6px',
-                          border: '1px solid #e5e7eb',
-                          backgroundColor: '#ffffff',
-                          cursor: 'pointer',
-                          fontSize: '16px',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          color: '#6b7280',
-                        }}
-                      >
-                        +
-                      </button>
-                      {product.stock < 20 && (
+                      <td style={tdStyle}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                          <div
+                            style={{
+                              width: '48px',
+                              height: '48px',
+                              borderRadius: '8px',
+                              backgroundColor: '#f3f4f6',
+                              overflow: 'hidden',
+                              flexShrink: 0,
+                            }}
+                          >
+                            {product.image_url ? (
+                              <img
+                                src={product.image_url}
+                                alt={product.name}
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).style.display = 'none';
+                                }}
+                              />
+                            ) : (
+                              <div
+                                style={{
+                                  width: '100%',
+                                  height: '100%',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  fontSize: '24px',
+                                }}
+                              >
+                                🛍️
+                              </div>
+                            )}
+                          </div>
+                          <span
+                            style={{
+                              fontWeight: 500,
+                              color: product.stock === 0 ? '#9ca3af' : '#1f2937',
+                              textDecoration: product.stock === 0 ? 'line-through' : 'none',
+                            }}
+                          >
+                            {product.name}
+                          </span>
+                        </div>
+                      </td>
+                      <td style={tdStyle}>
                         <span
                           style={{
-                            marginLeft: '8px',
-                            fontSize: '12px',
-                            color: '#ef4444',
+                            backgroundColor: '#ede9fe',
+                            color: '#5b21b6',
+                            padding: '4px 12px',
+                            borderRadius: '6px',
+                            fontSize: '13px',
                             fontWeight: 500,
                           }}
                         >
-                          库存不足
+                          {product.category}
                         </span>
-                      )}
-                    </div>
-                  </td>
-                  <td style={{ padding: '16px', textAlign: 'right' }}>
-                    <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
-                      <RippleButton
-                        onClick={() => handleEditClick(product)}
-                        variant="outline"
-                        style={{ padding: '6px 16px', fontSize: '13px' }}
-                      >
-                        编辑
-                      </RippleButton>
-                      <RippleButton
-                        onClick={() => setShowDeleteConfirm(product.id)}
-                        color="#ef4444"
-                        style={{ padding: '6px 16px', fontSize: '13px' }}
-                      >
-                        下架
-                      </RippleButton>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                      <td style={{ ...tdStyle, fontWeight: 600, color: '#4f46e5' }}>
+                        ¥{product.price.toFixed(2)}
+                      </td>
+                      <td style={{ ...tdStyle, fontWeight: isLow ? 600 : 400 }}>
+                        <span style={{ color: isLow ? '#ef4444' : '#1f2937', fontSize: '15px' }}>
+                          {product.stock}
+                        </span>
+                      </td>
+                      <td style={tdStyle}>
+                        <span
+                          style={{
+                            backgroundColor: status.bg,
+                            color: status.color,
+                            padding: '4px 12px',
+                            borderRadius: '6px',
+                            fontSize: '12px',
+                            fontWeight: 600,
+                          }}
+                        >
+                          {status.text}
+                        </span>
+                      </td>
+                      <td style={tdStyle}>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <RippleButton
+                            variant="outline"
+                            onClick={() => handleEditClick(product)}
+                            style={{
+                              padding: '6px 14px',
+                              fontSize: '12px',
+                              borderColor: '#4f46e5',
+                              color: '#4f46e5',
+                            }}
+                          >
+                            编辑
+                          </RippleButton>
+                          {product.stock > 0 && (
+                            <RippleButton
+                              variant="secondary"
+                              onClick={() => setShowDeleteConfirm(product.id)}
+                              style={{
+                                padding: '6px 14px',
+                                fontSize: '12px',
+                                backgroundColor: '#ef4444',
+                              }}
+                            >
+                              下架
+                            </RippleButton>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
 
-        {products.length === 0 && (
-          <div
-            style={{
-              textAlign: 'center',
-              padding: '80px 20px',
-              color: '#9ca3af',
-            }}
-          >
-            <div style={{ fontSize: '64px', marginBottom: '16px' }}>📦</div>
-            <div style={{ fontSize: '16px', marginBottom: '8px' }}>暂无商品</div>
-            <div style={{ color: '#6b7280' }}>点击"新增商品"添加商品</div>
+        {!loading && products.length === 0 && (
+          <div style={{ textAlign: 'center', padding: '80px 0', color: '#9ca3af' }}>
+            <div style={{ fontSize: '48px', marginBottom: '16px' }}>📦</div>
+            <div>暂无商品，点击右上角"新增商品"开始添加</div>
           </div>
         )}
       </div>
@@ -458,120 +442,83 @@ const InventoryManagement: React.FC = () => {
             justifyContent: 'center',
             zIndex: 1000,
             padding: '20px',
+            animation: 'fadeIn 0.2s ease',
           }}
-          onClick={(e) => {
-            if (e.target === e.currentTarget) {
-              setShowModal(false);
-            }
-          }}
+          onClick={() => setShowModal(false)}
         >
           <div
             style={{
               backgroundColor: '#ffffff',
-              borderRadius: '20px',
-              padding: '32px',
+              borderRadius: '16px',
               width: '100%',
               maxWidth: '500px',
               maxHeight: '90vh',
               overflowY: 'auto',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2)',
+              animation: 'slideUp 0.3s ease',
             }}
+            onClick={(e) => e.stopPropagation()}
           >
-            <h2
+            <div
               style={{
-                fontSize: '22px',
-                fontWeight: 'bold',
-                color: '#1f2937',
-                margin: '0 0 24px 0',
+                padding: '24px',
+                borderBottom: '1px solid #e5e7eb',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
               }}
             >
-              {editingProduct ? '编辑商品' : '新增商品'}
-            </h2>
+              <h2 style={{ margin: 0, fontSize: '20px', fontWeight: 600, color: '#1f2937' }}>
+                {editingProduct ? '编辑商品' : '新增商品'}
+              </h2>
+              <button
+                onClick={() => setShowModal(false)}
+                style={{
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  border: 'none',
+                  backgroundColor: '#f3f4f6',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  transition: 'background-color 0.2s ease',
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = '#e5e7eb')}
+                onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = '#f3f4f6')}
+              >
+                ✕
+              </button>
+            </div>
 
-            <form onSubmit={handleSubmit}>
-              <div style={{ marginBottom: '16px' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    color: '#374151',
-                    marginBottom: '8px',
-                  }}
-                >
-                  商品名称 *
-                </label>
+            <form onSubmit={handleSubmit} style={{ padding: '24px' }}>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={labelStyle}>商品名称 *</label>
                 <input
                   type="text"
+                  name="name"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={handleInputChange}
                   placeholder="请输入商品名称"
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    fontSize: '14px',
-                    border: '2px solid #e5e7eb',
-                    borderRadius: '10px',
-                    outline: 'none',
-                    transition: 'border-color 0.2s ease',
-                    boxSizing: 'border-box',
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = '#4f46e5';
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = '#e5e7eb';
-                  }}
+                  style={inputStyle}
                 />
               </div>
 
-              <div style={{ marginBottom: '16px' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    color: '#374151',
-                    marginBottom: '8px',
-                  }}
-                >
-                  分类 *
-                </label>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={labelStyle}>分类 *</label>
                 <input
                   type="text"
+                  name="category"
                   value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                  placeholder="请输入商品分类"
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    fontSize: '14px',
-                    border: '2px solid #e5e7eb',
-                    borderRadius: '10px',
-                    outline: 'none',
-                    transition: 'border-color 0.2s ease',
-                    boxSizing: 'border-box',
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = '#4f46e5';
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = '#e5e7eb';
-                  }}
+                  onChange={handleInputChange}
+                  placeholder="例如：水果、蔬菜、日用品"
+                  style={inputStyle}
                 />
               </div>
 
-              <div style={{ marginBottom: '16px' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    color: '#374151',
-                    marginBottom: '8px',
-                  }}
-                >
-                  价格 *
-                </label>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={labelStyle}>价格 (¥) *</label>
                 <div style={{ position: 'relative' }}>
                   <span
                     style={{
@@ -579,110 +526,48 @@ const InventoryManagement: React.FC = () => {
                       left: '16px',
                       top: '50%',
                       transform: 'translateY(-50%)',
-                      fontSize: '15px',
                       color: '#4f46e5',
-                      fontWeight: 600,
+                      fontWeight: 500,
+                      fontSize: '15px',
                     }}
                   >
                     ¥
                   </span>
                   <input
                     type="number"
+                    name="price"
+                    value={formData.price}
+                    onChange={handleInputChange}
+                    placeholder="0.00"
                     step="0.01"
                     min="0"
-                    value={formData.price}
-                    onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-                    placeholder="0.00"
-                    style={{
-                      width: '100%',
-                      padding: '12px 16px 12px 36px',
-                      fontSize: '14px',
-                      border: '2px solid #e5e7eb',
-                      borderRadius: '10px',
-                      outline: 'none',
-                      transition: 'border-color 0.2s ease',
-                      boxSizing: 'border-box',
-                    }}
-                    onFocus={(e) => {
-                      e.currentTarget.style.borderColor = '#4f46e5';
-                    }}
-                    onBlur={(e) => {
-                      e.currentTarget.style.borderColor = '#e5e7eb';
-                    }}
+                    style={{ ...inputStyle, paddingLeft: '40px' }}
                   />
                 </div>
               </div>
 
-              <div style={{ marginBottom: '16px' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    color: '#374151',
-                    marginBottom: '8px',
-                  }}
-                >
-                  库存 *
-                </label>
+              <div style={{ marginBottom: '20px' }}>
+                <label style={labelStyle}>库存数量 *</label>
                 <input
                   type="number"
-                  min="0"
+                  name="stock"
                   value={formData.stock}
-                  onChange={(e) => setFormData({ ...formData, stock: e.target.value })}
+                  onChange={handleInputChange}
                   placeholder="请输入库存数量"
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    fontSize: '14px',
-                    border: '2px solid #e5e7eb',
-                    borderRadius: '10px',
-                    outline: 'none',
-                    transition: 'border-color 0.2s ease',
-                    boxSizing: 'border-box',
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = '#4f46e5';
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = '#e5e7eb';
-                  }}
+                  min="0"
+                  style={inputStyle}
                 />
               </div>
 
               <div style={{ marginBottom: '24px' }}>
-                <label
-                  style={{
-                    display: 'block',
-                    fontSize: '14px',
-                    fontWeight: 500,
-                    color: '#374151',
-                    marginBottom: '8px',
-                  }}
-                >
-                  图片URL
-                </label>
+                <label style={labelStyle}>图片URL</label>
                 <input
                   type="text"
+                  name="image_url"
                   value={formData.image_url}
-                  onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-                  placeholder="请输入商品图片链接（可选）"
-                  style={{
-                    width: '100%',
-                    padding: '12px 16px',
-                    fontSize: '14px',
-                    border: '2px solid #e5e7eb',
-                    borderRadius: '10px',
-                    outline: 'none',
-                    transition: 'border-color 0.2s ease',
-                    boxSizing: 'border-box',
-                  }}
-                  onFocus={(e) => {
-                    e.currentTarget.style.borderColor = '#4f46e5';
-                  }}
-                  onBlur={(e) => {
-                    e.currentTarget.style.borderColor = '#e5e7eb';
-                  }}
+                  onChange={handleInputChange}
+                  placeholder="请输入图片链接（选填）"
+                  style={inputStyle}
                 />
                 {formData.image_url && (
                   <div style={{ marginTop: '12px' }}>
@@ -695,6 +580,9 @@ const InventoryManagement: React.FC = () => {
                         borderRadius: '10px',
                         objectFit: 'cover',
                         border: '2px solid #e5e7eb',
+                      }}
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).style.display = 'none';
                       }}
                     />
                   </div>
@@ -709,3 +597,162 @@ const InventoryManagement: React.FC = () => {
                   style={{ flex: 1, padding: '12px', fontSize: '14px' }}
                 >
                   取消
+                </RippleButton>
+                <RippleButton
+                  type="submit"
+                  disabled={saving}
+                  style={{ flex: 1, padding: '12px', fontSize: '14px' }}
+                >
+                  {saving ? '保存中...' : editingProduct ? '保存修改' : '创建商品'}
+                </RippleButton>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {showDeleteConfirm !== null && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1100,
+            padding: '20px',
+          }}
+          onClick={() => setShowDeleteConfirm(null)}
+        >
+          <div
+            style={{
+              backgroundColor: '#ffffff',
+              borderRadius: '16px',
+              width: '100%',
+              maxWidth: '400px',
+              padding: '32px',
+              textAlign: 'center',
+              boxShadow: '0 20px 60px rgba(0, 0, 0, 0.2)',
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div
+              style={{
+                width: '64px',
+                height: '64px',
+                borderRadius: '50%',
+                backgroundColor: '#fee2e2',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                margin: '0 auto 16px',
+                fontSize: '32px',
+              }}
+            >
+              ⚠️
+            </div>
+            <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 600, color: '#1f2937' }}>
+              确认下架商品？
+            </h3>
+            <p style={{ margin: '0 0 24px 0', color: '#6b7280', fontSize: '14px' }}>
+              下架后该商品库存将设置为0，用户无法购买
+            </p>
+            <div style={{ display: 'flex', gap: '12px' }}>
+              <RippleButton
+                variant="outline"
+                onClick={() => setShowDeleteConfirm(null)}
+                style={{ flex: 1, padding: '10px', fontSize: '14px' }}
+              >
+                取消
+              </RippleButton>
+              <RippleButton
+                onClick={() => handleDeleteClick(showDeleteConfirm)}
+                style={{
+                  flex: 1,
+                  padding: '10px',
+                  fontSize: '14px',
+                  backgroundColor: '#ef4444',
+                }}
+              >
+                确认下架
+              </RippleButton>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes slideUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+          20%, 40%, 60%, 80% { transform: translateX(4px); }
+        }
+        @keyframes fadeInOut {
+          0% { opacity: 0; transform: translateY(-10px); }
+          10% { opacity: 1; transform: translateY(0); }
+          90% { opacity: 1; transform: translateY(0); }
+          100% { opacity: 0.7; transform: translateY(0); }
+        }
+      `}</style>
+    </div>
+  );
+};
+
+const thStyle: React.CSSProperties = {
+  textAlign: 'left',
+  padding: '16px 20px',
+  fontWeight: 600,
+  fontSize: '13px',
+  color: '#6b7280',
+  textTransform: 'uppercase',
+  letterSpacing: '0.5px',
+};
+
+const tdStyle: React.CSSProperties = {
+  padding: '16px 20px',
+  fontSize: '14px',
+  color: '#1f2937',
+};
+
+const labelStyle: React.CSSProperties = {
+  display: 'block',
+  marginBottom: '8px',
+  fontSize: '14px',
+  fontWeight: 500,
+  color: '#374151',
+};
+
+const inputStyle: React.CSSProperties = {
+  width: '100%',
+  padding: '12px 16px',
+  fontSize: '14px',
+  border: '2px solid #e5e7eb',
+  borderRadius: '10px',
+  outline: 'none',
+  transition: 'border-color 0.2s ease',
+  boxSizing: 'border-box',
+  backgroundColor: '#ffffff',
+};
+
+export default InventoryManagement;

@@ -12,32 +12,32 @@ const api = axios.create({
 
 export const getGoodsList = async (category?: string): Promise<Product[]> => {
   const params = category ? { category } : {};
-  const response = await api.get<Product[]>('/goods', { params });
+  const response = await api.get<Product[]>('/products', { params });
   return response.data;
 };
 
 export const addToCart = async (productId: number, quantity: number): Promise<any> => {
-  const response = await api.post('/cart', { productId, quantity });
+  const response = await api.post('/cart/add', { productId, quantity });
   return response.data;
 };
 
 export const updateStock = async (productId: number, stock: number): Promise<Product> => {
-  const response = await api.patch<Product>(`/goods/${productId}/stock`, { stock });
+  const response = await api.put<Product>(`/products/${productId}/stock`, { stock });
   return response.data;
 };
 
 export const createProduct = async (data: Omit<Product, 'id'>): Promise<Product> => {
-  const response = await api.post<Product>('/goods', data);
+  const response = await api.post<Product>('/products', data);
   return response.data;
 };
 
 export const updateProduct = async (id: number, data: Partial<Product>): Promise<Product> => {
-  const response = await api.put<Product>(`/goods/${id}`, data);
+  const response = await api.put<Product>(`/products/${id}`, data);
   return response.data;
 };
 
 export const getProduct = async (id: number): Promise<Product> => {
-  const response = await api.get<Product>(`/goods/${id}`);
+  const response = await api.get<Product>(`/products/${id}`);
   return response.data;
 };
 

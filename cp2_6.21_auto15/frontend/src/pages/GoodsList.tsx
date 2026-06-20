@@ -187,14 +187,7 @@ const GoodsList: React.FC = () => {
           `}</style>
         </div>
       ) : (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(1, 1fr)',
-            gap: '20px',
-            justifyItems: 'center',
-          }}
-        >
+        <div className="goods-grid">
           {filteredProducts.map((product) => (
             <GoodsCard
               key={product.id}
@@ -224,14 +217,22 @@ const GoodsList: React.FC = () => {
       )}
 
       <style>{`
-        @media (min-width: 640px) {
-          div[style*="gridTemplateColumns: repeat(1, 1fr)"] {
-            grid-template-columns: repeat(2, 1fr) !important;
+        .goods-grid {
+          display: grid;
+          grid-template-columns: repeat(2, 1fr);
+          gap: 16px;
+          justify-items: center;
+        }
+        @media (min-width: 768px) {
+          .goods-grid {
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
           }
         }
         @media (min-width: 1024px) {
-          div[style*="gridTemplateColumns: repeat(1, 1fr)"] {
-            grid-template-columns: repeat(4, 1fr) !important;
+          .goods-grid {
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
           }
         }
         div[style*="scrollbarWidth: none"]::-webkit-scrollbar {

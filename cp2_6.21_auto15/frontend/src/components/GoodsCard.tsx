@@ -22,6 +22,7 @@ const GoodsCard: React.FC<GoodsCardProps> = ({
 }) => {
   const [isAdded, setIsAdded] = useState(false);
   const [countdown, setCountdown] = useState(3);
+  const [imageError, setImageError] = useState(false);
 
   const isLowStock = stock / maxStock < 0.2;
 
@@ -43,10 +44,48 @@ const GoodsCard: React.FC<GoodsCardProps> = ({
     }, 1000);
   };
 
+  const handleImageError = () => {
+    setImageError(true);
+  };
+
+  const getPlaceholderImage = () => {
+    const categoryColors = [
+      { bg: '#ede9fe', icon: '🥬', label: '商品图片' },
+      { bg: '#fef3c7', icon: '🍎', label: '商品图片' },
+      { bg: '#dbeafe', icon: '🥕', label: '商品图片' },
+      { bg: '#fce7f3', icon: '🍉', label: '商品图片' },
+      { bg: '#d1fae5', icon: '🥦', label: '商品图片' },
+    ];
+    const colorIndex = id % categoryColors.length;
+    const { bg, icon, label } = categoryColors[colorIndex];
+    return (
+      <div
+        style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          backgroundColor: bg,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: '8px',
+        }}
+      >
+        <span style={{ fontSize: '64px' }}>{icon}</span>
+        <span style={{ fontSize: '14px', color: '#6b7280' }}>{label}</span>
+      </div>
+    );
+  };
+
   return (
     <div
+      className="goods-card-wrapper"
       style={{
-        width: '240px',
+        width: '100%',
+        maxWidth: '240px',
         backgroundColor: '#ffffff',
         borderRadius: '12px',
         boxShadow: '0 4px 12px rgba(0, 0, 0, 0.08)',
@@ -68,34 +107,45 @@ const GoodsCard: React.FC<GoodsCardProps> = ({
         width: '100%',
         paddingTop: '100%',
         overflow: 'hidden',
+        backgroundColor: '#f9fafb',
       }}>
-        <img
-          src={image}
-          alt={name}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            objectFit: 'cover',
-          }}
-        />
+        {imageError ? (
+          getPlaceholderImage()
+        ) : (
+          <img
+            src={image}
+            alt={name}
+            onError={handleImageError}
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+            }}
+          />
+        )}
         {isLowStock && (
-          <div style={{
-            position: 'absolute',
-            top: '12px',
-            left: '12px',
-            padding: '4px 10px',
-            borderRadius: '6px',
-            backgroundColor: 'rgba(239, 68, 68, 0.85)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-            color: '#ffffff',
-            fontSize: '12px',
-            fontWeight: 500,
-          }}>
-            即将售罄
+          <div className="low-stock-badge">
+            <div className="low-stock-badge-inner">
+              <svg
+                width="12"
+                height="12"
+                viewBox="0 0 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                style={{ marginRight: '4px' }}
+              >
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+              </svg>
+              即将售罄
+            </div>
           </div>
         )}
       </div>
@@ -128,7 +178,13 @@ const GoodsCard: React.FC<GoodsCardProps> = ({
               {price.toFixed(2)}
             </span>
           </div>
-          <span style={{ fontSize: '12px', color: '#9ca3af' }}>
+          <span
+            style={{
+              fontSize: '12px',
+              color: isLowStock ? '#ef4444' : '#9ca3af',
+              fontWeight: isLowStock ? 600 : 400,
+            }}
+          >
             库存: {stock}
           </span>
         </div>
@@ -194,6 +250,40 @@ const GoodsCard: React.FC<GoodsCardProps> = ({
           }
           to {
             opacity: 0;
+          }
+        }
+        .low-stock-badge {
+          position: absolute;
+          top: 12px;
+          left: 12px;
+          animation: lowStockBlink 1s ease-in-out infinite;
+        }
+        .low-stock-badge-inner {
+          display: flex;
+          align-items: center;
+          padding: 6px 12px;
+          border-radius: 8px;
+          background-color: #ef4444;
+          color: #ffffff;
+          font-size: 12px;
+          font-weight: 600;
+          box-shadow: 0 2px 8px rgba(239, 68, 68, 0.4);
+          border: 1px solid rgba(255, 255, 255, 0.3);
+        }
+        @keyframes lowStockBlink {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+          }
+          50% {
+            opacity: 0.7;
+            transform: scale(1.05);
+          }
+        }
+        @media (max-width: 480px) {
+          .goods-card-wrapper {
+            max-width: 100% !important;
+            width: 100% !important;
           }
         }
       `}</style>

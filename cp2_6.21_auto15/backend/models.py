@@ -33,6 +33,7 @@ class Order(Base):
     items_json = Column(Text, nullable=False)
     total = Column(Float, nullable=False)
     status = Column(String(50), default="pending")
+    address = Column(String(500), default="")
     created_at = Column(DateTime, default=datetime.utcnow)
 
     @property
