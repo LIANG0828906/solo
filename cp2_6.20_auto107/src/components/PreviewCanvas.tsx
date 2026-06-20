@@ -286,9 +286,13 @@ export default function PreviewCanvas({}: PreviewCanvasProps) {
     const x = e.clientX - containerRect.left
     const y = e.clientY - containerRect.top
     const rect = container.getBoundingClientRect()
-    const leftWidth = (rect.width * dividerPosition) / 100 - 3
 
-    const isLeftSide = x < leftWidth + 3
+    const comparisonEnabled = comparisonSample?.enabled
+    const leftWidth = comparisonEnabled
+      ? (rect.width * dividerPosition) / 100 - 3
+      : rect.width
+
+    const isLeftSide = !comparisonEnabled || x < leftWidth + 3
     const canvasSide: 'left' | 'right' = isLeftSide ? 'left' : 'right'
     const result = isLeftSide ? generatedResult : comparisonResult || generatedResult
     const canvasElement = isLeftSide ? leftCanvasRef.current : rightCanvasRef.current
@@ -301,7 +305,19 @@ export default function PreviewCanvas({}: PreviewCanvasProps) {
     const adjustedX = isLeftSide ? x : x - (leftWidth + 6)
     const canvasRect = canvasElement.getBoundingClientRect()
     const transform = getCanvasTransform(canvasRect.width, canvasRect.height, result)
-    const hit = findCharacterAtPoint(adjustedX, y, result, transform)
+
+    const currentStyleParams = isLeftSide
+      ? styleParams
+      : comparisonSample?.savedParams || styleParams
+
+    const hit = findCharacterAtPoint(
+      adjustedX,
+      y,
+      result,
+      transform,
+      currentStyleParams.strokeWidth,
+      currentStyleParams.skewAngle
+    )
 
     if (hit) {
       const screenRect = getCharacterScreenRect(hit.character, transform)
@@ -323,7 +339,7 @@ export default function PreviewCanvas({}: PreviewCanvasProps) {
   }
 
   const handleCanvasMove = (e: React.MouseEvent<HTMLCanvasElement>) => {
-    if (magnifier.visible) {
+    if (magnifier.visible && selectedCharacter) {
       const container = containerRef.current
       if (!container) return
 

@@ -10,7 +10,6 @@ export default function App() {
   const [isMobile, setIsMobile] = useState(false)
   const [showSaveDialog, setShowSaveDialog] = useState(false)
   const [saveStyleName, setSaveStyleName] = useState('')
-  const leftCanvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
     const checkMobile = () => {
@@ -89,7 +88,6 @@ export default function App() {
         )}
         <main className="canvas-area">
           <PreviewCanvas />
-          <div ref={leftCanvasRef} style={{ display: 'none' }} />
         </main>
       </div>
 

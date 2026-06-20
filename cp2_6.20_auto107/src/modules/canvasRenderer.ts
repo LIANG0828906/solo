@@ -9,6 +9,70 @@ export interface CanvasTransform {
   height: number
 }
 
+function pointToSegmentDistance(
+  px: number,
+  py: number,
+  x1: number,
+  y1: number,
+  x2: number,
+  y2: number
+): number {
+  const dx = x2 - x1
+  const dy = y2 - y1
+  const lenSq = dx * dx + dy * dy
+
+  if (lenSq === 0) {
+    const distX = px - x1
+    const distY = py - y1
+    return Math.sqrt(distX * distX + distY * distY)
+  }
+
+  let t = ((px - x1) * dx + (py - y1) * dy) / lenSq
+  t = Math.max(0, Math.min(1, t))
+
+  const nearestX = x1 + t * dx
+  const nearestY = y1 + t * dy
+
+  const distX = px - nearestX
+  const distY = py - nearestY
+  return Math.sqrt(distX * distX + distY * distY)
+}
+
+function pointToStrokeDistance(
+  px: number,
+  py: number,
+  stroke: StrokePoint[]
+): number {
+  if (stroke.length < 2) return Infinity
+
+  let minDist = Infinity
+  for (let i = 0; i < stroke.length - 1; i++) {
+    const dist = pointToSegmentDistance(
+      px,
+      py,
+      stroke[i].x,
+      stroke[i].y,
+      stroke[i + 1].x,
+      stroke[i + 1].y
+    )
+    minDist = Math.min(minDist, dist)
+  }
+  return minDist
+}
+
+function inverseSkewPoint(
+  x: number,
+  y: number,
+  centerX: number,
+  centerY: number,
+  skewAngle: number
+): { x: number; y: number } {
+  const angleRad = (skewAngle * Math.PI) / 180
+  const tan = Math.tan(angleRad) * 0.3
+  const unskewedX = x - (y - centerY) * tan
+  return { x: unskewedX, y }
+}
+
 export interface RenderOptions {
   canvas: HTMLCanvasElement
   result: GeneratedResult
@@ -285,10 +349,16 @@ export function findCharacterAtPoint(
   x: number,
   y: number,
   result: GeneratedResult,
-  transform: CanvasTransform
+  transform: CanvasTransform,
+  strokeWidth: number = 4,
+  skewAngle: number = 0
 ): { index: number; character: CharacterPath } | null {
   const canvasPoint = screenToCanvas(x, y, transform)
-  const hitPadding = 10
+  const hitPadding = Math.max(15, strokeWidth * 2)
+
+  const centerX = result.totalWidth / 2
+  const centerY = result.totalHeight / 2
+  const adjustedPoint = inverseSkewPoint(canvasPoint.x, canvasPoint.y, centerX, centerY, skewAngle)
 
   for (let i = 0; i < result.characters.length; i++) {
     const char = result.characters[i]
@@ -298,12 +368,25 @@ export function findCharacterAtPoint(
     const bh = char.boundingBox.height
 
     if (
-      canvasPoint.x >= bx - hitPadding &&
-      canvasPoint.x <= bx + bw + hitPadding &&
-      canvasPoint.y >= by - hitPadding &&
-      canvasPoint.y <= by + bh + hitPadding
+      adjustedPoint.x >= bx - hitPadding &&
+      adjustedPoint.x <= bx + bw + hitPadding &&
+      adjustedPoint.y >= by - hitPadding &&
+      adjustedPoint.y <= by + bh + hitPadding
     ) {
-      return { index: i, character: char }
+      const distanceThreshold = strokeWidth + 6
+      let minStrokeDistance = Infinity
+
+      for (const stroke of char.strokes) {
+        const dist = pointToStrokeDistance(adjustedPoint.x, adjustedPoint.y, stroke)
+        minStrokeDistance = Math.min(minStrokeDistance, dist)
+        if (minStrokeDistance <= distanceThreshold) {
+          break
+        }
+      }
+
+      if (minStrokeDistance <= distanceThreshold) {
+        return { index: i, character: char }
+      }
     }
   }
 
