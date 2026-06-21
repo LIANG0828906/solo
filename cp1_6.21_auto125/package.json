@@ -1,0 +1,27 @@
+{
+  "name": "tide-memory",
+  "version": "1.0.0",
+  "description": "Interactive 3D tidal visualization project",
+  "type": "module",
+  "scripts": {
+    "dev": "npm run build && concurrently \"tsc -w\" \"vite\" \"node src/server.js\"",
+    "build": "tsc && vite build",
+    "preview": "vite preview --host 0.0.0.0"
+  },
+  "dependencies": {
+    "three": "^0.160.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.10",
+    "express": "^4.18.2",
+    "ws": "^8.16.0",
+    "cors": "^2.8.5",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "@types/three": "^0.160.0",
+    "@types/express": "^4.17.21",
+    "@types/ws": "^8.5.10",
+    "ts-node": "^10.9.2",
+    "concurrently": "^8.2.2"
+  }
+}
