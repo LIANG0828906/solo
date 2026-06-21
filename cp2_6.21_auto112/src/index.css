@@ -407,9 +407,12 @@ html, body, #root {
   right: 0;
   top: 0;
   bottom: 0;
-  width: 1px;
-  background: #e74c3c;
-  z-index: 10;
+  width: 2px !important;
+  background: #e74c3c !important;
+  box-shadow: 0 0 8px rgba(231, 76, 60, 0.4);
+  z-index: 50;
+  opacity: 1;
+  pointer-events: none;
 }
 
 .column-divider {
@@ -426,6 +429,14 @@ html, body, #root {
   padding-bottom: 12px;
   border-bottom: 1px solid #f0f0f0;
   flex-shrink: 0;
+  gap: 12px;
+}
+
+.column-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
 .column-font-label {
@@ -433,6 +444,7 @@ html, body, #root {
   font-weight: 600;
   color: #888;
   letter-spacing: 0.03em;
+  flex-shrink: 0;
 }
 
 .column-badge {
@@ -444,6 +456,7 @@ html, body, #root {
   color: #fff;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  flex-shrink: 0;
 }
 
 .column-badge.locked {
@@ -452,9 +465,9 @@ html, body, #root {
 
 .column-content-box {
   flex: 1;
-  background: rgba(0, 0, 0, 0.02);
+  background: rgba(0, 0, 0, 0.05);
   border: 1px solid #e0e0e0;
-  border-radius: 8px;
+  border-radius: 0;
   padding: 24px;
   overflow: auto;
   transition: all 300ms ease-in-out;
@@ -467,12 +480,6 @@ html, body, #root {
   position: relative;
 }
 
-.column-header-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .diff-tag {
   font-size: 11px;
   font-weight: 700;
@@ -481,6 +488,12 @@ html, body, #root {
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
   transition: all 300ms ease-in-out;
+}
+
+.diff-tag.baseline {
+  background: #fef3c7;
+  color: #b45309;
+  border: 1px solid #fcd34d;
 }
 
 .diff-tag.positive {
