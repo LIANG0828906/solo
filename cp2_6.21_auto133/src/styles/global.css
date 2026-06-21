@@ -99,12 +99,15 @@ body {
   opacity: 0;
   transform: translateY(30px);
   will-change: opacity, transform;
+  contain: layout style;
 }
 
 .stagger-item.stagger-visible {
   opacity: 1;
   transform: translateY(0);
-  transition: opacity 0.5s cubic-bezier(0.4, 0, 0.2, 1), transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transition-property: opacity, transform;
+  transition-duration: 0.5s;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .page-header {

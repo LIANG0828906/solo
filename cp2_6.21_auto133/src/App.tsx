@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { FaSearch, FaBriefcase, FaArrowRight } from 'react-icons/fa';
 import ResumeUploader from './components/ResumeUploader';
 import ResumeCard from './components/ResumeCard';
@@ -6,6 +6,53 @@ import JobCard from './components/JobCard';
 import MatchDetail from './components/MatchDetail';
 import { useAppStore } from './store';
 import { PRESET_JOBS, MatcherModule } from './modules/matcher/MatcherModule';
+
+const STAGGER_INTERVAL_MS = 100;
+
+function applyStagger(items: NodeListOf<Element> | HTMLElement[]) {
+  if (items.length === 0) return;
+
+  let pendingVisibility: { el: HTMLElement; delay: number }[] = [];
+  let frameId: number | null = null;
+
+  items.forEach((item, index) => {
+    const el = item as HTMLElement;
+    const delay = index * STAGGER_INTERVAL_MS;
+    el.style.transitionDelay = `${delay}ms`;
+
+    if (!el.classList.contains('stagger-visible')) {
+      pendingVisibility.push({ el, delay });
+    }
+  });
+
+  if (pendingVisibility.length > 0) {
+    const maxDelay = pendingVisibility[pendingVisibility.length - 1].delay;
+    const step = (timestamp: number, start: number) => {
+      const elapsed = timestamp - start;
+      let batchDone = true;
+      pendingVisibility = pendingVisibility.filter(({ el, delay }) => {
+        if (elapsed >= delay) {
+          el.classList.add('stagger-visible');
+          return false;
+        }
+        batchDone = false;
+        return true;
+      });
+      if (!batchDone && elapsed < maxDelay + 200) {
+        frameId = requestAnimationFrame((ts) => step(ts, start));
+      } else {
+        pendingVisibility.forEach(({ el }) => el.classList.add('stagger-visible'));
+        pendingVisibility = [];
+        frameId = null;
+      }
+    };
+    frameId = requestAnimationFrame((ts) => step(ts, performance.now()));
+  }
+
+  return () => {
+    if (frameId !== null) cancelAnimationFrame(frameId);
+  };
+}
 
 const App: React.FC = () => {
   const {
@@ -16,41 +63,58 @@ const App: React.FC = () => {
     setMatchResult,
   } = useAppStore();
 
+  const observerRef = useRef<MutationObserver | null>(null);
+  const cancelAnimRef = useRef<(() => void) | null>(null);
+  const lastItemCountRef = useRef<number>(0);
+  const rafScheduledRef = useRef<number | null>(null);
+
   const selectedJob = PRESET_JOBS.find((j) => j.id === selectedJobId) || null;
   const selectedMatch = selectedJobId ? matchResults[selectedJobId] : null;
 
   useEffect(() => {
-    const items = document.querySelectorAll('.stagger-item');
-    if (items.length === 0) return;
-
-    const observer = new MutationObserver(() => {
-      observeStaggerItems();
-    });
-
-    const observeStaggerItems = () => {
-      const currentItems = document.querySelectorAll('.stagger-item:not(.stagger-visible)');
-      currentItems.forEach((item, index) => {
-        const el = item as HTMLElement;
-        el.style.transitionDelay = `${index * 0.1}s`;
-      });
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          currentItems.forEach((item) => {
-            item.classList.add('stagger-visible');
-          });
-        });
+    const reevaluate = () => {
+      if (rafScheduledRef.current !== null) return;
+      rafScheduledRef.current = requestAnimationFrame(() => {
+        rafScheduledRef.current = null;
+        const allItems = document.querySelectorAll<HTMLElement>('.stagger-item');
+        if (allItems.length !== lastItemCountRef.current) {
+          lastItemCountRef.current = allItems.length;
+          if (cancelAnimRef.current) cancelAnimRef.current();
+          cancelAnimRef.current = applyStagger(allItems) || null;
+        } else {
+          const newItems = document.querySelectorAll<HTMLElement>('.stagger-item:not(.stagger-visible)');
+          if (newItems.length > 0) {
+            if (cancelAnimRef.current) cancelAnimRef.current();
+            cancelAnimRef.current = applyStagger(allItems) || null;
+          }
+        }
       });
     };
 
-    observeStaggerItems();
+    const observer = new MutationObserver(() => {
+      reevaluate();
+    });
+    observerRef.current = observer;
 
     observer.observe(document.body, {
       childList: true,
       subtree: true,
+      attributes: true,
+      attributeFilter: ['class'],
     });
 
-    return () => observer.disconnect();
-  }, [resumeData, selectedJobId]);
+    reevaluate();
+
+    const handleResize = () => reevaluate();
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      observer.disconnect();
+      window.removeEventListener('resize', handleResize);
+      if (rafScheduledRef.current !== null) cancelAnimationFrame(rafScheduledRef.current);
+      if (cancelAnimRef.current) cancelAnimRef.current();
+    };
+  }, []);
 
   const handleJobClick = (jobId: string) => {
     setSelectedJobId(jobId);
@@ -124,3 +188,4 @@ const App: React.FC = () => {
 };
 
 export default App;
+

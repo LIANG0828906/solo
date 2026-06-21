@@ -70,37 +70,58 @@ export async function parseResume(
   onProgress({ stage: '读取PDF文件', percent: 0 });
 
   const arrayBuffer = await file.arrayBuffer();
-  onProgress({ stage: '读取PDF文件', percent: 15 });
+  onProgress({ stage: '读取PDF文件', percent: 10 });
 
-  const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+  const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+  (loadingTask as any).onProgress = (progress: { loaded: number; total: number }) => {
+    if (progress.total > 0) {
+      const loadPct = Math.round(10 + (progress.loaded / progress.total) * 20);
+      onProgress({ stage: '读取PDF文件', percent: Math.min(loadPct, 30) });
+    }
+  };
+
+  const pdf = await loadingTask.promise;
   const totalPages = pdf.numPages;
-  onProgress({ stage: '读取PDF文件', percent: 30 });
-
   onProgress({ stage: '提取文本内容', percent: 30 });
 
   let fullText = '';
+  const VIEWPORT_SCALE = 1.0;
+
   for (let i = 1; i <= totalPages; i++) {
     const page = await pdf.getPage(i);
+    onProgress({ stage: '提取文本内容', percent: 30 + Math.round(((i - 0.5) / totalPages) * 30) });
+
+    const viewport = page.getViewport({ scale: VIEWPORT_SCALE });
     const textContent = await page.getTextContent();
-    const pageText = textContent.items.map((item: any) => item.str).join(' ');
+
+    const itemsWithPos: { str: string; y: number; x: number }[] = [];
+    for (const item of textContent.items as any[]) {
+      const tx = pdfjsLib.Util.transform(viewport.transform, item.transform);
+      const y = tx[5];
+      const x = tx[4];
+      itemsWithPos.push({ str: item.str || '', y, x });
+    }
+    itemsWithPos.sort((a, b) => (b.y - a.y) || (a.x - b.x));
+    const pageText = itemsWithPos.map(it => it.str).join(' ');
     fullText += pageText + '\n';
-    const pageProgress = 30 + Math.round((i / totalPages) * 30);
-    onProgress({ stage: '提取文本内容', percent: pageProgress });
+
+    onProgress({ stage: '提取文本内容', percent: 30 + Math.round((i / totalPages) * 30) });
   }
 
   onProgress({ stage: '结构化解析', percent: 60 });
-  await new Promise(r => setTimeout(r, 200));
-  onProgress({ stage: '结构化解析', percent: 75 });
+
+  const sectionsProgress = [
+    { key: 'basic', pct: 65 },
+    { key: 'skills', pct: 75 },
+    { key: 'experience', pct: 88 },
+    { key: 'education', pct: 96 },
+  ];
+  for (const step of sectionsProgress) {
+    onProgress({ stage: '结构化解析', percent: step.pct });
+    await Promise.resolve();
+  }
 
   const resumeData = extractFromText(fullText);
-
-  const skillProgress = 75 + Math.min(Math.round(resumeData.skills.length * 1.5), 15);
-  onProgress({ stage: '结构化解析', percent: skillProgress });
-  await new Promise(r => setTimeout(r, 150));
-
-  const expProgress = skillProgress + Math.min(Math.round(resumeData.experiences.length * 2), 8);
-  onProgress({ stage: '结构化解析', percent: Math.min(expProgress, 95) });
-  await new Promise(r => setTimeout(r, 100));
 
   onProgress({ stage: '解析完成', percent: 100 });
   return resumeData;
@@ -180,16 +201,68 @@ function extractLocation(text: string): string {
 
 function extractSkills(text: string): ResumeSkill[] {
   const found: ResumeSkill[] = [];
+  const added = new Set<string>();
   const textUpper = text.toUpperCase();
+
+  const sectionHeaders = /(技能|专业技能|技术栈|技术能力|技术|专业能力|掌握)[\s:：]*\n?/g;
+  let lastMatchEnd = 0;
+  const skillSections: string[] = [];
+  let m;
+  while ((m = sectionHeaders.exec(text)) !== null) {
+    const start = m.index + m[0].length;
+    if (lastMatchEnd !== 0) {
+      skillSections.push(text.substring(lastMatchEnd, m.index));
+    }
+    lastMatchEnd = start;
+  }
+  if (lastMatchEnd > 0) {
+    const tail = text.substring(lastMatchEnd, lastMatchEnd + 1500);
+    const nextHeader = tail.search(/\n\s*(工作经历|项目经历|教育背景|个人简介|自我评价|语言能力|求职意向|个人信息|联系方式)\s*\n?/);
+    skillSections.push(nextHeader >= 0 ? tail.substring(0, nextHeader) : tail);
+  }
+
+  const contextsToScan: string[] = [text, ...skillSections];
+
+  for (const ctx of contextsToScan) {
+    const listRegex = /(精通|熟练|熟悉|掌握|了解|擅长|具备|有|拥有|能够|能|使用|运用|实践|经验|开发)\s*(?:([\u4e00-\u9fa5A-Za-z0-9+#.\-\/\s]+(?:[、,，/·;；]\s*[\u4e00-\u9fa5A-Za-z0-9+#.\-\/\s]+){1,})|([\u4e00-\u9fa5A-Za-z0-9+#.\-]+))/g;
+    let lm;
+    while ((lm = listRegex.exec(ctx)) !== null) {
+      const listStr = lm[2] || lm[3] || '';
+      const items = listStr.split(/[、,，/·;；\s]+(?:和|与|及|以及|and|&)?\s*/).map(s => s.trim()).filter(Boolean);
+      for (const rawItem of items) {
+        if (rawItem.length < 2 || rawItem.length > 40) continue;
+        for (const skill of SKILL_DATABASE) {
+          if (added.has(skill)) continue;
+          const isEng = /^[A-Za-z]/.test(skill);
+          const upper = rawItem.toUpperCase();
+          const skillUpper = skill.toUpperCase();
+          let matched = false;
+          if (isEng) {
+            matched = upper === skillUpper || upper.includes(skillUpper) || skillUpper.includes(upper);
+          } else {
+            matched = rawItem === skill || rawItem.includes(skill) || skill.includes(rawItem);
+          }
+          if (matched) {
+            added.add(skill);
+            found.push({ name: skill });
+          }
+        }
+      }
+    }
+  }
+
   for (const skill of SKILL_DATABASE) {
+    if (added.has(skill)) continue;
     const isEng = /^[A-Za-z]/.test(skill);
     const present = isEng
-      ? textUpper.includes(skill.toUpperCase()) || text.includes(skill)
+      ? textUpper.includes(skill.toUpperCase())
       : text.includes(skill);
-    if (present && !found.some(f => f.name === skill)) {
+    if (present) {
+      added.add(skill);
       found.push({ name: skill });
     }
   }
+
   return found;
 }
 
