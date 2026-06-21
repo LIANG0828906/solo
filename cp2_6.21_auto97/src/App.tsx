@@ -137,9 +137,10 @@ const App: React.FC = () => {
   const [userVotes, setUserVotes] = useState<Map<string, VoteType>>(new Map());
   const [showVersionPanel, setShowVersionPanel] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
-  const [connectionTooltip, setConnectionTooltip] = useState<{ x: number; y: number; title: string } | null>(null);
+  const [connectionTooltip, setConnectionTooltip] = useState<{ x: number; y: number; title: string; targetBlockId: string } | null>(null);
   const [connectingFromBlock, setConnectingFromBlock] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [highlightedBlockId, setHighlightedBlockId] = useState<string | null>(null);
 
   const [touchDragBlockId, setTouchDragBlockId] = useState<string | null>(null);
   const [touchDragStartY, setTouchDragStartY] = useState(0);
@@ -342,6 +343,30 @@ const App: React.FC = () => {
     });
     sendBlockUpdate(blockId, content);
   }, [sendBlockUpdate]);
+
+  const handleBlockSaved = useCallback((blockId: string) => {
+    console.log('Block saved:', blockId);
+  }, []);
+
+  const handleLanguageChange = useCallback((blockId: string, language: string) => {
+    setPage(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        blocks: prev.blocks.map(b =>
+          b.id === blockId ? { ...b, language } : b
+        ),
+      };
+    });
+  }, []);
+
+  const handleImageUpload = useCallback(async (_blockId: string, file: File): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(file);
+    });
+  }, []);
 
   const handleDragStart = useCallback((e: React.DragEvent, blockId: string) => {
     setDraggingBlockId(blockId);
@@ -594,11 +619,28 @@ const App: React.FC = () => {
       x: e.clientX + 10,
       y: e.clientY + 10,
       title: `引用: ${title}`,
+      targetBlockId: connection.toBlockId,
     });
   }, [page]);
 
   const handleConnectionLeave = useCallback(() => {
     setConnectionTooltip(null);
+  }, []);
+
+  const handleJumpToBlock = useCallback((blockId: string) => {
+    setActiveBlockId(blockId);
+    setHighlightedBlockId(blockId);
+    setConnectionTooltip(null);
+
+    const blockEl = blockRefs.current.get(blockId);
+    if (blockEl && editorContainerRef.current) {
+      const containerRect = editorContainerRef.current.getBoundingClientRect();
+      const blockRect = blockEl.getBoundingClientRect();
+      const scrollTop = blockRect.top - containerRect.top + editorContainerRef.current.scrollTop - 100;
+      editorContainerRef.current.scrollTo({ top: scrollTop, behavior: 'smooth' });
+    }
+
+    setTimeout(() => setHighlightedBlockId(null), 3000);
   }, []);
 
   const getConnectionPath = useCallback((connection: Connection): string => {
@@ -811,6 +853,9 @@ const App: React.FC = () => {
                     dragTransform={dragTransform}
                     isTouchDragging={isTouchDrag}
                     onContentChange={handleContentChange}
+                    onBlockSaved={handleBlockSaved}
+                    onImageUpload={handleImageUpload}
+                    onLanguageChange={handleLanguageChange}
                     onDragStart={handleDragStart}
                     onDragOver={handleDragOver}
                     onDrop={handleDrop}
@@ -827,6 +872,10 @@ const App: React.FC = () => {
                     blockRef={(el) => {
                       if (el) {
                         blockRefs.current.set(block.id, el);
+                        if (highlightedBlockId === block.id) {
+                          el.classList.add('block-highlighted');
+                          setTimeout(() => el.classList.remove('block-highlighted'), 3000);
+                        }
                       } else {
                         blockRefs.current.delete(block.id);
                       }
@@ -890,9 +939,20 @@ const App: React.FC = () => {
           style={{
             left: connectionTooltip.x,
             top: connectionTooltip.y,
+            pointerEvents: 'auto',
           }}
+          onClick={(e) => e.stopPropagation()}
         >
-          {connectionTooltip.title}
+          <div style={{ marginBottom: '8px', fontWeight: 500 }}>{connectionTooltip.title}</div>
+          <button
+            className="connection-jump-btn"
+            onClick={() => handleJumpToBlock(connectionTooltip.targetBlockId)}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M5 12h14M12 5l7 7-7 7" />
+            </svg>
+            跳转到该块
+          </button>
         </div>
       )}
 

@@ -1001,3 +1001,222 @@ h4 { font-size: 1.25rem; }
   justify-content: center;
   padding: 0 6px;
 }
+
+.block-saved-indicator {
+  position: absolute;
+  bottom: 8px;
+  right: 56px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background-color: rgba(34, 197, 94, 0.15);
+  color: #15803d;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  animation: fadeIn 0.3s ease-out;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.block-highlighted {
+  animation: blockHighlight 3s ease-out;
+}
+
+@keyframes blockHighlight {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(139, 115, 85, 0);
+  }
+  15% {
+    box-shadow: 0 0 0 4px rgba(139, 115, 85, 0.4);
+  }
+  30%, 70% {
+    box-shadow: 0 0 0 4px rgba(139, 115, 85, 0.25);
+  }
+}
+
+.image-drop-zone {
+  position: relative;
+  width: 100%;
+  transition: all var(--transition-fast);
+}
+
+.image-drop-zone.drag-over {
+  background-color: rgba(139, 115, 85, 0.1);
+  border-radius: 8px;
+  padding: 16px;
+  outline: 2px dashed var(--accent-color);
+  outline-offset: -2px;
+}
+
+.image-placeholder {
+  width: 100%;
+  min-height: 160px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(139, 115, 85, 0.05);
+  border: 2px dashed var(--border-color);
+  border-radius: 8px;
+  color: var(--text-secondary);
+  transition: all var(--transition-fast);
+}
+
+.image-drop-zone.drag-over .image-placeholder {
+  border-color: var(--accent-color);
+  background-color: rgba(139, 115, 85, 0.08);
+}
+
+.image-uploading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(44, 44, 44, 0.8);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: var(--code-text);
+  font-size: 0.85rem;
+  z-index: 10;
+}
+
+.upload-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid rgba(245, 240, 232, 0.2);
+  border-top-color: var(--accent-color);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.block-code-header {
+  display: flex;
+  justify-content: flex-end;
+  padding: 8px 12px;
+  background-color: rgba(44, 44, 44, 0.9);
+  border-top-left-radius: 8px;
+  border-top-right-radius: 8px;
+}
+
+.block-language-select {
+  background-color: rgba(139, 115, 85, 0.2);
+  border: 1px solid rgba(139, 115, 85, 0.3);
+  color: var(--code-text);
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: 'Consolas', monospace;
+  font-size: 0.75rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.block-language-select:hover {
+  background-color: rgba(139, 115, 85, 0.3);
+}
+
+.block-language-select option {
+  background-color: var(--code-bg);
+  color: var(--code-text);
+}
+
+.code-editor-wrapper {
+  position: relative;
+  border-bottom-left-radius: 8px;
+  border-bottom-right-radius: 8px;
+  overflow: hidden;
+}
+
+.code-editor-wrapper .block-code {
+  border-radius: 0 0 8px 8px;
+  min-height: 60px;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.code-editor-wrapper .code-input {
+  position: relative;
+  z-index: 2;
+  color: transparent !important;
+  caret-color: var(--code-text);
+  background-color: transparent;
+}
+
+.code-editor-wrapper .code-input::selection {
+  background-color: rgba(139, 115, 85, 0.4);
+  color: transparent;
+}
+
+.code-editor-wrapper .code-highlight {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1;
+  pointer-events: none;
+  margin: 0;
+  background-color: var(--code-bg);
+  color: var(--code-text);
+}
+
+.hl-keyword {
+  color: #c678dd;
+  font-weight: 600;
+}
+
+.hl-string {
+  color: #98c379;
+}
+
+.hl-comment {
+  color: #7f848e;
+  font-style: italic;
+}
+
+.hl-number {
+  color: #d19a66;
+}
+
+.hl-function {
+  color: #61afef;
+}
+
+.hl-tag {
+  color: #e06c75;
+}
+
+.hl-attr {
+  color: #d19a66;
+}
+
+.connection-jump-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all var(--transition-fast);
+}
+
+.connection-jump-btn:hover {
+  background-color: #6d5a45;
+  transform: translateX(2px);
+}
