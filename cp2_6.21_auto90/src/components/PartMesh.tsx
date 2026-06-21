@@ -4,6 +4,23 @@ import * as THREE from 'three';
 import { PartData } from '@/types';
 import { PartLabel } from './PartLabel';
 import { useExplosionStore } from '@/store/explosionStore';
+import { createGeometry } from '@/utils/geometryFactory';
+
+/**
+ * 单个部件渲染组件
+ *
+ * 职责：根据 part 数据渲染一个部件（可能包含多个子网格），
+ *       处理悬停高亮、点击选中自转、标签显示。
+ *
+ * 数据流向：
+ *   props(part, offset, isSelected)
+ *     → 计算拆解后位置 = defaultPosition + explodeAxis * offset
+ *     → 遍历 subMeshes 渲染多个 mesh
+ *     → 悬停显示 Edges 轮廓
+ *     → 选中时 useFrame 更新 group.rotation.y
+ *
+ * 调用方：Scene 组件遍历 BRONZE_DING_PARTS 渲染本组件
+ */
 
 interface PartMeshProps {
   part: PartData;
@@ -11,45 +28,16 @@ interface PartMeshProps {
   isSelected: boolean;
 }
 
-function createGeometry(type: PartData['geometryType']): THREE.BufferGeometry {
-  switch (type) {
-    case 'dingBody': {
-      const points: THREE.Vector2[] = [];
-      const segments = 32;
-      for (let i = 0; i <= segments; i++) {
-        const t = i / segments;
-        const radius = 1.3 - 0.5 * t * t;
-        const y = -0.9 + t * 1.8;
-        points.push(new THREE.Vector2(radius, y));
-      }
-      return new THREE.LatheGeometry(points, 48);
-    }
-    case 'ear': {
-      const outer = new THREE.TorusGeometry(0.35, 0.1, 12, 24);
-      return outer;
-    }
-    case 'leg': {
-      const leg = new THREE.CylinderGeometry(0.18, 0.25, 1.0, 16);
-      return leg;
-    }
-    case 'pattern': {
-      return new THREE.CylinderGeometry(1.1, 1.1, 0.05, 48);
-    }
-    case 'inscription': {
-      return new THREE.CylinderGeometry(0.9, 0.9, 0.03, 48);
-    }
-    default:
-      return new THREE.BoxGeometry(1, 1, 1);
-  }
-}
-
 export function PartMesh({ part, offset, isSelected }: PartMeshProps) {
   const groupRef = useRef<THREE.Group>(null);
-  const meshRef = useRef<THREE.Mesh>(null);
+  const centerRef = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
   const togglePartSelection = useExplosionStore((s) => s.togglePartSelection);
 
-  const geometry = useMemo(() => createGeometry(part.geometryType), [part.geometryType]);
+  const subGeometries = useMemo(
+    () => part.subMeshes.map((sm) => createGeometry(sm.geometryType)),
+    [part.subMeshes]
+  );
 
   const finalPosition = useMemo(() => {
     const axis = new THREE.Vector3(...part.explodeAxis).normalize();
@@ -60,8 +48,8 @@ export function PartMesh({ part, offset, isSelected }: PartMeshProps) {
   const worldPos = useMemo(() => new THREE.Vector3(), []);
 
   useFrame((_, delta) => {
-    if (meshRef.current) {
-      meshRef.current.getWorldPosition(worldPos);
+    if (centerRef.current) {
+      centerRef.current.getWorldPosition(worldPos);
     }
     if (isSelected && groupRef.current) {
       groupRef.current.rotation.y += delta * (Math.PI / 6);
@@ -103,24 +91,36 @@ export function PartMesh({ part, offset, isSelected }: PartMeshProps) {
   };
 
   return (
-    <group ref={groupRef} position={finalPosition.toArray() as [number, number, number]}>
-      <mesh
-        ref={meshRef}
-        geometry={geometry}
-        material={material}
-        castShadow
-        receiveShadow
-        onPointerOver={handlePointerOver}
-        onPointerOut={handlePointerOut}
-        onClick={handleClick}
-      >
-        {hovered && (
-          <lineSegments>
-            <edgesGeometry args={[geometry]} />
-            <lineBasicMaterial color="#ffffff" linewidth={2} />
-          </lineSegments>
-        )}
-      </mesh>
+    <group
+      ref={groupRef}
+      position={finalPosition.toArray() as [number, number, number]}
+    >
+      <group ref={centerRef}>
+        {part.subMeshes.map((sub, idx) => (
+          <group
+            key={`${part.id}-sub-${idx}`}
+            position={sub.position}
+            rotation={(sub.rotation as [number, number, number]) || [0, 0, 0]}
+            onPointerOver={handlePointerOver}
+            onPointerOut={handlePointerOut}
+            onClick={handleClick}
+          >
+            <mesh
+              geometry={subGeometries[idx]}
+              material={material}
+              castShadow
+              receiveShadow
+            >
+              {hovered && (
+                <lineSegments>
+                  <edgesGeometry args={[subGeometries[idx]]} />
+                  <lineBasicMaterial color="#ffffff" linewidth={2} />
+                </lineSegments>
+              )}
+            </mesh>
+          </group>
+        ))}
+      </group>
       <PartLabel part={part} worldPosition={worldPos} />
     </group>
   );

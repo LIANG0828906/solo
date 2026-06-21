@@ -2,6 +2,28 @@ import { BRONZE_DING_PARTS, EXPLODE_OFFSET_MIN, EXPLODE_OFFSET_MAX } from '@/uti
 import { useExplosionStore } from '@/store/explosionStore';
 import '@/styles/ExplosionPanel.css';
 
+/**
+ * 拆解控制面板组件
+ *
+ * 职责：
+ *   - 渲染标题「青铜鼎拆解工具」与自动旋转开关
+ *   - 遍历 BRONZE_DING_PARTS 渲染每个部件的滑动条（带颜色指示条和偏移值显示）
+ *   - 渲染「一键分解」「一键复原」两个渐变按钮
+ *   - 响应式：桌面端右侧300px，移动端折叠为底部抽屉
+ *
+ * 数据流向：
+ *   读取：
+ *     useExplosionStore { partOffsets, autoRotate, isAnimating }
+ *       → 渲染滑动条值、开关状态、按钮禁用态
+ *   写入：
+ *     slider onChange → setPartOffset(partId, value) → store 更新
+ *     switch onClick → toggleAutoRotate() → store.autoRotate 取反
+ *     一键分解 onClick → explodeAll() → store 启动 2 秒动画
+ *     一键复原 onClick → resetAll() → store 启动 1.5 秒动画
+ *
+ * 调用方：App 组件根据响应式断点渲染本组件
+ */
+
 interface ExplosionPanelProps {
   isOpen?: boolean;
 }

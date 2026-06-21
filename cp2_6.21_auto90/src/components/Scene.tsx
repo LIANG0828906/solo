@@ -6,6 +6,25 @@ import { BRONZE_DING_PARTS } from '@/utils/modelData';
 import { PartMesh } from './PartMesh';
 import { useExplosionStore } from '@/store/explosionStore';
 
+/**
+ * 3D 场景根组件
+ *
+ * 职责：
+ *   - 配置 Canvas 渲染参数（阴影、相机、色调映射）
+ *   - 配置场景光照（环境光 + 方向光 + 点光源补光）
+ *   - 从 zustand store 订阅拆解/选中/自动旋转状态
+ *   - 遍历 BRONZE_DING_PARTS 渲染 PartMesh
+ *   - 配置 OrbitControls（阻尼、缩放范围、自动旋转）
+ *
+ * 数据流向：
+ *   useExplosionStore { partOffsets, selectedParts, autoRotate }
+ *     → SceneContent
+ *       → map(BRONZE_DING_PARTS)
+ *         → PartMesh(props: { part, offset, isSelected })
+ *
+ * 不包含几何体构建逻辑，该职责由 geometryFactory.ts 独立模块承担。
+ */
+
 function SceneContent() {
   const partOffsets = useExplosionStore((s) => s.partOffsets);
   const selectedParts = useExplosionStore((s) => s.selectedParts);

@@ -1,7 +1,23 @@
 import { create } from 'zustand';
 import { ExplosionState } from '@/types';
 import { BRONZE_DING_PARTS, MAX_SELECTED_PARTS } from '@/utils/modelData';
-import { easeOutCubic } from '@/utils/easing';
+import { easeOutQuart } from '@/utils/easing';
+
+/**
+ * Zustand 全局状态管理模块
+ *
+ * 职责：管理拆解偏移、选中部件、自动旋转等全局状态，以及动画逻辑。
+ *
+ * 调用方：
+ *   - ExplosionPanel 读取 partOffsets/autoRotate/isAnimating，
+ *     调用 setPartOffset/toggleAutoRotate/explodeAll/resetAll
+ *   - Scene 读取 partOffsets/selectedParts/autoRotate，驱动部件渲染
+ *   - PartMesh 调用 togglePartSelection 处理点击选中
+ *
+ * 数据流向：
+ *   用户交互 → ExplosionPanel/PartMesh → action(setPartOffset等) →
+ *   store 更新 state → Scene/PartMesh 订阅变化 → 3D 场景重绘
+ */
 
 const initOffsets = (): Record<string, number> => {
   const offsets: Record<string, number> = {};
@@ -16,6 +32,7 @@ export const useExplosionStore = create<ExplosionState>((set, get) => ({
   selectedParts: [],
   autoRotate: false,
   isAnimating: false,
+  selectedCount: 0,
 
   setPartOffset: (partId: string, value: number) => {
     set((state) => ({
@@ -27,15 +44,20 @@ export const useExplosionStore = create<ExplosionState>((set, get) => ({
     set((state) => {
       const exists = state.selectedParts.includes(partId);
       if (exists) {
+        const next = state.selectedParts.filter((id) => id !== partId);
         return {
-          selectedParts: state.selectedParts.filter((id) => id !== partId),
+          selectedParts: next,
+          selectedCount: next.length,
         };
       }
-      const next = [...state.selectedParts, partId];
-      if (next.length > MAX_SELECTED_PARTS) {
-        next.shift();
+      if (state.selectedCount >= MAX_SELECTED_PARTS) {
+        return state;
       }
-      return { selectedParts: next };
+      const next = [...state.selectedParts, partId];
+      return {
+        selectedParts: next,
+        selectedCount: next.length,
+      };
     });
   },
 
@@ -56,14 +78,14 @@ export const useExplosionStore = create<ExplosionState>((set, get) => ({
       };
     });
 
-    const duration = 2000;
+    const EXPLODE_DURATION = 2000;
     const startTime = performance.now();
 
     await new Promise<void>((resolve) => {
       const step = (currentTime: number) => {
         const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const eased = easeOutCubic(progress);
+        const progress = Math.min(elapsed / EXPLODE_DURATION, 1);
+        const eased = easeOutQuart(progress);
         const nextOffsets: Record<string, number> = {};
         BRONZE_DING_PARTS.forEach((p) => {
           const t = targets[p.id];
@@ -88,14 +110,14 @@ export const useExplosionStore = create<ExplosionState>((set, get) => ({
     set({ isAnimating: true });
 
     const starts: Record<string, number> = { ...state.partOffsets };
-    const duration = 1500;
+    const RESET_DURATION = 1500;
     const startTime = performance.now();
 
     await new Promise<void>((resolve) => {
       const step = (currentTime: number) => {
         const elapsed = currentTime - startTime;
-        const progress = Math.min(elapsed / duration, 1);
-        const eased = easeOutCubic(progress);
+        const progress = Math.min(elapsed / RESET_DURATION, 1);
+        const eased = easeOutQuart(progress);
         const nextOffsets: Record<string, number> = {};
         BRONZE_DING_PARTS.forEach((p) => {
           nextOffsets[p.id] = starts[p.id] * (1 - eased);

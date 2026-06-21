@@ -1,5 +1,11 @@
 export type GeometryType = 'dingBody' | 'ear' | 'leg' | 'pattern' | 'inscription';
 
+export interface SubMeshData {
+  geometryType: GeometryType;
+  position: [number, number, number];
+  rotation?: [number, number, number];
+}
+
 export interface PartData {
   id: string;
   name: string;
@@ -7,9 +13,8 @@ export interface PartData {
   defaultPosition: [number, number, number];
   explodeAxis: [number, number, number];
   label: string;
-  geometryType: GeometryType;
   explodeTargetOffset: number;
-  geometryArgs?: Record<string, number>;
+  subMeshes: SubMeshData[];
 }
 
 export interface ExplosionState {
@@ -17,6 +22,7 @@ export interface ExplosionState {
   selectedParts: string[];
   autoRotate: boolean;
   isAnimating: boolean;
+  selectedCount: number;
   setPartOffset: (partId: string, value: number) => void;
   togglePartSelection: (partId: string) => void;
   toggleAutoRotate: () => void;
