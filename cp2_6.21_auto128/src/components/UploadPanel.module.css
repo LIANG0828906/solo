@@ -1,0 +1,324 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 24px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  height: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #212121;
+  margin: 0;
+}
+
+.uploadArea {
+  border: 2px dashed #cfd8dc;
+  border-radius: 8px;
+  padding: 40px 20px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: #fafafa;
+}
+
+.uploadArea:hover {
+  border-color: #1976d2;
+  background: #f5f7fa;
+}
+
+.uploadAreaDragOver {
+  border-color: #1976d2;
+  background: #e3f2fd;
+  animation: dashAnimation 1s linear infinite;
+}
+
+@keyframes dashAnimation {
+  0% {
+    border-style: dashed;
+  }
+  50% {
+    border-style: solid;
+  }
+  100% {
+    border-style: dashed;
+  }
+}
+
+.uploadIcon {
+  font-size: 48px;
+  margin-bottom: 12px;
+}
+
+.uploadText {
+  font-size: 14px;
+  color: #666;
+  margin-bottom: 8px;
+}
+
+.uploadHint {
+  font-size: 12px;
+  color: #999;
+}
+
+.uploadButton {
+  display: inline-block;
+  padding: 8px 24px;
+  background: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: background 0.2s ease;
+  margin-top: 12px;
+}
+
+.uploadButton:hover {
+  background: #1565c0;
+}
+
+.progressSection {
+  margin-top: 8px;
+}
+
+.progressLabel {
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.progressBar {
+  width: 100%;
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: #1976d2;
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.transcribingIndicator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  background: #f5f7fa;
+  border-radius: 6px;
+  margin-top: 12px;
+}
+
+.pulseAnimation {
+  display: flex;
+  gap: 4px;
+  align-items: center;
+}
+
+.pulseBar {
+  width: 4px;
+  height: 20px;
+  background: #1976d2;
+  border-radius: 2px;
+  animation: pulse 0.8s ease-in-out infinite;
+}
+
+.pulseBar:nth-child(2) {
+  animation-delay: 0.1s;
+}
+
+.pulseBar:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+.pulseBar:nth-child(4) {
+  animation-delay: 0.3s;
+}
+
+.pulseBar:nth-child(5) {
+  animation-delay: 0.4s;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    height: 8px;
+    opacity: 0.5;
+  }
+  50% {
+    height: 24px;
+    opacity: 1;
+  }
+}
+
+.transcribingText {
+  font-size: 14px;
+  color: #212121;
+}
+
+.errorText {
+  color: #f44336;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.speakerSection {
+  margin-top: 8px;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #212121;
+  margin-bottom: 16px;
+}
+
+.speakerList {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.speakerItem {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 6px;
+  background: #fafafa;
+  transition: background 0.2s ease;
+}
+
+.speakerHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.speakerColorDot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.speakerName {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: #212121;
+  cursor: pointer;
+}
+
+.speakerName:hover {
+  color: #1976d2;
+}
+
+.renameInput {
+  flex: 1;
+  padding: 4px 8px;
+  border: 1px solid #1976d2;
+  border-radius: 4px;
+  font-size: 14px;
+  outline: none;
+}
+
+.actionButton {
+  padding: 4px 8px;
+  background: transparent;
+  border: none;
+  color: #666;
+  cursor: pointer;
+  font-size: 12px;
+  transition: color 0.2s ease;
+  border-radius: 4px;
+}
+
+.actionButton:hover {
+  color: #1976d2;
+  background: #e3f2fd;
+}
+
+.speakerNote {
+  font-size: 12px;
+  color: #666;
+  padding: 0 4px;
+}
+
+.noteInput {
+  width: 100%;
+  padding: 6px 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 12px;
+  outline: none;
+  resize: vertical;
+  min-height: 36px;
+  box-sizing: border-box;
+}
+
+.noteInput:focus {
+  border-color: #1976d2;
+}
+
+.emptySpeakers {
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+  padding: 20px;
+}
+
+.fileInfo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px;
+  background: #f5f7fa;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #666;
+}
+
+.resetButton {
+  padding: 6px 12px;
+  background: #f5f5f5;
+  color: #666;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.resetButton:hover {
+  background: #e0e0e0;
+  color: #333;
+}
+
+.demoButton {
+  padding: 8px 20px;
+  background: transparent;
+  color: #1976d2;
+  border: 1px solid #1976d2;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.demoButton:hover {
+  background: #e3f2fd;
+  color: #1565c0;
+  border-color: #1565c0;
+}
