@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>拓扑幻境 - 3D力导向拓扑网络图</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+      background: radial-gradient(circle at center, #1E293B 0%, #0F172A 100%);
+    }
+
+    #canvas-container {
+      width: 100vw;
+      height: 100vh;
+      position: fixed;
+      top: 0;
+      left: 0;
+      z-index: 1;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .search-container {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      width: 280px;
+    }
+
+    .search-input {
+      width: 100%;
+      padding: 10px 16px;
+      background: #0F172A;
+      border: 2px solid #334155;
+      border-radius: 8px;
+      color: #F1F5F9;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+      backdrop-filter: blur(6px);
+    }
+
+    .search-input::placeholder {
+      color: #64748B;
+    }
+
+    .search-input:focus {
+      border-color: #3B82F6;
+      box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.2);
+    }
+
+    .search-results {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      margin-top: 6px;
+      background: rgba(30, 41, 59, 0.95);
+      border: 1px solid #334155;
+      border-radius: 8px;
+      overflow: hidden;
+      backdrop-filter: blur(8px);
+      display: none;
+      max-height: 240px;
+      overflow-y: auto;
+    }
+
+    .search-results.active {
+      display: block;
+    }
+
+    .search-result-item {
+      padding: 10px 16px;
+      color: #E2E8F0;
+      font-size: 13px;
+      cursor: pointer;
+      transition: background-color 0.15s ease;
+      border-bottom: 1px solid rgba(51, 65, 85, 0.5);
+    }
+
+    .search-result-item:last-child {
+      border-bottom: none;
+    }
+
+    .search-result-item:hover {
+      background: rgba(59, 130, 246, 0.2);
+    }
+
+    .search-result-item .highlight {
+      color: #3B82F6;
+      font-weight: 600;
+    }
+
+    .control-panel {
+      position: fixed;
+      top: 50%;
+      right: 24px;
+      transform: translateY(-50%);
+      z-index: 100;
+      width: 260px;
+      background: rgba(30, 41, 59, 0.85);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border-radius: 10px;
+      padding: 20px;
+      border: 1px solid rgba(59, 130, 246, 0.2);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    }
+
+    .panel-title {
+      color: #F1F5F9;
+      font-size: 15px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-title::before {
+      content: '';
+      width: 4px;
+      height: 16px;
+      background: linear-gradient(180deg, #3B82F6, #8B5CF6);
+      border-radius: 2px;
+    }
+
+    .panel-section {
+      margin-bottom: 20px;
+    }
+
+    .panel-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .panel-label {
+      color: #94A3B8;
+      font-size: 12px;
+      margin-bottom: 8px;
+      display: block;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 10px 16px;
+      background: #334155;
+      border: none;
+      border-radius: 6px;
+      color: #F1F5F9;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: background-color 0.2s ease, transform 0.1s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn:hover {
+      background: #475569;
+    }
+
+    .btn:active {
+      transform: scale(0.98);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, #3B82F6, #2563EB);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, #60A5FA, #3B82F6);
+    }
+
+    .btn-danger {
+      background: linear-gradient(135deg, #EF4444, #DC2626);
+    }
+
+    .btn-danger:hover {
+      background: linear-gradient(135deg, #F87171, #EF4444);
+    }
+
+    .btn.active {
+      background: linear-gradient(135deg, #10B981, #059669);
+    }
+
+    .btn.active:hover {
+      background: linear-gradient(135deg, #34D399, #10B981);
+    }
+
+    .stats-card {
+      background: rgba(15, 23, 42, 0.6);
+      border-radius: 8px;
+      padding: 14px;
+      text-align: center;
+    }
+
+    .stats-value {
+      font-size: 32px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #3B82F6, #8B5CF6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      transition: all 0.3s ease;
+    }
+
+    .stats-value.change {
+      transform: scale(1.2);
+    }
+
+    .stats-label {
+      color: #94A3B8;
+      font-size: 12px;
+      margin-top: 4px;
+    }
+
+    .node-detail-bubble {
+      position: fixed;
+      z-index: 200;
+      background: rgba(30, 41, 59, 0.95);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 10px;
+      padding: 14px 16px;
+      min-width: 180px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      pointer-events: none;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .node-detail-bubble.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .node-detail-bubble::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 12px;
+      height: 12px;
+      background: rgba(30, 41, 59, 0.95);
+      border-right: 1px solid rgba(59, 130, 246, 0.3);
+      border-bottom: 1px solid rgba(59, 130, 246, 0.3);
+      transform: translateX(-50%) rotate(45deg);
+    }
+
+    .bubble-title {
+      color: #F1F5F9;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+
+    .bubble-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 4px 0;
+      font-size: 12px;
+    }
+
+    .bubble-label {
+      color: #94A3B8;
+    }
+
+    .bubble-value {
+      color: #E2E8F0;
+      font-weight: 500;
+    }
+
+    .node-label {
+      position: absolute;
+      padding: 3px 8px;
+      background: rgba(15, 23, 42, 0.7);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      border-radius: 4px;
+      color: #FFFFFF;
+      font-size: 11px;
+      font-weight: 500;
+      white-space: nowrap;
+      pointer-events: none;
+      z-index: 50;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      text-shadow: 0 1px 2px rgba(0, 0, 0, 0.5);
+    }
+
+    .instructions {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      background: rgba(30, 41, 59, 0.8);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border-radius: 8px;
+      padding: 10px 20px;
+      color: #94A3B8;
+      font-size: 12px;
+      display: flex;
+      gap: 20px;
+    }
+
+    .instructions span {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .instructions kbd {
+      background: #334155;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #E2E8F0;
+      border: 1px solid #475569;
+    }
+
+    .color-legend {
+      display: flex;
+      gap: 6px;
+      margin-top: 8px;
+      flex-wrap: wrap;
+    }
+
+    .color-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      display: inline-block;
+    }
+
+    .color-dot.hot { background: #FF6B35; }
+    .color-dot.warm { background: #FFD166; }
+    .color-dot.cool { background: #4ECDC4; }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 10px;
+      color: #94A3B8;
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div class="search-container">
+    <input type="text" class="search-input" id="searchInput" placeholder="搜索节点标签..." autocomplete="off">
+    <div class="search-results" id="searchResults"></div>
+  </div>
+
+  <div class="control-panel" id="controlPanel">
+    <div class="panel-title">控制面板</div>
+    
+    <div class="panel-section">
+      <label class="panel-label">力导向模拟</label>
+      <button class="btn active" id="toggleSimulation">
+        <span>●</span>
+        <span id="simulationText">运行中</span>
+      </button>
+    </div>
+
+    <div class="panel-section">
+      <label class="panel-label">布局操作</label>
+      <button class="btn btn-primary" id="resetLayout">
+        <span>⟳</span>
+        <span>重置布局</span>
+      </button>
+    </div>
+
+    <div class="panel-section">
+      <label class="panel-label">节点统计</label>
+      <div class="stats-card">
+        <div class="stats-value" id="nodeCount">0</div>
+        <div class="stats-label">当前节点数</div>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <label class="panel-label">连线张力图例</label>
+      <div class="color-legend">
+        <div class="legend-item">
+          <span class="color-dot hot"></span>
+          <span>高张力</span>
+        </div>
+        <div class="legend-item">
+          <span class="color-dot warm"></span>
+          <span>中张力</span>
+        </div>
+        <div class="legend-item">
+          <span class="color-dot cool"></span>
+          <span>低张力</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="node-detail-bubble" id="nodeDetailBubble">
+    <div class="bubble-title" id="bubbleTitle">节点详情</div>
+    <div class="bubble-row">
+      <span class="bubble-label">连接数</span>
+      <span class="bubble-value" id="bubbleConnections">0</span>
+    </div>
+    <div class="bubble-row">
+      <span class="bubble-label">创建时间</span>
+      <span class="bubble-value" id="bubbleTime">--:--:--</span>
+    </div>
+  </div>
+
+  <div class="instructions">
+    <span><kbd>双击</kbd> 创建节点</span>
+    <span><kbd>点击</kbd> 选择节点</span>
+    <span><kbd>拖拽</kbd> 旋转视角</span>
+    <span><kbd>滚轮</kbd> 缩放</span>
+    <span><kbd>Ctrl+Z</kbd> 撤销</span>
+    <span><kbd>Ctrl+Y</kbd> 重做</span>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
