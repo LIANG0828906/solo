@@ -571,3 +571,135 @@ export function selectUnit(state: GameState, unitId: string | null): GameState {
     selectedUnitId: unitId,
   };
 }
+
+type StateListener = (state: GameState) => void;
+
+export class BattleManager {
+  private state: GameState;
+  private listeners: Set<StateListener> = new Set();
+  private gridConfig: GridConfig;
+
+  constructor(initialState?: GameState, gridConfig: GridConfig = DEFAULT_GRID_CONFIG) {
+    this.state = initialState || createInitialState();
+    this.gridConfig = gridConfig;
+  }
+
+  getState(): GameState {
+    return { ...this.state };
+  }
+
+  setState(newState: GameState): void {
+    this.state = newState;
+    this.notifyListeners();
+  }
+
+  subscribe(listener: StateListener): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  private notifyListeners(): void {
+    const snapshot = this.getState();
+    this.listeners.forEach(listener => listener(snapshot));
+  }
+
+  getUnits(): Unit[] {
+    return [...this.state.units];
+  }
+
+  getAliveUnits(faction?: Faction): Unit[] {
+    return this.state.units.filter(u =>
+      u.hp > 0 && (!faction || u.faction === faction)
+    );
+  }
+
+  getUnitById(id: string): Unit | undefined {
+    return this.state.units.find(u => u.id === id);
+  }
+
+  getBlueUnits(): Unit[] {
+    return this.getAliveUnits('blue');
+  }
+
+  getRedUnits(): Unit[] {
+    return this.getAliveUnits('red');
+  }
+
+  getActedUnits(faction: Faction): Unit[] {
+    return this.getAliveUnits(faction).filter(u => u.hasMoved && u.hasAttacked);
+  }
+
+  getPendingUnits(faction: Faction): Unit[] {
+    return this.getAliveUnits(faction).filter(u => !(u.hasMoved && u.hasAttacked));
+  }
+
+  getCurrentFaction(): Faction {
+    return this.state.currentFaction;
+  }
+
+  getCurrentUnit(): Unit | undefined {
+    if (!this.state.currentUnitId) return undefined;
+    return this.getUnitById(this.state.currentUnitId);
+  }
+
+  getLogs(): BattleLogEntry[] {
+    return [...this.state.logs];
+  }
+
+  deploy(): void {
+    this.setState(deployUnits(this.state, this.gridConfig));
+  }
+
+  move(unitId: string, target: HexCoord): void {
+    this.setState(moveUnit(this.state, unitId, target));
+  }
+
+  attack(attackerId: string, defenderId: string): void {
+    this.setState(attackUnit(this.state, attackerId, defenderId));
+  }
+
+  castSkill(attackerId: string, targetId: string): void {
+    this.setState(useSkill(this.state, attackerId, targetId, this.gridConfig));
+  }
+
+  selectSkillAction(skillId: string | null): void {
+    this.setState(selectSkill(this.state, skillId));
+  }
+
+  skipCurrentUnit(): void {
+    this.setState(skipUnitTurn(this.state));
+  }
+
+  reset(): void {
+    this.setState(resetGame());
+  }
+
+  selectSingleUnit(unitId: string | null): void {
+    this.setState(selectUnit(this.state, unitId));
+  }
+
+  setMoveableCells(cells: HexCoord[]): void {
+    this.setState({
+      ...this.state,
+      moveableCells: cells,
+    });
+  }
+
+  getUnitAt(coord: HexCoord): Unit | undefined {
+    return getUnitAtPosition(this.state.units, coord);
+  }
+
+  getObstacles(excludeUnitId?: string): HexCoord[] {
+    return getObstacleCoords(this.state.units, excludeUnitId);
+  }
+
+  getAttackTargets(attacker: Unit): Unit[] {
+    return getAttackableTargets(attacker, this.state.units, this.gridConfig);
+  }
+
+  getAttackCellTargets(attacker: Unit): HexCoord[] {
+    return getAttackableCells(attacker, this.state.units, this.gridConfig);
+  }
+}
+
+export const battleManager = new BattleManager();

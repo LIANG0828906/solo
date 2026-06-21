@@ -167,12 +167,13 @@ const App: React.FC = () => {
       <main className="main-content">
         <aside className="left-panel">
           <UnitPanel
+            gameState={gameState}
             selectedUnit={selectedUnit}
             currentUnitId={gameState.currentUnitId}
             onSkillSelect={handleSkillSelect}
             selectedSkillId={gameState.selectedSkillId}
             onSkipTurn={handleSkipTurn}
-            phase={gameState.phase}
+            onUnitClick={handleUnitClick}
           />
         </aside>
 
