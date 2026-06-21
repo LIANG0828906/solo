@@ -30,8 +30,11 @@ export class SyncManager {
   private lastCommentsState: string = '';
   private unsubscribe: (() => void) | null = null;
 
+  private readonly messageQueueMaxSize = 200;
   private messageQueue: SyncMessage[] = [];
   private listeners: Set<(msg: SyncMessage) => void> = new Set();
+
+  private broadcastChannel: BroadcastChannel | null = null;
 
   init(roomId: string, wsUrl?: string) {
     this.roomId = roomId;
@@ -54,8 +57,6 @@ export class SyncManager {
     }
   }
 
-  private broadcastChannel: BroadcastChannel | null = null;
-
   private setupBroadcastChannel() {
     try {
       this.broadcastChannel = new BroadcastChannel(`highlight-collab-${this.roomId}`);
@@ -63,14 +64,17 @@ export class SyncManager {
         this.handleRemoteMessage(event.data);
       };
       this.connectionState = 'connected';
+
+      this.flushMessageQueue(true);
       this.broadcastUserJoin(useAppStore.getState().currentUser);
-    } catch {
-      console.warn('BroadcastChannel 不可用，使用本地模式');
+    } catch (e) {
+      console.warn('BroadcastChannel 不可用，使用本地模式', e);
+      this.connectionState = 'disconnected';
     }
   }
 
   connect() {
-    if (!this.wsUrl || this.connectionState === 'connected') return;
+    if (!this.wsUrl || this.connectionState === 'connected' || this.connectionState === 'connecting') return;
 
     this.connectionState = 'connecting';
 
@@ -89,9 +93,9 @@ export class SyncManager {
           senderId: useAppStore.getState().currentUser.id,
           timestamp: Date.now(),
         };
-        this.sendOverWebSocket(joinMsg);
+        this.queueMessage(joinMsg);
 
-        this.flushMessageQueue();
+        this.flushMessageQueue(false);
       };
 
       this.ws.onmessage = (event: MessageEvent) => {
@@ -105,8 +109,7 @@ export class SyncManager {
         }
       };
 
-      this.ws.onerror = (error) => {
-        console.error('WebSocket 错误', error);
+      this.ws.onerror = () => {
         this.stopHeartbeat();
       };
 
@@ -125,9 +128,10 @@ export class SyncManager {
   private scheduleReconnect() {
     if (this.reconnectTimer) return;
     if (this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.warn('达到最大重连次数，使用本地模式');
+      console.warn('达到最大重连次数，降级到 BroadcastChannel 模式');
       if (!this.broadcastChannel) {
         this.setupBroadcastChannel();
+        this.flushPending();
       }
       return;
     }
@@ -151,7 +155,7 @@ export class SyncManager {
           senderId: useAppStore.getState().currentUser.id,
           timestamp: Date.now(),
         };
-        this.sendOverWebSocket(pingMsg);
+        this.queueMessage(pingMsg);
 
         this.heartbeatTimeout = window.setTimeout(() => {
           console.warn('心跳超时，连接已断开');
@@ -188,21 +192,80 @@ export class SyncManager {
     }
   }
 
-  private sendOverWebSocket(msg: SyncMessage) {
+  private queueMessage(msg: SyncMessage) {
+    if (this.messageQueue.length >= this.messageQueueMaxSize) {
+      this.messageQueue.shift();
+    }
+    this.messageQueue.push(msg);
+  }
+
+  private sendOverWebSocket(msg: SyncMessage): boolean {
     if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-      this.ws.send(this.serializeMessage(msg));
+      try {
+        this.ws.send(this.serializeMessage(msg));
+        return true;
+      } catch {
+        this.queueMessage(msg);
+        return false;
+      }
+    }
+    this.queueMessage(msg);
+    return false;
+  }
+
+  private sendOverBroadcastChannel(msg: SyncMessage): boolean {
+    if (this.broadcastChannel) {
+      try {
+        this.broadcastChannel.postMessage(msg);
+        return true;
+      } catch {
+        this.queueMessage(msg);
+        return false;
+      }
+    }
+    this.queueMessage(msg);
+    return false;
+  }
+
+  private sendMessage(msg: SyncMessage): boolean {
+    if (this.ws && this.connectionState === 'connected') {
+      return this.sendOverWebSocket(msg);
+    } else if (this.broadcastChannel && this.connectionState === 'connected') {
+      return this.sendOverBroadcastChannel(msg);
     } else {
-      this.messageQueue.push(msg);
+      this.queueMessage(msg);
+      return false;
     }
   }
 
-  private flushMessageQueue() {
-    while (this.messageQueue.length > 0) {
-      const msg = this.messageQueue.shift();
-      if (msg) {
-        this.sendOverWebSocket(msg);
+  private flushMessageQueue(useBroadcast: boolean) {
+    let attempts = 0;
+    const maxAttempts = 5;
+
+    const tryFlush = () => {
+      attempts++;
+      while (this.messageQueue.length > 0) {
+        const msg = this.messageQueue[0];
+        let sent = false;
+
+        if (useBroadcast) {
+          sent = this.sendOverBroadcastChannel(msg);
+        } else {
+          sent = this.sendOverWebSocket(msg);
+        }
+
+        if (sent) {
+          this.messageQueue.shift();
+        } else {
+          if (attempts < maxAttempts) {
+            setTimeout(tryFlush, 50);
+          }
+          return;
+        }
       }
-    }
+    };
+
+    tryFlush();
   }
 
   private onStoreChange(state: ReturnType<typeof useAppStore.getState>, previousState: any) {
@@ -269,7 +332,10 @@ export class SyncManager {
   private flushPending() {
     if (this.pendingDiffs.length === 0) return;
     const state = useAppStore.getState();
-    for (const diff of this.pendingDiffs) {
+    const toProcess = [...this.pendingDiffs];
+    this.pendingDiffs = [];
+
+    for (const diff of toProcess) {
       const msg: SyncMessage = {
         type: diff.type,
         payload: diff.payload,
@@ -278,13 +344,8 @@ export class SyncManager {
         timestamp: Date.now(),
       };
 
-      if (this.ws && this.connectionState === 'connected') {
-        this.sendOverWebSocket(msg);
-      } else if (this.broadcastChannel) {
-        this.broadcastChannel.postMessage(msg);
-      }
+      this.sendMessage(msg);
     }
-    this.pendingDiffs = [];
   }
 
   private handleRemoteMessage(msg: SyncMessage) {
@@ -308,9 +369,7 @@ export class SyncManager {
         const user = msg.payload as User;
         if (user.nickname !== 'ping') {
           state.addUser(user);
-          if (this.broadcastChannel || (this.ws && this.ws.readyState === WebSocket.OPEN)) {
-            this.broadcastUserJoin(state.currentUser);
-          }
+          this.broadcastUserJoin(state.currentUser);
         }
         break;
       }
@@ -329,11 +388,7 @@ export class SyncManager {
       timestamp: Date.now(),
     };
 
-    if (this.ws && this.connectionState === 'connected') {
-      this.sendOverWebSocket(msg);
-    } else if (this.broadcastChannel) {
-      this.broadcastChannel.postMessage(msg);
-    }
+    this.sendMessage(msg);
   }
 
   private reconnect() {
@@ -366,6 +421,10 @@ export class SyncManager {
     return this.connectionState;
   }
 
+  getQueuedMessageCount(): number {
+    return this.messageQueue.length;
+  }
+
   destroy() {
     this.stopHeartbeat();
 
@@ -393,7 +452,11 @@ export class SyncManager {
         timestamp: Date.now(),
       };
       if (this.ws.readyState === WebSocket.OPEN) {
-        this.ws.send(this.serializeMessage(leaveMsg));
+        try {
+          this.ws.send(this.serializeMessage(leaveMsg));
+        } catch {
+          /* ignore */
+        }
       }
       this.ws.close();
       this.ws = null;
@@ -407,7 +470,11 @@ export class SyncManager {
         senderId: useAppStore.getState().currentUser.id,
         timestamp: Date.now(),
       };
-      this.broadcastChannel.postMessage(leaveMsg);
+      try {
+        this.broadcastChannel.postMessage(leaveMsg);
+      } catch {
+        /* ignore */
+      }
       this.broadcastChannel.close();
       this.broadcastChannel = null;
     }

@@ -265,37 +265,36 @@ const Editor: React.FC = () => {
           children.push(renderDomNode(child, ctx));
         });
 
-        const props: React.HTMLAttributes<HTMLElement> = {
-          key: `el-${ctx.keyCounter++}`,
-        };
+        const key = `el-${ctx.keyCounter++}`;
+        const props: React.HTMLAttributes<HTMLElement> = {};
 
         switch (tagName) {
           case 'h1':
-            return <h1 {...props}>{children}</h1>;
+            return <h1 key={key} {...props}>{children}</h1>;
           case 'h2':
-            return <h2 {...props}>{children}</h2>;
+            return <h2 key={key} {...props}>{children}</h2>;
           case 'h3':
-            return <h3 {...props}>{children}</h3>;
+            return <h3 key={key} {...props}>{children}</h3>;
           case 'h4':
-            return <h4 {...props}>{children}</h4>;
+            return <h4 key={key} {...props}>{children}</h4>;
           case 'h5':
-            return <h5 {...props}>{children}</h5>;
+            return <h5 key={key} {...props}>{children}</h5>;
           case 'h6':
-            return <h6 {...props}>{children}</h6>;
+            return <h6 key={key} {...props}>{children}</h6>;
           case 'p':
-            return <p {...props}>{children}</p>;
+            return <p key={key} {...props}>{children}</p>;
           case 'strong':
-            return <strong {...props}>{children}</strong>;
+            return <strong key={key} {...props}>{children}</strong>;
           case 'em':
-            return <em {...props}>{children}</em>;
+            return <em key={key} {...props}>{children}</em>;
           case 'ul':
-            return <ul {...props}>{children}</ul>;
+            return <ul key={key} {...props}>{children}</ul>;
           case 'ol':
-            return <ol {...props}>{children}</ol>;
+            return <ol key={key} {...props}>{children}</ol>;
           case 'li':
-            return <li {...props}>{children}</li>;
+            return <li key={key} {...props}>{children}</li>;
           default:
-            return <React.Fragment key={props.key}>{children}</React.Fragment>;
+            return <React.Fragment key={key}>{children}</React.Fragment>;
         }
       }
 

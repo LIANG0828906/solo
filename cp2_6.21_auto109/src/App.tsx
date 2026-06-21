@@ -2,319 +2,443 @@ import React, { useEffect } from 'react';
 import Editor from './components/Editor';
 import { useAppStore } from './store';
 import { syncManager } from './syncManager';
-import { HIGHLIGHT_COLORS, Highlight } from './types';
+import { HIGHLIGHT_COLORS } from './types';
 import { Download, Users, FileText, Hash } from 'lucide-react';
-import { PDFDocument, rgb, StandardFonts, Color } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts, PDFPage, PDFFont, Color } from 'pdf-lib';
 
-interface LineInfo {
-  text: string;
-  y: number;
-  x: number;
-  size: number;
-  bold: boolean;
-  charWidths: number[];
+interface CharPosition {
+  xStart: number;
+  xEnd: number;
 }
+
+interface LineOnPage {
+  pageIndex: number;
+  y: number;
+  fontSize: number;
+  chars: CharPosition[];
+  startOffset: number;
+  endOffset: number;
+}
+
+type FontMap = {
+  regular: PDFFont;
+  bold: PDFFont;
+};
+
+const PAGE_W = 595.28;
+const PAGE_H = 841.89;
+const MARGIN = 50;
+const LINE_HEIGHT_RATIO = 1.65;
+const DEFAULT_FSIZE = 11;
 
 async function exportToPDF() {
   const state = useAppStore.getState();
   state.setIsExporting(true);
 
-  setTimeout(async () => {
-    try {
-      const pdfDoc = await PDFDocument.create();
-      const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
-      const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  try {
+    const pdfDoc = await PDFDocument.create();
+    const fontMap: FontMap = {
+      regular: await pdfDoc.embedFont(StandardFonts.Helvetica),
+      bold: await pdfDoc.embedFont(StandardFonts.HelveticaBold),
+    };
 
-      let page = pdfDoc.addPage([595.28, 841.89]);
-      const { width } = page.getSize();
-      const margin = 50;
-      let y = page.getHeight() - margin;
-      const fontSize = 11;
-      const lineHeight = 18;
-      const lines: LineInfo[] = [];
+    const pages: PDFPage[] = [];
 
-      const getFont = (bold: boolean) => (bold ? helveticaBold : helveticaFont);
+    const getFont = (bold: boolean) => (bold ? fontMap.bold : fontMap.regular);
 
-      const addLine = (text: string, yPos: number, xPos: number, size: number, bold: boolean) => {
-        const font = getFont(bold);
-        const charWidths: number[] = [];
-        for (let i = 0; i < text.length; i++) {
-          charWidths.push(font.widthOfTextAtSize(text[i], size));
+    const newPage = (): PDFPage => {
+      const p = pdfDoc.addPage([PAGE_W, PAGE_H]);
+      pages.push(p);
+      return p;
+    };
+
+    const pageY = new WeakMap<PDFPage, number>();
+    const getY = (p: PDFPage) => pageY.get(p) ?? PAGE_H - MARGIN;
+    const setY = (p: PDFPage, y: number) => pageY.set(p, y);
+
+    const firstPage = newPage();
+    setY(firstPage, PAGE_H - MARGIN);
+
+    const linesOnPage: LineOnPage[] = [];
+    let globalOffset = 0;
+
+    const ensureSpace = (page: PDFPage, needHeight: number): { page: PDFPage; y: number } => {
+      let y = getY(page);
+      if (y - needHeight < MARGIN) {
+        const np = newPage();
+        setY(np, PAGE_H - MARGIN);
+        return { page: np, y: PAGE_H - MARGIN };
+      }
+      return { page, y };
+    };
+
+    const wrapAndDrawLine = (
+      text: string,
+      opts: { bold?: boolean; size?: number; noCount?: boolean } = {}
+    ) => {
+      if (text.length === 0) {
+        const cp = pages[pages.length - 1];
+        const lh = (opts.size ?? DEFAULT_FSIZE) * LINE_HEIGHT_RATIO;
+        const halfGap = lh / 2;
+        const before = ensureSpace(cp, halfGap);
+        setY(before.page, before.y - halfGap);
+        return;
+      }
+
+      const fsize = opts.size ?? DEFAULT_FSIZE;
+      const font = getFont(opts.bold ?? false);
+      const contentW = PAGE_W - MARGIN * 2;
+      const lh = fsize * LINE_HEIGHT_RATIO;
+
+      const segments: string[] = [];
+      let seg = '';
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (ch === ' ' || ch === '　' || /[，。、！？；：,.!?;:]/.test(ch)) {
+          seg += ch;
+          segments.push(seg);
+          seg = '';
+        } else {
+          seg += ch;
         }
-        lines.push({ text, y: yPos, x: xPos, size, bold, charWidths });
+      }
+      if (seg) segments.push(seg);
+
+      let currentPage = pages[pages.length - 1];
+      let y = getY(currentPage);
+      if (y - lh < MARGIN) {
+        currentPage = newPage();
+        y = PAGE_H - MARGIN;
+      }
+
+      let lineText = '';
+      let lineXPositions: CharPosition[] = [];
+      let xCursor = MARGIN;
+      const lineStartOffset = opts.noCount ? -1 : globalOffset;
+      let lineCharsCounted = 0;
+
+      const flushVisualLine = () => {
+        if (!lineText) return;
+        currentPage.drawText(lineText, {
+          x: MARGIN,
+          y,
+          size: fsize,
+          font,
+          color: rgb(0, 0, 0),
+        });
+
+        if (!opts.noCount) {
+          linesOnPage.push({
+            pageIndex: pages.indexOf(currentPage),
+            y,
+            fontSize: fsize,
+            chars: lineXPositions,
+            startOffset: lineStartOffset + lineCharsCounted - lineText.length,
+            endOffset: lineStartOffset + lineCharsCounted,
+          });
+        }
+
+        y -= lh;
+        lineText = '';
+        lineXPositions = [];
+        xCursor = MARGIN;
+
+        if (y - lh < MARGIN) {
+          currentPage = newPage();
+          y = PAGE_H - MARGIN;
+        }
       };
 
-      const drawText = (
-        text: string,
-        opts: { bold?: boolean; size?: number; color?: Color; noAdd?: boolean } = {}
-      ): number => {
-        const fsize = opts.size ?? fontSize;
-        const font = getFont(opts.bold ?? false);
-        const color = opts.color ?? rgb(0, 0, 0);
-        const maxWidth = width - margin * 2;
-        let currentY = y;
-        let line = '';
-        let lineStartX = margin;
+      for (let k = 0; k < segments.length; k++) {
+        const part = segments[k];
+        const partW = font.widthOfTextAtSize(part, fsize);
 
-        const flushLine = () => {
-          if (line) {
-            if (currentY - fsize < margin) {
-              page = pdfDoc.addPage([595.28, 841.89]);
-              currentY = page.getHeight() - margin;
-            }
-            page.drawText(line, { x: lineStartX, y: currentY, size: fsize, font, color });
-            if (!opts.noAdd) {
-              addLine(line, currentY, lineStartX, fsize, opts.bold ?? false);
-            }
-            currentY -= lineHeight;
-            line = '';
+        if (xCursor + partW > MARGIN + contentW && lineText) {
+          flushVisualLine();
+        }
+
+        for (let ci = 0; ci < part.length; ci++) {
+          const ch = part[ci];
+          const cw = font.widthOfTextAtSize(ch, fsize);
+          lineXPositions.push({ xStart: xCursor, xEnd: xCursor + cw });
+          xCursor += cw;
+          lineText += ch;
+          if (!opts.noCount) {
+            globalOffset++;
+            lineCharsCounted++;
           }
+        }
+      }
+      flushVisualLine();
+
+      setY(currentPage, y);
+    };
+
+    const sectionGap = (gap: number) => {
+      const cp = pages[pages.length - 1];
+      const before = ensureSpace(cp, gap);
+      setY(before.page, before.y - gap);
+    };
+
+    const renderParagraph = (raw: string) => {
+      const line = raw.trimEnd();
+      if (line.startsWith('# ')) {
+        sectionGap(DEFAULT_FSIZE * LINE_HEIGHT_RATIO);
+        wrapAndDrawLine(line.slice(2), { bold: true, size: 20 });
+        sectionGap(8);
+      } else if (line.startsWith('## ')) {
+        sectionGap(DEFAULT_FSIZE * LINE_HEIGHT_RATIO * 0.6);
+        wrapAndDrawLine(line.slice(3), { bold: true, size: 16 });
+        sectionGap(6);
+      } else if (line.startsWith('### ')) {
+        sectionGap(DEFAULT_FSIZE * LINE_HEIGHT_RATIO * 0.4);
+        wrapAndDrawLine(line.slice(4), { bold: true, size: 13 });
+        sectionGap(4);
+      } else if (line === '') {
+        wrapAndDrawLine('');
+      } else if (/^[-*] /.test(line)) {
+        wrapAndDrawLine('• ' + line.replace(/^[-*] /, ''));
+      } else {
+        wrapAndDrawLine(line);
+      }
+    };
+
+    const sourceLines = state.documentContent.split('\n');
+    for (const line of sourceLines) {
+      renderParagraph(line);
+    }
+
+    const hlColorMap = (hex: string): Color => {
+      const r = parseInt(hex.slice(1, 3), 16) / 255;
+      const g = parseInt(hex.slice(3, 5), 16) / 255;
+      const b = parseInt(hex.slice(5, 7), 16) / 255;
+      return rgb(r, g, b);
+    };
+
+    const sortedHighlights = [...state.highlights].sort(
+      (a, b) => a.range.startOffset - b.range.startOffset
+    );
+
+    const highlightPageMap = new Map<string, number>();
+
+    for (const hl of sortedHighlights) {
+      const color = hlColorMap(HIGHLIGHT_COLORS[hl.color]);
+
+      let firstPageForHighlight: number | null = null;
+
+      for (const lr of linesOnPage) {
+        if (hl.range.endOffset <= lr.startOffset) break;
+        if (hl.range.startOffset >= lr.endOffset) continue;
+
+        if (lr.pageIndex >= pages.length) continue;
+
+        const localStart = Math.max(0, hl.range.startOffset - lr.startOffset);
+        const localEnd = Math.min(lr.chars.length, hl.range.endOffset - lr.startOffset);
+        if (localEnd <= localStart) continue;
+
+        const startCh = lr.chars[localStart];
+        const endCh = lr.chars[localEnd - 1];
+        if (!startCh || !endCh) continue;
+
+        const page = pages[lr.pageIndex];
+        if (firstPageForHighlight === null) {
+          firstPageForHighlight = lr.pageIndex;
+        }
+
+        const rectX = startCh.xStart;
+        const rectY = lr.y - 2;
+        const rectW = Math.max(endCh.xEnd - startCh.xStart, 0.5);
+        const rectH = lr.fontSize + 4;
+
+        page.drawRectangle({
+          x: rectX,
+          y: rectY,
+          width: rectW,
+          height: rectH,
+          color,
+          opacity: 0.3,
+          borderWidth: 0,
+        });
+      }
+
+      if (firstPageForHighlight !== null) {
+        highlightPageMap.set(hl.id, firstPageForHighlight);
+      }
+    }
+
+    const commentsByHl = new Map<string, typeof state.comments>();
+    for (const c of state.comments) {
+      if (!commentsByHl.has(c.highlightId)) commentsByHl.set(c.highlightId, []);
+      commentsByHl.get(c.highlightId)!.push(c);
+    }
+
+    const footnoteHls = sortedHighlights.filter((hl) => (commentsByHl.get(hl.id) ?? []).length > 0);
+
+    if (footnoteHls.length > 0) {
+      let cp = pages[pages.length - 1];
+      let cy = getY(cp);
+      if (cy - 100 < MARGIN) {
+        cp = newPage();
+        cy = PAGE_H - MARGIN;
+      }
+
+      cy -= 16;
+      cp.drawLine({
+        start: { x: MARGIN, y: cy },
+        end: { x: PAGE_W - MARGIN, y: cy },
+        thickness: 0.5,
+        color: rgb(0.7, 0.7, 0.7),
+      });
+      cy -= 16;
+
+      cp.drawText('批注注释', {
+        x: MARGIN,
+        y: cy,
+        size: 12,
+        font: fontMap.bold,
+        color: rgb(0, 0, 0),
+      });
+      cy -= 12 * LINE_HEIGHT_RATIO + 6;
+      setY(cp, cy);
+
+      const drawWrappedAt = (
+        text: string,
+        startX: number,
+        startY: number,
+        maxW: number,
+        f: PDFFont,
+        fsize: number,
+        col: Color
+      ): number => {
+        const lh = fsize * LINE_HEIGHT_RATIO;
+        let y = startY;
+        let line = '';
+        let curPage = pages[pages.length - 1];
+
+        const flush = () => {
+          if (!line) return;
+          if (y - lh < MARGIN) {
+            curPage = newPage();
+            y = PAGE_H - MARGIN;
+            setY(curPage, y);
+          }
+          curPage.drawText(line, { x: startX, y, size: fsize, font: f, color: col });
+          y -= lh;
+          line = '';
         };
 
         for (let i = 0; i < text.length; i++) {
           const ch = text[i];
-          const testLine = line + ch;
-          if (font.widthOfTextAtSize(testLine, fsize) > maxWidth && line) {
-            flushLine();
-          }
+          if (f.widthOfTextAtSize(line + ch, fsize) > maxW && line) flush();
           line += ch;
         }
-        flushLine();
-
-        y = currentY;
+        flush();
+        setY(curPage, y);
         return y;
       };
 
-      const drawNewPageIfNeeded = (need: number) => {
-        if (y - need < margin) {
-          page = pdfDoc.addPage([595.28, 841.89]);
-          y = page.getHeight() - margin;
+      let idx = 1;
+      for (const hl of footnoteHls) {
+        cp = pages[pages.length - 1];
+        cy = getY(cp);
+        if (cy - 60 < MARGIN) {
+          cp = newPage();
+          cy = PAGE_H - MARGIN;
+          setY(cp, cy);
         }
-      };
 
-      const textLines = state.documentContent.split('\n');
-      for (const rawLine of textLines) {
-        const line = rawLine.trimEnd();
-        if (line.startsWith('# ')) {
-          drawNewPageIfNeeded(40);
-          y = drawText(line.slice(2), { bold: true, size: 20 });
-          y -= 8;
-        } else if (line.startsWith('## ')) {
-          drawNewPageIfNeeded(32);
-          y = drawText(line.slice(3), { bold: true, size: 16 });
-          y -= 6;
-        } else if (line.startsWith('### ')) {
-          drawNewPageIfNeeded(26);
-          y = drawText(line.slice(4), { bold: true, size: 13 });
-          y -= 4;
-        } else if (line === '') {
-          y -= lineHeight / 2;
-        } else if (/^[-*] /.test(line)) {
-          drawNewPageIfNeeded(lineHeight);
-          y = drawText('• ' + line.replace(/^[-*] /, ''));
-        } else if (/^\d+\. /.test(line)) {
-          drawNewPageIfNeeded(lineHeight);
-          y = drawText(line);
-        } else {
-          drawNewPageIfNeeded(lineHeight);
-          y = drawText(line);
-        }
-      }
+        const pageIdx = highlightPageMap.get(hl.id);
+        const pageTag = pageIdx !== undefined ? ` (第${pageIdx + 1}页)` : '';
+        const color = hlColorMap(HIGHLIGHT_COLORS[hl.color]);
 
-      let docTextOffset = 0;
-      const lineOffsets: { line: LineInfo; startOffset: number; endOffset: number }[] = [];
-      for (const line of lines) {
-        lineOffsets.push({
-          line,
-          startOffset: docTextOffset,
-          endOffset: docTextOffset + line.text.length,
+        const headPrefix = `${idx}${pageTag}. `;
+        const headPrefixW = fontMap.bold.widthOfTextAtSize(headPrefix, 10);
+        cp.drawText(headPrefix, {
+          x: MARGIN,
+          y: cy,
+          size: 10,
+          font: fontMap.bold,
+          color,
         });
-        docTextOffset += line.text.length + 1;
-      }
 
-      const sortedHighlights = [...state.highlights].sort(
-        (a, b) => a.range.startOffset - b.range.startOffset
-      );
+        const snippetMax = 48;
+        const snippet =
+          hl.range.text.length > snippetMax
+            ? hl.range.text.slice(0, snippetMax) + '...'
+            : hl.range.text;
 
-      for (const hl of sortedHighlights) {
-        const colorHex = HIGHLIGHT_COLORS[hl.color];
-        const r = parseInt(colorHex.slice(1, 3), 16) / 255;
-        const g = parseInt(colorHex.slice(3, 5), 16) / 255;
-        const b = parseInt(colorHex.slice(5, 7), 16) / 255;
+        const snippetW = (PAGE_W - MARGIN * 2) - headPrefixW;
+        const afterSnippetY = drawWrappedAt(
+          snippet,
+          MARGIN + headPrefixW,
+          cy,
+          snippetW,
+          fontMap.regular,
+          10,
+          rgb(0.45, 0.45, 0.45)
+        );
 
-        for (const lo of lineOffsets) {
-          if (hl.range.endOffset <= lo.startOffset) break;
-          if (hl.range.startOffset >= lo.endOffset) continue;
+        cy = afterSnippetY - 6;
+        setY(cp, cy);
 
-          const localStart = Math.max(0, hl.range.startOffset - lo.startOffset);
-          const localEnd = Math.min(lo.line.text.length, hl.range.endOffset - lo.startOffset);
-
-          let startX = lo.line.x;
-          for (let i = 0; i < localStart && i < lo.line.charWidths.length; i++) {
-            startX += lo.line.charWidths[i];
+        const hlComments = commentsByHl.get(hl.id) ?? [];
+        for (const c of hlComments) {
+          cp = pages[pages.length - 1];
+          cy = getY(cp);
+          if (cy - 30 < MARGIN) {
+            cp = newPage();
+            cy = PAGE_H - MARGIN;
+            setY(cp, cy);
           }
 
-          let endX = startX;
-          for (let i = localStart; i < localEnd && i < lo.line.charWidths.length; i++) {
-            endX += lo.line.charWidths[i];
-          }
-
-          const rectY = lo.line.y - 2;
-          const rectHeight = lo.line.size + 4;
-
-          page.drawRectangle({
-            x: startX,
-            y: rectY,
-            width: Math.max(endX - startX, 1),
-            height: rectHeight,
-            color: rgb(r, g, b),
-            opacity: 0.3,
-            borderWidth: 0,
-          });
-        }
-      }
-
-      const commentsByHighlight = new Map<string, typeof state.comments>();
-      for (const c of state.comments) {
-        if (!commentsByHighlight.has(c.highlightId)) {
-          commentsByHighlight.set(c.highlightId, []);
-        }
-        commentsByHighlight.get(c.highlightId)!.push(c);
-      }
-
-      const hasFootnotes = state.highlights.length > 0 && state.comments.length > 0;
-      if (hasFootnotes) {
-        if (y - 40 < margin) {
-          page = pdfDoc.addPage([595.28, 841.89]);
-          y = page.getHeight() - margin;
-        }
-
-        y -= 20;
-        page.drawLine({
-          start: { x: margin, y },
-          end: { x: width - margin, y },
-          thickness: 0.5,
-          color: rgb(0.7, 0.7, 0.7),
-        });
-        y -= 12;
-
-        drawText('批注注释', { bold: true, size: 12, noAdd: true });
-        y -= 4;
-
-        let footnoteIdx = 1;
-        for (const hl of state.highlights) {
-          const hlComments = commentsByHighlight.get(hl.id) ?? [];
-          if (hlComments.length === 0) continue;
-
-          const colorHex = HIGHLIGHT_COLORS[hl.color];
-          const r = parseInt(colorHex.slice(1, 3), 16) / 255;
-          const g = parseInt(colorHex.slice(3, 5), 16) / 255;
-          const b = parseInt(colorHex.slice(5, 7), 16) / 255;
-
-          if (y - 60 < margin) {
-            page = pdfDoc.addPage([595.28, 841.89]);
-            y = page.getHeight() - margin;
-          }
-
-          const marker = `${footnoteIdx}. `;
-          const markerWidth = helveticaBold.widthOfTextAtSize(marker, 10);
-
-          page.drawText(marker, {
-            x: margin,
-            y,
-            size: 10,
-            font: helveticaBold,
-            color: rgb(r, g, b),
+          const u = state.users.find((x) => x.id === c.userId) ?? state.currentUser;
+          const userTag = `  ${u.nickname}: `;
+          const tagW = fontMap.bold.widthOfTextAtSize(userTag, 9);
+          cp.drawText(userTag, {
+            x: MARGIN,
+            y: cy,
+            size: 9,
+            font: fontMap.bold,
+            color: rgb(0.3, 0.3, 0.3),
           });
 
-          const snippetMaxLen = 40;
-          const snippet =
-            hl.range.text.length > snippetMaxLen
-              ? hl.range.text.substring(0, snippetMaxLen) + '...'
-              : hl.range.text;
+          const commentMaxW = (PAGE_W - MARGIN * 2) - tagW;
+          const afterCommentY = drawWrappedAt(
+            c.content,
+            MARGIN + tagW,
+            cy,
+            commentMaxW,
+            fontMap.regular,
+            9,
+            rgb(0.25, 0.25, 0.25)
+          );
 
-          page.drawText(snippet, {
-            x: margin + markerWidth,
-            y,
-            size: 10,
-            font: helveticaFont,
-            color: rgb(0.4, 0.4, 0.4),
-          });
-          y -= 14;
-
-          for (const c of hlComments) {
-            if (y - 28 < margin) {
-              page = pdfDoc.addPage([595.28, 841.89]);
-              y = page.getHeight() - margin;
-            }
-
-            const user = state.users.find((u) => u.id === c.userId) ?? state.currentUser;
-            const prefix = `  ${user.nickname}: `;
-            page.drawText(prefix, {
-              x: margin,
-              y,
-              size: 9,
-              font: helveticaBold,
-              color: rgb(0.3, 0.3, 0.3),
-            });
-
-            const prefixWidth = helveticaBold.widthOfTextAtSize(prefix, 9);
-            const maxCommentWidth = width - margin * 2 - prefixWidth;
-            let commentLine = '';
-            let commentY = y;
-
-            const wrapAndDrawComment = () => {
-              if (commentLine) {
-                if (commentY - 9 < margin) {
-                  page = pdfDoc.addPage([595.28, 841.89]);
-                  commentY = page.getHeight() - margin;
-                }
-                page.drawText(commentLine, {
-                  x: margin + prefixWidth,
-                  y: commentY,
-                  size: 9,
-                  font: helveticaFont,
-                  color: rgb(0.3, 0.3, 0.3),
-                });
-                commentY -= 13;
-                commentLine = '';
-              }
-            };
-
-            for (let i = 0; i < c.content.length; i++) {
-              const ch = c.content[i];
-              const testLine = commentLine + ch;
-              if (helveticaFont.widthOfTextAtSize(testLine, 9) > maxCommentWidth && commentLine) {
-                wrapAndDrawComment();
-              }
-              commentLine += ch;
-            }
-            wrapAndDrawComment();
-            y = commentY;
-            y -= 4;
-          }
-          y -= 6;
-          footnoteIdx++;
+          cy = afterCommentY - 6;
+          setY(cp, cy);
         }
-      }
 
-      const pdfBytes = await pdfDoc.save();
-      const blob = new Blob([pdfBytes], { type: 'application/pdf' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `标注文档_${new Date().toISOString().slice(0, 10)}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      console.error('PDF导出失败', err);
-      alert('PDF导出失败，请重试');
-    } finally {
-      useAppStore.getState().setIsExporting(false);
+        cy -= 6;
+        setY(cp, cy);
+        idx++;
+      }
     }
-  }, 600);
+
+    const bytes = await pdfDoc.save();
+    const blob = new Blob([bytes], { type: 'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `标注文档_${new Date().toISOString().slice(0, 10)}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch (err) {
+    console.error('PDF导出失败', err);
+    alert('PDF导出失败，请重试');
+  } finally {
+    useAppStore.getState().setIsExporting(false);
+  }
 }
 
 const App: React.FC = () => {
