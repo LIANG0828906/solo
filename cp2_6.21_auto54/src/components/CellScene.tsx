@@ -39,13 +39,26 @@ function CellMembrane({ clippingPlanes }: { clippingPlanes: THREE.Plane[] }) {
   })
 
   const opacity = viewMode === 'section' ? 0.02 : 0.3
-  const scale = isHovered || isSelected ? 1.02 : 1
+  const baseScale = isHovered || isSelected ? 1.02 : 1
 
   return (
     <group>
+      {isSelected && (
+        <mesh scale={baseScale * 1.08}>
+          <sphereGeometry args={[2.0, 48, 48]} />
+          <meshBasicMaterial
+            color="#ffffff"
+            transparent
+            opacity={0.12}
+            side={THREE.BackSide}
+            depthWrite={false}
+            clippingPlanes={clippingPlanes}
+          />
+        </mesh>
+      )}
       <mesh
         ref={meshRef}
-        scale={scale}
+        scale={baseScale}
         onClick={(e) => {
           e.stopPropagation()
           selectOrganelle('cellMembrane')
@@ -119,6 +132,19 @@ function Nucleus({ clippingPlanes }: { clippingPlanes: THREE.Plane[] }) {
 
   return (
     <group ref={groupRef}>
+      {isSelected && (
+        <mesh scale={1.25}>
+          <sphereGeometry args={[0.6, 48, 48]} />
+          <meshBasicMaterial
+            color="#ffffff"
+            transparent
+            opacity={0.22}
+            side={THREE.BackSide}
+            depthWrite={false}
+            clippingPlanes={clippingPlanes}
+          />
+        </mesh>
+      )}
       <mesh
         ref={meshRef}
         scale={scale}
@@ -196,6 +222,22 @@ function Mitochondria({
 
   return (
     <group>
+      {isSelected && (
+        <mesh
+          position={position}
+          scale={[objScale[0] * 1.35, objScale[1] * 1.35, objScale[2] * 1.35]}
+        >
+          <sphereGeometry args={[1, 20, 20]} />
+          <meshBasicMaterial
+            color="#ffffff"
+            transparent
+            opacity={0.25}
+            side={THREE.BackSide}
+            depthWrite={false}
+            clippingPlanes={clippingPlanes}
+          />
+        </mesh>
+      )}
       <mesh
         ref={meshRef}
         position={position}
@@ -290,6 +332,20 @@ function EndoplasmicReticulum({ clippingPlanes }: { clippingPlanes: THREE.Plane[
         document.body.style.cursor = 'default'
       }}
     >
+      {isSelected &&
+        rings.map(({ radius, tubeRadius, yOffset, rotX, key }) => (
+          <mesh key={`hl-${key}`} position={[0, yOffset, 0]} rotation={[rotX, 0, 0]}>
+            <torusGeometry args={[radius + tubeRadius * 2.5, tubeRadius * 1.4, 10, 48]} />
+            <meshBasicMaterial
+              color="#ffffff"
+              transparent
+              opacity={0.2}
+              side={THREE.BackSide}
+              depthWrite={false}
+              clippingPlanes={clippingPlanes}
+            />
+          </mesh>
+        ))}
       {rings.map(({ radius, tubeRadius, yOffset, rotX, key }) => (
         <group key={key}>
           <mesh position={[0, yOffset, 0]} rotation={[rotX, 0, 0]}>
@@ -365,6 +421,20 @@ function GolgiApparatus({ clippingPlanes }: { clippingPlanes: THREE.Plane[] }) {
         document.body.style.cursor = 'default'
       }}
     >
+      {isSelected &&
+        discs.map(({ y, radius, key }) => (
+          <mesh key={`hl-${key}`} position={[0, y, 0]}>
+            <cylinderGeometry args={[radius * 1.3, radius * 1.3, 0.07, 32]} />
+            <meshBasicMaterial
+              color="#ffffff"
+              transparent
+              opacity={0.22}
+              side={THREE.BackSide}
+              depthWrite={false}
+              clippingPlanes={clippingPlanes}
+            />
+          </mesh>
+        ))}
       {discs.map(({ y, radius, key }) => (
         <group key={key} position={[0, y, 0]}>
           <mesh>
@@ -403,6 +473,7 @@ function Lysosome({
 }) {
   const meshRef = useRef<THREE.Mesh>(null!)
   const haloRef = useRef<THREE.Mesh>(null!)
+  const highlightRef = useRef<THREE.Mesh>(null!)
   const { hoveredOrganelle, selectedOrganelle, hoverOrganelle, selectOrganelle } = useAppStore()
   const id = `lysosome-${position.join(',')}`
   const isHovered = hoveredOrganelle === id
@@ -416,11 +487,18 @@ function Lysosome({
       meshRef.current.rotation.y += 0.003
       haloRef.current.rotation.x += 0.005
       haloRef.current.rotation.y += 0.003
+      if (highlightRef.current) {
+        highlightRef.current.rotation.x += 0.005
+        highlightRef.current.rotation.y += 0.003
+      }
       const y = position[1] + breathingOffset(t, seed, 0.04, 0.03)
       const x = position[0] + breathingOffset(t, seed + 5.5, 0.025, 0.02)
       const z = position[2] + breathingOffset(t, seed + 7.7, 0.02, 0.018)
       meshRef.current.position.set(x, y, z)
       haloRef.current.position.set(x, y, z)
+      if (highlightRef.current) {
+        highlightRef.current.position.set(x, y, z)
+      }
     }
   })
 
@@ -428,6 +506,19 @@ function Lysosome({
 
   return (
     <group>
+      {isSelected && (
+        <mesh ref={highlightRef} position={position} scale={scale * 1.5}>
+          <sphereGeometry args={[0.15, 14, 14]} />
+          <meshBasicMaterial
+            color="#ffffff"
+            transparent
+            opacity={0.3}
+            side={THREE.BackSide}
+            depthWrite={false}
+            clippingPlanes={clippingPlanes}
+          />
+        </mesh>
+      )}
       <mesh
         ref={meshRef}
         position={position}
@@ -613,6 +704,30 @@ function Scene({ controlsRef }: { controlsRef: React.MutableRefObject<any> }) {
       <directionalLight position={[5, 5, 5]} intensity={0.8} />
       <directionalLight position={[-3, -3, -3]} intensity={0.3} />
       <pointLight position={[0, 0, 0]} intensity={0.5} color="#e74c3c" />
+
+      <mesh>
+        <sphereGeometry args={[2.75, 48, 36]} />
+        <meshBasicMaterial
+          color="#4a90d9"
+          transparent
+          opacity={0.05}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+          clippingPlanes={clippingPlanes}
+        />
+      </mesh>
+      <mesh>
+        <sphereGeometry args={[2.75, 48, 36]} />
+        <meshBasicMaterial
+          color="#4a90d9"
+          transparent
+          opacity={0.08}
+          wireframe
+          side={THREE.DoubleSide}
+          depthWrite={false}
+          clippingPlanes={clippingPlanes}
+        />
+      </mesh>
 
       <CellMembrane clippingPlanes={clippingPlanes} />
       <Nucleus clippingPlanes={clippingPlanes} />
