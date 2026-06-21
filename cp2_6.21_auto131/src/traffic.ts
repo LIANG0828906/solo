@@ -5,6 +5,8 @@ const CAR_COLORS = [0xff4444, 0x4488ff, 0x44cc44, 0xffdd44, 0xffffff];
 const DOWNGRADE_THRESHOLD = 60;
 const DEFAULT_TRAIL_POINTS = 20;
 const DOWNGRADE_TRAIL_POINTS = 10;
+const FPS_TARGET = 30;
+const UPGRADE_HYSTERESIS = 5;
 
 class LightTrail {
   private line: THREE.Line;
@@ -17,7 +19,6 @@ class LightTrail {
   constructor(maxPoints: number, color: THREE.Color) {
     this.maxPoints = maxPoints;
     this.color = color.clone();
-
     this.positions = new Float32Array(maxPoints * 3);
     this.colors = new Float32Array(maxPoints * 3);
 
@@ -32,10 +33,10 @@ class LightTrail {
       opacity: 1,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
-      linewidth: 2,
     });
 
     this.line = new THREE.Line(geometry, material);
+    this.line.frustumCulled = false;
   }
 
   getMesh(): THREE.Line {
@@ -55,7 +56,7 @@ class LightTrail {
 
     this.currentCount = Math.min(this.currentCount + 1, this.maxPoints);
     this.updateColors();
-    
+
     const geometry = this.line.geometry as THREE.BufferGeometry;
     (geometry.attributes.position as THREE.BufferAttribute).needsUpdate = true;
     (geometry.attributes.color as THREE.BufferAttribute).needsUpdate = true;
@@ -73,7 +74,7 @@ class LightTrail {
 
   setMaxPoints(points: number): void {
     if (points === this.maxPoints) return;
-    
+
     this.maxPoints = points;
     this.positions = new Float32Array(points * 3);
     this.colors = new Float32Array(points * 3);
@@ -85,6 +86,10 @@ class LightTrail {
     geometry.setDrawRange(0, 0);
     this.line.geometry.dispose();
     this.line.geometry = geometry;
+  }
+
+  getMaxPoints(): number {
+    return this.maxPoints;
   }
 
   setColor(color: THREE.Color): void {
@@ -121,6 +126,8 @@ class Car {
   private carHeight: number = 0.8;
   private headlightMesh: THREE.Mesh;
   private taillightMesh: THREE.Mesh;
+  private _headlightWorldPos = new THREE.Vector3();
+  private _taillightWorldPos = new THREE.Vector3();
 
   constructor(
     lane: number,
@@ -181,10 +188,10 @@ class Car {
 
     const laneWidth = sceneConfig.streetWidth / sceneConfig.laneCount;
     const xPos = -sceneConfig.streetWidth / 2 + (lane + 0.5) * laneWidth;
-    const zStart = direction === 1 
-      ? -streetLength / 2 - Math.random() * streetLength 
+    const zStart = direction === 1
+      ? -streetLength / 2 - Math.random() * streetLength
       : streetLength / 2 + Math.random() * streetLength;
-    
+
     this.mesh.position.set(xPos, 0, zStart);
     this.mesh.rotation.y = direction === 1 ? 0 : Math.PI;
   }
@@ -205,17 +212,15 @@ class Car {
     }
 
     this.trailCounter++;
-    if (this.trailCounter >= 1) {
+    const skipFrames = speedMultiplier < 1.0 ? 2 : 1;
+    if (this.trailCounter >= skipFrames) {
       this.trailCounter = 0;
-      
-      const headlightWorldPos = new THREE.Vector3();
-      this.headlight.getWorldPosition(headlightWorldPos);
-      
-      const taillightWorldPos = new THREE.Vector3();
-      this.taillight.getWorldPosition(taillightWorldPos);
-      
-      this.headlightTrail.addPoint(headlightWorldPos);
-      this.taillightTrail.addPoint(taillightWorldPos);
+
+      this.headlight.getWorldPosition(this._headlightWorldPos);
+      this.taillight.getWorldPosition(this._taillightWorldPos);
+
+      this.headlightTrail.addPoint(this._headlightWorldPos);
+      this.taillightTrail.addPoint(this._taillightWorldPos);
     }
   }
 
@@ -231,6 +236,10 @@ class Car {
     this.trailPoints = points;
     this.headlightTrail.setMaxPoints(points);
     this.taillightTrail.setMaxPoints(points);
+  }
+
+  getTrailPoints(): number {
+    return this.headlightTrail.getMaxPoints();
   }
 
   dispose(): void {
@@ -259,6 +268,9 @@ export class TrafficSystem {
   private streetLength: number;
   private trailPoints: number = DEFAULT_TRAIL_POINTS;
   private trailGroup: THREE.Group;
+  private currentFps: number = 60;
+  private lowFpsFrames: number = 0;
+  private highFpsFrames: number = 0;
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
@@ -271,6 +283,7 @@ export class TrafficSystem {
     if (this.isRunning) return;
     this.isRunning = true;
     this.createCars();
+    this.updateTrailQualityByDensity();
   }
 
   stop(): void {
@@ -281,7 +294,7 @@ export class TrafficSystem {
     if (density === this.density) return;
     this.density = density;
     this.recreateCars();
-    this.updateTrailQuality();
+    this.updateTrailQualityByDensity();
   }
 
   setSpeed(speed: number): void {
@@ -296,22 +309,83 @@ export class TrafficSystem {
     }
   }
 
+  reportFps(fps: number): void {
+    this.currentFps = fps;
+  }
+
   update(delta: number): void {
     if (!this.isRunning) return;
+
     for (const car of this.cars) {
       car.update(delta, this.speed);
+    }
+
+    this.adaptiveQualityAdjustment();
+  }
+
+  private adaptiveQualityAdjustment(): void {
+    const desiredPoints = this.computeDesiredTrailPoints();
+
+    if (desiredPoints !== this.trailPoints) {
+      if (desiredPoints < this.trailPoints) {
+        this.lowFpsFrames++;
+        if (this.lowFpsFrames >= 10) {
+          this.trailPoints = desiredPoints;
+          this.applyTrailPointsToAllCars(this.trailPoints);
+          this.lowFpsFrames = 0;
+          this.highFpsFrames = 0;
+        }
+      } else {
+        this.highFpsFrames++;
+        if (this.highFpsFrames >= 60) {
+          this.trailPoints = desiredPoints;
+          this.applyTrailPointsToAllCars(this.trailPoints);
+          this.lowFpsFrames = 0;
+          this.highFpsFrames = 0;
+        }
+      }
+    } else {
+      this.lowFpsFrames = 0;
+      this.highFpsFrames = 0;
+    }
+  }
+
+  private computeDesiredTrailPoints(): number {
+    if (this.density > DOWNGRADE_THRESHOLD) {
+      return DOWNGRADE_TRAIL_POINTS;
+    }
+    if (this.currentFps < FPS_TARGET) {
+      return DOWNGRADE_TRAIL_POINTS;
+    }
+    if (this.currentFps >= FPS_TARGET + UPGRADE_HYSTERESIS) {
+      return DEFAULT_TRAIL_POINTS;
+    }
+    return this.trailPoints;
+  }
+
+  private updateTrailQualityByDensity(): void {
+    const newPoints = this.density > DOWNGRADE_THRESHOLD ? DOWNGRADE_TRAIL_POINTS : DEFAULT_TRAIL_POINTS;
+    if (newPoints !== this.trailPoints) {
+      this.trailPoints = newPoints;
+      this.applyTrailPointsToAllCars(newPoints);
+    }
+  }
+
+  private applyTrailPointsToAllCars(points: number): void {
+    for (const car of this.cars) {
+      car.setTrailPoints(points);
     }
   }
 
   private createCars(): void {
     const lanesPerDirection = sceneConfig.laneCount / 2;
-    
+
     for (let i = 0; i < this.density; i++) {
       const direction: 1 | -1 = i % 2 === 0 ? 1 : -1;
       const laneGroup = direction === 1 ? 0 : 1;
       const lane = laneGroup * lanesPerDirection + (i % Math.floor(lanesPerDirection));
       const baseSpeed = 0.7 + Math.random() * 0.6;
-      
+
       const car = new Car(
         lane,
         direction,
@@ -320,7 +394,7 @@ export class TrafficSystem {
         this.trailPoints,
         this.streetLength
       );
-      
+
       this.cars.push(car);
       this.scene.add(car.mesh);
       this.trailGroup.add(car.headlightTrail.getMesh());
@@ -339,18 +413,12 @@ export class TrafficSystem {
     this.createCars();
   }
 
-  private updateTrailQuality(): void {
-    const newPoints = this.density > DOWNGRADE_THRESHOLD ? DOWNGRADE_TRAIL_POINTS : DEFAULT_TRAIL_POINTS;
-    if (newPoints !== this.trailPoints) {
-      this.trailPoints = newPoints;
-      for (const car of this.cars) {
-        car.setTrailPoints(newPoints);
-      }
-    }
-  }
-
   getCarCount(): number {
     return this.cars.length;
+  }
+
+  getCurrentTrailPoints(): number {
+    return this.trailPoints;
   }
 
   dispose(): void {

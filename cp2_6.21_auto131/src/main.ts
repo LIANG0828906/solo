@@ -136,6 +136,7 @@ class App {
 
     const timestamp = performance.now();
     this.uiManager.updateFPS(timestamp);
+    this.trafficSystem.reportFps(this.uiManager.getCurrentFps());
   }
 
   dispose(): void {

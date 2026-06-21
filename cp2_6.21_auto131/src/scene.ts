@@ -23,7 +23,8 @@ export function createScene(): SceneModule {
   function update(time: number): void {
     const pulseFreq = (Math.PI * 2) / WINDOW_PULSE_PERIOD;
     for (const light of windowLights) {
-      const pulse = 0.6 + 0.4 * Math.sin(time * pulseFreq + light.phase);
+      const normSin = 0.5 + 0.5 * Math.sin(time * pulseFreq + light.phase);
+      const pulse = 0.6 + 0.4 * normSin;
       const material = light.mesh.material as THREE.MeshBasicMaterial;
       material.opacity = pulse;
     }

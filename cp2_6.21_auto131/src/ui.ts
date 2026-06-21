@@ -23,6 +23,7 @@ export class UIManager {
   private frameCount: number = 0;
   private lastFpsUpdate: number = 0;
   private isFirstUpdate: boolean = true;
+  private currentFps: number = 60;
 
   constructor(callbacks: UICallbacks) {
     this.callbacks = callbacks;
@@ -90,18 +91,19 @@ export class UIManager {
 
   updateFPS(timestamp: number): void {
     this.frameCount++;
-    
+
     if (this.isFirstUpdate) {
       this.isFirstUpdate = false;
       this.lastFpsUpdate = timestamp;
       return;
     }
-    
+
     if (timestamp - this.lastFpsUpdate >= 1000) {
       const fps = Math.round(this.frameCount * 1000 / (timestamp - this.lastFpsUpdate));
-      this.fpsValue.textContent = fps.toString();
-      
-      if (fps < 15) {
+      const clampedFps = Math.max(1, Math.min(240, fps));
+      this.fpsValue.textContent = clampedFps.toString();
+
+      if (clampedFps < 15) {
         this.fpsDisplay.classList.add('low');
       } else {
         this.fpsDisplay.classList.remove('low');
@@ -109,7 +111,12 @@ export class UIManager {
 
       this.frameCount = 0;
       this.lastFpsUpdate = timestamp;
+      this.currentFps = clampedFps;
     }
+  }
+
+  getCurrentFps(): number {
+    return this.currentFps;
   }
 
   getIsPaused(): boolean {
