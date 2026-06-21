@@ -71,32 +71,98 @@
   align-items: center;
   gap: 6px;
   padding: 8px;
-  border: none;
+  border: 2px solid transparent;
   background: transparent;
   cursor: pointer;
-  transition: transform 200ms ease-out;
+  transition: all 200ms ease-out;
   position: relative;
+  border-radius: 12px;
 }
 
 .color-card:hover {
   transform: scale(1.1);
+  background: rgba(255, 255, 255, 0.6);
 }
 
 .color-card:active {
   transform: scale(0.95);
 }
 
-.color-card.selected .color-circle {
-  box-shadow: 0 0 0 3px #ffd700, 0 2px 8px rgba(0, 0, 0, 0.2);
+.color-card.selected {
+  border-color: #ffd700;
+  background: rgba(255, 215, 0, 0.1);
+  box-shadow: 0 2px 12px rgba(255, 215, 0, 0.3);
 }
 
-.color-circle {
+.color-swatch-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.color-swatch {
   width: 40px;
   height: 40px;
   border-radius: 50%;
   border: 2px solid white;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-  transition: box-shadow 200ms ease-out;
+  transition: all 200ms ease-out;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.color-card:hover .color-swatch {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+}
+
+.color-card.selected .color-swatch {
+  box-shadow: 0 0 0 3px rgba(255, 215, 0, 0.4), 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.swatch-highlight {
+  position: absolute;
+  top: 3px;
+  left: 8px;
+  width: 16px;
+  height: 10px;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(255, 255, 255, 0));
+  border-radius: 50%;
+  pointer-events: none;
+}
+
+.color-stripe {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.checkmark {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 24px;
+  height: 24px;
+  color: white;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.4));
+  animation: checkmarkPop 250ms ease-out;
+}
+
+@keyframes checkmarkPop {
+  0% {
+    transform: translate(-50%, -50%) scale(0);
+  }
+  60% {
+    transform: translate(-50%, -50%) scale(1.2);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1);
+  }
 }
 
 .color-name {
@@ -114,6 +180,12 @@
   opacity: 1;
 }
 
+.color-card.selected .color-name {
+  opacity: 1;
+  color: #8b3a62;
+  font-weight: 600;
+}
+
 @media (max-width: 768px) {
   .product-panel {
     width: 100%;
@@ -125,8 +197,18 @@
     gap: 12px;
   }
 
-  .color-circle {
+  .color-swatch {
     width: 36px;
     height: 36px;
+  }
+
+  .color-stripe {
+    width: 32px;
+    height: 3px;
+  }
+
+  .checkmark {
+    width: 20px;
+    height: 20px;
   }
 }

@@ -31,66 +31,75 @@ export function ProductPanel({
 }: ProductPanelProps) {
   const [activeTab, setActiveTab] = useState<CategoryTab>('lipstick');
 
+  const renderColorCard = (
+    product: { id: string; name: string; color: string },
+    isSelected: boolean,
+    onClick: () => void,
+  ) => (
+    <button
+      key={product.id}
+      className={`color-card ${isSelected ? 'selected' : ''}`}
+      onClick={onClick}
+      title={product.name}
+    >
+      <div className="color-swatch-wrapper">
+        <div
+          className="color-swatch"
+          style={{
+            background: `linear-gradient(135deg, ${product.color} 0%, ${product.color}dd 100%)`,
+          }}
+        >
+          <div className="swatch-highlight" />
+          {isSelected && (
+            <div className="checkmark">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
+          )}
+        </div>
+        <div
+          className="color-stripe"
+          style={{ backgroundColor: product.color }}
+        />
+      </div>
+      <span className="color-name">{product.name}</span>
+    </button>
+  );
+
   const renderLipstickColors = () => (
     <div className="color-grid">
-      {LIPSTICK_PRODUCTS.map((product) => (
-        <button
-          key={product.id}
-          className={`color-card ${selectedLipstick?.id === product.id ? 'selected' : ''}`}
-          onClick={() =>
-            onSelectLipstick(selectedLipstick?.id === product.id ? null : product)
-          }
-          title={product.name}
-        >
-          <div
-            className="color-circle"
-            style={{ backgroundColor: product.color }}
-          />
-          <span className="color-name">{product.name}</span>
-        </button>
-      ))}
+      {LIPSTICK_PRODUCTS.map((product) =>
+        renderColorCard(
+          product,
+          selectedLipstick?.id === product.id,
+          () => onSelectLipstick(selectedLipstick?.id === product.id ? null : product),
+        ),
+      )}
     </div>
   );
 
   const renderEyeshadowColors = () => (
     <div className="color-grid">
-      {EYESHADOW_PRODUCTS.map((product) => (
-        <button
-          key={product.id}
-          className={`color-card ${selectedEyeshadow?.id === product.id ? 'selected' : ''}`}
-          onClick={() =>
-            onSelectEyeshadow(selectedEyeshadow?.id === product.id ? null : product)
-          }
-          title={product.name}
-        >
-          <div
-            className="color-circle"
-            style={{ backgroundColor: product.color }}
-          />
-          <span className="color-name">{product.name}</span>
-        </button>
-      ))}
+      {EYESHADOW_PRODUCTS.map((product) =>
+        renderColorCard(
+          product,
+          selectedEyeshadow?.id === product.id,
+          () => onSelectEyeshadow(selectedEyeshadow?.id === product.id ? null : product),
+        ),
+      )}
     </div>
   );
 
   const renderBlushColors = () => (
     <div className="color-grid">
-      {BLUSH_PRODUCTS.map((product) => (
-        <button
-          key={product.id}
-          className={`color-card ${selectedBlush?.id === product.id ? 'selected' : ''}`}
-          onClick={() =>
-            onSelectBlush(selectedBlush?.id === product.id ? null : product)
-          }
-          title={product.name}
-        >
-          <div
-            className="color-circle"
-            style={{ backgroundColor: product.color }}
-          />
-          <span className="color-name">{product.name}</span>
-        </button>
-      ))}
+      {BLUSH_PRODUCTS.map((product) =>
+        renderColorCard(
+          product,
+          selectedBlush?.id === product.id,
+          () => onSelectBlush(selectedBlush?.id === product.id ? null : product),
+        ),
+      )}
     </div>
   );
 
