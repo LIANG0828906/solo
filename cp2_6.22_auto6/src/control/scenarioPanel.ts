@@ -11,6 +11,17 @@ interface SliderConfig {
   unit: string;
 }
 
+interface GlowAnimationState {
+  rafId: number | null;
+  startTime: number;
+  duration: number;
+  targetSize: number;
+  startSize: number;
+  targetOpacity: number;
+  startOpacity: number;
+  isActive: boolean;
+}
+
 export class ScenarioPanel {
   private container: HTMLElement;
   private contentEl: HTMLElement;
@@ -20,6 +31,7 @@ export class ScenarioPanel {
   private result: ScenarioResult;
   private onChangeCallback: (result: ScenarioResult) => void;
   private debounceTimer: number | null = null;
+  private glowAnimations: Map<string, GlowAnimationState> = new Map();
 
   private sliderConfigs: Record<ScenarioType, SliderConfig[]> = {
     transport: [
@@ -92,6 +104,13 @@ export class ScenarioPanel {
     const configs = this.sliderConfigs[scenario];
     const scenarioData = this.params[scenario];
     
+    this.glowAnimations.forEach(state => {
+      if (state.rafId !== null) {
+        cancelAnimationFrame(state.rafId);
+      }
+    });
+    this.glowAnimations.clear();
+    
     this.contentEl.innerHTML = '';
 
     configs.forEach(config => {
@@ -113,6 +132,7 @@ export class ScenarioPanel {
       const glowRing = document.createElement('div');
       glowRing.className = 'slider-glow-ring';
       glowRing.dataset.key = config.key;
+      glowRing.style.willChange = 'transform, opacity';
       
       const slider = document.createElement('input');
       slider.type = 'range';
@@ -129,11 +149,14 @@ export class ScenarioPanel {
       ticksContainer.dataset.key = config.key;
       
       const tickCount = 5;
+      const step = (config.max - config.min) / (tickCount - 1);
       for (let i = 0; i < tickCount; i++) {
-        const tickValue = config.min + (config.max - config.min) * (i / (tickCount - 1));
+        const tickValue = config.min + step * i;
+        const percentage = (i / (tickCount - 1)) * 100;
+        
         const tick = document.createElement('div');
         tick.className = 'tick';
-        tick.style.left = `${(i / (tickCount - 1)) * 100}%`;
+        tick.style.left = `${percentage}%`;
         tick.dataset.value = String(tickValue);
         
         const tickLabel = document.createElement('span');
@@ -145,8 +168,9 @@ export class ScenarioPanel {
       }
       
       const activeTick = document.createElement('div');
-      activeTick.className = 'tick-active';
+      activeTick.className = 'tick-active breathing';
       activeTick.dataset.key = config.key;
+      activeTick.style.willChange = 'transform, opacity';
       ticksContainer.appendChild(activeTick);
       
       slider.addEventListener('input', (e) => {
@@ -159,7 +183,7 @@ export class ScenarioPanel {
       
       slider.addEventListener('touchstart', () => {
         this.triggerGlowPulse(config.key, value, config);
-      });
+      }, { passive: true });
       
       sliderWrapper.appendChild(glowRing);
       sliderWrapper.appendChild(slider);
@@ -170,11 +194,27 @@ export class ScenarioPanel {
       this.contentEl.appendChild(sliderGroup);
       
       this.updateActiveTickPosition(config.key, value, config);
+      
+      this.glowAnimations.set(config.key, {
+        rafId: null,
+        startTime: 0,
+        duration: 300,
+        targetSize: 0,
+        startSize: 0,
+        targetOpacity: 0,
+        startOpacity: 0,
+        isActive: false
+      });
     });
   }
 
   private formatTickValue(value: number, config: SliderConfig): string {
-    if (config.max >= 100) {
+    if (config.max >= 1000) {
+      if (value % 1000 === 0) {
+        return `${Math.round(value / 1000)}k`;
+      }
+      return String(Math.round(value));
+    } else if (config.max >= 100) {
       return String(Math.round(value));
     } else if (config.step >= 1) {
       return String(Math.round(value));
@@ -184,27 +224,72 @@ export class ScenarioPanel {
   }
 
   private triggerGlowPulse(key: string, value: number, config: SliderConfig): void {
-    const glowRing = this.contentEl.querySelector(`.slider-glow-ring[data-key="${key}"]`);
+    const glowRing = this.contentEl.querySelector(`.slider-glow-ring[data-key="${key}"]`) as HTMLElement;
     if (!glowRing) return;
     
-    const normalizedValue = (value - config.min) / (config.max - config.min);
-    const glowSize = 20 + normalizedValue * 30;
+    const normalizedValue = Math.max(0, Math.min(1, (value - config.min) / (config.max - config.min)));
+    const baseSize = 20;
+    const maxExtraSize = 40;
+    const targetSize = baseSize + normalizedValue * maxExtraSize;
     
-    glowRing.classList.remove('pulse-active');
-    void glowRing.getBoundingClientRect();
+    const animationState = this.glowAnimations.get(key);
+    if (!animationState) return;
     
-    (glowRing as HTMLElement).style.setProperty('--glow-size', `${glowSize}px`);
-    (glowRing as HTMLElement).style.left = `${normalizedValue * 100}%`;
+    if (animationState.rafId !== null) {
+      cancelAnimationFrame(animationState.rafId);
+    }
     
-    glowRing.classList.add('pulse-active');
+    const currentSize = parseFloat(glowRing.style.getPropertyValue('--glow-size')) || baseSize;
+    const currentOpacity = parseFloat(glowRing.style.opacity) || 0;
+    
+    animationState.startSize = currentSize;
+    animationState.targetSize = targetSize;
+    animationState.startOpacity = Math.max(currentOpacity, 0.2);
+    animationState.targetOpacity = 0;
+    animationState.startTime = performance.now();
+    animationState.duration = 300;
+    animationState.isActive = true;
+    
+    glowRing.style.setProperty('--glow-x', `${normalizedValue * 100}%`);
+    glowRing.style.setProperty('--glow-size', `${targetSize}px`);
+    
+    const animate = (now: number) => {
+      const elapsed = now - animationState.startTime;
+      const progress = Math.min(1, elapsed / animationState.duration);
+      
+      const easeOutCubic = 1 - Math.pow(1 - progress, 3);
+      const size = animationState.startSize + (animationState.targetSize - animationState.startSize) * easeOutCubic;
+      
+      let opacity: number;
+      if (progress < 0.4) {
+        opacity = animationState.startOpacity + (1 - animationState.startOpacity) * (progress / 0.4);
+      } else {
+        opacity = 1 * (1 - (progress - 0.4) / 0.6);
+      }
+      
+      glowRing.style.setProperty('--glow-size', `${size}px`);
+      glowRing.style.setProperty('--glow-opacity', `${opacity}`);
+      glowRing.style.opacity = String(opacity);
+      glowRing.style.transform = `translate(-50%, -50%) scale(${1 + easeOutCubic * 0.5})`;
+      
+      if (progress < 1 && animationState.isActive) {
+        animationState.rafId = requestAnimationFrame(animate);
+      } else {
+        glowRing.style.opacity = '0';
+        animationState.rafId = null;
+        animationState.isActive = false;
+      }
+    };
+    
+    animationState.rafId = requestAnimationFrame(animate);
   }
 
   private updateActiveTickPosition(key: string, value: number, config: SliderConfig): void {
-    const activeTick = this.contentEl.querySelector(`.tick-active[data-key="${key}"]`);
+    const activeTick = this.contentEl.querySelector(`.tick-active[data-key="${key}"]`) as HTMLElement;
     if (!activeTick) return;
     
     const percentage = ((value - config.min) / (config.max - config.min)) * 100;
-    (activeTick as HTMLElement).style.left = `${percentage}%`;
+    activeTick.style.transform = `translateX(${percentage}%) translateX(-50%)`;
   }
 
   private formatValue(value: number): string {

@@ -146,44 +146,33 @@ html, body {
 .slider-wrapper {
   position: relative;
   padding-top: 4px;
+  will-change: transform;
 }
 
 .slider-glow-ring {
   position: absolute;
   top: 50%;
-  left: 50%;
+  left: var(--glow-x, 50%);
   width: var(--glow-size, 30px);
   height: var(--glow-size, 30px);
   border-radius: 50%;
-  transform: translate(-50%, -50%);
   pointer-events: none;
   z-index: 0;
   opacity: 0;
+  will-change: transform, opacity;
+  transform: translate(-50%, -50%) translateZ(0);
+  backface-visibility: hidden;
   background: radial-gradient(
-    circle,
-    rgba(0, 229, 255, 0.6) 0%,
-    rgba(0, 229, 255, 0.2) 40%,
-    transparent 70%
+    circle at center,
+    rgba(0, 229, 255, 0.8) 0%,
+    rgba(0, 229, 255, 0.45) 25%,
+    rgba(0, 229, 255, 0.2) 50%,
+    rgba(0, 229, 255, 0.05) 70%,
+    transparent 85%
   );
-}
-
-.slider-glow-ring.pulse-active {
-  animation: glowPulse 0.3s ease-out forwards;
-}
-
-@keyframes glowPulse {
-  0% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(0.5);
-  }
-  50% {
-    opacity: 1;
-    transform: translate(-50%, -50%) scale(1.2);
-  }
-  100% {
-    opacity: 0;
-    transform: translate(-50%, -50%) scale(1.5);
-  }
+  box-shadow: 
+    0 0 calc(var(--glow-size, 30px) * 0.6) rgba(0, 229, 255, 0.4),
+    inset 0 0 calc(var(--glow-size, 30px) * 0.3) rgba(0, 255, 136, 0.2);
 }
 
 .custom-slider {
@@ -197,6 +186,8 @@ html, body {
   outline: none;
   cursor: pointer;
   z-index: 1;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .custom-slider::-webkit-slider-thumb {
@@ -204,57 +195,74 @@ html, body {
   appearance: none;
   width: 18px;
   height: 18px;
-  background: var(--color-text);
+  background: linear-gradient(135deg, #ffffff, #e0f7ff);
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: var(--glow-primary);
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.5);
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   z-index: 2;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .custom-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
-  box-shadow: 0 0 25px rgba(0, 229, 255, 0.6);
+  transform: scale(1.15) translateZ(0);
+  box-shadow: 0 0 20px rgba(0, 229, 255, 0.7),
+              0 0 35px rgba(0, 229, 255, 0.3);
 }
 
 .custom-slider::-webkit-slider-thumb:active {
-  transform: scale(1.1);
-  box-shadow: 0 0 35px rgba(0, 229, 255, 0.8);
+  transform: scale(1.08) translateZ(0);
+  box-shadow: 0 0 28px rgba(0, 229, 255, 0.9),
+              0 0 45px rgba(0, 229, 255, 0.4);
 }
 
 .custom-slider::-moz-range-thumb {
   width: 18px;
   height: 18px;
-  background: var(--color-text);
+  background: linear-gradient(135deg, #ffffff, #e0f7ff);
   border: none;
   border-radius: 50%;
   cursor: pointer;
-  box-shadow: var(--glow-primary);
+  box-shadow: 0 0 12px rgba(0, 229, 255, 0.5);
+  transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1), 
+              box-shadow 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .slider-ticks {
   position: relative;
   width: 100%;
-  height: 24px;
+  height: 28px;
   margin-top: 6px;
+  will-change: transform;
+  transform: translateZ(0);
 }
 
 .tick {
   position: absolute;
   top: 0;
+  left: 0;
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;
   align-items: center;
+  will-change: transform;
 }
 
 .tick::before {
   content: '';
   width: 2px;
-  height: 6px;
-  background: rgba(255, 255, 255, 0.3);
+  height: 8px;
+  background: rgba(255, 255, 255, 0.25);
   border-radius: 1px;
+  transition: background 0.2s ease, height 0.2s ease;
+}
+
+.tick:hover::before {
+  background: rgba(0, 229, 255, 0.6);
+  height: 10px;
 }
 
 .tick-label {
@@ -262,30 +270,45 @@ html, body {
   color: var(--color-text-muted);
   margin-top: 4px;
   white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.2s ease;
+}
+
+.tick:hover .tick-label {
+  color: var(--color-primary);
 }
 
 .tick-active {
   position: absolute;
-  top: -2px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 10px;
-  height: 10px;
+  top: -3px;
+  left: 0 !important;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: var(--color-secondary);
-  box-shadow: 0 0 12px var(--color-secondary);
-  transition: left 0.1s ease-out;
+  background: radial-gradient(circle at 30% 30%, #00FFAA, #00FF88);
+  box-shadow: 0 0 12px var(--color-secondary),
+              0 0 24px rgba(0, 255, 136, 0.4);
+  will-change: transform, opacity;
+  transform: translateX(0) translateX(-50%) translateZ(0);
+  backface-visibility: hidden;
+  transition: box-shadow 0.3s ease;
+}
+
+.tick-active.breathing {
   animation: tickBreath 2s ease-in-out infinite;
 }
 
 @keyframes tickBreath {
   0%, 100% {
     opacity: 0.6;
-    box-shadow: 0 0 8px var(--color-secondary);
+    box-shadow: 0 0 8px var(--color-secondary),
+                0 0 16px rgba(0, 255, 136, 0.2);
   }
   50% {
     opacity: 1;
-    box-shadow: 0 0 18px var(--color-secondary), 0 0 30px rgba(0, 255, 136, 0.4);
+    box-shadow: 0 0 16px var(--color-secondary),
+                0 0 32px rgba(0, 255, 136, 0.5),
+                0 0 48px rgba(0, 255, 136, 0.2);
   }
 }
 
