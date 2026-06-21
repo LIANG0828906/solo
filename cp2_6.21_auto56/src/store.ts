@@ -16,7 +16,7 @@ export interface Params {
   angle: number;
 }
 
-interface StoreState {
+export interface StoreState {
   asteroids: Asteroid[];
   selectedId: string | null;
   params: Params;

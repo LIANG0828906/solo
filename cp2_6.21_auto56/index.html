@@ -37,27 +37,62 @@
       height: 100%;
     }
 
-    .title {
+    .title-wrap {
       position: absolute;
       top: 24px;
       left: 28px;
-      font-size: 28px;
-      font-weight: 200;
-      color: #88ccff;
-      letter-spacing: 4px;
-      text-shadow: 0 0 4px #88ccff, 0 0 8px rgba(136, 204, 255, 0.5);
       z-index: 10;
       user-select: none;
-      animation: titleBreath 3s ease-in-out infinite;
+      pointer-events: none;
     }
 
-    @keyframes titleBreath {
-      0%, 100% {
-        text-shadow: 0 0 4px #88ccff, 0 0 8px rgba(136, 204, 255, 0.5);
-      }
-      50% {
-        text-shadow: 0 0 8px #88ccff, 0 0 16px rgba(136, 204, 255, 0.7), 0 0 24px rgba(136, 204, 255, 0.3);
-      }
+    .title-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      font-size: 28px;
+      font-weight: 200;
+      letter-spacing: 4px;
+      white-space: nowrap;
+    }
+
+    .title-base {
+      position: relative;
+      color: #88ccff;
+      text-shadow: 0 0 4px #88ccff;
+    }
+
+    .title-glow-1 {
+      color: transparent;
+      text-shadow: 0 0 8px rgba(136, 204, 255, 0.6);
+      animation: titleGlow1 3s ease-in-out infinite;
+    }
+
+    .title-glow-2 {
+      color: transparent;
+      text-shadow: 0 0 16px rgba(136, 204, 255, 0.35);
+      animation: titleGlow2 3s ease-in-out infinite;
+    }
+
+    .title-glow-3 {
+      color: transparent;
+      text-shadow: 0 0 24px rgba(136, 204, 255, 0.2);
+      animation: titleGlow3 3s ease-in-out infinite;
+    }
+
+    @keyframes titleGlow1 {
+      0%, 100% { opacity: 0.4; filter: blur(0px); }
+      50% { opacity: 1; filter: blur(0.5px); }
+    }
+
+    @keyframes titleGlow2 {
+      0%, 100% { opacity: 0.2; filter: blur(1px); }
+      50% { opacity: 0.8; filter: blur(2px); }
+    }
+
+    @keyframes titleGlow3 {
+      0%, 100% { opacity: 0.1; filter: blur(2px); }
+      50% { opacity: 0.5; filter: blur(4px); }
     }
 
     .control-panel {
@@ -135,6 +170,14 @@
     input[type="range"]::-webkit-slider-thumb:active {
       transform: scale(1.2);
       box-shadow: 0 0 3px rgba(68, 136, 255, 0.5);
+    }
+
+    input[type="range"]::-moz-range-track {
+      width: 100%;
+      height: 6px;
+      background: linear-gradient(90deg, #3366ff 0%, #88ccff 100%);
+      border-radius: 3px;
+      border: none;
     }
 
     input[type="range"]::-moz-range-thumb {
@@ -301,7 +344,12 @@
 <body>
   <div id="app">
     <div id="canvas-container"></div>
-    <div class="title">引力弹弓模拟器</div>
+    <div class="title-wrap">
+      <div class="title-layer title-glow-3">引力弹弓模拟器</div>
+      <div class="title-layer title-glow-2">引力弹弓模拟器</div>
+      <div class="title-layer title-glow-1">引力弹弓模拟器</div>
+      <div class="title-layer title-base">引力弹弓模拟器</div>
+    </div>
 
     <div class="orbit-info" id="orbit-info">
       <div class="orbit-info-item">

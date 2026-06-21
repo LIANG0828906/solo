@@ -1,5 +1,5 @@
 import { useStore, MAX_ASTEROIDS, LABELS, ORBIT_COLORS } from './store';
-import type { Asteroid } from './store';
+import type { Asteroid, StoreState } from './store';
 import type { Vec3 } from './physicsEngine';
 import {
   calcOrbitalEnergy,
@@ -27,6 +27,9 @@ let infoVelocity: HTMLElement | null = null;
 let infoDistance: HTMLElement | null = null;
 let infoPeriod: HTMLElement | null = null;
 
+const pulseTimers = new WeakMap<HTMLElement, ReturnType<typeof setTimeout>>();
+const activeRipples = new Set<HTMLSpanElement>();
+
 export interface UICallbacks {
   onLaunch: (params: {
     id: string;
@@ -46,12 +49,18 @@ function formatNumber(n: number, decimals = 2): string {
 }
 
 function pulseValue(el: HTMLElement): void {
+  const existingTimer = pulseTimers.get(el);
+  if (existingTimer) {
+    clearTimeout(existingTimer);
+  }
   el.classList.remove('pulse');
   void el.offsetWidth;
   el.classList.add('pulse');
-  setTimeout(() => {
+  const timer = setTimeout(() => {
     el.classList.remove('pulse');
+    pulseTimers.delete(el);
   }, 200);
+  pulseTimers.set(el, timer);
 }
 
 function createRipple(btn: HTMLButtonElement, x: number, y: number): void {
@@ -64,9 +73,26 @@ function createRipple(btn: HTMLButtonElement, x: number, y: number): void {
   ripple.style.left = `${x - rect.left - size / 2}px`;
   ripple.style.top = `${y - rect.top - size / 2}px`;
   btn.appendChild(ripple);
-  setTimeout(() => {
-    ripple.remove();
+  activeRipples.add(ripple);
+  const timer = setTimeout(() => {
+    removeRipple(ripple);
   }, 300);
+  ripple.dataset.timerId = String(timer);
+}
+
+function removeRipple(ripple: HTMLSpanElement): void {
+  if (ripple.parentNode) {
+    ripple.parentNode.removeChild(ripple);
+  }
+  activeRipples.delete(ripple);
+  if (ripple.dataset.timerId) {
+    clearTimeout(parseInt(ripple.dataset.timerId, 10));
+  }
+}
+
+function clearAllRipples(): void {
+  activeRipples.forEach((ripple) => removeRipple(ripple));
+  activeRipples.clear();
 }
 
 export function initUIController(cb: UICallbacks): void {
@@ -123,13 +149,13 @@ export function initUIController(cb: UICallbacks): void {
       if (launchBtn!.disabled) return;
       createRipple(launchBtn!, e.clientX, e.clientY);
     });
+    launchBtn.addEventListener('mouseup', clearAllRipples);
+    launchBtn.addEventListener('mouseleave', clearAllRipples);
     launchBtn.addEventListener('click', handleLaunch);
   }
 
-  let prevLen = useStore.getState().asteroids.length;
-  useStore.subscribe((state) => {
-    if (state.asteroids.length !== prevLen) {
-      prevLen = state.asteroids.length;
+  useStore.subscribe((state: StoreState, prevState: StoreState) => {
+    if (state.asteroids.length !== prevState.asteroids.length) {
       updateLaunchButtonState();
     }
   });
