@@ -166,10 +166,14 @@ export const Piano: React.FC<PianoProps> = ({
       style={{
         position: 'relative',
         display: 'inline-block',
-        padding: '16px 20px 20px 20px',
+        padding: '18px 22px 24px 22px',
         background: 'linear-gradient(145deg, #0f3460 0%, #16213e 100%)',
-        borderRadius: '12px',
-        boxShadow: '0 10px 40px rgba(0,0,0,0.5), inset 0 2px 8px rgba(255,255,255,0.05)',
+        borderRadius: '18px',
+        boxShadow:
+          '0 14px 50px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.08), inset 0 -1px 0 rgba(0,0,0,0.3)',
+        border: '1px solid rgba(255,255,255,0.08)',
+        outline: '1px solid rgba(160,196,255,0.08)',
+        outlineOffset: '-3px',
         userSelect: 'none',
       }}
     >
@@ -221,25 +225,28 @@ export const Piano: React.FC<PianoProps> = ({
                 height: key.isBlack ? BLACK_KEY_HEIGHT : WHITE_KEY_HEIGHT,
                 backgroundColor: bgColor,
                 border: borderStyle,
-                borderRadius: key.isBlack ? '0 0 4px 4px' : '0 0 6px 6px',
+                borderRadius: key.isBlack
+                  ? '2px 2px 5px 5px'
+                  : '2px 2px 7px 7px',
                 cursor: 'pointer',
-                transition: 'background-color 0.1s ease-out, box-shadow 0.1s ease-out, transform 0.1s ease-out',
+                transition:
+                  'background-color 0.1s ease-out, box-shadow 0.1s ease-out, transform 0.1s ease-out, border-color 0.1s ease-out',
                 boxShadow: key.isBlack
                   ? isPressed
-                    ? 'inset 0 3px 6px rgba(0,0,0,0.8), 0 4px 8px rgba(0,0,0,0.5)'
-                    : '0 3px 6px rgba(0,0,0,0.55), inset 0 -2px 4px rgba(255,255,255,0.12)'
+                    ? 'inset 0 4px 8px rgba(0,0,0,0.85), inset 0 1px 0 rgba(0,0,0,0.9), 0 6px 12px rgba(0,0,0,0.55), 0 2px 3px rgba(0,0,0,0.4)'
+                    : '0 5px 10px rgba(0,0,0,0.6), inset 0 -3px 6px rgba(255,255,255,0.08), inset 0 1px 0 rgba(255,255,255,0.15)'
                   : isPressed
-                  ? 'inset 0 4px 8px rgba(0,0,0,0.2), 0 5px 10px rgba(0,0,0,0.3)'
-                  : '0 3px 5px rgba(0,0,0,0.25)',
+                  ? 'inset 0 5px 12px rgba(0,0,0,0.22), inset 0 1px 2px rgba(0,0,0,0.15), 0 7px 14px rgba(0,0,0,0.35), 0 2px 4px rgba(0,0,0,0.2)'
+                  : '0 4px 8px rgba(0,0,0,0.28), inset 0 -2px 4px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.9)',
                 transform: isPressed
-                  ? `translateY(${key.isBlack ? 1 : 2}px)`
-                  : 'translateY(0)',
+                  ? `translateY(${key.isBlack ? 1 : 2}px) scaleX(0.995)`
+                  : 'translateY(0) scaleX(1)',
                 zIndex: key.isBlack ? 10 : 1,
                 display: 'flex',
                 flexDirection: 'column',
                 justifyContent: 'flex-start',
                 alignItems: 'center',
-                paddingTop: key.isBlack ? 3 : 5,
+                paddingTop: key.isBlack ? 2 : 3,
                 paddingBottom: 6,
                 overflow: 'visible',
               }}
@@ -247,20 +254,25 @@ export const Piano: React.FC<PianoProps> = ({
               {key.label && (
                 <span
                   style={{
-                    fontSize: 10,
+                    fontSize: 9,
                     lineHeight: 1,
                     color: key.isBlack
-                      ? isPressed ? '#fff' : 'rgba(200,200,220,0.85)'
-                      : isPressed ? '#1a365d' : 'rgba(90,100,130,0.9)',
+                      ? isPressed
+                        ? 'rgba(255,255,255,0.95)'
+                        : 'rgba(180,190,220,0.75)'
+                      : isPressed
+                      ? 'rgba(26,54,93,0.9)'
+                      : 'rgba(100,110,140,0.7)',
                     fontFamily: 'monospace',
-                    padding: '2px 3px',
+                    padding: '2px 3px 1px 3px',
                     borderRadius: 3,
                     backgroundColor: key.isBlack
-                      ? 'rgba(255,255,255,0.10)'
-                      : 'rgba(0,0,0,0.06)',
-                    backdropFilter: 'blur(1px)',
+                      ? 'rgba(255,255,255,0.08)'
+                      : 'rgba(0,0,0,0.045)',
                     whiteSpace: 'nowrap',
-                    fontWeight: 600,
+                    fontWeight: 500,
+                    letterSpacing: 0.2,
+                    alignSelf: 'center',
                   }}
                 >
                   {key.label}
