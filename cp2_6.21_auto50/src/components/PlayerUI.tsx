@@ -7,10 +7,28 @@ interface PlayerUIProps {
   onExportGif: () => void;
 }
 
-const THEME_LABELS: { key: ThemeName; label: string }[] = [
-  { key: 'flame', label: '火焰' },
-  { key: 'aurora', label: '极光' },
-  { key: 'neon', label: '霓虹' },
+const THEME_LABELS: { key: ThemeName; label: string; gradient: string; shadow: string; borderColor: string }[] = [
+  {
+    key: 'flame',
+    label: '火焰',
+    gradient: 'linear-gradient(135deg, #ff4400, #ff8800)',
+    shadow: 'rgba(255,68,0,0.5)',
+    borderColor: 'rgba(255,68,0,0.6)',
+  },
+  {
+    key: 'aurora',
+    label: '极光',
+    gradient: 'linear-gradient(135deg, #00ccff, #00ff88)',
+    shadow: 'rgba(0,204,255,0.5)',
+    borderColor: 'rgba(0,204,255,0.6)',
+  },
+  {
+    key: 'neon',
+    label: '霓虹',
+    gradient: 'linear-gradient(135deg, #8800ff, #ff00ff)',
+    shadow: 'rgba(255,0,255,0.5)',
+    borderColor: 'rgba(255,0,255,0.6)',
+  },
 ];
 
 function formatTime(seconds: number): string {
@@ -88,19 +106,41 @@ export function PlayerUI({ visualContainerRef, onSeek, onExportGif }: PlayerUIPr
           </div>
 
           {/* Theme Switch */}
-          <div style={styles.themeRow}>
-            {THEME_LABELS.map(({ key, label }) => (
-              <button
-                key={key}
-                onClick={() => setTheme(key)}
-                style={{
-                  ...styles.themeBtn,
-                  ...(theme === key ? styles.themeBtnActive : styles.themeBtnInactive),
-                }}
-              >
-                {label}
-              </button>
-            ))}
+          <div style={styles.themePillGroup} data-theme-pills>
+            {THEME_LABELS.map(({ key, label, gradient, shadow, borderColor }, idx) => {
+              const isActive = theme === key;
+              const isFirst = idx === 0;
+              const isLast = idx === THEME_LABELS.length - 1;
+              return (
+                <button
+                  key={key}
+                  data-theme-btn={key}
+                  onClick={() => setTheme(key)}
+                  style={{
+                    ...styles.themePillBtn,
+                    ...(isFirst ? styles.themePillFirst : {}),
+                    ...(isLast ? styles.themePillLast : {}),
+                    ...(isActive
+                      ? {
+                          background: gradient,
+                          borderColor,
+                          boxShadow: `0 0 14px ${shadow}, inset 0 1px 0 rgba(255,255,255,0.25)`,
+                          color: '#fff',
+                          zIndex: 2,
+                        }
+                      : {
+                          background: 'transparent',
+                          borderColor: 'rgba(255,255,255,0.15)',
+                          color: 'rgba(255,255,255,0.55)',
+                          boxShadow: 'none',
+                          zIndex: 1,
+                        }),
+                  }}
+                >
+                  {label}
+                </button>
+              );
+            })}
           </div>
 
           {/* Sliders */}
@@ -146,112 +186,114 @@ export function PlayerUI({ visualContainerRef, onSeek, onExportGif }: PlayerUIPr
 
         {/* RIGHT PANEL */}
         <div style={styles.rightPanel} data-right-panel>
-          {/* Circular Waveform Preview */}
-          <div style={styles.waveformOverlay}>
-            <svg
-              width="80"
-              height="80"
-              viewBox="0 0 80 80"
-              style={{ display: 'block' }}
-            >
-              {freqBars.map((v, i) => {
-                const angle = (i / freqBars.length) * Math.PI * 2 - Math.PI / 2;
-                const barLen = 4 + (v / 255) * 14;
-                const cx = 40;
-                const cy = 40;
-                const r1 = 20;
-                const r2 = 20 + barLen;
-                return (
-                  <line
-                    key={i}
-                    x1={cx + Math.cos(angle) * r1}
-                    y1={cy + Math.sin(angle) * r1}
-                    x2={cx + Math.cos(angle) * r2}
-                    y2={cy + Math.sin(angle) * r2}
-                    stroke="#00d4ff"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    opacity={0.5 + (v / 255) * 0.5}
-                  />
-                );
-              })}
-            </svg>
-          </div>
-
-          {/* Export Button */}
-          <button
-            style={styles.exportBtn}
-            onClick={onExportGif}
-          >
-            {isExporting ? `导出中 ${exportProgress}%` : '导出GIF'}
-          </button>
-
-          {/* Export Progress */}
-          {isExporting && (
-            <div style={styles.exportProgressWrap}>
-              <div
-                style={{
-                  ...styles.exportProgressBar,
-                  width: `${exportProgress}%`,
-                }}
-              />
+          <div style={styles.rightPanelInner}>
+            {/* Circular Waveform Preview */}
+            <div style={styles.waveformOverlay}>
+              <svg
+                width="80"
+                height="80"
+                viewBox="0 0 80 80"
+                style={{ display: 'block' }}
+              >
+                {freqBars.map((v, i) => {
+                  const angle = (i / freqBars.length) * Math.PI * 2 - Math.PI / 2;
+                  const barLen = 4 + (v / 255) * 14;
+                  const cx = 40;
+                  const cy = 40;
+                  const r1 = 20;
+                  const r2 = 20 + barLen;
+                  return (
+                    <line
+                      key={i}
+                      x1={cx + Math.cos(angle) * r1}
+                      y1={cy + Math.sin(angle) * r1}
+                      x2={cx + Math.cos(angle) * r2}
+                      y2={cy + Math.sin(angle) * r2}
+                      stroke="#00d4ff"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      opacity={0.5 + (v / 255) * 0.5}
+                    />
+                  );
+                })}
+              </svg>
             </div>
-          )}
 
-          {/* Three.js mount point */}
-          <div
-            ref={visualContainerRef}
-            style={styles.visualMount}
-          />
-
-          {/* Top overlay - Progress + Time */}
-          <div style={styles.topOverlay}>
-            <svg width="68" height="68" style={{ display: 'block' }}>
-              <circle
-                cx="34"
-                cy="34"
-                r="28"
-                fill="none"
-                stroke="rgba(255,255,255,0.1)"
-                strokeWidth="3"
-              />
-              <circle
-                cx="34"
-                cy="34"
-                r="28"
-                fill="none"
-                stroke="url(#progressGrad)"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeDasharray={circumference}
-                strokeDashoffset={strokeDashoffset}
-                transform="rotate(-90 34 34)"
-              />
-              <defs>
-                <linearGradient id="progressGrad" x1="0" y1="0" x2="1" y2="1">
-                  <stop offset="0%" stopColor="#00d4ff" />
-                  <stop offset="100%" stopColor="#0088ff" />
-                </linearGradient>
-              </defs>
-            </svg>
-            <span style={styles.timeText}>
-              {formatTime(audioData.currentTime)} / {formatTime(audioData.duration)}
-            </span>
-          </div>
-
-          {/* Bottom overlay - Seek bar */}
-          <div style={styles.bottomOverlay}>
-            <div
-              style={styles.seekTrack}
-              onClick={(e) => {
-                const rect = e.currentTarget.getBoundingClientRect();
-                const pct = (e.clientX - rect.left) / rect.width;
-                if (audioData.duration > 0) {
-                  onSeek(pct * audioData.duration);
-                }
-              }}
+            {/* Export Button */}
+            <button
+              style={styles.exportBtn}
+              onClick={onExportGif}
             >
-              <div style={{ ...styles.seekFill, width: `${progress}%` }} />
+              {isExporting ? `导出中 ${exportProgress}%` : '导出GIF'}
+            </button>
+
+            {/* Export Progress */}
+            {isExporting && (
+              <div style={styles.exportProgressWrap}>
+                <div
+                  style={{
+                    ...styles.exportProgressBar,
+                    width: `${exportProgress}%`,
+                  }}
+                />
+              </div>
+            )}
+
+            {/* Three.js mount point */}
+            <div
+              ref={visualContainerRef}
+              style={styles.visualMount}
+            />
+
+            {/* Top overlay - Progress + Time */}
+            <div style={styles.topOverlay}>
+              <svg width="68" height="68" style={{ display: 'block' }}>
+                <circle
+                  cx="34"
+                  cy="34"
+                  r="28"
+                  fill="none"
+                  stroke="rgba(255,255,255,0.1)"
+                  strokeWidth="3"
+                />
+                <circle
+                  cx="34"
+                  cy="34"
+                  r="28"
+                  fill="none"
+                  stroke="url(#progressGrad)"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeDasharray={circumference}
+                  strokeDashoffset={strokeDashoffset}
+                  transform="rotate(-90 34 34)"
+                />
+                <defs>
+                  <linearGradient id="progressGrad" x1="0" y1="0" x2="1" y2="1">
+                    <stop offset="0%" stopColor="#00d4ff" />
+                    <stop offset="100%" stopColor="#0088ff" />
+                  </linearGradient>
+                </defs>
+              </svg>
+              <span style={styles.timeText}>
+                {formatTime(audioData.currentTime)} / {formatTime(audioData.duration)}
+              </span>
+            </div>
+
+            {/* Bottom overlay - Seek bar */}
+            <div style={styles.bottomOverlay}>
+              <div
+                style={styles.seekTrack}
+                onClick={(e) => {
+                  const rect = e.currentTarget.getBoundingClientRect();
+                  const pct = (e.clientX - rect.left) / rect.width;
+                  if (audioData.duration > 0) {
+                    onSeek(pct * audioData.duration);
+                  }
+                }}
+              >
+                <div style={{ ...styles.seekFill, width: `${progress}%` }} />
+              </div>
             </div>
           </div>
         </div>
@@ -284,12 +326,20 @@ function SliderControl({
   onReset,
 }: SliderControlProps) {
   const pct = ((value - min) / (max - min)) * 100;
+  const valueLabel = step < 1 ? value.toFixed(1) : String(value);
 
   return (
     <div style={styles.sliderGroup}>
       <div style={styles.sliderHeader}>
         <span style={styles.sliderLabel}>{label}</span>
-        <span style={styles.sliderValue}>{value}</span>
+        <div style={styles.valueBadgeWrap}>
+          <div
+            className="value-badge"
+            style={styles.valueBadge}
+          >
+            {valueLabel}
+          </div>
+        </div>
         <button style={styles.resetBtn} onClick={onReset} title="重置">
           ⟳
         </button>
@@ -380,25 +430,46 @@ const styles: Record<string, React.CSSProperties> = {
     gap: 8,
   },
 
-  themeBtn: {
+  themePillGroup: {
+    display: 'flex',
+    background: 'rgba(255,255,255,0.04)',
+    borderRadius: 999,
+    padding: 4,
+    border: '1px solid rgba(255,255,255,0.08)',
+    position: 'relative' as const,
+    overflow: 'hidden',
+  },
+
+  themePillBtn: {
     flex: 1,
-    padding: '8px 0',
-    borderRadius: 8,
-    border: 'none',
+    padding: '9px 0',
+    border: '1px solid transparent',
+    borderRadius: 999,
     color: '#fff',
     fontSize: 13,
+    fontWeight: 600,
     cursor: 'pointer',
-    transition: 'transform 0.2s, box-shadow 0.2s',
+    position: 'relative' as const,
+    letterSpacing: 0.5,
+    transition:
+      'background 1.5s cubic-bezier(0.65, 0, 0.35, 1), ' +
+      'border-color 1.5s cubic-bezier(0.65, 0, 0.35, 1), ' +
+      'box-shadow 1.5s cubic-bezier(0.65, 0, 0.35, 1), ' +
+      'color 0.4s ease, ' +
+      'transform 0.2s ease',
+    fontFamily: 'inherit',
+    userSelect: 'none' as const,
   },
 
-  themeBtnActive: {
-    background: 'linear-gradient(135deg, #00d4ff, #0088ff)',
-    boxShadow: '0 0 12px rgba(0,212,255,0.4)',
+  themePillFirst: {
+    borderTopRightRadius: 0,
+    borderBottomRightRadius: 0,
   },
 
-  themeBtnInactive: {
-    background: 'transparent',
-    border: '1px solid rgba(255,255,255,0.15)',
+  themePillLast: {
+    borderTopLeftRadius: 0,
+    borderBottomLeftRadius: 0,
+    marginLeft: -1,
   },
 
   slidersContainer: {
@@ -430,6 +501,40 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#00d4ff',
     minWidth: 28,
     textAlign: 'right' as const,
+  },
+
+  valueBadgeWrap: {
+    display: 'inline-block',
+    position: 'relative' as const,
+    height: 22,
+    lineHeight: '22px',
+    marginRight: 2,
+  },
+
+  valueBadge: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 34,
+    height: 22,
+    padding: '0 10px',
+    borderRadius: 999,
+    background: 'linear-gradient(135deg, rgba(0,212,255,0.25), rgba(0,136,255,0.25))',
+    border: '1px solid rgba(0,212,255,0.4)',
+    color: '#e6faff',
+    fontSize: 11,
+    fontWeight: 600,
+    fontFamily: "'JetBrains Mono', 'Inter', monospace",
+    letterSpacing: 0.3,
+    boxShadow:
+      'inset 0 1px 0 rgba(255,255,255,0.15), ' +
+      '0 0 0 1px rgba(0,212,255,0.08)',
+    whiteSpace: 'nowrap' as const,
+    transition:
+      'transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1), ' +
+      'box-shadow 0.25s ease, ' +
+      'border-color 0.25s ease, ' +
+      'background 0.35s ease',
   },
 
   resetBtn: {
@@ -480,6 +585,22 @@ const styles: Record<string, React.CSSProperties> = {
     position: 'relative' as const,
     overflow: 'hidden',
     borderRadius: '0 24px 24px 0',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 0,
+  },
+
+  rightPanelInner: {
+    position: 'relative' as const,
+    width: '100%',
+    maxWidth: 620,
+    height: '100%',
+    maxHeight: 600,
+    aspectRatio: 'auto',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   waveformOverlay: {
@@ -611,6 +732,27 @@ input[type=range]::-moz-range-thumb {
   cursor: pointer;
   border: none;
   box-shadow: 0 0 6px rgba(0,212,255,0.6);
+}
+
+/* Value badge hover lift & glow */
+.value-badge:hover,
+.value-badge-wrap:hover .value-badge {
+  transform: translateY(-2px);
+  box-shadow:
+    0 6px 16px rgba(0, 212, 255, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 0 0 1px rgba(0, 212, 255, 0.35);
+  border-color: rgba(0, 212, 255, 0.75);
+  background: linear-gradient(135deg, rgba(0,212,255,0.4), rgba(0,136,255,0.45));
+}
+
+/* Theme button hover fine-tune (capsules) */
+[data-theme-pills] button:hover {
+  transform: scale(1.02);
+  filter: brightness(1.1);
+}
+[data-theme-pills] button:active {
+  transform: scale(0.98);
 }
 
 /* Button hover / active effects */
