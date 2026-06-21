@@ -1,4 +1,4 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react'
+import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react'
 import { useScoreStore, InstrumentType, Note } from '../store/useScoreStore'
 import { INSTRUMENT_COLORS } from '../audio/PlayerEngine'
 
@@ -165,29 +165,26 @@ export const ScoreEditor: React.FC = React.memo(() => {
     }
   }, [handleMouseMove, handleMouseUp])
 
-  const notesByInstrumentAndTime = new Map<string, Note[]>()
-  notes.forEach(note => {
-    const key = `${note.instrument}-${note.time}`
-    if (!notesByInstrumentAndTime.has(key)) {
-      notesByInstrumentAndTime.set(key, [])
-    }
-    notesByInstrumentAndTime.get(key)!.push(note)
-  })
+  const overlapMap = useMemo(() => {
+    const overlapCounts = new Map<string, number>()
+    notes.forEach(note => {
+      const key = `${note.instrument}-${note.time}`
+      const current = overlapCounts.get(key) || 0
+      overlapCounts.set(key, current + 1)
+    })
+    return overlapCounts
+  }, [notes])
 
-  const overlapKeys = new Map<string, number>()
-  notesByInstrumentAndTime.forEach((noteList, key) => {
-    if (noteList.length > 1) {
-      overlapKeys.set(key, noteList.length)
-    }
-  })
-
-  const renderNote = (note: Note, overlapCount: number) => {
+  const renderNote = (note: Note) => {
     const rowIndex = INSTRUMENTS.indexOf(note.instrument)
     const color = INSTRUMENT_COLORS[note.instrument]
     const isSelected = selectedNoteIds.includes(note.id)
     const isDraggingActive = dragState.isDragging &&
       (dragState.noteId === note.id ||
         (dragState.isMultiDrag && selectedNoteIds.includes(note.id)))
+
+    const key = `${note.instrument}-${note.time}`
+    const overlapCount = overlapMap.get(key) || 0
     const isOverlap = overlapCount > 1
 
     const noteSize = isOverlap ? NOTE_SIZE * 1.4 : NOTE_SIZE
@@ -248,10 +245,7 @@ export const ScoreEditor: React.FC = React.memo(() => {
           </div>
         ))}
 
-        {Array.from(notesByInstrumentAndTime.entries()).map(([_, noteList]) => {
-          if (noteList.length === 0) return null
-          return noteList.map((note) => renderNote(note, noteList.length))
-        })}
+        {notes.map((note) => renderNote(note))}
 
         <div
           className="playhead"

@@ -79,8 +79,8 @@ function validateExportScore(data: unknown): { valid: boolean; errors: string[] 
 
   if (obj.tempo === undefined || obj.tempo === null) {
     errors.push('缺少 tempo 字段')
-  } else if (typeof obj.tempo !== 'number' || obj.tempo <= 0) {
-    errors.push('tempo 必须是大于0的数字')
+  } else if (typeof obj.tempo !== 'number' || !isFinite(obj.tempo) || obj.tempo <= 0 || obj.tempo > 600) {
+    errors.push('tempo 必须是 1-600 之间的有效数字')
   }
 
   if (!Array.isArray(obj.tracks)) {
@@ -264,7 +264,7 @@ export const useScoreStore = create<ScoreState>((set, get) => ({
 
     set({
       notes: newNotes,
-      tempo: score.tempo || 120,
+      tempo: Math.max(1, Math.min(600, Number(score.tempo))) || 120,
       currentBeat: 0,
       isPlaying: false,
       selectedNoteIds: [],

@@ -257,7 +257,7 @@ body {
   position: absolute;
   border-radius: 50%;
   cursor: pointer;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease, filter 0.2s ease;
   animation: noteAppear 0.2s ease;
   z-index: 5;
 }

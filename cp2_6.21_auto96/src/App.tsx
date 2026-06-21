@@ -78,9 +78,11 @@ const App: React.FC = () => {
   }
 
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const progress = x / rect.width
+    const nativeEvent = e.nativeEvent
+    const offsetX = nativeEvent.offsetX
+    const target = e.currentTarget
+    const width = target.getBoundingClientRect().width
+    const progress = Math.max(0, Math.min(1, offsetX / width))
     const newBeat = Math.floor(progress * 32)
     const clampedBeat = Math.max(0, Math.min(31, newBeat))
     playerEngine.seekToBeat(clampedBeat)
