@@ -308,10 +308,26 @@ export class CanvasEngine {
     for (let i = this.layoutNodes.length - 1; i >= 0; i--) {
       const n = this.layoutNodes[i];
       if (!n.isCollapsed || !n.collapsedDescendantCount || !n.isVisible) continue;
-      const bx = n.x + n.width + 12;
-      const by = n.y + n.height / 2 - 18;
-      const bw = 96;
-      const bh = 36;
+      let bx: number;
+      let by: number;
+      let bw: number;
+      let bh: number;
+      if (
+        typeof n.collapsedBoxX === 'number' &&
+        typeof n.collapsedBoxY === 'number' &&
+        typeof n.collapsedBoxW === 'number' &&
+        typeof n.collapsedBoxH === 'number'
+      ) {
+        bx = n.collapsedBoxX;
+        by = n.collapsedBoxY;
+        bw = n.collapsedBoxW;
+        bh = n.collapsedBoxH;
+      } else {
+        bx = n.x + n.width + 12;
+        by = n.y + n.height / 2 - 18;
+        bw = 96;
+        bh = 36;
+      }
       if (x >= bx && x <= bx + bw && y >= by && y <= by + bh) {
         return n.id;
       }
@@ -710,9 +726,27 @@ export class CanvasEngine {
 
     this.layoutNodes.forEach((n) => {
       if (n.isCollapsed && n.collapsedDescendantCount && n.isVisible) {
-        const bx = n.renderX + n.width + 12;
-        const by = n.renderY + n.height / 2 - 16;
-        if (this.isInViewport(bx, by, 80, 32, 30)) {
+        let bx: number;
+        let by: number;
+        let bw: number;
+        let bh: number;
+        if (
+          typeof n.collapsedBoxX === 'number' &&
+          typeof n.collapsedBoxY === 'number' &&
+          typeof n.collapsedBoxW === 'number' &&
+          typeof n.collapsedBoxH === 'number'
+        ) {
+          bx = n.collapsedBoxX;
+          by = n.collapsedBoxY;
+          bw = n.collapsedBoxW;
+          bh = n.collapsedBoxH;
+        } else {
+          bx = n.renderX + n.width + 12;
+          by = n.renderY + n.height / 2 - 18;
+          bw = 96;
+          bh = 36;
+        }
+        if (this.isInViewport(bx, by, bw, bh, 30)) {
           this.drawCollapsedBox(ctx, n);
         }
       }
@@ -985,30 +1019,49 @@ export class CanvasEngine {
   }
 
   private drawCollapsedBox(ctx: CanvasRenderingContext2D, n: RenderNode): void {
-    const bx = n.renderX + n.width + 12;
-    const by = n.renderY + n.height / 2 - 18;
-    const bw = 96;
-    const bh = 36;
+    let bx: number;
+    let by: number;
+    let bw: number;
+    let bh: number;
+    const hasBox =
+      typeof n.collapsedBoxX === 'number' &&
+      typeof n.collapsedBoxY === 'number' &&
+      typeof n.collapsedBoxW === 'number' &&
+      typeof n.collapsedBoxH === 'number';
+    if (hasBox) {
+      bx = n.collapsedBoxX!;
+      by = n.collapsedBoxY!;
+      bw = n.collapsedBoxW!;
+      bh = n.collapsedBoxH!;
+    } else {
+      bx = n.renderX + n.width + 12;
+      by = n.renderY + n.height / 2 - 18;
+      bw = 96;
+      bh = 36;
+    }
     const hovered = this.hoveredNodeId === '__collapsed:' + n.id;
     ctx.save();
-    ctx.globalAlpha = hovered ? 0.95 : 0.8;
+    ctx.globalAlpha = hovered ? 0.65 : 0.42;
     ctx.shadowColor = 'rgba(139, 94, 60, 0.3)';
     ctx.shadowBlur = hovered ? 10 : 5;
     ctx.shadowOffsetY = 2;
     ctx.fillStyle = hovered ? '#fff6e6' : COLORS.primary;
     ctx.strokeStyle = hovered ? COLORS.accent : COLORS.secondary;
     ctx.lineWidth = hovered ? 2.5 : 1.5;
-    ctx.setLineDash([6, 4]);
-    this.roundRect(ctx, bx, by, bw, bh, 8);
+    ctx.setLineDash([hasBox ? 8 : 6, hasBox ? 6 : 4]);
+    this.roundRect(ctx, bx, by, bw, bh, hasBox ? 10 : 8);
     ctx.fill();
     ctx.stroke();
     ctx.restore();
     ctx.save();
     ctx.fillStyle = hovered ? COLORS.accent : COLORS.text;
-    ctx.font = `bold 12px Georgia, "Noto Serif SC", serif`;
-    ctx.textAlign = 'center';
+    ctx.font = `bold ${hasBox ? 13 : 12}px Georgia, "Noto Serif SC", serif`;
+    ctx.textAlign = hasBox ? 'left' : 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`＋ ${n.collapsedDescendantCount}`, bx + bw / 2, by + bh / 2);
+    const text = hasBox
+      ? `＋ ${n.collapsedDescendantCount} 项已折叠 · 点击展开`
+      : `＋ ${n.collapsedDescendantCount}`;
+    ctx.fillText(text, hasBox ? bx + 12 : bx + bw / 2, by + bh / 2);
     ctx.restore();
   }
 

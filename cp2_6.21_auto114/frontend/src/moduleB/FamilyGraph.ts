@@ -319,55 +319,158 @@ export class FamilyGraph {
     return acc;
   }
 
+  private getHorizontalGap(childCount: number): number {
+    if (childCount <= 3) return HORIZONTAL_GAP;
+    if (childCount <= 5) return HORIZONTAL_GAP * 1.3;
+    if (childCount <= 8) return HORIZONTAL_GAP * 1.6;
+    return HORIZONTAL_GAP * 2.0;
+  }
+
   layout(): { nodes: LayoutNode[]; relations: LayoutRelation[] } {
     this.computeGenerations();
 
-    const byGen = new Map<number, NodeData[]>();
-    this.nodes.forEach((n) => {
-      if (!byGen.has(n.generation)) byGen.set(n.generation, []);
-      byGen.get(n.generation)!.push(n);
-    });
-
     const collapsedHidden = new Set<string>();
     this.nodes.forEach((n) => {
-      if (n.isCollapsed) {
-        this.collectDescendants(n.id, collapsedHidden);
-      }
+      if (n.isCollapsed) this.collectDescendants(n.id, collapsedHidden);
     });
 
     const collapsedCounts = new Map<string, number>();
     this.nodes.forEach((n) => {
       if (n.isCollapsed) {
-        const desc = this.collectDescendants(n.id);
-        collapsedCounts.set(n.id, desc.size);
+        collapsedCounts.set(n.id, this.collectDescendants(n.id).size);
       }
     });
 
-    const genList = Array.from(byGen.keys()).sort((a, b) => a - b);
+    const roots = Array.from(this.nodes.values()).filter(
+      (n) => n.parentIds.length === 0 || !n.parentIds.some((pid) => this.nodes.has(pid)),
+    );
+
+    const subtreeWidth = new Map<string, number>();
+    const computeWidth = (nodeId: string): number => {
+      const node = this.nodes.get(nodeId);
+      if (!node) return NODE_WIDTH;
+      const visibleChildren = node.childrenIds.filter((cid) => this.nodes.has(cid));
+      if (visibleChildren.length === 0) {
+        subtreeWidth.set(nodeId, NODE_WIDTH);
+        return NODE_WIDTH;
+      }
+      const gap = this.getHorizontalGap(visibleChildren.length);
+      let total = 0;
+      visibleChildren.forEach((cid, i) => {
+        total += computeWidth(cid);
+        if (i < visibleChildren.length - 1) total += gap;
+      });
+      const w = Math.max(NODE_WIDTH, total);
+      subtreeWidth.set(nodeId, w);
+      return w;
+    };
+
+    const allPositions = new Map<string, { x: number; y: number }>();
+    const placeAll = (nodeId: string, centerX: number, y: number): void => {
+      const node = this.nodes.get(nodeId);
+      if (!node) return;
+      allPositions.set(nodeId, { x: centerX - NODE_WIDTH / 2, y });
+      const children = node.childrenIds.filter((cid) => this.nodes.has(cid));
+      if (children.length === 0) return;
+      const gap = this.getHorizontalGap(children.length);
+      const widths = children.map((cid) => subtreeWidth.get(cid) ?? NODE_WIDTH);
+      const totalW = widths.reduce((s, w) => s + w, 0) + gap * (widths.length - 1);
+      let cursor = centerX - totalW / 2;
+      children.forEach((cid, i) => {
+        const cw = widths[i];
+        placeAll(cid, cursor + cw / 2, y + NODE_HEIGHT + VERTICAL_GAP);
+        cursor += cw + gap;
+      });
+    };
+
+    const visiblePositions = new Map<string, { x: number; y: number }>();
+    const placeVisible = (
+      nodeId: string,
+      centerX: number,
+      y: number,
+      hidden: Set<string>,
+    ): void => {
+      const node = this.nodes.get(nodeId);
+      if (!node) return;
+      visiblePositions.set(nodeId, { x: centerX - NODE_WIDTH / 2, y });
+      if (hidden.has(nodeId)) return;
+      const visibleChildren = node.childrenIds.filter(
+        (cid) => this.nodes.has(cid) && !hidden.has(cid),
+      );
+      if (visibleChildren.length === 0) return;
+      const gap = this.getHorizontalGap(visibleChildren.length);
+      const widths = visibleChildren.map((cid) => subtreeWidth.get(cid) ?? NODE_WIDTH);
+      const totalW = widths.reduce((s, w) => s + w, 0) + gap * (widths.length - 1);
+      let cursor = centerX - totalW / 2;
+      visibleChildren.forEach((cid, i) => {
+        const cw = widths[i];
+        placeVisible(cid, cursor + cw / 2, y + NODE_HEIGHT + VERTICAL_GAP, hidden);
+        cursor += cw + gap;
+      });
+    };
+
+    const empty = new Set<string>();
+    roots.forEach((r) => computeWidth(r.id));
+
+    let rootCursor = 0;
+    const rootGap = this.getHorizontalGap(Math.max(roots.length, 2));
+    const rootPositions = roots.map((r) => {
+      const w = subtreeWidth.get(r.id) ?? NODE_WIDTH;
+      const pos = rootCursor + w / 2;
+      rootCursor += w + rootGap;
+      return pos;
+    });
+    const totalRootW = rootCursor - rootGap;
+    const rootOffset = -totalRootW / 2;
+
+    roots.forEach((r, i) => {
+      placeAll(r.id, rootOffset + rootPositions[i], 0);
+    });
+    roots.forEach((r, i) => {
+      placeVisible(r.id, rootOffset + rootPositions[i], 0, collapsedHidden);
+    });
+
     const layoutNodes: LayoutNode[] = [];
     const layoutRelations: LayoutRelation[] = [];
 
-    genList.forEach((gen) => {
-      const nodes = byGen.get(gen)!;
-      const visible = nodes.filter((n) => !collapsedHidden.has(n.id));
-      const totalWidth =
-        visible.length * NODE_WIDTH + (visible.length - 1) * HORIZONTAL_GAP;
-      const startX = -totalWidth / 2;
-      visible.forEach((n, idx) => {
-        const x = startX + idx * (NODE_WIDTH + HORIZONTAL_GAP);
-        const y = gen * (NODE_HEIGHT + VERTICAL_GAP);
-        layoutNodes.push({
-          ...n,
-          x,
-          y,
-          width: NODE_WIDTH,
-          height: NODE_HEIGHT,
-          isVisible: !collapsedHidden.has(n.id),
-          collapsedDescendantCount: collapsedCounts.get(n.id),
-          targetX: x,
-          targetY: y,
+    this.nodes.forEach((n) => {
+      const isVisible = !collapsedHidden.has(n.id);
+      const pos = visiblePositions.get(n.id);
+      if (!pos) return;
+      const layoutNode: LayoutNode = {
+        ...n,
+        x: pos.x,
+        y: pos.y,
+        width: NODE_WIDTH,
+        height: NODE_HEIGHT,
+        isVisible,
+        collapsedDescendantCount: collapsedCounts.get(n.id),
+        targetX: pos.x,
+        targetY: pos.y,
+      };
+      if (n.isCollapsed && collapsedCounts.get(n.id)) {
+        const descIds = this.collectDescendants(n.id);
+        let minX = Infinity;
+        let minY = Infinity;
+        let maxX = -Infinity;
+        let maxY = -Infinity;
+        descIds.forEach((did) => {
+          const dp = allPositions.get(did);
+          if (!dp) return;
+          minX = Math.min(minX, dp.x);
+          minY = Math.min(minY, dp.y);
+          maxX = Math.max(maxX, dp.x + NODE_WIDTH);
+          maxY = Math.max(maxY, dp.y + NODE_HEIGHT);
         });
-      });
+        if (isFinite(minX)) {
+          const pad = 24;
+          layoutNode.collapsedBoxX = minX - pad;
+          layoutNode.collapsedBoxY = minY - pad;
+          layoutNode.collapsedBoxW = Math.max(96, maxX - minX + pad * 2);
+          layoutNode.collapsedBoxH = Math.max(36, maxY - minY + pad * 2);
+        }
+      }
+      layoutNodes.push(layoutNode);
     });
 
     const posMap = new Map(layoutNodes.map((ln) => [ln.id, ln]));

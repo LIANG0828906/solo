@@ -33,6 +33,10 @@ export interface LayoutNode extends NodeData {
   height: number;
   isVisible: boolean;
   collapsedDescendantCount?: number;
+  collapsedBoxX?: number;
+  collapsedBoxY?: number;
+  collapsedBoxW?: number;
+  collapsedBoxH?: number;
   targetX?: number;
   targetY?: number;
 }
