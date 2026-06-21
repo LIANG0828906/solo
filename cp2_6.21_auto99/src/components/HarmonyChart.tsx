@@ -19,8 +19,8 @@ const HarmonyChart: React.FC = () => {
     const innerR = 55;
 
     for (let i = 0; i < 12; i++) {
-      const startAngle = (i * 30 - 90) * (Math.PI / 180);
-      const endAngle = ((i + 1) * 30 - 90) * (Math.PI / 180);
+      const startAngle = (i * 30) * (Math.PI / 180);
+      const endAngle = ((i + 1) * 30) * (Math.PI / 180);
 
       ctx.beginPath();
       ctx.arc(cx, cy, outerR, startAngle, endAngle);
@@ -34,8 +34,9 @@ const HarmonyChart: React.FC = () => {
 
     colorPositions.forEach((pos) => {
       const angle = pos.angle;
-      const x = cx + 68 * Math.cos(((angle - 90) * Math.PI) / 180);
-      const y = cy + 68 * Math.sin(((angle - 90) * Math.PI) / 180);
+      const rad = (angle * Math.PI) / 180;
+      const x = cx + 68 * Math.cos(rad);
+      const y = cy + 68 * Math.sin(rad);
 
       ctx.beginPath();
       ctx.arc(x, y, 6, 0, Math.PI * 2);
