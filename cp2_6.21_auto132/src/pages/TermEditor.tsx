@@ -1,16 +1,27 @@
 import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import useProjectStore from '../store/useProjectStore';
 
-const LANG_PAIRS = [
-  { value: 'en-zh', label: 'EN → ZH', source: 'en', target: 'zh' },
-  { value: 'ja-zh', label: 'JA → ZH', source: 'ja', target: 'zh' },
-  { value: 'en-ja', label: 'EN → JA', source: 'en', target: 'ja' },
-];
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
 
 export default function TermEditor() {
-  const { currentProject, terms, fetchTerms, addTerm, updateTerm, deleteTerm } = useProjectStore();
+  const { currentProject, terms, langPairs, fetchTerms, addTerm, updateTerm, deleteTerm, fetchLangPairs } = useProjectStore();
 
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 150);
   const [langFilters, setLangFilters] = useState<string[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editData, setEditData] = useState<Record<string, string>>({});
@@ -38,13 +49,14 @@ export default function TermEditor() {
   useEffect(() => {
     if (currentProject) {
       fetchTerms(currentProject.id);
+      fetchLangPairs(currentProject.id);
     }
   }, [currentProject]);
 
   const filteredTerms = useMemo(() => {
     let result = terms;
-    if (search) {
-      const q = search.toLowerCase();
+    if (debouncedSearch) {
+      const q = debouncedSearch.toLowerCase();
       result = result.filter(
         t =>
           t.sourceTerm.toLowerCase().includes(q) ||
@@ -54,15 +66,23 @@ export default function TermEditor() {
     }
     if (langFilters.length > 0) {
       result = result.filter(t => {
-        return langFilters.some(f => {
-          const pair = LANG_PAIRS.find(p => p.value === f);
-          if (!pair) return false;
-          return t.sourceLang === pair.source && t.targetLang === pair.target;
-        });
+        return langFilters.includes(`${t.sourceLang}-${t.targetLang}`);
       });
     }
     return result;
-  }, [terms, search, langFilters]);
+  }, [terms, debouncedSearch, langFilters]);
+
+  const langPairOptions = useMemo(() => {
+    return langPairs.map(p => {
+      const [source, target] = p.split('-');
+      return {
+        value: p,
+        label: `${source.toUpperCase()} → ${target.toUpperCase()}`,
+        source,
+        target,
+      };
+    });
+  }, [langPairs]);
 
   const startEdit = useCallback((term: typeof terms[0]) => {
     setEditingId(term.id);
@@ -110,7 +130,7 @@ export default function TermEditor() {
     langFilters.length === 0
       ? '选择语言对'
       : langFilters.length === 1
-      ? LANG_PAIRS.find(p => p.value === langFilters[0])?.label
+      ? langPairOptions.find(p => p.value === langFilters[0])?.label || langFilters[0]
       : `已选 ${langFilters.length} 项`;
 
   return (
@@ -151,16 +171,20 @@ export default function TermEditor() {
             )}
             {dropdownOpen && (
               <div className="dropdown-menu">
-                {LANG_PAIRS.map(p => (
-                  <label key={p.value} className="dropdown-item">
-                    <input
-                      type="checkbox"
-                      checked={langFilters.includes(p.value)}
-                      onChange={() => toggleLangFilter(p.value)}
-                    />
-                    <span>{p.label}</span>
-                  </label>
-                ))}
+                {langPairOptions.length === 0 ? (
+                  <div className="dropdown-empty">暂无语言对</div>
+                ) : (
+                  langPairOptions.map(p => (
+                    <label key={p.value} className="dropdown-item">
+                      <input
+                        type="checkbox"
+                        checked={langFilters.includes(p.value)}
+                        onChange={() => toggleLangFilter(p.value)}
+                      />
+                      <span>{p.label}</span>
+                    </label>
+                  ))
+                )}
               </div>
             )}
           </div>
@@ -212,11 +236,14 @@ export default function TermEditor() {
                     }}
                     className="term-select"
                   >
-                    {LANG_PAIRS.map(p => (
+                    {langPairOptions.map(p => (
                       <option key={p.value} value={p.value}>
                         {p.label}
                       </option>
                     ))}
+                    {langPairOptions.length === 0 && (
+                      <option value="en-zh">EN → ZH</option>
+                    )}
                   </select>
                 </td>
                 <td className="notes-col">
@@ -269,7 +296,7 @@ export default function TermEditor() {
                         }}
                         className="term-select"
                       >
-                        {LANG_PAIRS.map(p => (
+                        {langPairOptions.map(p => (
                           <option key={p.value} value={p.value}>
                             {p.label}
                           </option>

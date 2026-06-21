@@ -52,6 +52,7 @@ interface ProjectState {
   currentProject: Project | null;
   tasks: Task[];
   terms: Term[];
+  langPairs: string[];
   wsStatus: WsStatus;
   lastSyncTime: number | null;
   socket: Socket | null;
@@ -68,6 +69,7 @@ interface ProjectState {
   addTerm: (projectId: string, term: Partial<Term>) => Promise<void>;
   updateTerm: (termId: string, term: Partial<Term>) => Promise<void>;
   deleteTerm: (termId: string) => Promise<void>;
+  fetchLangPairs: (projectId: string) => Promise<void>;
   connectSocket: (projectId: string) => void;
   disconnectSocket: () => void;
   reconnectSocket: () => void;
@@ -82,6 +84,7 @@ const useProjectStore = create<ProjectState>((set, get) => ({
   currentProject: null,
   tasks: [],
   terms: [],
+  langPairs: [],
   wsStatus: 'disconnected',
   lastSyncTime: null,
   socket: null,
@@ -141,6 +144,7 @@ const useProjectStore = create<ProjectState>((set, get) => ({
   addTerm: async (projectId: string, term: Partial<Term>) => {
     await axios.post(`/api/projects/${projectId}/terms`, term);
     await get().fetchTerms(projectId);
+    await get().fetchLangPairs(projectId);
   },
 
   updateTerm: async (termId: string, term: Partial<Term>) => {
@@ -148,6 +152,7 @@ const useProjectStore = create<ProjectState>((set, get) => ({
     const current = get().terms.find(t => t.id === termId);
     if (current) {
       await get().fetchTerms(current.projectId);
+      await get().fetchLangPairs(current.projectId);
     }
   },
 
@@ -156,7 +161,13 @@ const useProjectStore = create<ProjectState>((set, get) => ({
     await axios.delete(`/api/terms/${termId}`);
     if (current) {
       await get().fetchTerms(current.projectId);
+      await get().fetchLangPairs(current.projectId);
     }
+  },
+
+  fetchLangPairs: async (projectId: string) => {
+    const res = await axios.get(`/api/projects/${projectId}/lang-pairs`);
+    set({ langPairs: res.data });
   },
 
   connectSocket: (projectId: string) => {
@@ -202,14 +213,19 @@ const useProjectStore = create<ProjectState>((set, get) => ({
               : [...state.terms, term],
           };
         });
+        get().fetchLangPairs(currentProject.id);
         get().setLastSyncTime();
       }
     });
 
     socket.on('term_deleted', (data: { id: string }) => {
+      const currentProject = get().currentProject;
       set(state => ({
         terms: state.terms.filter(t => t.id !== data.id),
       }));
+      if (currentProject) {
+        get().fetchLangPairs(currentProject.id);
+      }
       get().setLastSyncTime();
     });
 

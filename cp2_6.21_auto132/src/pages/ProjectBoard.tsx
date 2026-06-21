@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   DndContext,
   DragEndEvent,
@@ -12,6 +12,22 @@ import {
 import { useDroppable } from '@dnd-kit/core';
 import useProjectStore, { Task } from '../store/useProjectStore';
 import TaskCard from '../components/TaskCard';
+
+function useDebounce<T>(value: T, delay: number): T {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+}
 
 const STATUS_COLUMNS: { key: string; label: string; color: string }[] = [
   { key: 'unassigned', label: '待分配', color: '#78909c' },
@@ -65,6 +81,7 @@ export default function ProjectBoard() {
   } = useProjectStore();
 
   const [search, setSearch] = useState('');
+  const debouncedSearch = useDebounce(search, 150);
   const [showNewProject, setShowNewProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
   const [showNewTask, setShowNewTask] = useState(false);
@@ -97,8 +114,11 @@ export default function ProjectBoard() {
     }
   }, [currentProject]);
 
-  const filteredProjects = projects.filter(p =>
-    p.name.toLowerCase().includes(search.toLowerCase())
+  const filteredProjects = useMemo(() =>
+    projects.filter(p =>
+      p.name.toLowerCase().includes(debouncedSearch.toLowerCase())
+    ),
+    [projects, debouncedSearch]
   );
 
   const handleDragStart = useCallback((event: DragStartEvent) => {
@@ -116,16 +136,17 @@ export default function ProjectBoard() {
       if (!over) return;
 
       const taskId = active.id as string;
-      const newStatus = over.id as string;
+      const newStatus = over.id as Task['status'];
 
+      const { tasks, updateTaskStatus: doUpdate } = useProjectStore.getState();
       const task = tasks.find(t => t.id === taskId);
       if (!task) return;
 
       if (task.status !== newStatus) {
-        await updateTaskStatus(taskId, newStatus as Task['status']);
+        await doUpdate(taskId, newStatus);
       }
     },
-    [tasks, updateTaskStatus]
+    []
   );
 
   if (!currentProject) {

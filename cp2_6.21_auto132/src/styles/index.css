@@ -508,15 +508,18 @@ button {
 }
 
 .task-card.dragging {
+  opacity: 0.4;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
-  transform: scale(1.03) !important;
-  transition: box-shadow 0.15s ease, transform 0.15s ease !important;
+  transform: scale(1.02) !important;
+  transition: opacity 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease !important;
 }
 
 .task-card.dragging-overlay {
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
-  transform: scale(1.05) rotate(2deg);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.6) !important;
+  transform: scale(1.06) rotate(2deg);
   cursor: grabbing;
+  opacity: 0.95;
+  filter: brightness(1.1);
 }
 
 .task-card-header {
@@ -929,10 +932,12 @@ button {
 @media (max-width: 768px) {
   .kanban-board {
     flex-direction: column;
+    gap: 20px;
   }
 
   .kanban-column {
     min-width: auto;
+    width: 100%;
   }
 
   .notes-col {

@@ -241,6 +241,14 @@ async def update_task(task_id: str, body: dict):
 def list_terms(project_id: str):
     return [t for t in TERMS.values() if t["projectId"] == project_id]
 
+@app.get("/api/projects/{project_id}/lang-pairs")
+def list_lang_pairs(project_id: str):
+    pairs = set()
+    for t in TERMS.values():
+        if t["projectId"] == project_id:
+            pairs.add(f"{t['sourceLang']}-{t['targetLang']}")
+    return sorted(list(pairs))
+
 @app.post("/api/projects/{project_id}/terms")
 async def create_term(project_id: str, body: dict):
     if project_id not in PROJECTS:
