@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 import { ParticleEngine } from './particleEngine';
-import { Particle } from './types';
 
 const MAX_TRAILS = 5;
 const BG_COLOR = 0x0a0a1a;
+const PARTICLE_SIZE = 1.5;
+const TRAIL_SIZE = 0.9;
 
 export class SceneManager {
   scene: THREE.Scene;
@@ -24,6 +25,7 @@ export class SceneManager {
   private cameraDistance: number;
   private targetCameraDistance: number;
   private pivot: THREE.Group;
+  private particleTexture: THREE.Texture;
 
   constructor(engine: ParticleEngine, container: HTMLElement) {
     this.engine = engine;
@@ -34,6 +36,7 @@ export class SceneManager {
     this.cameraDistance = 30;
     this.targetCameraDistance = 30;
     this.pivot = new THREE.Group();
+    this.particleTexture = this.createRadialTexture();
 
     this.scene = new THREE.Scene();
     this.scene.background = new THREE.Color(BG_COLOR);
@@ -70,10 +73,11 @@ export class SceneManager {
     this.particleGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
 
     this.particleMaterial = new THREE.PointsMaterial({
-      size: 4,
+      size: PARTICLE_SIZE,
+      map: this.particleTexture,
       vertexColors: true,
       transparent: true,
-      opacity: 0.9,
+      opacity: 0.95,
       sizeAttenuation: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
@@ -91,10 +95,11 @@ export class SceneManager {
     this.trailGeometry.setAttribute('color', new THREE.BufferAttribute(trailColors, 3));
 
     this.trailMaterial = new THREE.PointsMaterial({
-      size: 2,
+      size: TRAIL_SIZE,
+      map: this.particleTexture,
       vertexColors: true,
       transparent: true,
-      opacity: 0.35,
+      opacity: 1.0,
       sizeAttenuation: true,
       blending: THREE.AdditiveBlending,
       depthWrite: false,
@@ -105,30 +110,33 @@ export class SceneManager {
 
     this.scene.add(this.pivot);
 
-    this.initTrailGeometry();
+    (this.trailGeometry.getAttribute('position') as THREE.BufferAttribute).setUsage(THREE.DynamicDrawUsage);
+    (this.trailGeometry.getAttribute('color') as THREE.BufferAttribute).setUsage(THREE.DynamicDrawUsage);
+    (this.particleGeometry.getAttribute('position') as THREE.BufferAttribute).setUsage(THREE.DynamicDrawUsage);
+    (this.particleGeometry.getAttribute('color') as THREE.BufferAttribute).setUsage(THREE.DynamicDrawUsage);
+
+    this.syncTrailBuffers();
+    this.syncParticleBuffers();
 
     this.bindEvents(container);
   }
 
-  private initTrailGeometry(): void {
-    const posAttr = this.trailGeometry.getAttribute('position') as THREE.BufferAttribute;
-    const colAttr = this.trailGeometry.getAttribute('color') as THREE.BufferAttribute;
-    posAttr.setUsage(THREE.DynamicDrawUsage);
-    colAttr.setUsage(THREE.DynamicDrawUsage);
-
-    for (let i = 0; i < this.engine.particles.length; i++) {
-      for (let t = 0; t < MAX_TRAILS; t++) {
-        const idx = (i * MAX_TRAILS + t) * 3;
-        posAttr.array[idx] = 0;
-        posAttr.array[idx + 1] = 0;
-        posAttr.array[idx + 2] = 0;
-        colAttr.array[idx] = 0;
-        colAttr.array[idx + 1] = 0;
-        colAttr.array[idx + 2] = 0;
-      }
-    }
-    posAttr.needsUpdate = true;
-    colAttr.needsUpdate = true;
+  private createRadialTexture(): THREE.Texture {
+    const size = 64;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d')!;
+    const gradient = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 1)');
+    gradient.addColorStop(0.3, 'rgba(255, 255, 255, 0.8)');
+    gradient.addColorStop(0.6, 'rgba(255, 255, 255, 0.3)');
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, size, size);
+    const texture = new THREE.CanvasTexture(canvas);
+    texture.needsUpdate = true;
+    return texture;
   }
 
   private updateCameraPosition(): void {
@@ -221,15 +229,18 @@ export class SceneManager {
     const posAttr = this.particleGeometry.getAttribute('position') as THREE.BufferAttribute;
     const colAttr = this.particleGeometry.getAttribute('color') as THREE.BufferAttribute;
     const particles = this.engine.particles;
+    const posArray = posAttr.array as Float32Array;
+    const colArray = colAttr.array as Float32Array;
 
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
-      posAttr.array[i * 3] = p.x;
-      posAttr.array[i * 3 + 1] = p.y;
-      posAttr.array[i * 3 + 2] = p.z;
-      colAttr.array[i * 3] = p.r;
-      colAttr.array[i * 3 + 1] = p.g;
-      colAttr.array[i * 3 + 2] = p.b;
+      const i3 = i * 3;
+      posArray[i3] = p.x;
+      posArray[i3 + 1] = p.y;
+      posArray[i3 + 2] = p.z;
+      colArray[i3] = p.r;
+      colArray[i3 + 1] = p.g;
+      colArray[i3 + 2] = p.b;
     }
 
     posAttr.needsUpdate = true;
@@ -240,29 +251,24 @@ export class SceneManager {
     const posAttr = this.trailGeometry.getAttribute('position') as THREE.BufferAttribute;
     const colAttr = this.trailGeometry.getAttribute('color') as THREE.BufferAttribute;
     const particles = this.engine.particles;
+    const posArray = posAttr.array as Float32Array;
+    const colArray = colAttr.array as Float32Array;
 
     for (let i = 0; i < particles.length; i++) {
       const p = particles[i];
       const trail = p.trail;
+      const baseIdx = i * MAX_TRAILS * 3;
+
       for (let t = 0; t < MAX_TRAILS; t++) {
-        const idx = (i * MAX_TRAILS + t) * 3;
-        if (t < trail.length) {
-          const tp = trail[t];
-          posAttr.array[idx] = tp.x;
-          posAttr.array[idx + 1] = tp.y;
-          posAttr.array[idx + 2] = tp.z;
-          const alpha = (t + 1) / (trail.length + 1);
-          colAttr.array[idx] = p.r * alpha;
-          colAttr.array[idx + 1] = p.g * alpha;
-          colAttr.array[idx + 2] = p.b * alpha;
-        } else {
-          posAttr.array[idx] = p.x;
-          posAttr.array[idx + 1] = p.y;
-          posAttr.array[idx + 2] = p.z;
-          colAttr.array[idx] = 0;
-          colAttr.array[idx + 1] = 0;
-          colAttr.array[idx + 2] = 0;
-        }
+        const idx = baseIdx + t * 3;
+        const tp = trail[t];
+        const alpha = (t + 1) / (MAX_TRAILS + 1) * 0.5;
+        posArray[idx] = tp.x;
+        posArray[idx + 1] = tp.y;
+        posArray[idx + 2] = tp.z;
+        colArray[idx] = p.r * alpha;
+        colArray[idx + 1] = p.g * alpha;
+        colArray[idx + 2] = p.b * alpha;
       }
     }
 

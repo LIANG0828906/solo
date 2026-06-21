@@ -10,21 +10,26 @@ const NEBULA_PALETTE: [number, number, number][] = [
 
 const TRAIL_LENGTH = 5;
 const INTERACTION_DISTANCE = 3.0;
-const SPATIAL_CELL_SIZE = 3.0;
+const INTERACTION_DISTANCE_SQ = INTERACTION_DISTANCE * INTERACTION_DISTANCE;
+const COLLISION_DISTANCE = 1.2;
+const COLLISION_DISTANCE_SQ = COLLISION_DISTANCE * COLLISION_DISTANCE;
+const SPATIAL_CELL_SIZE = INTERACTION_DISTANCE;
+const LERP_TARGET_TIME = 0.5;
+const LERP_FACTOR = Math.log(0.02) / -LERP_TARGET_TIME;
 
 export class ParticleEngine {
   particles: Particle[];
   params: SimParams;
   targetParams: SimParams;
-  private paramLerpSpeed: number;
   collisionEvents: CollisionEvent[];
+  private cellMap: Map<number, number[]>;
 
   constructor(count: number, sphereRadius: number) {
     this.particles = [];
     this.params = { gravity: 0.8, speedMultiplier: 1.0, elasticity: 0.3 };
     this.targetParams = { gravity: 0.8, speedMultiplier: 1.0, elasticity: 0.3 };
-    this.paramLerpSpeed = 1.0 / 0.5;
     this.collisionEvents = [];
+    this.cellMap = new Map();
     this.initParticles(count, sphereRadius);
   }
 
@@ -48,6 +53,11 @@ export class ParticleEngine {
       const palette = NEBULA_PALETTE[Math.floor(Math.random() * NEBULA_PALETTE.length)];
       const size = 2 + Math.random() * 4;
 
+      const trail: TrailPoint[] = [];
+      for (let t = 0; t < TRAIL_LENGTH; t++) {
+        trail.push({ x, y, z });
+      }
+
       this.particles.push({
         id: i,
         x, y, z,
@@ -56,7 +66,7 @@ export class ParticleEngine {
         g: palette[1],
         b: palette[2],
         size,
-        trail: [],
+        trail,
       });
     }
   }
@@ -67,60 +77,82 @@ export class ParticleEngine {
     if (target.elasticity !== undefined) this.targetParams.elasticity = target.elasticity;
   }
 
+  private hashCell(cx: number, cy: number, cz: number): number {
+    const p1 = 73856093;
+    const p2 = 19349663;
+    const p3 = 83492791;
+    return ((cx * p1) ^ (cy * p2) ^ (cz * p3)) >>> 0;
+  }
+
+  private buildSpatialGrid(): void {
+    this.cellMap.clear();
+    const particles = this.particles;
+    const invCell = 1 / SPATIAL_CELL_SIZE;
+
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      const cx = Math.floor(p.x * invCell);
+      const cy = Math.floor(p.y * invCell);
+      const cz = Math.floor(p.z * invCell);
+      const key = this.hashCell(cx, cy, cz);
+
+      let cell = this.cellMap.get(key);
+      if (!cell) {
+        cell = [];
+        this.cellMap.set(key, cell);
+      }
+      cell.push(i);
+    }
+  }
+
   update(dt: number): CollisionEvent[] {
     this.lerpParams(dt);
     const events: CollisionEvent[] = [];
     const { gravity, speedMultiplier, elasticity } = this.params;
+    const particles = this.particles;
 
-    for (const p of this.particles) {
-      p.trail.push({ x: p.x, y: p.y, z: p.z });
-      if (p.trail.length > TRAIL_LENGTH) {
-        p.trail.shift();
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      const trail = p.trail;
+      for (let t = 0; t < TRAIL_LENGTH - 1; t++) {
+        trail[t].x = trail[t + 1].x;
+        trail[t].y = trail[t + 1].y;
+        trail[t].z = trail[t + 1].z;
       }
+      trail[TRAIL_LENGTH - 1].x = p.x;
+      trail[TRAIL_LENGTH - 1].y = p.y;
+      trail[TRAIL_LENGTH - 1].z = p.z;
     }
 
-    const cellMap = new Map<string, number[]>();
-    for (let i = 0; i < this.particles.length; i++) {
-      const p = this.particles[i];
-      const cx = Math.floor(p.x / SPATIAL_CELL_SIZE);
-      const cy = Math.floor(p.y / SPATIAL_CELL_SIZE);
-      const cz = Math.floor(p.z / SPATIAL_CELL_SIZE);
-      const key = `${cx},${cy},${cz}`;
-      let cell = cellMap.get(key);
-      if (!cell) {
-        cell = [];
-        cellMap.set(key, cell);
-      }
-      cell.push(i);
-    }
+    this.buildSpatialGrid();
+    const invCell = 1 / SPATIAL_CELL_SIZE;
 
-    const processed = new Set<string>();
-    for (let i = 0; i < this.particles.length; i++) {
-      const a = this.particles[i];
-      const cx = Math.floor(a.x / SPATIAL_CELL_SIZE);
-      const cy = Math.floor(a.y / SPATIAL_CELL_SIZE);
-      const cz = Math.floor(a.z / SPATIAL_CELL_SIZE);
+    for (let i = 0; i < particles.length; i++) {
+      const a = particles[i];
+      const cx = Math.floor(a.x * invCell);
+      const cy = Math.floor(a.y * invCell);
+      const cz = Math.floor(a.z * invCell);
 
-      for (let dx = -1; dx <= 1; dx++) {
+      for (let dx = 0; dx <= 1; dx++) {
         for (let dy = -1; dy <= 1; dy++) {
           for (let dz = -1; dz <= 1; dz++) {
-            const key = `${cx + dx},${cy + dy},${cz + dz}`;
-            const cell = cellMap.get(key);
+            if (dx === 0 && (dy < 0 || (dy === 0 && dz < 0))) continue;
+
+            const key = this.hashCell(cx + dx, cy + dy, cz + dz);
+            const cell = this.cellMap.get(key);
             if (!cell) continue;
 
-            for (const j of cell) {
+            for (let k = 0; k < cell.length; k++) {
+              const j = cell[k];
               if (j <= i) continue;
-              const pairKey = i < j ? `${i}_${j}` : `${j}_${i}`;
-              if (processed.has(pairKey)) continue;
-              processed.add(pairKey);
 
-              const b = this.particles[j];
+              const b = particles[j];
               const ddx = b.x - a.x;
               const ddy = b.y - a.y;
               const ddz = b.z - a.z;
               const distSq = ddx * ddx + ddy * ddy + ddz * ddz;
 
-              if (distSq < INTERACTION_DISTANCE * INTERACTION_DISTANCE && distSq > 0.0001) {
+              if (distSq < INTERACTION_DISTANCE_SQ && distSq > 0.0001) {
                 const dist = Math.sqrt(distSq);
                 const nx = ddx / dist;
                 const ny = ddy / dist;
@@ -138,7 +170,7 @@ export class ParticleEngine {
                 b.vy -= fy * dt;
                 b.vz -= fz * dt;
 
-                if (dist < 0.8) {
+                if (distSq < COLLISION_DISTANCE_SQ) {
                   const relVx = a.vx - b.vx;
                   const relVy = a.vy - b.vy;
                   const relVz = a.vz - b.vz;
@@ -167,8 +199,8 @@ export class ParticleEngine {
                       timestamp: performance.now(),
                       idA: a.id,
                       idB: b.id,
-                      colorA: { r: avgR, g: avgG, b: avgB },
-                      colorB: { r: avgR, g: avgG, b: avgB },
+                      colorA: { r: a.r, g: a.g, b: a.b },
+                      colorB: { r: b.r, g: b.g, b: b.b },
                     });
                   }
                 }
@@ -179,7 +211,8 @@ export class ParticleEngine {
       }
     }
 
-    for (const p of this.particles) {
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
       p.x += p.vx * speedMultiplier * dt * 60;
       p.y += p.vy * speedMultiplier * dt * 60;
       p.z += p.vz * speedMultiplier * dt * 60;
@@ -190,7 +223,7 @@ export class ParticleEngine {
   }
 
   private lerpParams(dt: number): void {
-    const t = Math.min(1, this.paramLerpSpeed * dt);
+    const t = 1 - Math.exp(-LERP_FACTOR * dt);
     this.params.gravity += (this.targetParams.gravity - this.params.gravity) * t;
     this.params.speedMultiplier += (this.targetParams.speedMultiplier - this.params.speedMultiplier) * t;
     this.params.elasticity += (this.targetParams.elasticity - this.params.elasticity) * t;
