@@ -18,7 +18,7 @@ interface SimulationState {
   seasonPreset: SeasonPreset
   sunDeclination: number
 
-  setTime: (t: number) => void
+  setTime: (t: number | ((prev: number) => number)) => void
   setCameraPosition: (pos: [number, number, number]) => void
   setSelectedPosition: (lat: number | null, lon: number | null) => void
   play: () => void
@@ -37,7 +37,11 @@ export const useSimulationStore = create<SimulationState>((set) => ({
   seasonPreset: 'vernal',
   sunDeclination: 0,
 
-  setTime: (t: number) => set({ time: ((t % 1440) + 1440) % 1440 }),
+  setTime: (t: number | ((prev: number) => number)) =>
+    set((state) => {
+      const nextTime = typeof t === 'function' ? t(state.time) : t;
+      return { time: ((nextTime % 1440) + 1440) % 1440 };
+    }),
   setCameraPosition: (pos: [number, number, number]) => set({ cameraPosition: pos }),
   setSelectedPosition: (lat: number | null, lon: number | null) => set({ selectedLat: lat, selectedLon: lon }),
   play: () => set({ isPlaying: true }),

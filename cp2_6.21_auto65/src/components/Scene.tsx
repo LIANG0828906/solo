@@ -1,8 +1,7 @@
-import { useRef, useState, useMemo } from 'react';
+import { useRef, useState, useMemo, useEffect } from 'react';
 import { Canvas, useFrame, useThree, ThreeEvent } from '@react-three/fiber';
 import {
   OrbitControls,
-  useTexture,
   Line,
 } from '@react-three/drei';
 import * as THREE from 'three';
@@ -60,20 +59,55 @@ function Earth() {
   const directionalLightRef = useRef<THREE.DirectionalLight>(null);
   const lastTimeAccumulator = useRef(0);
   const clickMarkerId = useRef(0);
+  const sunPositionRef = useRef<[number, number, number]>([0, 0, 0]);
 
-  const time = useSimulationStore((state) => state.time);
-  const sunDeclination = useSimulationStore((state) => state.sunDeclination);
-  const isPlaying = useSimulationStore((state) => state.isPlaying);
-  const setTime = useSimulationStore((state) => state.setTime);
-  const setSelectedPosition = useSimulationStore((state) => state.setSelectedPosition);
+  const time = useSimulationStore((s) => s.time);
+  const sunDeclination = useSimulationStore((s) => s.sunDeclination);
+  const isPlaying = useSimulationStore((s) => s.isPlaying);
+  const setTime = useSimulationStore((s) => s.setTime);
+  const setSelectedPosition = useSimulationStore((s) => s.setSelectedPosition);
+  const isPlayingRef = useRef(isPlaying);
+  const sunDeclinationRef = useRef(sunDeclination);
+  const terminatorUniformsRef = useRef<{ sunDirection: { value: THREE.Vector3 } } | null>(null);
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+
+  useEffect(() => {
+    sunDeclinationRef.current = sunDeclination;
+  }, [sunDeclination]);
 
   const [clickMarkers, setClickMarkers] = useState<ClickMarker[]>([]);
+  const [earthMap, setEarthMap] = useState<THREE.Texture | null>(null);
+  const [earthNormal, setEarthNormal] = useState<THREE.Texture | null>(null);
+  const [cloudsMap, setCloudsMap] = useState<THREE.Texture | null>(null);
 
-  const [earthTexture, earthNormalMap, cloudsTexture] = useTexture([
-    'https://unpkg.com/three-globe@2.31.1/example/img/earth-blue-marble.jpg',
-    'https://unpkg.com/three-globe@2.31.1/example/img/earth-topology.png',
-    'https://unpkg.com/three-globe@2.31.1/example/img/earth-clouds.png',
-  ]);
+  useEffect(() => {
+    const loader = new THREE.TextureLoader();
+    loader.setCrossOrigin('anonymous');
+
+    const urls = [
+      'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/textures/planets/earth_atmos_2048.jpg',
+      'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/textures/planets/earth_normal_2048.jpg',
+      'https://cdn.jsdelivr.net/gh/mrdoob/three.js@r160/examples/textures/planets/earth_clouds_1024.png',
+    ];
+    const setters = [setEarthMap, setEarthNormal, setCloudsMap];
+
+    urls.forEach((url, i) => {
+      loader.load(
+        url,
+        (tex) => {
+          if (i === 0) tex.colorSpace = THREE.SRGBColorSpace;
+          setters[i](tex);
+        },
+        undefined,
+        () => {
+          setters[i](null);
+        },
+      );
+    });
+  }, []);
 
   const sunPosition = useMemo(() => {
     const { lat, lon } = calcSunPosition(time, sunDeclination);
@@ -82,15 +116,17 @@ function Earth() {
     const x = SUN_DISTANCE * Math.cos(latRad) * Math.cos(lonRad);
     const y = SUN_DISTANCE * Math.sin(latRad);
     const z = SUN_DISTANCE * Math.cos(latRad) * Math.sin(lonRad);
+    sunPositionRef.current = [x, y, z];
     return [x, y, z] as [number, number, number];
   }, [time, sunDeclination]);
 
-  const terminatorUniforms = useMemo(
-    () => ({
+  const terminatorUniforms = useMemo(() => {
+    const uniforms = {
       sunDirection: { value: new THREE.Vector3(...sunPosition).normalize() },
-    }),
-    [sunPosition],
-  );
+    };
+    terminatorUniformsRef.current = uniforms;
+    return uniforms;
+  }, [sunPosition]);
 
   useFrame((_, delta) => {
     if (earthRef.current) {
@@ -102,16 +138,20 @@ function Earth() {
     if (terminatorRef.current) {
       terminatorRef.current.rotation.y = earthRef.current?.rotation.y ?? 0;
     }
+
+    const [sx, sy, sz] = sunPositionRef.current;
     if (directionalLightRef.current) {
-      directionalLightRef.current.position.set(...sunPosition);
-      terminatorUniforms.sunDirection.value.set(...sunPosition).normalize();
+      directionalLightRef.current.position.set(sx, sy, sz);
+      if (terminatorUniformsRef.current) {
+        terminatorUniformsRef.current.sunDirection.value.set(sx, sy, sz).normalize();
+      }
     }
 
-    if (isPlaying) {
+    if (isPlayingRef.current) {
       lastTimeAccumulator.current += delta * 1000;
       if (lastTimeAccumulator.current >= 100) {
         const increments = Math.floor(lastTimeAccumulator.current / 100);
-        setTime(time + increments * 6);
+        setTime((prevTime) => (prevTime + increments * 6) % 1440);
         lastTimeAccumulator.current -= increments * 100;
       }
     }
@@ -165,8 +205,9 @@ function Earth() {
       <mesh ref={earthRef} onClick={handleEarthClick}>
         <sphereGeometry args={[EARTH_RADIUS, 64, 64]} />
         <meshStandardMaterial
-          map={earthTexture}
-          normalMap={earthNormalMap}
+          map={earthMap ?? undefined}
+          normalMap={earthNormal ?? undefined}
+          color={earthMap ? '#ffffff' : '#1a4d7a'}
           roughness={0.8}
           metalness={0.1}
         />
@@ -182,15 +223,17 @@ function Earth() {
           depthWrite={false}
         />
       </mesh>
-      <mesh ref={cloudsRef}>
-        <sphereGeometry args={[CLOUDS_RADIUS, 64, 64]} />
-        <meshStandardMaterial
-          map={cloudsTexture}
-          transparent
-          opacity={0.4}
-          depthWrite={false}
-        />
-      </mesh>
+      {cloudsMap && (
+        <mesh ref={cloudsRef}>
+          <sphereGeometry args={[CLOUDS_RADIUS, 64, 64]} />
+          <meshStandardMaterial
+            map={cloudsMap}
+            transparent
+            opacity={0.4}
+            depthWrite={false}
+          />
+        </mesh>
+      )}
       <Line
         points={equatorPoints}
         color="rgba(255,255,255,0.4)"

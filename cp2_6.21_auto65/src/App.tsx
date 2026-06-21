@@ -1,13 +1,13 @@
-import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
-import Home from "@/pages/Home";
+import StarField from '@/components/StarField';
+import Scene from '@/components/Scene';
+import ControlPanel from '@/components/ControlPanel';
 
 export default function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/other" element={<div className="text-center text-xl">Other Page - Coming Soon</div>} />
-      </Routes>
-    </Router>
+    <div style={{ position: 'relative', width: '100vw', height: '100vh', overflow: 'hidden' }}>
+      <StarField />
+      <Scene />
+      <ControlPanel />
+    </div>
   );
 }
