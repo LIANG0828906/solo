@@ -1,0 +1,161 @@
+.bid-panel {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.08);
+}
+
+.bid-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #0F172A;
+}
+
+.min-bid-hint {
+  font-size: 13px;
+  font-weight: 400;
+  color: #64748B;
+}
+
+.bid-input-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.bid-input-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: #F8FAFC;
+  border: 2px solid #E2E8F0;
+  border-radius: 8px;
+  padding: 0 12px;
+  transition: border-color 0.2s;
+}
+
+.bid-input-wrapper:focus-within {
+  border-color: #059669;
+}
+
+.currency-symbol {
+  font-size: 18px;
+  font-weight: 600;
+  color: #0F172A;
+  margin-right: 8px;
+}
+
+.bid-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 18px;
+  font-weight: 600;
+  color: #0F172A;
+  outline: none;
+  padding: 10px 0;
+  font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
+}
+
+.bid-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.bid-button {
+  padding: 0 24px;
+  background: #059669;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-width: 100px;
+}
+
+.bid-button:hover:not(:disabled) {
+  background: #047857;
+  transform: translateY(-1px);
+}
+
+.bid-button:disabled {
+  background: #94A3B8;
+  cursor: not-allowed;
+}
+
+.bid-pulse {
+  animation: pulse 0.15s ease-in-out;
+}
+
+@keyframes pulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.bid-error {
+  color: #DC2626;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+
+.quick-bid-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.quick-bid-btn {
+  flex: 1;
+  min-width: 50px;
+  padding: 8px 0;
+  background: #F1F5F9;
+  color: #0F172A;
+  border: 1px solid #E2E8F0;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.quick-bid-btn:hover:not(:disabled) {
+  background: #E2E8F0;
+  border-color: #CBD5E1;
+}
+
+.quick-bid-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 640px) {
+  .bid-panel {
+    padding: 16px;
+  }
+  
+  .bid-panel-header {
+    font-size: 14px;
+  }
+  
+  .bid-input {
+    font-size: 16px;
+  }
+  
+  .bid-button {
+    padding: 0 16px;
+    font-size: 14px;
+    min-width: 80px;
+  }
+  
+  .quick-bid-btn {
+    font-size: 12px;
+    padding: 6px 0;
+  }
+}
