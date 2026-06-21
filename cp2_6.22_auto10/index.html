@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>粒子特效编辑器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary: #e94560;
+      --secondary: #0f3460;
+      --accent: #00e5ff;
+      --bg: #1a1a2e;
+      --canvas-bg: #16213e;
+      --text: #e0e0e0;
+      --text-dim: #8888aa;
+      --track: #3a3a5c;
+      --glass-bg: rgba(255, 255, 255, 0.08);
+      --glass-border: rgba(255, 255, 255, 0.15);
+      --glass-blur: 12px;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+    }
+
+    #title-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 48px;
+      padding: 0 20px;
+      background: rgba(15, 52, 96, 0.6);
+      border-bottom: 1px solid var(--glass-border);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      flex-shrink: 0;
+    }
+
+    #title-bar h1 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      background: linear-gradient(135deg, var(--primary), var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    #mode-toggle {
+      width: 36px;
+      height: 36px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.3s, background 0.2s;
+      perspective: 600px;
+    }
+
+    #mode-toggle:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    #mode-toggle .icon {
+      transition: transform 0.3s;
+      transform-style: preserve-3d;
+    }
+
+    #mode-toggle.playing .icon {
+      transform: rotateY(180deg);
+    }
+
+    #mode-toggle svg {
+      width: 18px;
+      height: 18px;
+      fill: var(--text);
+    }
+
+    #main-content {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #canvas-container {
+      width: 70%;
+      height: 100%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: var(--canvas-bg);
+      overflow: hidden;
+    }
+
+    #canvas-container::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      box-shadow: inset 0 0 20px rgba(233, 69, 96, 0.3);
+      z-index: 2;
+    }
+
+    #canvas-container canvas {
+      display: block;
+    }
+
+    #control-panel {
+      width: 30%;
+      height: 100%;
+      background: var(--glass-bg);
+      backdrop-filter: blur(var(--glass-blur));
+      -webkit-backdrop-filter: blur(var(--glass-blur));
+      border-left: 1px solid var(--glass-border);
+      overflow-y: auto;
+      overflow-x: hidden;
+      padding: 16px 12px;
+      transition: width 0.3s ease, opacity 0.3s ease, padding 0.3s ease;
+    }
+
+    #control-panel.hidden {
+      width: 0;
+      opacity: 0;
+      padding: 0;
+      overflow: hidden;
+      border: none;
+    }
+
+    #control-panel::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    #control-panel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #control-panel::-webkit-scrollbar-thumb {
+      background: var(--track);
+      border-radius: 2px;
+    }
+
+    .preset-section {
+      margin-bottom: 16px;
+    }
+
+    .preset-section label {
+      display: block;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 8px;
+    }
+
+    .preset-row {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .preset-select {
+      flex: 1;
+      height: 32px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--glass-border);
+      border-radius: 6px;
+      color: var(--text);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      padding: 0 10px;
+      outline: none;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    .preset-select:hover,
+    .preset-select:focus {
+      border-color: var(--accent);
+    }
+
+    .preset-select option {
+      background: #1a1a2e;
+      color: var(--text);
+    }
+
+    .preset-btn {
+      height: 32px;
+      padding: 0 10px;
+      background: rgba(0, 229, 255, 0.1);
+      border: 1px solid rgba(0, 229, 255, 0.3);
+      border-radius: 6px;
+      color: var(--accent);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+      white-space: nowrap;
+    }
+
+    .preset-btn:hover {
+      background: rgba(0, 229, 255, 0.2);
+      border-color: var(--accent);
+    }
+
+    .card {
+      margin-bottom: 10px;
+      border-radius: 8px;
+      border: 1px solid var(--glass-border);
+      background: rgba(0, 0, 0, 0.2);
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+
+    .card:hover {
+      border-color: rgba(233, 69, 96, 0.3);
+    }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.2s;
+    }
+
+    .card-header:hover {
+      background: rgba(255, 255, 255, 0.04);
+    }
+
+    .card-header h3 {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--primary);
+    }
+
+    .card-arrow {
+      width: 16px;
+      height: 16px;
+      transition: transform 0.3s ease;
+      fill: var(--text-dim);
+    }
+
+    .card.collapsed .card-arrow {
+      transform: rotate(-90deg);
+    }
+
+    .card-body {
+      padding: 6px 14px 14px;
+      max-height: 400px;
+      overflow: hidden;
+      transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
+      opacity: 1;
+    }
+
+    .card.collapsed .card-body {
+      max-height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+      opacity: 0;
+    }
+
+    .param-row {
+      margin-bottom: 12px;
+    }
+
+    .param-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .param-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+    }
+
+    .param-label span:first-child {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .param-label .param-value {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      font-weight: 400;
+      color: var(--accent);
+      min-width: 40px;
+      text-align: right;
+    }
+
+    .param-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: var(--track);
+      outline: none;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .param-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--primary);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(233, 69, 96, 0.5);
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .param-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 14px rgba(233, 69, 96, 0.7);
+    }
+
+    .param-slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--primary);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(233, 69, 96, 0.5);
+    }
+
+    .color-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .color-group {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .color-group label {
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text);
+    }
+
+    .color-picker-wrap {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      height: 32px;
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid var(--glass-border);
+      border-radius: 6px;
+      padding: 0 8px;
+      cursor: pointer;
+      transition: border-color 0.2s;
+    }
+
+    .color-picker-wrap:hover {
+      border-color: var(--accent);
+    }
+
+    .color-picker-wrap input[type="color"] {
+      width: 20px;
+      height: 20px;
+      border: none;
+      background: none;
+      cursor: pointer;
+      padding: 0;
+      border-radius: 50%;
+    }
+
+    .color-picker-wrap input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    .color-picker-wrap input[type="color"]::-webkit-color-swatch {
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 50%;
+    }
+
+    .color-picker-wrap .color-hex {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 10px;
+      color: var(--text-dim);
+    }
+
+    #status-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 32px;
+      padding: 0 20px;
+      background: rgba(15, 52, 96, 0.6);
+      border-top: 1px solid var(--glass-border);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      flex-shrink: 0;
+    }
+
+    #status-bar .status-item {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: var(--text-dim);
+    }
+
+    #status-bar .status-item span {
+      color: var(--accent);
+      font-weight: 700;
+    }
+
+    .fade-overlay {
+      position: absolute;
+      inset: 0;
+      background: var(--canvas-bg);
+      pointer-events: none;
+      opacity: 0;
+      z-index: 10;
+      transition: opacity 0.5s ease;
+    }
+
+    .fade-overlay.active {
+      opacity: 1;
+    }
+
+    @keyframes glow-pulse {
+      0%, 100% { opacity: 0.3; }
+      50% { opacity: 0.6; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="title-bar">
+      <h1>PARTICLE FX EDITOR</h1>
+      <button id="mode-toggle" title="切换模式">
+        <div class="icon">
+          <svg class="edit-icon" viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34a.996.996 0 0 0-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+          <svg class="play-icon" viewBox="0 0 24 24" style="display:none"><path d="M8 5v14l11-7z"/></svg>
+        </div>
+      </button>
+    </div>
+    <div id="main-content">
+      <div id="canvas-container">
+        <div class="fade-overlay" id="fade-overlay"></div>
+      </div>
+      <div id="control-panel">
+        <div class="preset-section">
+          <label>预设</label>
+          <div class="preset-row">
+            <select id="preset-select" class="preset-select"></select>
+            <button id="import-btn" class="preset-btn">导入</button>
+            <button id="export-btn" class="preset-btn">导出</button>
+          </div>
+        </div>
+        <div id="cards-container"></div>
+      </div>
+    </div>
+    <div id="status-bar">
+      <div class="status-item">粒子数: <span id="particle-count">0</span></div>
+      <div class="status-item">FPS: <span id="fps-display">0</span></div>
+    </div>
+  </div>
+  <input type="file" id="file-input" accept=".json" style="display:none" />
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
