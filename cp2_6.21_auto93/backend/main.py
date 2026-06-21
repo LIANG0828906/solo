@@ -49,11 +49,16 @@ def generate_random_chinese_name() -> str:
     return surname + given_name
 
 
+class ParticipantInput(BaseModel):
+    name: str
+
+
 class CreateActivityRequest(BaseModel):
     name: str
     participant_count: int
     team_size: int
     strategy: str = "balanced"
+    participants: Optional[List[ParticipantInput]] = None
 
 
 class ManualMoveRequest(BaseModel):
@@ -88,26 +93,45 @@ def root():
 def create_activity(request: CreateActivityRequest):
     if request.strategy not in ("balanced", "random"):
         raise HTTPException(status_code=400, detail="不支持的分组策略")
-    if request.participant_count < 20 or request.participant_count > 100:
-        raise HTTPException(status_code=400, detail="参与人数必须在20-100之间")
     if request.team_size < 5 or request.team_size > 10:
         raise HTTPException(status_code=400, detail="每组人数必须在5-10之间")
 
     activity_id = str(uuid.uuid4())
     participants = []
-    for _ in range(request.participant_count):
-        participants.append({
-            "id": str(uuid.uuid4()),
-            "name": generate_random_chinese_name()
-        })
 
-    group_count = (request.participant_count + request.team_size - 1) // request.team_size
+    if request.participants and len(request.participants) > 0:
+        seen_names = set()
+        for p in request.participants:
+            name = p.name.strip()
+            if not name:
+                continue
+            if name in seen_names:
+                continue
+            seen_names.add(name)
+            participants.append({
+                "id": str(uuid.uuid4()),
+                "name": name
+            })
+        if len(participants) < 20 or len(participants) > 100:
+            raise HTTPException(status_code=400, detail=f"导入的有效参与人数为{len(participants)}人，必须在20-100之间")
+        participant_count = len(participants)
+    else:
+        if request.participant_count < 20 or request.participant_count > 100:
+            raise HTTPException(status_code=400, detail="参与人数必须在20-100之间")
+        participant_count = request.participant_count
+        for _ in range(participant_count):
+            participants.append({
+                "id": str(uuid.uuid4()),
+                "name": generate_random_chinese_name()
+            })
+
+    group_count = (participant_count + request.team_size - 1) // request.team_size
 
     activity = {
         "id": activity_id,
         "name": request.name,
         "participants": participants,
-        "participant_count": request.participant_count,
+        "participant_count": participant_count,
         "team_size": request.team_size,
         "group_count": group_count,
         "strategy": request.strategy,
