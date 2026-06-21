@@ -125,6 +125,15 @@ const NodePropsPanel: React.FC<NodePropsPanelProps> = ({ plantId, nodeId }) => {
         unit=""
         onChange={(v) => updateNodePhysics(nodeId!, { windFactor: v })}
       />
+      <Slider
+        label="风阻系数"
+        value={node.windResistance}
+        min={0}
+        max={1.0}
+        step={0.05}
+        unit=""
+        onChange={(v) => updateNodePhysics(nodeId!, { windResistance: v })}
+      />
     </div>
   );
 };

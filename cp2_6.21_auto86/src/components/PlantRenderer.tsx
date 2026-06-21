@@ -87,9 +87,10 @@ const PlantRenderer: React.FC<PlantRendererProps> = ({
             onNodeClick(plant.id, node.id);
           }}
         >
-          <mesh scale={[scale, scale, scale]}>
+          <mesh key={`${node.id}-mesh-${textureResolution}`} scale={[scale, scale, scale]}>
             <planeGeometry args={[node.length, node.length * 0.5, 1, 1]} />
             <meshStandardMaterial
+              key={`${node.id}-mat-${textureResolution}`}
               color={finalColor}
               map={leafTexture}
               transparent
@@ -209,21 +210,41 @@ interface WindArrowProps {
 const WindArrow: React.FC<WindArrowProps> = ({ windStrength, windDirection }) => {
   const groupRef = useRef<THREE.Group>(null);
   const maxLength = 5;
-  const length = (windStrength / 20) * maxLength;
   const windRad = (windDirection * Math.PI) / 180;
   const direction = new THREE.Vector3(Math.sin(windRad), 0, Math.cos(windRad)).normalize();
   const origin = new THREE.Vector3(8, 3, 8);
 
-  const arrowLength = Math.max(0.1, length);
+  const { clock } = useThree();
+
+  if (windStrength <= 0.001) {
+    return null;
+  }
+
+  const normalizedWind = Math.min(1, windStrength / 20);
+  const arrowLength = normalizedWind * maxLength;
   const headLength = arrowLength * 0.3;
   const headWidth = arrowLength * 0.15;
 
+  const lightColor = new THREE.Color(0xffaaaa);
+  const darkColor = new THREE.Color(0xff0000);
+  const arrowColor = lightColor.clone().lerp(darkColor, normalizedWind);
+
+  const glowOpacity = 0.3 + Math.sin(clock.elapsedTime * 2) * 0.1;
+
   return (
     <group ref={groupRef}>
+      <mesh position={origin.toArray()}>
+        <sphereGeometry args={[0.8, 16, 16]} />
+        <meshBasicMaterial color="#ff4444" transparent opacity={glowOpacity * 0.5} />
+      </mesh>
+      <mesh position={origin.clone().add(direction.clone().multiplyScalar(arrowLength * 0.5)).toArray()}>
+        <sphereGeometry args={[0.5, 16, 16]} />
+        <meshBasicMaterial color="#ff4444" transparent opacity={glowOpacity * 0.3} />
+      </mesh>
       <arrowHelper
-        args={[direction, origin, arrowLength, 0xff4444, headLength, headWidth]}
+        args={[direction, origin, arrowLength, arrowColor.getHex(), headLength, headWidth]}
       />
-      <pointLight position={origin.toArray()} color="#ff4444" intensity={0.5} distance={3} />
+      <pointLight position={origin.toArray()} color="#ff4444" intensity={0.5 + normalizedWind * 0.5} distance={3 + normalizedWind * 2} />
     </group>
   );
 };
@@ -236,7 +257,7 @@ interface GravityIndicatorProps {
 const GravityIndicator: React.FC<GravityIndicatorProps> = ({ gravityDirection, onDrag }) => {
   const groupRef = useRef<THREE.Group>(null);
   const isDragging = useRef(false);
-  const { camera, raycaster, pointer } = useThree();
+  const { camera, raycaster, pointer, clock } = useThree();
 
   const handlePointerDown = useCallback((e: any) => {
     e.stopPropagation();
@@ -274,8 +295,31 @@ const GravityIndicator: React.FC<GravityIndicatorProps> = ({ gravityDirection, o
   const origin = new THREE.Vector3(-8, 5, 0);
   const dir = gravityDirection.clone().normalize();
 
+  const glowOpacity = 0.3 + Math.sin(clock.elapsedTime * 2) * 0.1;
+  const emissiveIntensity = 0.5 + Math.sin(clock.elapsedTime * 2) * 0.2;
+
   return (
     <group ref={groupRef} position={origin.toArray()}>
+      <mesh position={[0, 0, 0]}>
+        <sphereGeometry args={[0.8, 16, 16]} />
+        <meshStandardMaterial
+          color="#00ff88"
+          emissive="#00ff88"
+          emissiveIntensity={emissiveIntensity}
+          transparent
+          opacity={glowOpacity * 0.6}
+        />
+      </mesh>
+      <mesh position={dir.clone().multiplyScalar(length * 0.5).toArray()}>
+        <sphereGeometry args={[0.6, 16, 16]} />
+        <meshStandardMaterial
+          color="#00ff88"
+          emissive="#00ff88"
+          emissiveIntensity={emissiveIntensity * 0.8}
+          transparent
+          opacity={glowOpacity * 0.4}
+        />
+      </mesh>
       <group
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
@@ -290,7 +334,7 @@ const GravityIndicator: React.FC<GravityIndicatorProps> = ({ gravityDirection, o
           <meshBasicMaterial color="#00ff88" transparent opacity={0.2} />
         </mesh>
       </group>
-      <pointLight position={[0, 0, 0]} color="#00ff88" intensity={0.8} distance={4} />
+      <pointLight position={[0, 0, 0]} color="#00ff88" intensity={0.8 + emissiveIntensity * 0.5} distance={4} />
     </group>
   );
 };
@@ -316,12 +360,14 @@ const PlantRendererContainer: React.FC<PlantRendererContainerProps> = ({ onScene
     addSupportConnection,
     updatePlants,
     setGravityDirection,
+    updateTotalNodeCountFromPlants,
   } = usePlantStore();
 
   const { tick } = usePerfMonitor();
   const timeRef = useRef(0);
   const frameCountRef = useRef(0);
   const lastUpdateRef = useRef(performance.now());
+  const prevPlantsRef = useRef(plants);
 
   const handleNodeClick = useCallback((plantId: string, nodeId: string) => {
     if (selectedNodeId === nodeId && selectedPlantId === plantId) {
@@ -350,6 +396,11 @@ const PlantRendererContainer: React.FC<PlantRendererContainerProps> = ({ onScene
     frameCountRef.current += 1;
 
     tick();
+
+    if (prevPlantsRef.current !== plants) {
+      updateTotalNodeCountFromPlants();
+      prevPlantsRef.current = plants;
+    }
 
     let currentPlants = plants;
     let currentEnv = environment;

@@ -28,6 +28,7 @@ export function initPlant(position: THREE.Vector3): Plant {
     elasticity: 0.8,
     damping: 0.3,
     windFactor: 1.0,
+    windResistance: 0.1,
     angularVelocity: 0,
     currentBend: 0,
     children: [],
@@ -54,6 +55,7 @@ export function initPlant(position: THREE.Vector3): Plant {
       elasticity: 1.0,
       damping: 0.4,
       windFactor: 0.8,
+      windResistance: 0.2,
       angularVelocity: 0,
       currentBend: 0,
       children: [],
@@ -79,6 +81,7 @@ export function initPlant(position: THREE.Vector3): Plant {
         elasticity: 1.5,
         damping: 0.5,
         windFactor: 1.2,
+        windResistance: 0.3,
         angularVelocity: 0,
         currentBend: 0,
         children: [],
@@ -186,17 +189,16 @@ export function applyWind(
           newNode.currentRotation = rot;
         }
       } else {
-        const windForce = windStrength * node.windFactor;
-        
         const bendDirection = windVector.clone();
         const nodeNormal = new THREE.Vector3(0, 1, 0).applyEuler(node.currentRotation);
         const crossProduct = new THREE.Vector3().crossVectors(nodeNormal, bendDirection);
         const bendAxis = crossProduct.normalize();
         
         const leverArm = node.length * 0.5 * node.growthProgress;
-        const torque = windForce * leverArm * Math.sin(windVector.angleTo(nodeNormal));
+        const angleFactor = Math.sin(windVector.angleTo(nodeNormal));
+        const torque = windStrength * node.windFactor * leverArm * angleFactor;
         
-        const effectiveTorque = torque / Math.max(0.1, node.elasticity);
+        const effectiveTorque = torque * (1 / Math.max(0.1, node.elasticity)) * (1 - node.windResistance);
         
         const angularAcceleration = 
           -node.elasticity * node.currentBend 
@@ -265,10 +267,11 @@ export function applyGravity(
   const gravityHorizontalMag = gravityHorizontal.length();
   
   const newGrowthDir = growthDirection.clone();
-  const growthSpeed = 0.5 * gravityHorizontalMag;
+  const baseSpeed = 0.5;
+  const growthSpeed = baseSpeed * gravityHorizontalMag;
   
   if (gravityHorizontalMag > 0.01) {
-    const tiltAmount = gravityHorizontalMag * growthSpeed * dt;
+    const tiltAmount = growthSpeed * dt;
     const tiltDir = gravityHorizontal.clone().normalize();
     
     newGrowthDir.x += tiltDir.x * tiltAmount;
@@ -406,17 +409,32 @@ export function applySupportForces(
     const posB = nodeB.position.clone();
     const currentDistance = posA.distanceTo(posB);
     
+    if (currentDistance < 1.2) continue;
     if (currentDistance < 0.01) continue;
 
-    const displacement = currentDistance - conn.springRestLength;
-    const springForce = conn.springConstant * displacement;
-    const dampingForce = conn.damping * (nodeA.angularVelocity - nodeB.angularVelocity);
-    const totalForce = springForce + dampingForce;
+    const midPoint = posA.clone().lerp(posB, 0.5);
 
-    const forceDir = posB.clone().sub(posA).normalize();
+    let totalForceA = new THREE.Vector3();
+    let totalForceB = new THREE.Vector3();
 
-    applyForceToNode(plantA, nodeA, forceDir.clone().multiplyScalar(totalForce * 0.5), dt);
-    applyForceToNode(plantB, nodeB, forceDir.clone().multiplyScalar(-totalForce * 0.5), dt);
+    if (currentDistance > 1.5) {
+      const tensionForceMag = conn.springConstant * (currentDistance - 1.5);
+      
+      const tensionDirA = midPoint.clone().sub(posA).normalize();
+      const tensionDirB = midPoint.clone().sub(posB).normalize();
+      
+      totalForceA.add(tensionDirA.multiplyScalar(tensionForceMag));
+      totalForceB.add(tensionDirB.multiplyScalar(tensionForceMag));
+    }
+
+    const dampingForce = conn.damping * (nodeA.angularVelocity - nodeB.angularVelocity) * 0.1;
+    const dampingDir = posB.clone().sub(posA).normalize();
+    
+    totalForceA.add(dampingDir.clone().multiplyScalar(dampingForce * 0.5));
+    totalForceB.add(dampingDir.clone().multiplyScalar(-dampingForce * 0.5));
+
+    applyForceToNode(plantA, nodeA, totalForceA, dt);
+    applyForceToNode(plantB, nodeB, totalForceB, dt);
   }
 
   return Array.from(plantMap.values());
@@ -470,29 +488,36 @@ function applyForceToNode(
   }
 }
 
+function getLevelProgress(
+  elapsed: number,
+  level: number,
+  totalLevels: number,
+  totalDuration: number
+): number {
+  const levelDuration = totalDuration / totalLevels;
+  const levelStartTime = level * levelDuration;
+
+  if (elapsed < levelStartTime) {
+    return 0;
+  }
+
+  const levelElapsed = elapsed - levelStartTime;
+  const rawProgress = Math.min(1, levelElapsed / levelDuration);
+  return easeOutCubic(rawProgress);
+}
+
 export function updateGrowthAnimation(
   plants: Plant[],
   elapsed: number,
   totalDuration: number = 3
 ): { plants: Plant[]; isComplete: boolean } {
-  const levels = 3;
-  const levelDuration = totalDuration / levels;
+  const totalLevels = 3;
 
   const newPlants = plants.map((plant) => {
     const newNodes = new Map(plant.nodes);
 
     newNodes.forEach((node, nodeId) => {
-      const level = node.depth;
-      const levelStart = level * levelDuration * 0.85;
-      const levelGrowTime = levelDuration * 0.85;
-
-      let progress = 0;
-      if (elapsed >= levelStart) {
-        const rawProgress = (elapsed - levelStart) / levelGrowTime;
-        progress = Math.min(1, rawProgress);
-        progress = easeOutCubic(progress);
-      }
-
+      const progress = getLevelProgress(elapsed, node.depth, totalLevels, totalDuration);
       newNodes.set(nodeId, { ...node, growthProgress: progress });
     });
 
@@ -501,7 +526,9 @@ export function updateGrowthAnimation(
     return updatedPlant;
   });
 
-  return { plants: newPlants, isComplete: elapsed >= totalDuration };
+  const isComplete = elapsed >= totalDuration;
+
+  return { plants: newPlants, isComplete };
 }
 
 function easeOutCubic(t: number): number {

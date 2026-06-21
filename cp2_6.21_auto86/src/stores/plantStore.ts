@@ -14,6 +14,7 @@ export interface PlantNode {
   elasticity: number;
   damping: number;
   windFactor: number;
+  windResistance: number;
   angularVelocity: number;
   currentBend: number;
   children: string[];
@@ -71,7 +72,7 @@ interface PlantState {
   setGravityDirection: (v: THREE.Vector3) => void;
   setTargetGrowthDirection: (v: THREE.Vector3) => void;
   selectNode: (plantId: string | null, nodeId: string | null) => void;
-  updateNodePhysics: (nodeId: string, updates: Partial<Pick<PlantNode, 'elasticity' | 'damping' | 'windFactor'>>) => void;
+  updateNodePhysics: (nodeId: string, updates: Partial<Pick<PlantNode, 'elasticity' | 'damping' | 'windFactor' | 'windResistance'>>) => void;
   addPlant: (position: THREE.Vector3) => boolean;
   addSupportConnection: (conn: SupportConnection) => void;
   removeSupportConnection: (id: string) => void;
@@ -85,6 +86,7 @@ interface PlantState {
   setLeafDetailLevel: (level: 'full' | 'reduced') => void;
   setTextureResolution: (res: 256 | 128) => void;
   updateTotalNodeCount: (count: number) => void;
+  updateTotalNodeCountFromPlants: () => void;
   updateFps: (fps: number) => void;
   resetScene: () => void;
 }
@@ -111,6 +113,7 @@ export function createDefaultPlant(basePosition: THREE.Vector3): Plant {
     elasticity: 0.8,
     damping: 0.3,
     windFactor: 1.0,
+    windResistance: 0.1,
     angularVelocity: 0,
     currentBend: 0,
     children: [],
@@ -138,6 +141,7 @@ export function createDefaultPlant(basePosition: THREE.Vector3): Plant {
       elasticity: 1.0,
       damping: 0.4,
       windFactor: 0.8,
+      windResistance: 0.2,
       angularVelocity: 0,
       currentBend: 0,
       children: [],
@@ -163,6 +167,7 @@ export function createDefaultPlant(basePosition: THREE.Vector3): Plant {
         elasticity: 1.5,
         damping: 0.5,
         windFactor: 1.2,
+        windResistance: 0.3,
         angularVelocity: 0,
         currentBend: 0,
         children: [],
@@ -315,6 +320,12 @@ export const usePlantStore = create<PlantState>((set, get) => {
     setTextureResolution: (res) => set({ textureResolution: res }),
 
     updateTotalNodeCount: (count) => set({ totalNodeCount: count }),
+
+    updateTotalNodeCountFromPlants: () => {
+      const { plants } = get();
+      const totalCount = plants.reduce((sum, plant) => sum + plant.nodes.size, 0);
+      set({ totalNodeCount: totalCount });
+    },
 
     updateFps: (fps) => set({ fps }),
 
