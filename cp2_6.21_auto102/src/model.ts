@@ -88,10 +88,12 @@ export class HistoryStateManager {
   }
 
   pushSnapshot(): void {
-    const snapshot: Snapshot = {
-      nodes: cloneDeep(Array.from(this.nodes.values())),
-      edges: cloneDeep(Array.from(this.edges.values())),
-    };
+    const snapshot: Snapshot = JSON.parse(
+      JSON.stringify({
+        nodes: Array.from(this.nodes.values()),
+        edges: Array.from(this.edges.values()),
+      })
+    );
     this.undoStack.push(snapshot);
     if (this.undoStack.length > MAX_HISTORY) {
       this.undoStack.shift();
@@ -101,10 +103,12 @@ export class HistoryStateManager {
 
   undo(): boolean {
     if (this.undoStack.length === 0) return false;
-    const current: Snapshot = {
-      nodes: cloneDeep(Array.from(this.nodes.values())),
-      edges: cloneDeep(Array.from(this.edges.values())),
-    };
+    const current: Snapshot = JSON.parse(
+      JSON.stringify({
+        nodes: Array.from(this.nodes.values()),
+        edges: Array.from(this.edges.values()),
+      })
+    );
     this.redoStack.push(current);
     const prev = this.undoStack.pop()!;
     this.nodes.clear();
@@ -117,10 +121,12 @@ export class HistoryStateManager {
 
   redo(): boolean {
     if (this.redoStack.length === 0) return false;
-    const current: Snapshot = {
-      nodes: cloneDeep(Array.from(this.nodes.values())),
-      edges: cloneDeep(Array.from(this.edges.values())),
-    };
+    const current: Snapshot = JSON.parse(
+      JSON.stringify({
+        nodes: Array.from(this.nodes.values()),
+        edges: Array.from(this.edges.values()),
+      })
+    );
     this.undoStack.push(current);
     const next = this.redoStack.pop()!;
     this.nodes.clear();

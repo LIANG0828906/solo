@@ -358,6 +358,8 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({ model, onStateChan
   const inputRef = useRef<HTMLInputElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const onStateChangeRef = useRef(onStateChange);
+  const isConfirmingRef = useRef(false);
+  const isCancellingRef = useRef(false);
   onStateChangeRef.current = onStateChange;
 
   const [nodes, setNodes] = useState<Node[]>([]);
@@ -474,11 +476,11 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({ model, onStateChan
   };
 
   const handleNodeDragStart = (id: string) => {
-    model.pushSnapshot();
   };
 
   const handleNodeDragEnd = (id: string, x: number, y: number) => {
     model.updateNodePositionDirect(id, x, y);
+    model.pushSnapshot();
     refreshData();
   };
 
@@ -506,18 +508,26 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({ model, onStateChan
   };
 
   const handleEditTextConfirm = () => {
-    if (editingNodeId) {
+    if (editingNodeId && !isConfirmingRef.current) {
+      isConfirmingRef.current = true;
       model.updateNodeText(editingNodeId, editText);
       setEditingNodeId(null);
       setEditText('');
       setOriginalEditText('');
+      setTimeout(() => {
+        isConfirmingRef.current = false;
+      }, 0);
     }
   };
 
   const handleEditTextCancel = () => {
+    isCancellingRef.current = true;
     setEditingNodeId(null);
     setEditText(originalEditText);
     setOriginalEditText('');
+    setTimeout(() => {
+      isCancellingRef.current = false;
+    }, 0);
   };
 
   const handleStartConnect = (sourceId: string, x: number, y: number) => {
@@ -690,11 +700,14 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({ model, onStateChan
     const padding = 50;
     const contentW = maxX - minX + padding * 2;
     const contentH = maxY - minY + padding * 2;
-    const targetW = 1920;
-    const targetH = 1080;
-    const fitScale = Math.min(targetW / contentW, targetH / contentH, 1);
-    stage.x(padding - minX * fitScale + (targetW - contentW * fitScale) / 2);
-    stage.y(padding - minY * fitScale + (targetH - contentH * fitScale) / 2);
+    const physicalW = 1920;
+    const physicalH = 1080;
+    const pixelRatio = 2;
+    const logicalW = physicalW / pixelRatio;
+    const logicalH = physicalH / pixelRatio;
+    const fitScale = Math.min(logicalW / contentW, logicalH / contentH, 1);
+    stage.x(padding - minX * fitScale + (logicalW - contentW * fitScale) / 2);
+    stage.y(padding - minY * fitScale + (logicalH - contentH * fitScale) / 2);
     setScale(fitScale);
     const layer = stage.getLayers()[0];
     if (layer) {
@@ -709,10 +722,10 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({ model, onStateChan
       bg.moveToBottom();
       setTimeout(() => {
         const url = stage.toDataURL({
-          width: targetW,
-          height: targetH,
+          width: logicalW,
+          height: logicalH,
           mimeType: 'image/png',
-          pixelRatio: 2,
+          pixelRatio: pixelRatio,
         });
         const a = document.createElement('a');
         a.href = url;
@@ -991,7 +1004,22 @@ export const MindMapCanvas: React.FC<MindMapCanvasProps> = ({ model, onStateChan
             type="text"
             value={editText}
             onChange={(e) => setEditText(e.target.value)}
-            onBlur={handleEditTextConfirm}
+            onBlur={(e) => {
+              if (!isCancellingRef.current) {
+                handleEditTextConfirm();
+              }
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                handleEditTextConfirm();
+              } else if (e.key === 'Escape') {
+                e.preventDefault();
+                e.stopPropagation();
+                handleEditTextCancel();
+              }
+            }}
             style={{
               position: 'fixed',
               left: editInputPos.x,

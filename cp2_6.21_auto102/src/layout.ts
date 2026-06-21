@@ -5,91 +5,72 @@ const SIBLING_SPACING = 20;
 const SUBTREE_SPACING = 40;
 const HORIZONTAL_SPACING = 180;
 
-interface LayoutTree {
+interface LayoutTreeNode {
   node: Node;
-  children: LayoutTree[];
+  children: LayoutTreeNode[];
   x: number;
   y: number;
   preliminary: number;
   mod: number;
-  thread: LayoutTree | null;
-  ancestor: LayoutTree;
+  thread: LayoutTreeNode | null;
+  ancestor: LayoutTreeNode;
   change: number;
   shift: number;
-  leftSibling: LayoutTree | null;
-  rightSibling: LayoutTree | null;
+  leftSibling: LayoutTreeNode | null;
+  rightSibling: LayoutTreeNode | null;
   number: number;
+  parent: LayoutTreeNode | null;
+  subtreeHeight: number;
+  subtreeTop: number;
+  subtreeBottom: number;
 }
 
-const leftmost = (v: LayoutTree, m: number, depth: number, maxDepth: number): LayoutTree | null => {
-  if (depth >= maxDepth) return v;
-  if (v.children.length === 0) return null;
-  let n = v.children[v.children.length - 1];
-  let m2 = m;
-  let lmost: LayoutTree | null = null;
-  let rmost: LayoutTree | null = null;
-  let d = depth;
-  do {
-    if (d + m2 > maxDepth) {
-      if (n.thread) {
-        n = n.thread;
-        d++;
-      } else {
-        return null;
-      }
-    } else {
-      if (n.children.length > 0) {
-        if (!lmost) lmost = n.children[0];
-        rmost = n;
-      }
-      if (n.thread) {
-        n = n.thread;
-        d++;
-      } else {
-        n = n.children[0];
-        d++;
-      }
-    }
-  } while (n && d < maxDepth);
-  if (!lmost || !rmost) return null;
-  if (rmost === n) return null;
-  return lmost;
-};
+interface Contour {
+  top: number;
+  bottom: number;
+}
 
 export class TreeLayout {
   private buildTree(
     nodes: Node[],
     parentId: string | null,
+    parentNode: LayoutTreeNode | null,
     visibleSet: Set<string>
-  ): LayoutTree[] {
+  ): LayoutTreeNode[] {
+    const parentData = parentId ? nodes.find(n => n.id === parentId) : null;
     const children = nodes
       .filter(n => n.parentId === parentId && visibleSet.has(n.id))
       .sort((a, b) => {
-        const p = nodes.find(n => n.id === parentId);
-        if (!p) return 0;
-        return p.children.indexOf(a.id) - p.children.indexOf(b.id);
+        if (!parentData) return 0;
+        return parentData.children.indexOf(a.id) - parentData.children.indexOf(b.id);
       });
     return children.map((node, idx) => {
-      const childTrees = this.buildTree(nodes, node.id, visibleSet);
-      return {
+      const newNode: LayoutTreeNode = {
         node,
-        children: childTrees,
+        children: [],
         x: 0,
         y: 0,
         preliminary: 0,
         mod: 0,
         thread: null,
-        ancestor: null as unknown as LayoutTree,
+        ancestor: null as unknown as LayoutTreeNode,
         change: 0,
         shift: 0,
         leftSibling: null,
         rightSibling: null,
         number: idx,
+        parent: parentNode,
+        subtreeHeight: 0,
+        subtreeTop: 0,
+        subtreeBottom: 0,
       };
+      newNode.children = this.buildTree(nodes, node.id, newNode, visibleSet);
+      newNode.ancestor = newNode;
+      return newNode;
     });
   }
 
-  private linkSiblings(trees: LayoutTree[]): void {
+  private linkSiblings(trees: LayoutTreeNode[]): void {
     trees.forEach((t, i) => {
       if (i > 0) t.leftSibling = trees[i - 1];
       if (i < trees.length - 1) t.rightSibling = trees[i + 1];
@@ -99,276 +80,429 @@ export class TreeLayout {
     });
   }
 
-  private firstWalk(v: LayoutTree, level: number): void {
-    v.preliminary = 0;
-    v.mod = 0;
-    if (v.children.length === 0 || level === 100) {
-      if (v.leftSibling) {
-        v.preliminary =
-          v.leftSibling.preliminary +
-          this.getWidth(v.leftSibling.node) / 2 +
-          this.getWidth(v.node) / 2 +
-          SIBLING_SPACING;
-      } else {
-        v.preliminary = 0;
-      }
-    } else {
-      v.children.forEach(child => {
-        this.firstWalk(child, level + 1);
-      });
-      let midpoint =
-        (v.children[0].preliminary + v.children[v.children.length - 1].preliminary) / 2;
-      if (v.leftSibling) {
-        v.preliminary =
-          v.leftSibling.preliminary +
-          this.getWidth(v.leftSibling.node) / 2 +
-          this.getWidth(v.node) / 2 +
-          SIBLING_SPACING;
-        v.mod = v.preliminary - midpoint;
-        this.apportion(v, level);
-      } else {
-        v.preliminary = midpoint;
-      }
-    }
-  }
-
-  private apportion(v: LayoutTree, level: number): void {
-    let w = v.leftSibling;
-    if (!w) return;
-    let vip: LayoutTree | null = v;
-    let vop: LayoutTree | null = v;
-    let vim: LayoutTree | null = w;
-    let vom: LayoutTree | null = v.leftSibling;
-    let sip = v.mod;
-    let sop = v.mod;
-    let sim = w.mod;
-    let som = w.mod;
-    let nextVim: LayoutTree | null;
-    let nextVip: LayoutTree | null;
-    while (
-      (nextVim = this.nextRight(vim!)) &&
-      (nextVip = this.nextLeft(vip!))
-    ) {
-      vim = nextVim;
-      vip = nextVip;
-      vom = this.nextLeft(vom!)!;
-      vop = this.nextRight(vop!)!;
-      if (vop) vop.ancestor = v;
-      const shift =
-        vim.preliminary +
-        sim -
-        (vip.preliminary + sip) +
-        SUBTREE_SPACING +
-        this.getWidth(vim.node) / 2 +
-        this.getWidth(vip.node) / 2;
-      if (shift > 0) {
-        let ancestor = vim.ancestor || v;
-        const a = ancestor;
-        let moveSubtree = shift;
-        let changeSubtree = moveSubtree;
-        let b: LayoutTree | null = a.leftSibling;
-        while (b && b !== vom) {
-          a.shift += moveSubtree;
-          a.change -= changeSubtree;
-          if (b === vim) break;
-          b = b.leftSibling;
-        }
-        this.executeShifts(ancestor, moveSubtree);
-        sip += shift;
-        sop += shift;
-      }
-      sim += vim.mod;
-      sip += vip.mod;
-      som += vom.mod;
-      sop += vop.mod;
-    }
-    if (vim && !this.nextRight(vop!)) {
-      vop!.thread = vim;
-      vop!.mod += sim - sop;
-    }
-    if (vip && !this.nextLeft(vom!)) {
-      vom!.thread = vip;
-      vom!.mod += sip - som;
-      v.ancestor = v;
-    }
-  }
-
-  private nextRight(v: LayoutTree): LayoutTree | null {
-    if (v.children.length > 0) return v.children[v.children.length - 1];
-    return v.thread;
-  }
-
-  private nextLeft(v: LayoutTree): LayoutTree | null {
-    if (v.children.length > 0) return v.children[0];
-    return v.thread;
-  }
-
-  private executeShifts(v: LayoutTree, shift: number): void {
-    v.preliminary += shift;
-    v.mod += shift;
-    v.children.forEach(c => this.executeShifts(c, shift));
-  }
-
   private getWidth(node: Node): number {
     return node.width;
   }
 
-  private secondWalk(v: LayoutTree, m: number, level: number): void {
-    v.x = v.preliminary + m;
-    v.y = level * (VERTICAL_SPACING + v.node.height);
-    v.children.forEach(child => {
-      this.secondWalk(child, m + v.mod, level + 1);
-    });
+  private nextRight(v: LayoutTreeNode): LayoutTreeNode | null {
+    if (v.children.length > 0 && !v.node.collapsed) {
+      return v.children[v.children.length - 1];
+    }
+    return v.thread;
   }
 
-  private normalizePositions(trees: LayoutTree[]): LayoutNodePosition[] {
-    const positions: LayoutNodePosition[] = [];
+  private nextLeft(v: LayoutTreeNode): LayoutTreeNode | null {
+    if (v.children.length > 0 && !v.node.collapsed) {
+      return v.children[0];
+    }
+    return v.thread;
+  }
+
+  private getLeftContour(
+    v: LayoutTreeNode,
+    modSum: number,
+    depth: number,
+    contour: Map<number, Contour>
+  ): void {
+    const y = v.y + modSum;
+    const top = y - v.node.height / 2;
+    const bottom = y + v.node.height / 2;
+    if (!contour.has(depth) || top < contour.get(depth)!.top) {
+      contour.set(depth, { top, bottom: Math.max(contour.get(depth)?.bottom || 0, bottom) });
+    } else {
+      const existing = contour.get(depth)!;
+      existing.bottom = Math.max(existing.bottom, bottom);
+    }
+    if (!v.node.collapsed && v.children.length > 0) {
+      v.children.forEach(child => {
+        this.getLeftContour(child, modSum + v.mod, depth + 1, contour);
+      });
+    }
+  }
+
+  private getRightContour(
+    v: LayoutTreeNode,
+    modSum: number,
+    depth: number,
+    contour: Map<number, Contour>
+  ): void {
+    const y = v.y + modSum;
+    const top = y - v.node.height / 2;
+    const bottom = y + v.node.height / 2;
+    if (!contour.has(depth) || bottom > contour.get(depth)!.bottom) {
+      contour.set(depth, { bottom, top: Math.min(contour.get(depth)?.top || 0, top) });
+    } else {
+      const existing = contour.get(depth)!;
+      existing.top = Math.min(existing.top, top);
+    }
+    if (!v.node.collapsed && v.children.length > 0) {
+      v.children.forEach(child => {
+        this.getRightContour(child, modSum + v.mod, depth + 1, contour);
+      });
+    }
+  }
+
+  private calculateSubtreeBounds(v: LayoutTreeNode, yOffset: number): void {
+    v.y = yOffset + v.node.height / 2;
+    v.subtreeTop = v.y - v.node.height / 2;
+    v.subtreeBottom = v.y + v.node.height / 2;
+    v.subtreeHeight = v.node.height;
+
+    if (!v.node.collapsed && v.children.length > 0) {
+      let currentY = v.subtreeBottom + VERTICAL_SPACING;
+      let totalChildrenHeight = 0;
+      v.children.forEach(child => {
+        totalChildrenHeight += child.node.height;
+      });
+      totalChildrenHeight += (v.children.length - 1) * SIBLING_SPACING;
+
+      let subtreesMaxBottom = v.subtreeBottom;
+      let childStartY = currentY;
+      v.children.forEach(child => {
+        this.calculateSubtreeBounds(child, childStartY - child.node.height / 2);
+        childStartY = child.subtreeBottom + SIBLING_SPACING;
+        subtreesMaxBottom = Math.max(subtreesMaxBottom, child.subtreeBottom);
+      });
+
+      v.subtreeBottom = subtreesMaxBottom;
+      v.subtreeHeight = v.subtreeBottom - v.subtreeTop;
+
+      const shiftY = v.y - v.node.height / 2 + VERTICAL_SPACING + totalChildrenHeight / 2
+        - (v.children[0].y + v.children[v.children.length - 1].y) / 2;
+
+      if (Math.abs(shiftY) > 1) {
+        const shiftSubtree = (node: LayoutTreeNode, delta: number) => {
+          node.y += delta;
+          node.subtreeTop += delta;
+          node.subtreeBottom += delta;
+          if (!node.node.collapsed) {
+            node.children.forEach(c => shiftSubtree(c, delta));
+          }
+        };
+        v.children.forEach(child => shiftSubtree(child, shiftY));
+        v.subtreeTop = v.y - v.node.height / 2;
+        v.subtreeBottom = Math.max(v.subtreeBottom, v.children[v.children.length - 1].subtreeBottom);
+        v.subtreeHeight = v.subtreeBottom - v.subtreeTop;
+      }
+    }
+  }
+
+  private checkAndFixVerticalCollisions(
+    v: LayoutTreeNode,
+    level: number
+  ): number {
+    if (v.leftSibling) {
+      const leftContour = new Map<number, Contour>();
+      const rightContour = new Map<number, Contour>();
+
+      this.getRightContour(v.leftSibling, 0, 0, rightContour);
+      this.getLeftContour(v, 0, 0, leftContour);
+
+      let maxShift = 0;
+      const depths = new Set([...rightContour.keys(), ...leftContour.keys()]);
+      depths.forEach(depth => {
+        const right = rightContour.get(depth);
+        const left = leftContour.get(depth);
+        if (right && left) {
+          const gap = left.top - right.bottom;
+          const minGap = SIBLING_SPACING;
+          if (gap < minGap) {
+            const shift = minGap - gap;
+            maxShift = Math.max(maxShift, shift);
+          }
+        }
+      });
+
+      if (maxShift > 0) {
+        const shiftSubtree = (node: LayoutTreeNode, delta: number) => {
+          node.y += delta;
+          node.subtreeTop += delta;
+          node.subtreeBottom += delta;
+          node.preliminary += delta;
+          if (!node.node.collapsed) {
+            node.children.forEach(c => shiftSubtree(c, delta));
+          }
+        };
+        shiftSubtree(v, maxShift);
+
+        let parent = v.parent;
+        while (parent) {
+          parent.subtreeBottom = Math.max(parent.subtreeBottom, v.subtreeBottom);
+          parent.subtreeHeight = parent.subtreeBottom - parent.subtreeTop;
+          parent = parent.parent;
+        }
+      }
+    }
+
+    if (!v.node.collapsed) {
+      v.children.forEach(child => {
+        this.checkAndFixVerticalCollisions(child, level + 1);
+      });
+    }
+
+    return v.subtreeHeight;
+  }
+
+  private firstWalk(v: LayoutTreeNode, level: number): void {
+    if (v.children.length === 0 || v.node.collapsed || level >= 100) {
+      if (v.leftSibling) {
+        v.preliminary = v.leftSibling.preliminary + this.getWidth(v.leftSibling.node) / 2
+          + this.getWidth(v.node) / 2 + SIBLING_SPACING;
+      } else {
+        v.preliminary = 0;
+      }
+      return;
+    }
+
+    v.children.forEach((child, idx) => {
+      this.firstWalk(child, level + 1);
+    });
+
+    let midpoint = (v.children[0].preliminary + v.children[v.children.length - 1].preliminary) / 2;
+
+    if (v.leftSibling) {
+      v.preliminary = v.leftSibling.preliminary + this.getWidth(v.leftSibling.node) / 2
+        + this.getWidth(v.node) / 2 + SIBLING_SPACING;
+      v.mod = v.preliminary - midpoint;
+    } else {
+      v.preliminary = midpoint;
+    }
+  }
+
+  private apportion(v: LayoutTreeNode, level: number): void {
+    let w = v.leftSibling;
+    if (!w) return;
+
+    let vip: LayoutTreeNode | null = v;
+    let vop: LayoutTreeNode | null = v;
+    let vim: LayoutTreeNode | null = w;
+    let vom: LayoutTreeNode | null = v.leftSibling;
+
+    let sip = v.mod;
+    let sop = v.mod;
+    let sim = w.mod;
+    let som = w.mod;
+
+    while (vim && vip) {
+      vim = this.nextRight(vim);
+      vip = this.nextLeft(vip);
+      if (vom) vom = this.nextLeft(vom);
+      const nextVop = vop ? this.nextRight(vop) : null;
+      if (nextVop) {
+        vop = nextVop;
+        (vop as LayoutTreeNode).ancestor = v;
+      }
+
+      if (vim && vip) {
+        const shift = vim.preliminary + sim - (vip.preliminary + sip)
+          + SUBTREE_SPACING + this.getWidth(vim.node) / 2 + this.getWidth(vip.node) / 2;
+
+        if (shift > 0) {
+          let ancestor = vim.ancestor || v;
+          if (ancestor === vip.ancestor) ancestor = v;
+
+          this.moveSubtree(ancestor, shift);
+          sip += shift;
+          sop += shift;
+        }
+      }
+
+      if (vim) sim += vim.mod;
+      if (vip) sip += vip.mod;
+      if (vom) som += vom.mod;
+      if (vop) sop += vop.mod;
+    }
+
+    if (vim && vop && !this.nextRight(vop)) {
+      vop.thread = vim;
+      vop.mod += sim - sop;
+    }
+
+    if (vip && vom && !this.nextLeft(vom)) {
+      vom.thread = vip;
+      vom.mod += sip - som;
+      v.ancestor = v;
+    }
+  }
+
+  private moveSubtree(w: LayoutTreeNode, shift: number): void {
+    w.preliminary += shift;
+    w.mod += shift;
+  }
+
+  private secondWalk(
+    v: LayoutTreeNode,
+    m: number,
+    level: number,
+    positions: Map<string, LayoutNodePosition>,
+    parentX: number,
+    parentY: number
+  ): void {
+    const centerY = v.preliminary + m;
+    const nodeX = parentX === 0 ? 100 : parentX + HORIZONTAL_SPACING;
+
+    v.x = nodeX;
+    v.y = centerY;
+
+    positions.set(v.node.id, {
+      id: v.node.id,
+      x: v.x - this.getWidth(v.node) / 2,
+      y: v.y - v.node.height / 2,
+    });
+
+    if (!v.node.collapsed) {
+      v.children.forEach(child => {
+        this.secondWalk(
+          child,
+          m + v.mod,
+          level + 1,
+          positions,
+          v.x + this.getWidth(v.node) / 2,
+          v.y
+        );
+      });
+    }
+  }
+
+  private calculateSubtreeHeights(trees: LayoutTreeNode[]): void {
+    const calc = (v: LayoutTreeNode): number => {
+      if (v.children.length === 0 || v.node.collapsed) {
+        v.subtreeHeight = v.node.height;
+        return v.subtreeHeight;
+      }
+      let total = 0;
+      v.children.forEach((child, idx) => {
+        total += calc(child);
+        if (idx > 0) total += SIBLING_SPACING;
+      });
+      v.subtreeHeight = Math.max(v.node.height + VERTICAL_SPACING, total);
+      return v.subtreeHeight;
+    };
+    trees.forEach(calc);
+  }
+
+  private arrangeYCoordinates(v: LayoutTreeNode, startY: number): number {
+    if (v.children.length === 0 || v.node.collapsed) {
+      v.y = startY + v.node.height / 2;
+      return startY + v.node.height;
+    }
+
+    v.y = startY + v.node.height / 2;
+
+    let currentY = startY + v.node.height + VERTICAL_SPACING;
+    let maxBottom = startY + v.node.height;
+
+    v.children.forEach(child => {
+      const childHeight = child.subtreeHeight;
+      const childCenterY = currentY + childHeight / 2;
+      const result = this.arrangeYCoordinates(child, childCenterY - child.node.height / 2);
+      maxBottom = Math.max(maxBottom, result);
+      currentY = result + SIBLING_SPACING;
+    });
+
+    return maxBottom;
+  }
+
+  private normalizePositions(positions: Map<string, LayoutNodePosition>): LayoutNodePosition[] {
+    const result = Array.from(positions.values());
+    if (result.length === 0) return [];
+
     let minX = Infinity;
     let minY = Infinity;
-    const collect = (t: LayoutTree) => {
-      minX = Math.min(minX, t.x - t.node.width / 2);
-      minY = Math.min(minY, t.y);
-      positions.push({
-        id: t.node.id,
-        x: t.x - t.node.width / 2,
-        y: t.y,
-      });
-      t.children.forEach(collect);
-    };
-    trees.forEach(collect);
+
+    result.forEach(p => {
+      minX = Math.min(minX, p.x);
+      minY = Math.min(minY, p.y);
+    });
+
     const offsetX = 100 - minX;
     const offsetY = 100 - minY;
-    positions.forEach(p => {
+
+    result.forEach(p => {
       p.x += offsetX;
       p.y += offsetY;
     });
-    return positions;
-  }
 
-  private collectHierarchical(
-    nodes: Node[],
-    roots: Node[],
-    visibleSet: Set<string>
-  ): LayoutNodePosition[] {
-    const positions: LayoutNodePosition[] = [];
-    let globalOffsetX = 100;
-    const layRoot = (root: Node, offsetX: number): number => {
-      const subtreePositions: LayoutNodePosition[] = [];
-      const buildSubtree = (
-        node: Node,
-        depth: number,
-        verticalOffset: number,
-        assignedX: number
-      ): number => {
-        subtreePositions.push({
-          id: node.id,
-          x: assignedX,
-          y: verticalOffset,
-        });
-        const children = nodes
-          .filter(
-            n =>
-              n.parentId === node.id &&
-              visibleSet.has(n.id) &&
-              node.children.includes(n.id)
-          )
-          .sort(
-            (a, b) => node.children.indexOf(a.id) - node.children.indexOf(b.id)
-          );
-        if (children.length === 0 || node.collapsed) {
-          return verticalOffset + node.height;
-        }
-        let childVertical = verticalOffset + node.height + VERTICAL_SPACING;
-        const maxChildHeights: number[] = [];
-        let totalChildrenHeight = 0;
-        children.forEach((child, idx) => {
-          const result = this.measureSubtreeHeight(nodes, child, visibleSet);
-          maxChildHeights.push(result);
-          totalChildrenHeight += result;
-          if (idx > 0) totalChildrenHeight += SIBLING_SPACING;
-        });
-        const firstChildY =
-          childVertical -
-          totalChildrenHeight / 2 +
-          maxChildHeights[0] / 2 +
-          (totalChildrenHeight - maxChildHeights[0]) / 2 -
-          maxChildHeights[0] / 2;
-        let currentY = firstChildY - totalChildrenHeight / 2 + maxChildHeights[0] / 2;
-        currentY = verticalOffset + node.height / 2 - totalChildrenHeight / 2 + maxChildHeights[0] / 2;
-        let runningY = verticalOffset + node.height + VERTICAL_SPACING;
-        const centerY = verticalOffset + node.height / 2;
-        runningY = centerY - totalChildrenHeight / 2;
-        children.forEach(child => {
-          const h = this.measureSubtreeHeight(nodes, child, visibleSet);
-          const childCenterY = runningY + h / 2;
-          runningY = buildSubtree(
-            child,
-            depth + 1,
-            childCenterY - child.height / 2,
-            assignedX + node.width + HORIZONTAL_SPACING
-          );
-          runningY += SIBLING_SPACING;
-        });
-        const subtreesBottom = Math.max(
-          ...subtreePositions
-            .filter(p => p.id !== node.id)
-            .map(p => {
-              const n = nodes.find(nn => nn.id === p.id);
-              return n ? p.y + n.height : 0;
-            })
-        );
-        return Math.max(subtreesBottom, verticalOffset + node.height);
-      };
-      const result = buildSubtree(root, 0, 200, offsetX);
-      let maxWidth = 0;
-      subtreePositions.forEach(p => {
-        const n = nodes.find(nn => nn.id === p.id);
-        if (n) maxWidth = Math.max(maxWidth, p.x + n.width);
-      });
-      positions.push(...subtreePositions);
-      return maxWidth;
-    };
-    roots.forEach(root => {
-      globalOffsetX = layRoot(root, globalOffsetX) + SUBTREE_SPACING * 2;
-    });
-    return positions;
-  }
-
-  private measureSubtreeHeight(
-    nodes: Node[],
-    node: Node,
-    visibleSet: Set<string>
-  ): number {
-    if (!visibleSet.has(node.id)) return 0;
-    const fullNode = nodes.find(n => n.id === node.id) || node;
-    if (fullNode.collapsed || fullNode.children.length === 0) {
-      return fullNode.height;
-    }
-    const children = nodes.filter(
-      n =>
-        n.parentId === node.id &&
-        visibleSet.has(n.id) &&
-        fullNode.children.includes(n.id)
-    );
-    if (children.length === 0) return fullNode.height;
-    let total = 0;
-    children.forEach((child, idx) => {
-      total += this.measureSubtreeHeight(nodes, child, visibleSet);
-      if (idx > 0) total += SIBLING_SPACING;
-    });
-    return Math.max(fullNode.height + VERTICAL_SPACING, total);
+    return result;
   }
 
   public calculate(nodes: Node[]): LayoutNodePosition[] {
     if (nodes.length === 0) return [];
+
     const visibleSet = new Set(nodes.map(n => n.id));
-    const roots = nodes.filter(n => n.parentId === null);
-    if (roots.length === 0) return [];
-    const positions = this.collectHierarchical(nodes, roots, visibleSet);
-    if (positions.length === 0) {
+    const roots = this.buildTree(nodes, null, null, visibleSet);
+
+    if (roots.length === 0) {
       return nodes.map(n => ({ id: n.id, x: n.x, y: n.y }));
     }
-    return positions;
+
+    this.linkSiblings(roots);
+    this.calculateSubtreeHeights(roots);
+
+    let currentX = 0;
+    const positions = new Map<string, LayoutNodePosition>();
+
+    roots.forEach((root, rootIdx) => {
+      this.calculateSubtreeBounds(root, 100);
+      if (rootIdx > 0) {
+        this.checkAndFixVerticalCollisions(root, 0);
+      }
+
+      const rootPositions = new Map<string, LayoutNodePosition>();
+
+      const layoutSubtree = (
+        v: LayoutTreeNode,
+        x: number,
+        yOffset: number
+      ): void => {
+        const nodeX = x;
+        const nodeY = v.y;
+
+        rootPositions.set(v.node.id, {
+          id: v.node.id,
+          x: nodeX + currentX - v.node.width / 2,
+          y: nodeY - v.node.height / 2,
+        });
+
+        if (!v.node.collapsed && v.children.length > 0) {
+          v.children.forEach(child => {
+            layoutSubtree(
+              child,
+              x + v.node.width + HORIZONTAL_SPACING,
+              0
+            );
+          });
+        }
+      };
+
+      layoutSubtree(root, 0, 0);
+
+      let maxRootX = 0;
+      rootPositions.forEach(p => {
+        const n = nodes.find(nn => nn.id === p.id);
+        if (n) maxRootX = Math.max(maxRootX, p.x + n.width);
+      });
+
+      rootPositions.forEach((p, id) => {
+        positions.set(id, p);
+      });
+
+      currentX = maxRootX + SUBTREE_SPACING * 2;
+    });
+
+    const posArr = Array.from(positions.values());
+    let minY = Infinity;
+    posArr.forEach(p => {
+      minY = Math.min(minY, p.y);
+    });
+    if (minY < 100) {
+      const offsetY = 100 - minY;
+      posArr.forEach(p => {
+        p.y += offsetY;
+      });
+    }
+
+    return this.normalizePositions(positions);
   }
 
   public calculateWithAnimation(
@@ -379,29 +513,36 @@ export class TreeLayout {
     const start = performance.now();
     const result = this.calculate(nodes);
     const elapsed = performance.now() - start;
+
     if (elapsed > 100 && nodes.length > 100) {
       const currentPositions = nodes.map(n => ({ id: n.id, x: n.x, y: n.y }));
+      const resultMap = new Map(result.map(p => [p.id, p]));
       const duration = 300;
       const startTime = performance.now();
+
       const animate = () => {
         const now = performance.now();
         const progress = Math.min((now - startTime) / duration, 1);
         const eased = 1 - Math.pow(1 - progress, 3);
-        const interpolated = currentPositions.map((cp, i) => {
-          const target = result[i] || cp;
+
+        const interpolated = currentPositions.map(cp => {
+          const target = resultMap.get(cp.id) || cp;
           return {
             id: cp.id,
             x: cp.x + (target.x - cp.x) * eased,
             y: cp.y + (target.y - cp.y) * eased,
           };
         });
+
         onProgress(interpolated);
+
         if (progress < 1) {
           requestAnimationFrame(animate);
         } else {
           onComplete(result);
         }
       };
+
       requestAnimationFrame(animate);
     } else {
       onProgress(result);
