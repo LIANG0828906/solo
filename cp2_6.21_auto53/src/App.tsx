@@ -32,7 +32,13 @@ const InfoPanel: React.FC = () => {
   };
 
   return (
-    <div className="info-panel">
+    <div
+      className="info-panel"
+      style={{
+        backdropFilter: 'blur(10px)',
+        WebkitBackdropFilter: 'blur(10px)',
+      }}
+    >
       <h1 className="game-title">重力方块</h1>
       <p className="game-subtitle">解谜游戏</p>
 
@@ -59,6 +65,9 @@ const InfoPanel: React.FC = () => {
         <button
           className="game-btn hint-btn"
           onClick={handleShowHint}
+          style={{
+            background: 'linear-gradient(135deg, #533483, #3b82f6)',
+          }}
         >
           💡 提示
         </button>
@@ -66,6 +75,9 @@ const InfoPanel: React.FC = () => {
           className="game-btn reset-btn"
           onClick={reset}
           disabled={isAnimating}
+          style={{
+            background: 'linear-gradient(135deg, #533483, #3b82f6)',
+          }}
         >
           🔄 重置
         </button>

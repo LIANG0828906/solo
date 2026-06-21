@@ -1,6 +1,81 @@
-import { LevelData } from '../types';
+import { LevelData, BlockType, BLOCK_SHAPES, Position } from '../types';
 
-export const puzzleLevels: LevelData[] = [
+function rotatePositionForValidation(pos: Position, rotation: number): Position {
+  const r = ((rotation % 360) + 360) % 360;
+  switch (r) {
+    case 90:
+      return { x: -pos.y, y: pos.x };
+    case 180:
+      return { x: -pos.x, y: -pos.y };
+    case 270:
+      return { x: pos.y, y: -pos.x };
+    default:
+      return { x: pos.x, y: pos.y };
+  }
+}
+
+function getBlockCellsForValidation(
+  type: BlockType,
+  position: Position,
+  rotation: number
+): Position[] {
+  const shape = BLOCK_SHAPES[type];
+  return shape.map((relPos) => {
+    const rotated = rotatePositionForValidation(relPos, rotation);
+    return {
+      x: position.x + rotated.x,
+      y: position.y + rotated.y,
+    };
+  });
+}
+
+function validateLevel(level: LevelData, levelIndex: number): void {
+  const obstacleSet = new Set(level.obstacles.map((o) => `${o.x},${o.y}`));
+  const allBlockCells: string[] = [];
+
+  level.blocks.forEach((block, blockIndex) => {
+    const cells = getBlockCellsForValidation(block.type, block.position, block.rotation);
+    cells.forEach((cell) => {
+      if (cell.x < 0 || cell.x >= level.gridSize || cell.y < 0 || cell.y >= level.gridSize) {
+        throw new Error(
+          `第${levelIndex + 1}关第${blockIndex + 1}个方块超出网格边界: (${cell.x}, ${cell.y})`
+        );
+      }
+      const key = `${cell.x},${cell.y}`;
+      if (obstacleSet.has(key)) {
+        throw new Error(
+          `第${levelIndex + 1}关第${blockIndex + 1}个方块与障碍物重叠: (${cell.x}, ${cell.y})`
+        );
+      }
+      allBlockCells.push(key);
+    });
+  });
+
+  const cellCounts = new Map<string, number>();
+  allBlockCells.forEach((key) => {
+    cellCounts.set(key, (cellCounts.get(key) || 0) + 1);
+  });
+
+  cellCounts.forEach((count, key) => {
+    if (count > 1) {
+      throw new Error(`第${levelIndex + 1}关方块之间重叠: ${key}`);
+    }
+  });
+
+  if (level.targetArea === undefined || level.targetArea === null) {
+    throw new Error(`第${levelIndex + 1}关targetArea为undefined`);
+  }
+  if (
+    level.targetArea.x === undefined ||
+    level.targetArea.y === undefined ||
+    level.targetArea.width === undefined ||
+    level.targetArea.height === undefined
+  ) {
+    throw new Error(`第${levelIndex + 1}关targetArea字段不完整`);
+  }
+}
+
+const rawLevels: LevelData[] = [
   {
     gridSize: 8,
     obstacles: [],
@@ -187,3 +262,9 @@ export const puzzleLevels: LevelData[] = [
     targetArea: { x: 2, y: 6, width: 4, height: 2 },
   },
 ];
+
+rawLevels.forEach((level, index) => {
+  validateLevel(level, index);
+});
+
+export const puzzleLevels: LevelData[] = rawLevels;

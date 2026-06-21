@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { produce } from 'immer';
 import { Block, GravityDirection, Position, TargetArea, BlockType, BLOCK_COLORS, GRAVITY_ORDER } from '../types';
-import { applyGravity, checkComplete, rotateBlockShape, canPlaceBlock, getBlockCells } from '../game/gravityEngine';
+import { applyGravity, checkComplete, rotateBlockShape, canPlaceBlock, getBlockCells, applyGravityAfterRotation } from '../game/gravityEngine';
 import { puzzleLevels } from '../game/puzzleData';
 
 interface GameState {
@@ -173,7 +173,7 @@ export const useGameStore = create<GameState>((set, get) => {
         state.gridSize
       );
 
-      if (rotated) {
+      if (rotated !== null) {
         set(
           produce((draft) => {
             const index = draft.blocks.findIndex((b: Block) => b.id === blockId);
@@ -187,7 +187,7 @@ export const useGameStore = create<GameState>((set, get) => {
 
         requestAnimationFrame(() => {
           const currentState = get();
-          const result = applyGravity(
+          const result = applyGravityAfterRotation(
             currentState.blocks,
             currentState.obstacles,
             currentState.gridSize,

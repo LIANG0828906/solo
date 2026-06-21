@@ -157,7 +157,34 @@ export function applyGravity(
     }
   }
 
+  newBlocks.forEach((block) => {
+    const cells = getBlockCells(block);
+    for (const cell of cells) {
+      if (cell.x < 0) {
+        block.position.x += Math.abs(cell.x);
+      }
+      if (cell.y < 0) {
+        block.position.y += Math.abs(cell.y);
+      }
+      if (cell.x >= gridSize) {
+        block.position.x -= cell.x - gridSize + 1;
+      }
+      if (cell.y >= gridSize) {
+        block.position.y -= cell.y - gridSize + 1;
+      }
+    }
+  });
+
   return { blocks: newBlocks, moved };
+}
+
+export function applyGravityAfterRotation(
+  blocks: Block[],
+  obstacles: Position[],
+  gridSize: number,
+  direction: GravityDirection
+): { blocks: Block[]; moved: boolean } {
+  return applyGravity(blocks, obstacles, gridSize, direction);
 }
 
 export function checkComplete(

@@ -54,13 +54,13 @@ const GameBoard: React.FC = () => {
       return;
     }
 
-    const cx = boardSize / 2;
-    const cy = boardSize / 2;
+    const targetCenterX = (targetArea.x + targetArea.width / 2) * CELL_SIZE;
+    const targetCenterY = (targetArea.y + targetArea.height / 2) * CELL_SIZE;
 
     const initialParticles: Particle[] = Array.from({ length: 30 }, (_, i) => ({
       id: i,
-      x: cx,
-      y: cy,
+      x: targetCenterX,
+      y: targetCenterY,
       angle: Math.random() * Math.PI * 2,
       speed: 2 + Math.random() * 3,
       size: 4 + Math.random() * 6,
@@ -70,7 +70,7 @@ const GameBoard: React.FC = () => {
     setParticles(initialParticles);
 
     let frame = 0;
-    const totalFrames = 62;
+    const totalFrames = 63;
 
     const intervalId = setInterval(() => {
       frame++;
@@ -92,7 +92,7 @@ const GameBoard: React.FC = () => {
     return () => {
       clearInterval(intervalId);
     };
-  }, [showParticles, boardSize]);
+  }, [showParticles, boardSize, targetArea]);
 
   const handleNextLevel = () => {
     hideParticles();
