@@ -67,12 +67,12 @@ io.on('connection', (socket) => {
 
   socket.on('text:move', (data: { id: string; x: number; y: number }) => {
     if (!currentUser) return;
-    socket.to(currentUser.roomId).emit('text:move', data);
+    socket.to(currentUser.roomId).emit('text:move', { ...data, userId: currentUser.userId });
   });
 
   socket.on('text:delete', (id: string) => {
     if (!currentUser) return;
-    socket.to(currentUser.roomId).emit('text:delete', id);
+    socket.to(currentUser.roomId).emit('text:delete', { id, userId: currentUser.userId });
   });
 
   socket.on('canvas:clear', () => {

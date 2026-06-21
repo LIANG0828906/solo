@@ -53,8 +53,8 @@ export interface ToolSettings {
 export interface ServerToClientEvents {
   'draw:path': (path: DrawPath) => void;
   'text:add': (text: TextItem) => void;
-  'text:move': (data: { id: string; x: number; y: number }) => void;
-  'text:delete': (id: string) => void;
+  'text:move': (data: { id: string; x: number; y: number; userId: string }) => void;
+  'text:delete': (data: { id: string; userId: string }) => void;
   'canvas:clear': () => void;
   'canvas:snapshot': (dataUrl: string) => void;
   'room:users': (users: User[]) => void;
@@ -67,8 +67,8 @@ export interface ClientToServerEvents {
   'room:leave': () => void;
   'draw:path': (path: DrawPath) => void;
   'text:add': (text: TextItem) => void;
-  'text:move': (data: { id: string; x: number; y: number }) => void;
-  'text:delete': (id: string) => void;
+  'text:move': (data: { id: string; x: number; y: number; userId: string }) => void;
+  'text:delete': (data: { id: string; userId: string }) => void;
   'canvas:clear': () => void;
   'canvas:saveSnapshot': (dataUrl: string) => void;
 }

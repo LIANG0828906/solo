@@ -40,7 +40,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     { label: '粗', value: 12 },
   ];
 
-  const fontSizes = [12, 16, 20, 24];
+  const fontSizes = [12, 16, 20, 24, 28];
 
   const showTextOptions = toolSettings.type === 'text';
 

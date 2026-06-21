@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
-import Canvas from './components/Canvas';
+import Canvas, { CanvasWithMethods } from './components/Canvas';
 import Toolbar from './components/Toolbar';
 import { ToolSettings, DrawPath, User, TextItem } from '../shared/types';
 
@@ -23,7 +23,7 @@ function App() {
   const [canRedo, setCanRedo] = useState(false);
 
   const socketRef = useRef<Socket | null>(null);
-  const canvasRef = useRef<HTMLCanvasElement | null>(null);
+  const canvasRef = useRef<CanvasWithMethods | null>(null);
 
   const initSocket = useCallback(() => {
     const socket = io('http://localhost:3001', {
@@ -54,28 +54,6 @@ function App() {
     ctx.restore();
   };
 
-  const renderRemoteText = (text: TextItem) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    ctx.save();
-    ctx.fillStyle = text.color;
-    ctx.font = `${text.fontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
-    ctx.textBaseline = 'top';
-    ctx.fillText(text.text, text.x, text.y);
-    ctx.restore();
-  };
-
-  const deleteRemoteText = (id: string) => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    console.warn('Delete remote text requires full redraw:', id);
-  };
-
   const handleJoinRoom = () => {
     if (!userName.trim() || !roomId.trim()) return;
 
@@ -95,15 +73,24 @@ function App() {
     });
 
     socket.on('text:add', (text: TextItem) => {
-      renderRemoteText(text);
+      const canvas = canvasRef.current;
+      if (canvas && text.userId !== userName) {
+        canvas.addRemoteText(text);
+      }
     });
 
-    socket.on('text:move', (_data: { id: string; x: number; y: number }) => {
-      console.warn('Remote text move received - full redraw needed');
+    socket.on('text:move', (data: { id: string; x: number; y: number; userId?: string }) => {
+      const canvas = canvasRef.current;
+      if (canvas && data.userId !== userName) {
+        canvas.moveRemoteText(data.id, data.x, data.y);
+      }
     });
 
-    socket.on('text:delete', (id: string) => {
-      deleteRemoteText(id);
+    socket.on('text:delete', (data: { id: string; userId?: string }) => {
+      const canvas = canvasRef.current;
+      if (canvas && data.userId !== userName) {
+        canvas.deleteRemoteText(data.id);
+      }
     });
 
     socket.on('canvas:clear', () => {

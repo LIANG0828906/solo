@@ -25,6 +25,9 @@ export interface CanvasWithMethods extends HTMLCanvasElement {
   redo: () => void;
   clearCanvas: () => void;
   clearSelection: () => void;
+  addRemoteText: (text: TextItem) => void;
+  moveRemoteText: (id: string, x: number, y: number) => void;
+  deleteRemoteText: (id: string) => void;
 }
 
 interface TextEditorState {
@@ -526,6 +529,56 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(
       }
     }, [selectedTextId, redrawCanvas]);
 
+    const addRemoteText = useCallback((text: TextItem) => {
+      const action: HistoryAction = { type: 'text-add', data: text };
+      const newHistory = historyRef.current.slice(0, historyIndexRef.current + 1);
+      newHistory.push(action);
+      historyRef.current = newHistory;
+      historyIndexRef.current = newHistory.length - 1;
+      textsRef.current.set(text.id, { ...text });
+      const histories = historyRef.current.slice(0, historyIndexRef.current + 1);
+      redrawCanvas(histories);
+      renderCanvas();
+      notifyHistoryChange();
+    }, [redrawCanvas, renderCanvas, notifyHistoryChange]);
+
+    const moveRemoteText = useCallback((id: string, x: number, y: number) => {
+      const text = textsRef.current.get(id);
+      if (!text) return;
+      const action: HistoryAction = {
+        type: 'text-move',
+        data: { id, fromX: text.x, fromY: text.y, toX: x, toY: y }
+      };
+      const newHistory = historyRef.current.slice(0, historyIndexRef.current + 1);
+      newHistory.push(action);
+      historyRef.current = newHistory;
+      historyIndexRef.current = newHistory.length - 1;
+      text.x = x;
+      text.y = y;
+      const histories = historyRef.current.slice(0, historyIndexRef.current + 1);
+      redrawCanvas(histories);
+      renderCanvas();
+      notifyHistoryChange();
+    }, [redrawCanvas, renderCanvas, notifyHistoryChange]);
+
+    const deleteRemoteText = useCallback((id: string) => {
+      const text = textsRef.current.get(id);
+      if (!text) return;
+      const action: HistoryAction = { type: 'text-delete', data: { ...text } };
+      const newHistory = historyRef.current.slice(0, historyIndexRef.current + 1);
+      newHistory.push(action);
+      historyRef.current = newHistory;
+      historyIndexRef.current = newHistory.length - 1;
+      textsRef.current.delete(id);
+      if (selectedTextId === id) {
+        setSelectedTextId(null);
+      }
+      const histories = historyRef.current.slice(0, historyIndexRef.current + 1);
+      redrawCanvas(histories);
+      renderCanvas();
+      notifyHistoryChange();
+    }, [redrawCanvas, renderCanvas, notifyHistoryChange, selectedTextId]);
+
     useEffect(() => {
       const canvas = canvasRef.current as CanvasWithMethods | null;
       if (!canvas) return;
@@ -533,7 +586,10 @@ const Canvas = forwardRef<HTMLCanvasElement, CanvasProps>(
       canvas.redo = redo;
       canvas.clearCanvas = clearCanvas;
       canvas.clearSelection = clearSelection;
-    }, [undo, redo, clearCanvas, clearSelection]);
+      canvas.addRemoteText = addRemoteText;
+      canvas.moveRemoteText = moveRemoteText;
+      canvas.deleteRemoteText = deleteRemoteText;
+    }, [undo, redo, clearCanvas, clearSelection, addRemoteText, moveRemoteText, deleteRemoteText]);
 
     useEffect(() => {
       notifyHistoryChange();
