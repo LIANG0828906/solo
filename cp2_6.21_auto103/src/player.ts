@@ -72,6 +72,8 @@ export class Player {
     if (this.grounded && this.state !== PlayerState.Sliding) {
       this.state = PlayerState.Sliding;
       this.slideTimer = this.slideDuration;
+      this.animFrame = 0;
+      this.animTimer = 0;
     }
   }
 
@@ -98,9 +100,11 @@ export class Player {
 
   update(groundY: number): void {
     this.animTimer++;
-    if (this.animTimer >= 6) {
+    const frameInterval = this.state === PlayerState.Sliding ? 5 : 6;
+    if (this.animTimer >= frameInterval) {
       this.animTimer = 0;
-      this.animFrame = (this.animFrame + 1) % 4;
+      const frameCount = this.state === PlayerState.Sliding ? 4 : 4;
+      this.animFrame = (this.animFrame + 1) % frameCount;
     }
 
     if (!this.grounded) {
@@ -230,6 +234,8 @@ export class Player {
   }
 
   private drawJumping(ctx: CanvasRenderingContext2D, sx: number, sy: number): void {
+    const isRising = this.vy < 0;
+
     ctx.fillStyle = '#00f0ff';
     ctx.fillRect(sx + 4, sy, 24, 8);
     ctx.fillStyle = '#00d0e0';
@@ -247,12 +253,22 @@ export class Player {
     ctx.fillRect(sx + 6, sy + 20, 20, 3);
 
     ctx.fillStyle = '#e17055';
-    ctx.fillRect(sx - 2, sy + 22, 6, 6);
-    ctx.fillRect(sx + 28, sy + 22, 6, 6);
+    if (isRising) {
+      ctx.fillRect(sx - 4, sy + 18, 8, 6);
+      ctx.fillRect(sx + 28, sy + 18, 8, 6);
+    } else {
+      ctx.fillRect(sx - 2, sy + 24, 6, 6);
+      ctx.fillRect(sx + 28, sy + 24, 6, 6);
+    }
 
     ctx.fillStyle = '#636e72';
-    ctx.fillRect(sx + 6, sy + 36, 8, 8);
-    ctx.fillRect(sx + 18, sy + 36, 8, 8);
+    if (isRising) {
+      ctx.fillRect(sx + 4, sy + 34, 10, 6);
+      ctx.fillRect(sx + 18, sy + 34, 10, 6);
+    } else {
+      ctx.fillRect(sx + 6, sy + 36, 8, 10);
+      ctx.fillRect(sx + 18, sy + 36, 8, 10);
+    }
 
     ctx.fillStyle = '#2d3436';
     ctx.fillRect(sx + 2, sy + 44, 28, 4);
@@ -273,10 +289,14 @@ export class Player {
     ctx.fillRect(sx + 4, sy + 32, 24, 10);
 
     ctx.fillStyle = '#e17055';
-    if (this.animFrame % 2 === 0) {
+    if (this.animFrame === 0) {
       ctx.fillRect(sx + 0, sy + 34, 6, 3);
-    } else {
+    } else if (this.animFrame === 1) {
+      ctx.fillRect(sx + 0, sy + 36, 6, 3);
+    } else if (this.animFrame === 2) {
       ctx.fillRect(sx + 0, sy + 38, 6, 3);
+    } else {
+      ctx.fillRect(sx + 0, sy + 36, 6, 3);
     }
 
     ctx.fillStyle = '#636e72';

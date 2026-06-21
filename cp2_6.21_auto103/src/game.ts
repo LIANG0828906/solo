@@ -53,6 +53,7 @@ export class Game {
     const groundY = this.canvas.height - 120;
     this.player.reset(groundY);
     this.pool.reset(this.canvas.width, this.canvas.height);
+    this.renderer.invalidateBlurCache();
   }
 
   private handleClick(e: MouseEvent): void {

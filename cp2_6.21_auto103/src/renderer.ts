@@ -9,6 +9,7 @@ interface BaseParticle {
   maxLife: number;
   color: string;
   size: number;
+  startSize: number;
 }
 
 interface CollectBurst {
@@ -28,6 +29,9 @@ export class Renderer {
   private panelEdgePhase: number = 0;
   private particles: BaseParticle[] = [];
   private collectBursts: CollectBurst[] = [];
+  private offscreenCanvas: HTMLCanvasElement | null = null;
+  private cachedBlur: ImageData | null = null;
+  private needsBlurCache: boolean = true;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -294,78 +298,72 @@ export class Renderer {
     const perimeter = 2 * (w + h);
     const headPos = phase * perimeter;
     const glowLen = 60;
+    const tailPos = headPos - glowLen;
 
     ctx.save();
     ctx.shadowColor = '#00f0ff';
     ctx.shadowBlur = 12;
     ctx.lineWidth = 3;
 
-    const drawSegment = (px: number, py: number, len: number, vertical: boolean, dir: number, alpha: number) => {
-      ctx.strokeStyle = `rgba(0,240,255,${alpha})`;
-      ctx.beginPath();
-      ctx.moveTo(px, py);
-      if (vertical) {
-        ctx.lineTo(px, py + dir * len);
-      } else {
-        ctx.lineTo(px + dir * len, py);
-      }
-      ctx.stroke();
-    };
-
-    let remaining = headPos;
-    let currentX = x;
-    let currentY = y;
-
-    const edges: { len: number; vertical: boolean; dir: number }[] = [
-      { len: w, vertical: false, dir: 1 },
-      { len: h, vertical: true, dir: 1 },
-      { len: w, vertical: false, dir: -1 },
-      { len: h, vertical: true, dir: -1 },
+    const segments: Array<{ start: number; end: number; vertical: boolean; dir: number; x: number; y: number }> = [
+      { start: 0, end: w, vertical: false, dir: 1, x, y },
+      { start: w, end: w + h, vertical: true, dir: 1, x: x + w, y },
+      { start: w + h, end: w + h + w, vertical: false, dir: -1, x: x + w, y: y + h },
+      { start: w + h + w, end: perimeter, vertical: true, dir: -1, x, y: y + h },
     ];
 
-    let startEdge = 0;
-    for (let i = 0; i < edges.length; i++) {
-      if (remaining <= edges[i].len) {
-        startEdge = i;
-        break;
-      }
-      remaining -= edges[i].len;
-      if (edges[i].vertical) {
-        currentY += edges[i].dir * edges[i].len;
-      } else {
-        currentX += edges[i].dir * edges[i].len;
-      }
-    }
-
-    let remainingGlow = glowLen;
-    let edgeIdx = startEdge;
-    let posOnEdge = remaining;
-
-    for (let step = 0; step < 2 && remainingGlow > 0; step++) {
-      const edge = edges[edgeIdx];
-      const segLen = Math.min(posOnEdge, remainingGlow);
-      const alpha = 1 - (glowLen - remainingGlow + segLen / 2) / glowLen;
-
-      if (edge.vertical) {
-        const startY = currentY + edge.dir * (edge.len - posOnEdge);
-        drawSegment(currentX, startY, segLen, true, edge.dir, Math.max(0.2, alpha));
-      } else {
-        const startX = currentX + edge.dir * (edge.len - posOnEdge);
-        drawSegment(startX, currentY, segLen, false, edge.dir, Math.max(0.2, alpha));
-      }
-
-      remainingGlow -= segLen;
-      posOnEdge -= segLen;
-      if (posOnEdge <= 0) {
-        edgeIdx = (edgeIdx - 1 + edges.length) % edges.length;
-        posOnEdge = edges[edgeIdx].len;
-        const prevEdge = edges[(edgeIdx + 1) % edges.length];
-        if (prevEdge.vertical) {
-          currentY += prevEdge.dir * prevEdge.len;
-        } else {
-          currentX += prevEdge.dir * prevEdge.len;
+    for (let loop = 0; loop < 2; loop++) {
+      for (const seg of segments) {
+        let segStart = seg.start;
+        let segEnd = seg.end;
+        if (loop === 1) {
+          segStart += perimeter;
+          segEnd += perimeter;
         }
-        if (edgeIdx === startEdge && step > 0) break;
+
+        const overlapStart = Math.max(headPos - glowLen, segStart);
+        const overlapEnd = Math.min(headPos, segEnd);
+
+        if (overlapStart >= overlapEnd) continue;
+
+        const startDist = headPos - overlapEnd;
+        const endDist = headPos - overlapStart;
+
+        const startAlpha = Math.max(0.2, 1 - startDist / glowLen);
+        const endAlpha = Math.max(0.2, 1 - endDist / glowLen);
+
+        let px1, py1, px2, py2;
+
+        if (seg.vertical) {
+          const localStart = overlapStart - (seg.start - loop * perimeter);
+          const localEnd = overlapEnd - (seg.start - loop * perimeter);
+          px1 = seg.x;
+          py1 = seg.y + seg.dir * localStart;
+          px2 = seg.x;
+          py2 = seg.y + seg.dir * localEnd;
+        } else {
+          const localStart = overlapStart - (seg.start - loop * perimeter);
+          const localEnd = overlapEnd - (seg.start - loop * perimeter);
+          px1 = seg.x + seg.dir * localStart;
+          py1 = seg.y;
+          px2 = seg.x + seg.dir * localEnd;
+          py2 = seg.y;
+        }
+
+        const grad = ctx.createLinearGradient(px1, py1, px2, py2);
+        if (seg.dir > 0) {
+          grad.addColorStop(0, `rgba(0,240,255,${startAlpha})`);
+          grad.addColorStop(1, `rgba(0,240,255,${endAlpha})`);
+        } else {
+          grad.addColorStop(0, `rgba(0,240,255,${endAlpha})`);
+          grad.addColorStop(1, `rgba(0,240,255,${startAlpha})`);
+        }
+
+        ctx.strokeStyle = grad;
+        ctx.beginPath();
+        ctx.moveTo(px1, py1);
+        ctx.lineTo(px2, py2);
+        ctx.stroke();
       }
     }
 
@@ -392,6 +390,7 @@ export class Renderer {
     for (let i = 0; i < 10; i++) {
       const angle = (Math.PI * 2 * i) / 10;
       const speed = 2 + Math.random() * 2;
+      const startSize = 3 + Math.random() * 2;
       this.particles.push({
         x,
         y,
@@ -400,9 +399,15 @@ export class Renderer {
         life: 18,
         maxLife: 18,
         color,
-        size: 3
+        size: startSize,
+        startSize: startSize
       });
     }
+  }
+
+  invalidateBlurCache(): void {
+    this.needsBlurCache = true;
+    this.cachedBlur = null;
   }
 
   drawGameOver(score: number, highScore: number, animProgress: number, onRestart: (() => void) | null): void {
@@ -411,16 +416,25 @@ export class Renderer {
     const h = this.canvas.height;
 
     ctx.save();
-    ctx.fillStyle = 'rgba(10,0,25,0.5)';
-    for (let ox = -4; ox <= 4; ox += 2) {
-      for (let oy = -4; oy <= 4; oy += 2) {
-        if (ox === 0 && oy === 0) continue;
-        ctx.globalAlpha = 0.1;
-        ctx.fillRect(0, 0, w, h);
+
+    if (this.needsBlurCache || !this.cachedBlur) {
+      if (!this.offscreenCanvas || this.offscreenCanvas.width !== w || this.offscreenCanvas.height !== h) {
+        this.offscreenCanvas = document.createElement('canvas');
+        this.offscreenCanvas.width = w;
+        this.offscreenCanvas.height = h;
       }
+      const offCtx = this.offscreenCanvas.getContext('2d')!;
+      offCtx.clearRect(0, 0, w, h);
+      offCtx.drawImage(this.canvas, 0, 0);
+      offCtx.filter = 'blur(4px)';
+      offCtx.drawImage(this.offscreenCanvas, 0, 0);
+      offCtx.filter = 'none';
+      this.cachedBlur = offCtx.getImageData(0, 0, w, h);
+      this.needsBlurCache = false;
     }
-    ctx.globalAlpha = 1;
-    ctx.fillStyle = 'rgba(0,0,0,0.7)';
+
+    ctx.putImageData(this.cachedBlur, 0, 0);
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
     ctx.fillRect(0, 0, w, h);
     ctx.restore();
 
@@ -501,6 +515,7 @@ export class Renderer {
 
   addParticle(x: number, y: number, color: string, count: number = 4): void {
     for (let i = 0; i < count; i++) {
+      const startSize = 2 + Math.random() * 3;
       this.particles.push({
         x,
         y,
@@ -509,7 +524,8 @@ export class Renderer {
         life: 30 + Math.random() * 20,
         maxLife: 50,
         color,
-        size: 2 + Math.random() * 3
+        size: startSize,
+        startSize: startSize
       });
     }
   }
@@ -519,25 +535,39 @@ export class Renderer {
 
     this.particles = this.particles.filter(p => p.life > 0);
 
-    for (const p of this.particles) {
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      const p = this.particles[i];
       p.x += p.vx;
       p.y += p.vy;
       p.vy += 0.1;
       p.life--;
 
-      const alpha = p.life / p.maxLife;
+      const lifeRatio = p.life / p.maxLife;
+      const currentSize = p.startSize * lifeRatio;
+      const alpha = lifeRatio;
+
+      if (alpha <= 0.01 || currentSize < 0.3) {
+        this.particles.splice(i, 1);
+        continue;
+      }
+
       ctx.globalAlpha = alpha;
       ctx.fillStyle = p.color;
       ctx.shadowColor = p.color;
       ctx.shadowBlur = 4;
-      ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
+      ctx.fillRect(p.x - currentSize / 2, p.y - currentSize / 2, currentSize, currentSize);
     }
     ctx.globalAlpha = 1;
     ctx.shadowBlur = 0;
 
     this.collectBursts = this.collectBursts.filter(b => b.life > 0);
-    for (const b of this.collectBursts) {
+    for (let i = this.collectBursts.length - 1; i >= 0; i--) {
+      const b = this.collectBursts[i];
       b.life--;
+      if (b.life <= 0) {
+        this.collectBursts.splice(i, 1);
+        continue;
+      }
       const progress = 1 - b.life / b.maxLife;
       const radius = 6 + progress * 30;
       const alpha = 1 - progress;
