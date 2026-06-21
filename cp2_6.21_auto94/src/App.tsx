@@ -13,7 +13,7 @@ import {
 
 const GAP = 20;
 
-function getDominantColorFromImage(
+function getAverageColorFromImage(
   image: HTMLImageElement,
   pieceX: number,
   pieceY: number,
@@ -24,45 +24,61 @@ function getDominantColorFromImage(
   const ctx = canvas.getContext('2d');
   if (!ctx) return '#ffd700';
   
-  canvas.width = 1;
-  canvas.height = 1;
+  const sampleSize = 5;
+  canvas.width = sampleSize;
+  canvas.height = sampleSize;
   
-  const centerX = pieceX + pieceWidth / 2;
-  const centerY = pieceY + pieceHeight / 2;
+  ctx.drawImage(
+    image,
+    pieceX, pieceY, pieceWidth, pieceHeight,
+    0, 0, sampleSize, sampleSize
+  );
   
-  ctx.drawImage(image, centerX, centerY, 1, 1, 0, 0, 1, 1);
+  const imageData = ctx.getImageData(0, 0, sampleSize, sampleSize).data;
   
-  const pixel = ctx.getImageData(0, 0, 1, 1).data;
-  return `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`;
+  let r = 0, g = 0, b = 0;
+  const pixelCount = sampleSize * sampleSize;
+  
+  for (let i = 0; i < pixelCount; i++) {
+    const idx = i * 4;
+    r += imageData[idx];
+    g += imageData[idx + 1];
+    b += imageData[idx + 2];
+  }
+  
+  r = Math.round(r / pixelCount);
+  g = Math.round(g / pixelCount);
+  b = Math.round(b / pixelCount);
+  
+  return `rgb(${r}, ${g}, ${b})`;
 }
 
 function generateParticles(
   pieces: PuzzlePiece[],
-  image: HTMLImageElement,
-  containerOffsetX: number,
-  containerOffsetY: number
+  image: HTMLImageElement
 ): Array<{ id: number; x: number; y: number; dx: number; dy: number; color: string; size: number }> {
   const newParticles: Array<{ id: number; x: number; y: number; dx: number; dy: number; color: string; size: number }> = [];
   let particleId = 0;
   
+  const imgWidth = image.naturalWidth || image.width;
+  const imgHeight = image.naturalHeight || image.height;
+  const gridSize = pieces.length === 16 ? 4 : 6;
+  const srcPieceWidth = imgWidth / gridSize;
+  const srcPieceHeight = imgHeight / gridSize;
+  
   pieces.forEach((piece) => {
-    const pieceCenterX = piece.currentX + piece.width / 2 + containerOffsetX;
-    const pieceCenterY = piece.currentY + piece.height / 2 + containerOffsetY;
+    const pieceCenterX = piece.currentX + piece.width / 2;
+    const pieceCenterY = piece.currentY + piece.height / 2;
     
-    const imgWidth = image.naturalWidth || image.width;
-    const imgHeight = image.naturalHeight || image.height;
-    const gridSize = pieces.length === 16 ? 4 : 6;
-    const srcPieceWidth = imgWidth / gridSize;
-    const srcPieceHeight = imgHeight / gridSize;
     const srcX = piece.col * srcPieceWidth;
     const srcY = piece.row * srcPieceHeight;
     
-    const color = getDominantColorFromImage(image, srcX, srcY, srcPieceWidth, srcPieceHeight);
+    const color = getAverageColorFromImage(image, srcX, srcY, srcPieceWidth, srcPieceHeight);
     
-    const particlesPerPiece = 8;
+    const particlesPerPiece = 4;
     for (let i = 0; i < particlesPerPiece; i++) {
       const angle = (Math.PI * 2 * i) / particlesPerPiece + Math.random() * 0.5;
-      const distance = 100 + Math.random() * 200;
+      const distance = 80 + Math.random() * 150;
       const dx = Math.cos(angle) * distance;
       const dy = Math.sin(angle) * distance;
       
@@ -73,7 +89,7 @@ function generateParticles(
         dx,
         dy,
         color,
-        size: 4 + Math.random() * 6,
+        size: 4 + Math.random() * 5,
       });
     }
   });
@@ -265,7 +281,7 @@ function App() {
 
       const el = piecesRef.current.get(piece.id);
       if (el) {
-        el.classList.add('dragging', 'breathing');
+        el.classList.add('dragging');
       }
     },
     [bringToFront]
@@ -317,7 +333,7 @@ function App() {
 
       const el = piecesRef.current.get(piece.id);
       if (el) {
-        el.classList.remove('dragging', 'breathing');
+        el.classList.remove('dragging');
         el.style.transition = '';
       }
 
@@ -352,6 +368,7 @@ function App() {
           piece.isPlaced = true;
 
           if (el) {
+            el.classList.remove('dragging');
             el.style.transform = `translate(${snappedX}px, ${snappedY}px) rotate(0deg)`;
             el.classList.add('snap-animation', 'glow-effect');
             setTimeout(() => {
@@ -364,15 +381,9 @@ function App() {
 
           const placedCount = piecesStateRef.current.filter((p) => p.isPlaced).length;
           if (placedCount === piecesStateRef.current.length && image) {
-            const containerRect = containerRef.current?.getBoundingClientRect();
-            const offsetX = containerRect?.left || 0;
-            const offsetY = containerRect?.top || 0;
-            
             const particleData = generateParticles(
               piecesStateRef.current,
-              image,
-              offsetX,
-              offsetY
+              image
             );
             setParticles(particleData);
             setIsComplete(true);
@@ -604,6 +615,27 @@ function App() {
               <div className="empty-state-text">上传一张图片开始拼图挑战吧！</div>
             </div>
           )}
+
+          {particles.length > 0 && (
+            <div className="particles-container" ref={particlesRef}>
+              {particles.map((particle) => (
+                <div
+                  key={particle.id}
+                  className="particle"
+                  style={{
+                    left: particle.x,
+                    top: particle.y,
+                    width: particle.size,
+                    height: particle.size,
+                    backgroundColor: particle.color,
+                    boxShadow: `0 0 ${particle.size * 2}px ${particle.color}`,
+                    '--dx': `${particle.dx}px`,
+                    '--dy': `${particle.dy}px`,
+                  } as React.CSSProperties}
+                />
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
@@ -627,27 +659,6 @@ function App() {
       {showPreview && imageUrl && (
         <div className="preview-overlay" onClick={() => setShowPreview(false)}>
           <img src={imageUrl} alt="预览" className="preview-image" />
-        </div>
-      )}
-
-      {particles.length > 0 && (
-        <div className="particles-container" ref={particlesRef}>
-          {particles.map((particle) => (
-            <div
-              key={particle.id}
-              className="particle"
-              style={{
-                left: particle.x,
-                top: particle.y,
-                width: particle.size,
-                height: particle.size,
-                backgroundColor: particle.color,
-                boxShadow: `0 0 ${particle.size * 2}px ${particle.color}`,
-                '--dx': `${particle.dx}px`,
-                '--dy': `${particle.dy}px`,
-              } as React.CSSProperties}
-            />
-          ))}
         </div>
       )}
 

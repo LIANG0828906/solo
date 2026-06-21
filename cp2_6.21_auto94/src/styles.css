@@ -250,20 +250,7 @@ html, body {
   filter: drop-shadow(var(--shadow-piece-dragging));
 }
 
-.piece.breathing {
-  animation: breathing 1.5s ease-in-out infinite;
-}
-
-@keyframes breathing {
-  0%, 100% {
-    filter: drop-shadow(var(--shadow-piece-dragging));
-  }
-  50% {
-    filter: drop-shadow(0 16px 40px rgba(139, 90, 43, 0.6));
-  }
-}
-
-.piece.glow-effect {
+.piece.glow-effect canvas {
   animation: glow-pulse 0.3s ease-out;
 }
 
@@ -585,14 +572,14 @@ html, body {
 }
 
 .particles-container {
-  position: fixed;
+  position: absolute;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
   z-index: 3001;
-  overflow: hidden;
+  overflow: visible;
 }
 
 .particle {
