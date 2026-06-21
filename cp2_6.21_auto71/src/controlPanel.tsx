@@ -9,12 +9,14 @@ interface ControlPanelProps {
   azimuth: number;
   searchResults: SearchResult[];
   categoryCounts: Record<POICategory, number>;
+  isCollapsed?: boolean;
   onLayersChange: (layers: POICategory[]) => void;
   onRadiusChange: (radius: number) => void;
   onAngleRangeChange: (range: number) => void;
   onAzimuthChange: (azimuth: number) => void;
   onResultClick: (poiId: string) => void;
   onReset: () => void;
+  onCollapsedChange?: (collapsed: boolean) => void;
 }
 
 export default function ControlPanel({
@@ -24,16 +26,30 @@ export default function ControlPanel({
   azimuth,
   searchResults,
   categoryCounts,
+  isCollapsed: externalCollapsed,
   onLayersChange,
   onRadiusChange,
   onAngleRangeChange,
   onAzimuthChange,
   onResultClick,
   onReset,
+  onCollapsedChange,
 }: ControlPanelProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [isRadiusDragging, setIsRadiusDragging] = useState(false);
+  const [internalCollapsed, setInternalCollapsed] = useState(false);
   const knobRef = useRef<HTMLDivElement>(null);
+
+  const isCollapsed = externalCollapsed !== undefined ? externalCollapsed : internalCollapsed;
+
+  const handleToggleCollapse = useCallback(() => {
+    const newState = !isCollapsed;
+    if (onCollapsedChange) {
+      onCollapsedChange(newState);
+    } else {
+      setInternalCollapsed(newState);
+    }
+  }, [isCollapsed, onCollapsedChange]);
 
   const handleCategoryToggle = useCallback((category: POICategory) => {
     const newLayers = selectedLayers.includes(category)
@@ -91,15 +107,47 @@ export default function ControlPanel({
 
   const knobRotation = azimuth - 90;
 
-  const radiusPercent = ((searchRadius - 100) / (500 - 100)) * 100;
+  const radiusPercent = ((searchRadius - 100) / (2000 - 100)) * 100;
   const anglePercent = ((angleRange - 45) / (360 - 45)) * 100;
 
   return (
-    <div className="control-panel" style={panelStyle}>
+    <div className="control-panel" style={{
+      ...panelStyle,
+      ...(isCollapsed ? panelCollapsedStyle : {}),
+    }}>
       <div style={headerStyle}>
-        <h2 style={titleStyle}>兴趣点筛选</h2>
+        <h2 style={{
+          ...titleStyle,
+          ...(isCollapsed ? { display: 'none' } : {}),
+        }}>兴趣点筛选</h2>
+        <button
+          onClick={handleToggleCollapse}
+          style={collapseBtnStyle}
+          title={isCollapsed ? '展开面板' : '收起面板'}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.backgroundColor = '#e9ecef';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.backgroundColor = 'transparent';
+          }}
+        >
+          <span style={{
+            display: 'inline-block',
+            transition: 'transform 0.3s ease',
+            transform: isCollapsed ? 'rotate(180deg)' : 'rotate(0deg)',
+          }}>
+            ▼
+          </span>
+        </button>
       </div>
 
+      <div style={{
+        ...panelContentStyle,
+        opacity: isCollapsed ? 0 : 1,
+        maxHeight: isCollapsed ? '0px' : '2000px',
+        overflow: isCollapsed ? 'hidden' : 'visible',
+        transition: 'opacity 0.2s ease, max-height 0.3s ease',
+      }}>
       <div style={sectionStyle}>
         <h3 style={sectionTitleStyle}>选择类别</h3>
         <div style={categoryGridStyle}>
@@ -182,8 +230,8 @@ export default function ControlPanel({
             <input
               type="range"
               min="100"
-              max="500"
-              step="50"
+              max="2000"
+              step="100"
               value={searchRadius}
               onChange={(e) => onRadiusChange(Number(e.target.value))}
               onMouseDown={() => setIsRadiusDragging(true)}
@@ -204,7 +252,7 @@ export default function ControlPanel({
         </div>
         <div style={sliderLabelsStyle}>
           <span style={sliderLabelMinStyle}>100米</span>
-          <span style={sliderLabelMaxStyle}>500米</span>
+          <span style={sliderLabelMaxStyle}>2000米</span>
         </div>
       </div>
 
@@ -390,6 +438,14 @@ export default function ControlPanel({
           )}
         </div>
       </div>
+
+      <div style={summaryStyle}>
+        <div style={summaryTextStyle}>
+          已选<span style={summaryHighlightStyle}>{selectedLayers.length}</span>个类别，
+          搜索半径<span style={summaryHighlightStyle}>{searchRadius}</span>米
+        </div>
+      </div>
+      </div>
     </div>
   );
 }
@@ -397,23 +453,53 @@ export default function ControlPanel({
 const panelStyle: React.CSSProperties = {
   width: '100%',
   height: '100%',
-  padding: '0 20px 20px 20px',
-  backgroundColor: '#ffffff',
-  borderLeft: '1px solid #e0e0e0',
+  backgroundColor: 'rgba(255, 255, 255, 0.92)',
+  backdropFilter: 'blur(10px)',
+  borderLeft: '1px solid rgba(224, 224, 224, 0.5)',
   overflowY: 'auto',
   fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   boxSizing: 'border-box',
+  display: 'flex',
+  flexDirection: 'column',
+};
+
+const panelCollapsedStyle: React.CSSProperties = {
+  minHeight: '50px',
 };
 
 const headerStyle: React.CSSProperties = {
   position: 'sticky',
   top: 0,
-  backgroundColor: '#ffffff',
-  paddingTop: '20px',
-  paddingBottom: '12px',
-  borderBottom: '1px solid #f1f3f5',
-  marginBottom: '16px',
+  backgroundColor: 'rgba(255, 255, 255, 0.95)',
+  backdropFilter: 'blur(10px)',
+  padding: '14px 16px',
+  borderBottom: '1px solid rgba(241, 243, 245, 0.8)',
   zIndex: 10,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  flexShrink: 0,
+};
+
+const collapseBtnStyle: React.CSSProperties = {
+  width: '28px',
+  height: '28px',
+  border: 'none',
+  borderRadius: '6px',
+  backgroundColor: 'transparent',
+  cursor: 'pointer',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  fontSize: '12px',
+  color: '#868e96',
+  transition: 'all 0.2s ease',
+};
+
+const panelContentStyle: React.CSSProperties = {
+  padding: '0 16px 16px 16px',
+  flex: 1,
+  overflowY: 'auto',
 };
 
 const titleStyle: React.CSSProperties = {
@@ -840,4 +926,23 @@ const resultDistanceBadgeStyle: React.CSSProperties = {
   backgroundColor: '#4a90d9',
   padding: '3px 8px',
   borderRadius: '10px',
+};
+
+const summaryStyle: React.CSSProperties = {
+  marginTop: 'auto',
+  paddingTop: '16px',
+  paddingBottom: '8px',
+  borderTop: '1px solid #f1f3f5',
+};
+
+const summaryTextStyle: React.CSSProperties = {
+  fontSize: '13px',
+  color: '#868e96',
+  textAlign: 'center',
+};
+
+const summaryHighlightStyle: React.CSSProperties = {
+  fontWeight: 700,
+  color: '#4a90d9',
+  margin: '0 3px',
 };
