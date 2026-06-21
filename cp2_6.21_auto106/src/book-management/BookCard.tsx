@@ -3,9 +3,11 @@ import { Book } from '../types';
 
 interface BookCardProps {
   book: Book;
+  coverWidth?: number;
+  coverHeight?: number;
 }
 
-const BookCard = ({ book }: BookCardProps) => {
+const BookCard = ({ book, coverWidth = 120, coverHeight = 180 }: BookCardProps) => {
   const navigate = useNavigate();
 
   const renderStars = (rating: number) => {
@@ -54,8 +56,8 @@ const BookCard = ({ book }: BookCardProps) => {
           src={book.cover_url}
           alt={book.title}
           style={{
-            width: '120px',
-            height: '180px',
+            width: `${coverWidth}px`,
+            height: `${coverHeight}px`,
             objectFit: 'cover',
             display: 'block',
             margin: '0 auto',

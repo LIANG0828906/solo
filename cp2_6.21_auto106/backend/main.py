@@ -49,22 +49,31 @@ class ConnectionManager:
                 del self.active_connections[user_id]
 
     async def broadcast(self, message: dict, exclude_user_id: Optional[int] = None):
-        for user_id, connections in self.active_connections.items():
+        disconnected = []
+        for user_id, connections in list(self.active_connections.items()):
             if user_id == exclude_user_id:
                 continue
             for connection in connections:
                 try:
                     await connection.send_json(message)
-                except:
-                    pass
+                except Exception:
+                    disconnected.append((user_id, connection))
+        for user_id, connection in disconnected:
+            if user_id in self.active_connections and connection in self.active_connections[user_id]:
+                self.active_connections[user_id].remove(connection)
+                if not self.active_connections[user_id]:
+                    del self.active_connections[user_id]
+
+    async def broadcast_to_all(self, message: dict):
+        await self.broadcast(message, exclude_user_id=None)
 
 
 manager = ConnectionManager()
 
 
 @app.get("/api/books")
-async def get_books(page: int = Query(1, ge=1), limit: int = Query(20, ge=1, le=100)):
-    return db.get_books(page, limit)
+async def get_books(page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100)):
+    return db.get_books(page, page_size)
 
 
 @app.post("/api/books")
@@ -92,7 +101,7 @@ async def update_book_status(book_id: int, update: BookStatusUpdate):
         "book_title": result["title"],
         "timestamp": result.get("created_at", "")
     }
-    await manager.broadcast(ws_message)
+    await manager.broadcast_to_all(ws_message)
 
     return result
 

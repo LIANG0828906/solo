@@ -43,7 +43,9 @@ const Dashboard = () => {
         datasets: [
           {
             data: Object.values(statistics.tags_count),
-            backgroundColor: TAG_COLORS,
+            backgroundColor: Object.keys(statistics.tags_count).map(
+              (_, index) => TAG_COLORS[index % TAG_COLORS.length]
+            ),
             borderWidth: 0,
           },
         ],

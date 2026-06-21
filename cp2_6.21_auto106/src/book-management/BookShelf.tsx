@@ -1,16 +1,32 @@
-import { useMemo } from 'react';
+import { useMemo, useRef, useCallback } from 'react';
 import BookCard from './BookCard';
 import { useAppStore } from '../store';
+
+const DEBOUNCE_DELAY = 300;
 
 const BookShelf = () => {
   const { books, filteredBooks, searchQuery, selectedTag, setSearchQuery, setSelectedTag, isLoading } =
     useAppStore();
+  const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const allTags = useMemo(() => {
     const tagSet = new Set<string>();
     books.forEach((book) => book.tags.forEach((tag) => tagSet.add(tag)));
     return Array.from(tagSet);
   }, [books]);
+
+  const handleSearchChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      const value = e.target.value;
+      if (debounceTimer.current) {
+        clearTimeout(debounceTimer.current);
+      }
+      debounceTimer.current = setTimeout(() => {
+        setSearchQuery(value);
+      }, DEBOUNCE_DELAY);
+    },
+    [setSearchQuery]
+  );
 
   return (
     <div>
@@ -31,8 +47,8 @@ const BookShelf = () => {
           <input
             type="text"
             placeholder="搜索书名或作者..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            defaultValue={searchQuery}
+            onChange={handleSearchChange}
             style={{
               width: '100%',
               padding: '10px 20px 10px 40px',

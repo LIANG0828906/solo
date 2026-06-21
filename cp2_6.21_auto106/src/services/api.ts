@@ -9,8 +9,8 @@ const api = axios.create({
 });
 
 export const bookApi = {
-  getBooks: async (page = 1, limit = 20): Promise<{ books: Book[]; total: number }> => {
-    const response = await api.get('/books', { params: { page, limit } });
+  getBooks: async (page = 1, pageSize = 20): Promise<{ books: Book[]; total: number }> => {
+    const response = await api.get('/books', { params: { page, page_size: pageSize } });
     return response.data;
   },
 
