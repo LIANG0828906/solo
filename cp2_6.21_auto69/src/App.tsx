@@ -103,6 +103,19 @@ export default function App() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const rafIdRef = useRef<number | null>(null)
   const [canvasHeight, setCanvasHeight] = useState(120)
+  const [toast, setToast] = useState<{ type: 'error' | 'success' | 'info'; text: string; id: number } | null>(null)
+  const toastTimerRef = useRef<number | null>(null)
+
+  const showToast = useCallback((type: 'error' | 'success' | 'info', text: string) => {
+    if (toastTimerRef.current !== null) {
+      clearTimeout(toastTimerRef.current)
+    }
+    const id = Date.now()
+    setToast({ type, text, id })
+    toastTimerRef.current = window.setTimeout(() => {
+      setToast((current) => (current && current.id === id ? null : current))
+    }, 2500)
+  }, [])
 
   useEffect(() => {
     const handleResize = () => {
@@ -188,12 +201,9 @@ export default function App() {
   }, [])
 
   const handleSavePattern = useCallback(() => {
-    let name = state.patternName.trim() || `模式 ${state.savedPatterns.length + 1}`
-    if (name.length > 20) {
-      name = name.slice(0, 20)
-    }
+    const name = state.patternName.trim() || `模式 ${state.savedPatterns.length + 1}`
     if (state.savedPatterns.length >= MAX_PATTERNS) {
-      alert(`模式库已满（最多${MAX_PATTERNS}个），请先删除部分模式后再保存。`)
+      showToast('error', `模式库已满（最多${MAX_PATTERNS}个），请先删除部分模式后再保存。`)
       return
     }
     const pattern: SavedPattern = {
@@ -204,7 +214,8 @@ export default function App() {
       createdAt: Date.now(),
     }
     dispatch({ type: 'SAVE_PATTERN', pattern })
-  }, [state.patternName, state.bpm, state.grid, state.savedPatterns.length])
+    showToast('success', `已保存模式「${name}」`)
+  }, [state.patternName, state.bpm, state.grid, state.savedPatterns.length, showToast])
 
   const handleMetronomeToggle = useCallback(() => {
     dispatch({ type: 'TOGGLE_METRONOME' })
@@ -321,7 +332,26 @@ export default function App() {
 
   useEffect(() => {
     drawIdleBaseline()
-  }, [drawIdleBaseline, canvasHeight])
+
+    let resizeTimer: number | null = null
+    const handleResize = () => {
+      if (resizeTimer !== null) {
+        clearTimeout(resizeTimer)
+      }
+      resizeTimer = window.setTimeout(() => {
+        if (!state.isPlaying) {
+          drawIdleBaseline()
+        }
+      }, 50)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => {
+      window.removeEventListener('resize', handleResize)
+      if (resizeTimer !== null) {
+        clearTimeout(resizeTimer)
+      }
+    }
+  }, [drawIdleBaseline, canvasHeight, state.isPlaying])
 
   const handleGridChange = useCallback((grid: GridData) => {
     dispatch({ type: 'SET_GRID', grid })
@@ -474,13 +504,16 @@ export default function App() {
             <div className="input-wrapper">
               <input
                 type="text"
-                className="cyber-input pattern-name-input"
+                className={`cyber-input pattern-name-input ${state.patternName.length >= 20 ? 'max-limit' : ''}`}
                 placeholder="输入模式名称 (最多20字符)"
                 maxLength={20}
                 value={state.patternName}
-                onChange={(e) => dispatch({ type: 'SET_PATTERN_NAME', name: e.target.value })}
+                onChange={(e) => {
+                  const val = e.target.value.slice(0, 20)
+                  dispatch({ type: 'SET_PATTERN_NAME', name: val })
+                }}
               />
-              <span className={`char-counter ${state.patternName.length >= 18 ? 'warning' : ''}`}>
+              <span className={`char-counter ${state.patternName.length >= 18 ? 'warning' : ''} ${state.patternName.length >= 20 ? 'max-limit' : ''}`}>
                 {state.patternName.length}/20
               </span>
             </div>
@@ -530,6 +563,15 @@ export default function App() {
         <footer className="app-footer">
           <p>Web Audio API · 1/16 音符精度 · 赛博朋克节奏工作站</p>
         </footer>
+
+        {toast && (
+          <div className={`toast toast-${toast.type}`} key={toast.id}>
+            <span className="toast-icon">
+              {toast.type === 'success' ? '✓' : toast.type === 'error' ? '✕' : 'ℹ'}
+            </span>
+            <span className="toast-text">{toast.text}</span>
+          </div>
+        )}
       </div>
     </div>
   )

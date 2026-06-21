@@ -14,6 +14,7 @@ const TRACK_LABEL_WIDTH = 72
 
 export default function BeatGrid({ grid, currentCol, isPlaying, onGridChange }: BeatGridProps) {
   const gridRef = useRef<HTMLDivElement>(null)
+  const cellsRef = useRef<HTMLDivElement>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [dragValue, setDragValue] = useState(false)
   const [isShiftPressed, setIsShiftPressed] = useState(false)
@@ -107,78 +108,69 @@ export default function BeatGrid({ grid, currentCol, isPlaying, onGridChange }: 
 
   return (
     <div className="beat-grid-wrapper" ref={gridRef}>
-      <div
-        className="beat-grid-container"
-        style={{
-          width: totalWidth,
-        }}
-      >
-        <div className="beat-grid-track-labels" style={{ width: TRACK_LABEL_WIDTH, height: gridHeight }}>
-          {TRACKS.map((track) => (
-            <div
-              key={track}
-              className="track-label"
-              style={{ height: CELL_SIZE, lineHeight: `${CELL_SIZE}px` }}
-            >
-              {TRACK_LABELS[track as TrackName]}
-            </div>
-          ))}
-        </div>
-
-        <div
-          className="beat-grid"
-          style={{
-            width: gridWidth,
-            height: gridHeight,
-          }}
-        >
-          <div className="beat-grid-column-markers">
+      <div className="beat-grid-main">
+        <div className="beat-grid-header" style={{ height: CELL_SIZE }}>
+          <div className="beat-grid-track-label-header" style={{ width: TRACK_LABEL_WIDTH }} />
+          <div className="beat-grid-column-markers" style={{ width: gridWidth }}>
             {Array.from({ length: GRID_COLS }).map((_, col) => (
               <div
                 key={`marker-${col}`}
                 className={`column-marker ${col % 4 === 0 ? 'beat-marker' : ''}`}
-                style={{
-                  width: CELL_SIZE,
-                  height: CELL_SIZE,
-                }}
               >
                 {col % 4 === 0 ? Math.floor(col / 4) + 1 : ''}
               </div>
             ))}
           </div>
+        </div>
 
-          {grid.map((row, rowIndex) => (
-            <div key={rowIndex} className="beat-grid-row">
-              {row.map((cell, colIndex) => {
-                const isActive = cell
-                const isBeat = colIndex % 4 === 0
-                const inShiftSel = getIsInShiftSelection(rowIndex, colIndex)
-                return (
-                  <div
-                    key={`${rowIndex}-${colIndex}`}
-                    className={`beat-grid-cell ${isActive ? 'active' : ''} ${isBeat ? 'beat-col' : ''} ${inShiftSel ? 'shift-select' : ''}`}
-                    style={{
-                      width: CELL_SIZE,
-                      height: CELL_SIZE,
-                    }}
-                    onMouseDown={(e) => handleCellMouseDown(rowIndex, colIndex, e)}
-                    onMouseEnter={() => handleCellMouseEnter(rowIndex, colIndex)}
-                  />
-                )
-              })}
-            </div>
-          ))}
+        <div className="beat-grid-body">
+          <div className="beat-grid-track-labels" style={{ width: TRACK_LABEL_WIDTH, height: gridHeight }}>
+            {TRACKS.map((track) => (
+              <div
+                key={track}
+                className="track-label"
+                style={{ height: CELL_SIZE, lineHeight: `${CELL_SIZE}px` }}
+              >
+                {TRACK_LABELS[track as TrackName]}
+              </div>
+            ))}
+          </div>
 
-          {isPlaying && (
-            <div
-              className="playhead-bar"
-              style={{
-                width: PLAYHEAD_WIDTH,
-                height: gridHeight,
-                left: currentCol * CELL_SIZE,
-              }}
-            />
-          )}
+          <div
+            ref={cellsRef}
+            className="beat-grid-cells"
+            style={{
+              width: gridWidth,
+              height: gridHeight,
+            }}
+          >
+            {grid.map((row, rowIndex) => (
+              <div key={rowIndex} className="beat-grid-row">
+                {row.map((cell, colIndex) => {
+                  const isActive = cell
+                  const isBeat = colIndex % 4 === 0
+                  const inShiftSel = getIsInShiftSelection(rowIndex, colIndex)
+                  return (
+                    <div
+                      key={`${rowIndex}-${colIndex}`}
+                      className={`beat-grid-cell ${isActive ? 'active' : ''} ${isBeat ? 'beat-col' : ''} ${inShiftSel ? 'shift-select' : ''}`}
+                      onMouseDown={(e) => handleCellMouseDown(rowIndex, colIndex, e)}
+                      onMouseEnter={() => handleCellMouseEnter(rowIndex, colIndex)}
+                    />
+                  )
+                })}
+              </div>
+            ))}
+
+            {isPlaying && (
+              <div
+                className="playhead-bar"
+                style={{
+                  left: currentCol * CELL_SIZE,
+                }}
+              />
+            )}
+          </div>
         </div>
       </div>
     </div>
