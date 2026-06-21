@@ -1,4 +1,4 @@
-import React, { useRef, useMemo } from 'react';
+import React, { useRef, useMemo, useEffect } from 'react';
 import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Grid } from '@react-three/drei';
 import * as THREE from 'three';
@@ -11,38 +11,146 @@ function colorDistance(c1: THREE.Color, c2: THREE.Color): number {
   return Math.sqrt(r * r + g * g + b * b);
 }
 
+interface TintMaterialProps {
+  color: string;
+  roughness: number;
+  metalness: number;
+  warmStrength: number;
+  coolStrength: number;
+  lightDir: THREE.Vector3;
+  warmColor: THREE.Color;
+  coolColor: THREE.Color;
+}
+
+const TintedStandardMaterial: React.FC<TintMaterialProps> = ({
+  color,
+  roughness,
+  metalness,
+  warmStrength,
+  coolStrength,
+  lightDir,
+  warmColor,
+  coolColor,
+}) => {
+  const matRef = useRef<THREE.MeshStandardMaterial>(null);
+  const uniformsRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!matRef.current) return;
+    const mat = matRef.current;
+
+    const uniforms = {
+      uWarmStrength: { value: 0 },
+      uCoolStrength: { value: 0 },
+      uWarmColor: { value: new THREE.Color('#ffcc66') },
+      uCoolColor: { value: new THREE.Color('#6688cc') },
+      uLightDir: { value: new THREE.Vector3(0, 1, 0) },
+    };
+    uniformsRef.current = uniforms;
+
+    mat.onBeforeCompile = (shader) => {
+      shader.uniforms.uWarmStrength = uniforms.uWarmStrength;
+      shader.uniforms.uCoolStrength = uniforms.uCoolStrength;
+      shader.uniforms.uWarmColor = uniforms.uWarmColor;
+      shader.uniforms.uCoolColor = uniforms.uCoolColor;
+      shader.uniforms.uLightDir = uniforms.uLightDir;
+
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <common>',
+        `#include <common>
+         varying vec3 vTintWorldNormal;`
+      );
+
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <beginnormal_vertex>',
+        `#include <beginnormal_vertex>
+         vTintWorldNormal = normalize(mat3(modelMatrix) * objectNormal);`
+      );
+
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <common>',
+        `#include <common>
+         uniform float uWarmStrength;
+         uniform float uCoolStrength;
+         uniform vec3 uWarmColor;
+         uniform vec3 uCoolColor;
+         uniform vec3 uLightDir;
+         varying vec3 vTintWorldNormal;`
+      );
+
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <dithering_fragment>',
+        `#include <dithering_fragment>
+         {
+           vec3 N = normalize(vTintWorldNormal);
+           vec3 L = normalize(uLightDir);
+           float NdotL = dot(N, -L);
+
+           float litFactor = smoothstep(-0.15, 0.55, NdotL);
+           float shadowFactor = smoothstep(0.15, -0.55, NdotL);
+
+           vec3 warmTint = uWarmColor * uWarmStrength * 0.35 * litFactor;
+           vec3 coolTint = uCoolColor * uCoolStrength * 0.3 * shadowFactor;
+
+           gl_FragColor.rgb += warmTint;
+           gl_FragColor.rgb += coolTint;
+         }`
+      );
+    };
+
+    mat.needsUpdate = true;
+  }, []);
+
+  useEffect(() => {
+    if (!uniformsRef.current) return;
+    uniformsRef.current.uWarmStrength.value = warmStrength;
+    uniformsRef.current.uCoolStrength.value = coolStrength;
+    uniformsRef.current.uLightDir.value.copy(lightDir);
+    uniformsRef.current.uWarmColor.value.copy(warmColor);
+    uniformsRef.current.uCoolColor.value.copy(coolColor);
+  }, [warmStrength, coolStrength, lightDir, warmColor, coolColor]);
+
+  return (
+    <meshStandardMaterial
+      ref={matRef}
+      color={color}
+      roughness={roughness}
+      metalness={metalness}
+      shadowSide={THREE.DoubleSide}
+    />
+  );
+};
+
 function SceneContent() {
   const sun = useLightStore((s) => s.sun);
   const moon = useLightStore((s) => s.moon);
   const dirRef = useRef<THREE.DirectionalLight>(null);
   const pointRef = useRef<THREE.PointLight>(null);
   const hemiRef = useRef<THREE.HemisphereLight>(null);
-  const warmFillRef = useRef<THREE.DirectionalLight>(null);
-  const coolFillRef = useRef<THREE.PointLight>(null);
 
   const sunPos = useMemo(() => {
     const d = 8;
     const el = (sun.elevation * Math.PI) / 180;
     const az = (sun.azimuth * Math.PI) / 180;
-    return [
+    return new THREE.Vector3(
       d * Math.cos(el) * Math.sin(az),
       d * Math.sin(el),
-      d * Math.cos(el) * Math.cos(az),
-    ] as [number, number, number];
+      d * Math.cos(el) * Math.cos(az)
+    );
   }, [sun.elevation, sun.azimuth]);
 
   const moonPos = useMemo(() => {
     const d = 6;
     const el = (moon.elevation * Math.PI) / 180;
     const az = (moon.azimuth * Math.PI) / 180;
-    return [
+    return new THREE.Vector3(
       d * Math.cos(el) * Math.sin(az),
       d * Math.sin(el),
-      d * Math.cos(el) * Math.cos(az),
-    ] as [number, number, number];
+      d * Math.cos(el) * Math.cos(az)
+    );
   }, [moon.elevation, moon.azimuth]);
 
-  const { hemiSky, hemiGround, warmStrength, coolStrength } = useMemo(() => {
+  const { hemiSky, hemiGround, warmStrength, coolStrength, warmColor, coolColor, lightDir } = useMemo(() => {
     const sc = new THREE.Color(sun.color);
     const mc = new THREE.Color(moon.color);
 
@@ -63,36 +171,65 @@ function SceneContent() {
     const sky = new THREE.Color('#f0f0f0').lerp(new THREE.Color('#fff0c8'), warmth * 0.5);
     const gnd = new THREE.Color('#556677').lerp(new THREE.Color('#6699cc'), coolness * 0.6);
 
+    const wCol = new THREE.Color('#ffcc66').lerp(new THREE.Color('#ff9933'), warmth);
+    const cCol = new THREE.Color('#88aadd').lerp(new THREE.Color('#4466cc'), coolness);
+
+    const lDir = sunPos.clone().negate().normalize();
+
     return {
       hemiSky: sky,
       hemiGround: gnd,
       warmStrength: warmth,
       coolStrength: coolness,
+      warmColor: wCol,
+      coolColor: cCol,
+      lightDir: lDir,
     };
-  }, [sun.color, moon.color]);
+  }, [sun.color, sun.elevation, sun.azimuth, moon.color]);
+
+  useEffect(() => {
+    if (dirRef.current) {
+      dirRef.current.shadow.mapSize.width = 1024;
+      dirRef.current.shadow.mapSize.height = 1024;
+      dirRef.current.shadow.camera.left = -5;
+      dirRef.current.shadow.camera.right = 5;
+      dirRef.current.shadow.camera.top = 5;
+      dirRef.current.shadow.camera.bottom = -5;
+      dirRef.current.shadow.camera.near = 0.1;
+      dirRef.current.shadow.camera.far = 50;
+      dirRef.current.shadow.bias = -0.001;
+      dirRef.current.shadow.radius = 3;
+      dirRef.current.shadow.camera.updateProjectionMatrix();
+    }
+    if (pointRef.current) {
+      pointRef.current.shadow.mapSize.width = 1024;
+      pointRef.current.shadow.mapSize.height = 1024;
+      pointRef.current.shadow.bias = -0.001;
+      pointRef.current.shadow.radius = 3;
+    }
+  }, []);
 
   useFrame(() => {
     if (dirRef.current) {
-      dirRef.current.position.set(sunPos[0], sunPos[1], sunPos[2]);
+      dirRef.current.position.copy(sunPos);
       dirRef.current.target.position.set(0, 0, 0);
     }
-    if (warmFillRef.current) {
-      warmFillRef.current.position.set(sunPos[0], sunPos[1], sunPos[2]);
-      warmFillRef.current.target.position.set(0, 0, 0);
-      warmFillRef.current.intensity = warmStrength * 0.6;
-    }
     if (pointRef.current) {
-      pointRef.current.position.set(moonPos[0], moonPos[1], moonPos[2]);
-    }
-    if (coolFillRef.current) {
-      coolFillRef.current.position.set(-moonPos[0] * 0.3, 1, -moonPos[2] * 0.3);
-      coolFillRef.current.intensity = coolStrength * 0.8;
+      pointRef.current.position.copy(moonPos);
     }
     if (hemiRef.current) {
       hemiRef.current.color.copy(hemiSky);
       hemiRef.current.groundColor.copy(hemiGround);
     }
   });
+
+  const tintProps = {
+    warmStrength,
+    coolStrength,
+    lightDir,
+    warmColor,
+    coolColor,
+  };
 
   return (
     <>
@@ -102,7 +239,7 @@ function SceneContent() {
 
       <directionalLight
         ref={dirRef}
-        position={sunPos}
+        position={[sunPos.x, sunPos.y, sunPos.z]}
         intensity={sun.intensity}
         color={sun.color}
         castShadow
@@ -118,16 +255,9 @@ function SceneContent() {
         shadow-radius={3}
       />
 
-      <directionalLight
-        ref={warmFillRef}
-        position={sunPos}
-        intensity={0}
-        color="#ffcc66"
-      />
-
       <pointLight
         ref={pointRef}
-        position={moonPos}
+        position={[moonPos.x, moonPos.y, moonPos.z]}
         intensity={moon.intensity}
         color={moon.color}
         castShadow
@@ -139,22 +269,13 @@ function SceneContent() {
         decay={1}
       />
 
-      <pointLight
-        ref={coolFillRef}
-        position={[-moonPos[0] * 0.3, 1, -moonPos[2] * 0.3]}
-        intensity={0}
-        color="#6688cc"
-        distance={15}
-        decay={2}
-      />
-
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0, 0]} receiveShadow>
         <planeGeometry args={[10, 10]} />
-        <meshStandardMaterial
+        <TintedStandardMaterial
           color="#777777"
           roughness={0.9}
           metalness={0.1}
-          shadowSide={THREE.DoubleSide}
+          {...tintProps}
         />
       </mesh>
 
@@ -173,38 +294,38 @@ function SceneContent() {
 
       <mesh position={[-2, 0.75, 0]} castShadow receiveShadow>
         <sphereGeometry args={[0.75, 32, 32]} />
-        <meshStandardMaterial
+        <TintedStandardMaterial
           color="#ff6b6b"
           roughness={0.4}
           metalness={0.1}
-          shadowSide={THREE.DoubleSide}
+          {...tintProps}
         />
       </mesh>
       <mesh position={[2, 0.75, 0]} castShadow receiveShadow>
         <boxGeometry args={[1.5, 1.5, 1.5]} />
-        <meshStandardMaterial
+        <TintedStandardMaterial
           color="#4ecdc4"
           roughness={0.4}
           metalness={0.1}
-          shadowSide={THREE.DoubleSide}
+          {...tintProps}
         />
       </mesh>
       <mesh position={[0, 0.75, -2]} castShadow receiveShadow>
         <cylinderGeometry args={[0.5, 0.5, 1.5, 32]} />
-        <meshStandardMaterial
+        <TintedStandardMaterial
           color="#ffe66d"
           roughness={0.4}
           metalness={0.1}
-          shadowSide={THREE.DoubleSide}
+          {...tintProps}
         />
       </mesh>
       <mesh position={[0, 0.75, 2]} castShadow receiveShadow>
         <coneGeometry args={[0.5, 1.5, 32]} />
-        <meshStandardMaterial
+        <TintedStandardMaterial
           color="#95e1d3"
           roughness={0.4}
           metalness={0.1}
-          shadowSide={THREE.DoubleSide}
+          {...tintProps}
         />
       </mesh>
 
@@ -234,6 +355,7 @@ export default function SceneCanvas() {
         onCreated={({ gl }) => {
           gl.shadowMap.enabled = true;
           gl.shadowMap.type = THREE.PCFSoftShadowMap;
+          gl.shadowMap.needsUpdate = true;
         }}
       >
         <color attach="background" args={['#1a1a2e']} />

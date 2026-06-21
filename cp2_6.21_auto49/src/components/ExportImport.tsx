@@ -3,10 +3,15 @@ import { Button, Space } from 'antd';
 import { ExportOutlined, ImportOutlined } from '@ant-design/icons';
 import { useLightStore } from '@/store/lightStore';
 
-function getTimestamp(): string {
-  const now = new Date();
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}_${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+function formatDate(date: Date): string {
+  const pad = (n: number, len: number = 2) => String(n).padStart(len, '0');
+  const year = date.getFullYear();
+  const month = pad(date.getMonth() + 1);
+  const day = pad(date.getDate());
+  const hours = pad(date.getHours());
+  const minutes = pad(date.getMinutes());
+  const seconds = pad(date.getSeconds());
+  return `${year}${month}${day}_${hours}${minutes}${seconds}`;
 }
 
 export default function ExportImport() {
@@ -25,7 +30,7 @@ export default function ExportImport() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `lighting_config_${getTimestamp()}.json`;
+    a.download = `lighting_config_${formatDate(new Date())}.json`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);

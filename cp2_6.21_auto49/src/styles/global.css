@@ -272,11 +272,18 @@ body {
     flex-direction: column;
     gap: 0;
     position: relative;
+    width: 100%;
+    height: 100%;
   }
 
   .scene-area {
     width: 100%;
     height: calc(100vh - 250px);
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1;
   }
 
   .panel-area {
@@ -288,7 +295,8 @@ body {
     bottom: 0;
     left: 0;
     right: 0;
-    z-index: 100;
+    z-index: 999;
     overflow-y: auto;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.5);
   }
 }
