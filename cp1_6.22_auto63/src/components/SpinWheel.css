@@ -1,0 +1,229 @@
+.spin-wheel-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.wheel-outer {
+  position: relative;
+  width: 270px;
+  height: 270px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.led-ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.led-dot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  border-radius: 50%;
+  background: rgba(233, 69, 96, 0.3);
+  transition: background 0.3s;
+}
+
+.spinning .led-dot {
+  animation: ledPulse 0.8s ease-in-out infinite alternate;
+}
+
+.spinning .led-dot:nth-child(odd) {
+  background: #e94560;
+  animation: ledPulseOdd 0.5s ease-in-out infinite alternate;
+}
+
+.spinning .led-dot:nth-child(even) {
+  background: #f77f00;
+  animation: ledPulseEven 0.5s ease-in-out infinite alternate;
+}
+
+@keyframes ledPulse {
+  from { opacity: 0.3; box-shadow: 0 0 2px rgba(233, 69, 96, 0.2); }
+  to { opacity: 1; box-shadow: 0 0 8px rgba(233, 69, 96, 0.6); }
+}
+
+@keyframes ledPulseOdd {
+  from { opacity: 1; box-shadow: 0 0 10px #e94560; }
+  to { opacity: 0.4; box-shadow: 0 0 2px #e94560; }
+}
+
+@keyframes ledPulseEven {
+  from { opacity: 0.4; box-shadow: 0 0 2px #f77f00; }
+  to { opacity: 1; box-shadow: 0 0 10px #f77f00; }
+}
+
+.wheel-inner {
+  width: 250px;
+  height: 250px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 40% 40%, #2a2a4a, #1a1a2e);
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  z-index: 1;
+  overflow: hidden;
+  transition: box-shadow 0.3s;
+}
+
+.wheel-inner.glow-active {
+  box-shadow:
+    0 0 30px rgba(233, 69, 96, 0.3),
+    0 0 60px rgba(247, 127, 0, 0.2),
+    inset 0 0 40px rgba(233, 69, 96, 0.1);
+  animation: glowPulse 0.4s ease-in-out infinite alternate;
+}
+
+@keyframes glowPulse {
+  from {
+    box-shadow:
+      0 0 20px rgba(233, 69, 96, 0.3),
+      0 0 40px rgba(247, 127, 0, 0.15);
+  }
+  to {
+    box-shadow:
+      0 0 40px rgba(233, 69, 96, 0.5),
+      0 0 80px rgba(247, 127, 0, 0.3);
+  }
+}
+
+.wheel-content {
+  text-align: center;
+  padding: 20px;
+}
+
+.wheel-idle {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.wheel-icon {
+  font-size: 2.5rem;
+}
+
+.wheel-hint {
+  font-size: 0.85rem;
+  color: #888;
+}
+
+.wheel-rolling {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rolling-name {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #fff;
+  text-shadow: 0 0 12px rgba(233, 69, 96, 0.6);
+  animation: textFlicker 0.05s infinite;
+}
+
+@keyframes textFlicker {
+  0% { opacity: 0.85; }
+  50% { opacity: 1; }
+  100% { opacity: 0.9; }
+}
+
+.wheel-result {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.wheel-result.pop-in {
+  animation: popIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.winner-avatar {
+  font-size: 2rem;
+}
+
+.winner-label {
+  font-size: 0.75rem;
+  color: #f77f00;
+  font-weight: 500;
+}
+
+.winner-name {
+  font-size: 1.5rem;
+  font-weight: 900;
+  background: linear-gradient(90deg, #e94560, #f77f00);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.draw-btn {
+  background: linear-gradient(135deg, #e94560, #f77f00);
+  border: none;
+  border-radius: 40px;
+  color: #fff;
+  font-size: 1.1rem;
+  font-weight: 700;
+  padding: 14px 48px;
+  cursor: pointer;
+  transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+    box-shadow 0.2s;
+  font-family: inherit;
+  letter-spacing: 0.5px;
+}
+
+.draw-btn:hover:not(:disabled) {
+  transform: scale(1.1);
+  box-shadow: 0 0 20px rgba(233, 69, 96, 0.5), 0 0 40px rgba(247, 127, 0, 0.3);
+}
+
+.draw-btn:active:not(:disabled) {
+  transform: scale(1.02);
+}
+
+.draw-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .wheel-outer {
+    width: 220px;
+    height: 220px;
+  }
+  .wheel-inner {
+    width: 200px;
+    height: 200px;
+  }
+  .led-dot {
+    transform: rotate(var(--rot)) translateY(-108px) !important;
+  }
+  .draw-btn {
+    padding: 12px 36px;
+    font-size: 1rem;
+  }
+}
