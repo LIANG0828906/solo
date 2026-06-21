@@ -34,6 +34,13 @@ export interface RelationData {
   control_y?: number | null;
 }
 
+export interface LifeSpanData {
+  member_id: string;
+  name: string;
+  lifespan: number;
+  is_deceased: boolean;
+}
+
 export interface StatsData {
   total_members: number;
   total_events: number;
@@ -43,6 +50,7 @@ export interface StatsData {
   event_type_counts: Record<string, number>;
   avg_generation_gap: number;
   generation_gaps: number[];
+  birth_year_lcm: number;
 }
 
 export interface TimelineData {
@@ -50,6 +58,10 @@ export interface TimelineData {
   members: MemberData[];
   min_year: number;
   max_year: number;
+  generation_gaps: number[];
+  avg_generation_gap: number;
+  birth_year_lcm: number;
+  life_spans: LifeSpanData[];
 }
 
 export interface ExportData {

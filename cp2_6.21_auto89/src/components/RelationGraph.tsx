@@ -42,6 +42,7 @@ const RelationGraph: React.FC<RelationGraphProps> = ({
   const [dragStart, setDragStart] = useState<{ x: number; y: number; nodeId: string } | null>(null);
   const [dragPos, setDragPos] = useState<{ x: number; y: number } | null>(null);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
+  const [dragTargetNodeId, setDragTargetNodeId] = useState<string | null>(null);
   const [stageScale, setStageScale] = useState(1);
   const [stagePos, setStagePos] = useState({ x: 0, y: 0 });
   const [animatingNodes, setAnimatingNodes] = useState<Set<string>>(new Set());
@@ -92,9 +93,17 @@ const RelationGraph: React.FC<RelationGraphProps> = ({
           y: (pos.y - stagePos.y) / stageScale,
         };
         setDragPos(transformed);
+
+        const hitNode = nodes.find((n) => {
+          if (!dragStart || n.id === dragStart.nodeId) return false;
+          const dx = n.x - transformed.x;
+          const dy = n.y - transformed.y;
+          return Math.sqrt(dx * dx + dy * dy) < n.radius + 10;
+        });
+        setDragTargetNodeId(hitNode ? hitNode.id : null);
       }
     }
-  }, [isDraggingNew, stageScale, stagePos]);
+  }, [isDraggingNew, stageScale, stagePos, nodes, dragStart]);
 
   const handleStageMouseUp = useCallback(() => {
     if (isDraggingNew && dragStart && dragPos) {
@@ -111,6 +120,7 @@ const RelationGraph: React.FC<RelationGraphProps> = ({
     setIsDraggingNew(false);
     setDragStart(null);
     setDragPos(null);
+    setDragTargetNodeId(null);
   }, [isDraggingNew, dragStart, dragPos, nodes, onCreateRelation]);
 
   const getEdgeStyle = (type: string) => {
@@ -196,6 +206,7 @@ const RelationGraph: React.FC<RelationGraphProps> = ({
   const renderNode = (node: GraphNode) => {
     const isSelected = node.id === selectedMemberId;
     const isHovered = node.id === hoveredNodeId;
+    const isDragTarget = node.id === dragTargetNodeId;
     const isAnimating = animatingNodes.has(node.id);
 
     const displayRadius = node.radius;
@@ -241,6 +252,14 @@ const RelationGraph: React.FC<RelationGraphProps> = ({
           onNodeDragEnd(node.id, e.target.x(), e.target.y());
         }}
       >
+        {isDragTarget && (
+          <Circle
+            radius={displayRadius + 10}
+            stroke="#1ABC9C"
+            strokeWidth={3}
+            opacity={0.9}
+          />
+        )}
         <Circle
           radius={displayRadius + (isSelected ? 4 : isHovered ? 2 : 0)}
           fill="transparent"
@@ -290,6 +309,43 @@ const RelationGraph: React.FC<RelationGraphProps> = ({
             opacity={0.8}
           />
         )}
+        <Circle
+          x={displayRadius}
+          y={0}
+          radius={8}
+          fill="#3498DB"
+          stroke="#fff"
+          strokeWidth={2}
+          opacity={isAnimating ? 0 : 0.9}
+          onMouseDown={(e) => {
+            e.evt.stopPropagation();
+            e.cancelBubble = true;
+            setIsDraggingNew(true);
+            setDragStart({
+              x: node.x + displayRadius,
+              y: node.y,
+              nodeId: node.id,
+            });
+            const stage = stageRef.current;
+            if (stage) {
+              const pos = stage.getPointerPosition();
+              if (pos) {
+                setDragPos({
+                  x: (pos.x - stagePos.x) / stageScale,
+                  y: (pos.y - stagePos.y) / stageScale,
+                });
+              }
+            }
+          }}
+          onMouseEnter={(e) => {
+            const stageEl = e.target.getStage();
+            if (stageEl) stageEl.container().style.cursor = 'crosshair';
+          }}
+          onMouseLeave={(e) => {
+            const stageEl = e.target.getStage();
+            if (stageEl && !isDraggingNew) stageEl.container().style.cursor = 'pointer';
+          }}
+        />
       </Group>
     );
   };
@@ -319,12 +375,15 @@ const RelationGraph: React.FC<RelationGraphProps> = ({
         <Layer>
           {edges.map(renderEdge)}
           {isDraggingNew && dragStart && dragPos && (
-            <Line
+            <Arrow
               points={[dragStart.x, dragStart.y, dragPos.x, dragPos.y]}
               stroke="#3498DB"
               strokeWidth={2}
               dash={[6, 4]}
               opacity={0.8}
+              pointerLength={10}
+              pointerWidth={8}
+              fill="#3498DB"
             />
           )}
           {nodes.map(renderNode)}
@@ -341,7 +400,7 @@ const RelationGraph: React.FC<RelationGraphProps> = ({
         </div>
       )}
       <div style={{ position: 'absolute', bottom: 10, left: 10, fontSize: 11, color: '#95A5A6' }}>
-        拖拽节点移动 | 滚轮缩放 | 空白处拖动平移 | 按住节点拖出创建连线
+        拖拽节点移动 | 滚轮缩放 | 空白处拖动平移 | 拖拽右侧蓝色把手创建连线
       </div>
       <div
         style={{

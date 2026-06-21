@@ -1,7 +1,7 @@
-import React, { useRef, useState, useCallback, useEffect } from 'react';
-import { Stage, Layer, Circle, Line, Text, Rect as KonvaRect, Group } from 'react-konva';
+import React, { useRef, useState, useCallback } from 'react';
+import { Stage, Layer, Circle, Line, Text, Group } from 'react-konva';
 import Konva from 'konva';
-import { TimelineNode } from '../utils/dataTransform';
+import { TimelineNode, calculateLifeProgress, getGenderColor } from '../utils/dataTransform';
 import { EventData, MemberData } from '../services/api';
 
 interface TimelineMapProps {
@@ -50,6 +50,7 @@ const TimelineMap: React.FC<TimelineMapProps> = ({
   const paddingTop = 50;
   const paddingBottom = 40;
   const paddingRight = 30;
+  const timelineHeight = height - paddingTop - paddingBottom;
 
   const visibleWidth = Math.max(0, width - paddingLeft - paddingRight);
   const visibleStartYear = minYear + (Math.max(0, -offsetX) / yearScale);
@@ -110,6 +111,16 @@ const TimelineMap: React.FC<TimelineMapProps> = ({
     memberMap[m.id] = m;
   });
 
+  const getEventY = (node: TimelineNode): number => {
+    const member = memberMap[node.memberId];
+    if (!member) {
+      return paddingTop + node.lifeProgress * timelineHeight;
+    }
+    const lifeProgress = calculateLifeProgress(member.birth_year, member.death_year, node.year);
+    const y = paddingTop + lifeProgress * timelineHeight;
+    return Math.max(paddingTop, Math.min(height - paddingBottom, y));
+  };
+
   const renderYearTicks = () => {
     const ticks = [];
     const baseY = height - paddingBottom;
@@ -154,59 +165,89 @@ const TimelineMap: React.FC<TimelineMapProps> = ({
     );
   };
 
-  const renderLifeBars = () => {
-    const bars: React.ReactNode[] = [];
-    const rowHeight = 30;
-    const rowPadding = 8;
+  const renderYAxis = () => {
+    const elements: React.ReactNode[] = [];
+    const percentages = [0, 25, 50, 75, 100];
+    const labels: Record<number, string> = { 0: '出生', 100: '逝世' };
 
-    const sortedMembers = [...rawMembers].sort((a, b) => a.birth_year - b.birth_year);
+    for (const pct of percentages) {
+      const y = paddingTop + (pct / 100) * timelineHeight;
 
-    sortedMembers.forEach((member, idx) => {
-      const y = paddingTop + idx * (rowHeight + rowPadding);
-      if (y > height - paddingBottom - rowHeight) return;
+      elements.push(
+        <Line
+          key={`ygrid-${pct}`}
+          points={[paddingLeft, y, width - paddingRight, y]}
+          stroke="#95A5A6"
+          strokeWidth={1}
+          opacity={0.3}
+          dash={[4, 4]}
+        />
+      );
 
+      elements.push(
+        <Text
+          key={`ylabel-${pct}`}
+          x={5}
+          y={y - 7}
+          text={`${pct}%`}
+          fontSize={10}
+          fill="#95A5A6"
+          align="left"
+        />
+      );
+
+      if (labels[pct]) {
+        elements.push(
+          <Text
+            key={`ytitle-${pct}`}
+            x={5}
+            y={y - (pct === 0 ? 22 : 8)}
+            text={labels[pct]}
+            fontSize={11}
+            fill="#ECF0F1"
+            align="left"
+            fontStyle="bold"
+          />
+        );
+      }
+    }
+
+    elements.push(
+      <Line
+        key="yaxis"
+        points={[paddingLeft, paddingTop, paddingLeft, height - paddingBottom]}
+        stroke="#95A5A6"
+        strokeWidth={2}
+      />
+    );
+
+    return elements;
+  };
+
+  const renderLifeLines = () => {
+    const lines: React.ReactNode[] = [];
+
+    rawMembers.forEach((member) => {
+      const endYear = member.death_year || currentYear;
       const startX = paddingLeft + (member.birth_year - minYear) * yearScale + offsetX;
-      const endYear = member.death_year || 2024;
       const endX = paddingLeft + (endYear - minYear) * yearScale + offsetX;
 
       if (endX < paddingLeft || startX > width - paddingRight) return;
 
-      const actualStartX = Math.max(paddingLeft, startX);
-      const actualEndX = Math.min(width - paddingRight, endX);
-      const actualWidth = Math.max(2, actualEndX - actualStartX);
+      const lineColor = getGenderColor(member.gender);
 
-      const genderColors: Record<string, string> = {
-        男: '#4A90D9',
-        女: '#E67E86',
-      };
-      const barColor = genderColors[member.gender || ''] || '#95A5A6';
-
-      bars.push(
-        <KonvaRect
-          key={`lifebar-${member.id}`}
-          x={actualStartX}
-          y={y}
-          width={actualWidth}
-          height={rowHeight}
-          fill={barColor}
-          opacity={0.15}
-          cornerRadius={4}
+      lines.push(
+        <Line
+          key={`lifeline-${member.id}`}
+          points={[startX, paddingTop, endX, height - paddingBottom]}
+          stroke={lineColor}
+          strokeWidth={2.5}
+          opacity={0.4}
         />
       );
-      if (actualStartX >= paddingLeft && actualStartX <= width - paddingRight) {
-        bars.push(
-          <Text
-            key={`label-member-${member.id}`}
-            x={Math.max(paddingLeft, actualStartX + 4)}
-            y={y + rowHeight / 2 - 7}
-            text={member.name}
-            fontSize={11}
-            fill="#ECF0F1"
-          />
-        );
-      }
     });
-    return bars;
+
+    return lines;
   };
 
   const renderEventNodes = () => {
@@ -214,13 +255,15 @@ const TimelineMap: React.FC<TimelineMapProps> = ({
       const x = paddingLeft + (node.year - minYear) * yearScale + offsetX;
       if (x < paddingLeft - 20 || x > width - paddingRight + 20) return null;
 
+      const y = getEventY(node);
+
       const rawEvent = rawEvents.find((e) => e.id === node.id);
 
       return (
         <Group
           key={node.id}
           x={x}
-          y={node.y}
+          y={y}
           onClick={() => rawEvent && onSelectEvent(rawEvent)}
           onTap={() => rawEvent && onSelectEvent(rawEvent)}
           onMouseEnter={(e) => {
@@ -283,9 +326,10 @@ const TimelineMap: React.FC<TimelineMapProps> = ({
         style={{ background: 'linear-gradient(180deg, #233240 0%, #1E2B38 100%)', cursor: isDragging ? 'grabbing' : 'grab' }}
       >
         <Layer>
+          {renderYAxis()}
           {renderYearTicks()}
           {renderTimelineAxis()}
-          {renderLifeBars()}
+          {renderLifeLines()}
           {renderEventNodes()}
         </Layer>
       </Stage>

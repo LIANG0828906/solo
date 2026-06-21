@@ -5,6 +5,7 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import math
 from collections import defaultdict
+from functools import reduce
 
 app = FastAPI()
 
@@ -73,6 +74,18 @@ class UpdateRelationControl(BaseModel):
 members_db: List[Member] = []
 events_db: List[LifeEvent] = []
 relations_db: List[Relation] = []
+
+
+def gcd(a: int, b: int) -> int:
+    while b:
+        a, b = b, a % b
+    return a
+
+
+def lcm(a: int, b: int) -> int:
+    if a == 0 or b == 0:
+        return 0
+    return abs(a * b) // gcd(a, b)
 
 
 def init_sample_data():
@@ -203,11 +216,45 @@ def get_timeline():
     else:
         min_year = min(all_years)
         max_year = max(all_years)
+
+    member_birth_years = sorted([m.birth_year for m in members_db])
+    generation_gaps = []
+    for i in range(1, len(member_birth_years)):
+        gap = member_birth_years[i] - member_birth_years[i - 1]
+        if 15 <= gap <= 50:
+            generation_gaps.append(gap)
+
+    avg_generation_gap = round(sum(generation_gaps) / len(generation_gaps), 1) if generation_gaps else 0
+
+    if member_birth_years:
+        birth_year_lcm = reduce(lcm, member_birth_years)
+    else:
+        birth_year_lcm = 1
+
+    life_spans = []
+    for m in members_db:
+        if m.death_year:
+            lifespan = m.death_year - m.birth_year
+            is_deceased = True
+        else:
+            lifespan = 2024 - m.birth_year
+            is_deceased = False
+        life_spans.append({
+            "member_id": m.id,
+            "name": m.name,
+            "lifespan": lifespan,
+            "is_deceased": is_deceased,
+        })
+
     return {
         "events": events_db,
         "members": members_db,
         "min_year": min_year,
         "max_year": max_year,
+        "generation_gaps": generation_gaps,
+        "avg_generation_gap": avg_generation_gap,
+        "birth_year_lcm": birth_year_lcm,
+        "life_spans": life_spans,
     }
 
 
@@ -302,6 +349,11 @@ def get_stats():
         if 15 <= gap <= 50:
             generation_gaps.append(gap)
 
+    if member_birth_years:
+        birth_year_lcm = reduce(lcm, member_birth_years)
+    else:
+        birth_year_lcm = 1
+
     return {
         "total_members": total_members,
         "total_events": total_events,
@@ -311,6 +363,7 @@ def get_stats():
         "event_type_counts": dict(event_type_counts),
         "avg_generation_gap": round(sum(generation_gaps) / len(generation_gaps), 1) if generation_gaps else 0,
         "generation_gaps": generation_gaps,
+        "birth_year_lcm": birth_year_lcm,
     }
 
 
