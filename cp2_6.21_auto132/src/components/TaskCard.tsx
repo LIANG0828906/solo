@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useDraggable } from '@dnd-kit/core';
+import { CSS } from '@dnd-kit/utilities';
 import { Task } from '../store/useProjectStore';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -17,24 +19,37 @@ const STATUS_LABELS: Record<string, string> = {
 
 interface Props {
   task: Task;
-  onDragStart: () => void;
-  onDragEnd: () => void;
 }
 
-export default function TaskCard({ task, onDragStart, onDragEnd }: Props) {
+export default function TaskCard({ task }: Props) {
   const [showDetail, setShowDetail] = useState(false);
+  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+    id: task.id,
+    data: { task },
+  });
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 100 : 'auto',
+    boxShadow: isDragging
+      ? '0 4px 16px rgba(0, 0, 0, 0.5)'
+      : '0 2px 8px rgba(0, 0, 0, 0.3)',
+  };
 
   return (
     <>
       <div
-        className="task-card"
-        draggable
-        onDragStart={e => {
-          e.dataTransfer.effectAllowed = 'move';
-          onDragStart();
+        ref={setNodeRef}
+        style={style}
+        {...attributes}
+        {...listeners}
+        className={`task-card ${isDragging ? 'dragging' : ''}`}
+        onClick={e => {
+          if (!isDragging) {
+            setShowDetail(true);
+          }
         }}
-        onDragEnd={onDragEnd}
-        onClick={() => setShowDetail(true)}
       >
         <div className="task-card-header">
           <span

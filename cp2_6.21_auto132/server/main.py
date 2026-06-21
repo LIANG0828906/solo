@@ -145,6 +145,9 @@ def create_user(body: dict):
     uid = _uid()
     user = {"id": uid, "name": name, "avatar": AVATARS[len(USERS) % len(AVATARS)]}
     USERS[uid] = user
+    for proj in PROJECTS.values():
+        if not any(m["userId"] == uid for m in proj["members"]):
+            proj["members"].append({"userId": uid, "role": "translator"})
     return user
 
 @app.get("/api/projects")

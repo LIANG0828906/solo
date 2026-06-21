@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo, useCallback } from 'react';
+import { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import useProjectStore from '../store/useProjectStore';
 
 const LANG_PAIRS = [
@@ -22,6 +22,18 @@ export default function TermEditor() {
     targetLang: 'zh',
     notes: '',
   });
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   useEffect(() => {
     if (currentProject) {
@@ -90,6 +102,17 @@ export default function TermEditor() {
     );
   }, []);
 
+  const clearLangFilters = useCallback(() => {
+    setLangFilters([]);
+  }, []);
+
+  const dropdownLabel =
+    langFilters.length === 0
+      ? '选择语言对'
+      : langFilters.length === 1
+      ? LANG_PAIRS.find(p => p.value === langFilters[0])?.label
+      : `已选 ${langFilters.length} 项`;
+
   return (
     <div className="term-editor">
       <div className="term-toolbar">
@@ -102,17 +125,45 @@ export default function TermEditor() {
             className="search-input term-search"
           />
         </div>
-        <div className="term-filter">
+        <div className="term-filter" ref={dropdownRef}>
           <span className="filter-label">语言对：</span>
-          {LANG_PAIRS.map(p => (
+          <div className="dropdown-wrapper">
             <button
-              key={p.value}
-              className={`filter-chip ${langFilters.includes(p.value) ? 'active' : ''}`}
-              onClick={() => toggleLangFilter(p.value)}
+              type="button"
+              className={`dropdown-toggle ${langFilters.length > 0 ? 'has-selection' : ''}`}
+              onClick={() => setDropdownOpen(!dropdownOpen)}
             >
-              {p.label}
+              {dropdownLabel}
+              <span className="dropdown-arrow">▾</span>
             </button>
-          ))}
+            {langFilters.length > 0 && (
+              <button
+                type="button"
+                className="dropdown-clear"
+                onClick={e => {
+                  e.stopPropagation();
+                  clearLangFilters();
+                }}
+                title="清除筛选"
+              >
+                ×
+              </button>
+            )}
+            {dropdownOpen && (
+              <div className="dropdown-menu">
+                {LANG_PAIRS.map(p => (
+                  <label key={p.value} className="dropdown-item">
+                    <input
+                      type="checkbox"
+                      checked={langFilters.includes(p.value)}
+                      onChange={() => toggleLangFilter(p.value)}
+                    />
+                    <span>{p.label}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
         <button className="btn btn-primary" onClick={() => setShowAdd(true)}>
           + 新增术语

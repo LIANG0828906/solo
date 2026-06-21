@@ -7,7 +7,7 @@ import TermEditor from './pages/TermEditor';
 export default function App() {
   const { currentUser, login, fetchUsers, fetchProjects, currentProject, setCurrentProject, connectSocket, disconnectSocket } = useProjectStore();
   const [name, setName] = useState('');
-  const [view, setView] = useState<'dashboard' | 'kanban' | 'terms'>('dashboard');
+  const [view, setView] = useState<'kanban' | 'terms'>('kanban');
 
   useEffect(() => {
     const saved = localStorage.getItem('tc_user');
@@ -22,7 +22,12 @@ export default function App() {
 
   useEffect(() => {
     if (currentUser) {
-      fetchProjects();
+      fetchProjects().then(() => {
+        const { projects } = useProjectStore.getState();
+        if (projects.length === 0) {
+          login(currentUser.name);
+        }
+      });
     }
   }, [currentUser]);
 
@@ -68,7 +73,7 @@ export default function App() {
       <SyncStatusBar />
       <header className="app-header">
         <div className="header-left">
-          <h1 className="app-title" onClick={() => { setCurrentProject(null); setView('dashboard'); }}>
+          <h1 className="app-title" onClick={() => { setCurrentProject(null); }}>
             Translation Collab
           </h1>
           {currentProject && (

@@ -507,6 +507,18 @@ button {
   transform: scale(1.02);
 }
 
+.task-card.dragging {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5) !important;
+  transform: scale(1.03) !important;
+  transition: box-shadow 0.15s ease, transform 0.15s ease !important;
+}
+
+.task-card.dragging-overlay {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.6) !important;
+  transform: scale(1.05) rotate(2deg);
+  cursor: grabbing;
+}
+
 .task-card-header {
   display: flex;
   align-items: center;
@@ -637,6 +649,109 @@ button {
 
 .filter-chip:hover {
   border-color: var(--accent);
+}
+
+/* ========== Dropdown ========== */
+
+.dropdown-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.dropdown-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 28px 6px 12px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text-dim);
+  font-size: 12px;
+  transition: all var(--transition);
+}
+
+.dropdown-toggle:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.dropdown-toggle.has-selection {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+.dropdown-arrow {
+  font-size: 10px;
+  transition: transform var(--transition);
+}
+
+.dropdown-toggle:hover .dropdown-arrow {
+  transform: translateY(1px);
+}
+
+.dropdown-clear {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 50%;
+  font-size: 12px;
+  color: var(--text-dim);
+  z-index: 1;
+  padding: 0;
+  line-height: 1;
+}
+
+.dropdown-clear:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  min-width: 160px;
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  z-index: 100;
+  padding: 4px;
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background var(--transition);
+}
+
+.dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.dropdown-item input[type="checkbox"] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.dropdown-item span {
+  font-size: 13px;
+  color: var(--text);
 }
 
 .term-table-wrap {

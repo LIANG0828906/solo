@@ -1,5 +1,16 @@
-import { useEffect, useState, useCallback, useRef } from 'react';
-import useProjectStore from '../store/useProjectStore';
+import { useEffect, useState, useCallback } from 'react';
+import {
+  DndContext,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  MouseSensor,
+  TouchSensor,
+  useSensor,
+  useSensors,
+} from '@dnd-kit/core';
+import { useDroppable } from '@dnd-kit/core';
+import useProjectStore, { Task } from '../store/useProjectStore';
 import TaskCard from '../components/TaskCard';
 
 const STATUS_COLUMNS: { key: string; label: string; color: string }[] = [
@@ -8,6 +19,35 @@ const STATUS_COLUMNS: { key: string; label: string; color: string }[] = [
   { key: 'reviewing', label: '审核中', color: '#ffa726' },
   { key: 'completed', label: '已完成', color: '#66bb6a' },
 ];
+
+interface ColumnProps {
+  column: typeof STATUS_COLUMNS[0];
+  tasks: Task[];
+}
+
+function KanbanColumn({ column, tasks }: ColumnProps) {
+  const { setNodeRef, isOver } = useDroppable({
+    id: column.key,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`kanban-column ${isOver ? 'drag-over' : ''}`}
+    >
+      <div className="column-header">
+        <span className="column-dot" style={{ background: column.color }} />
+        <span className="column-label">{column.label}</span>
+        <span className="column-count">{tasks.length}</span>
+      </div>
+      <div className="column-cards">
+        {tasks.map(task => (
+          <TaskCard key={task.id} task={task} />
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default function ProjectBoard() {
   const {
@@ -27,11 +67,23 @@ export default function ProjectBoard() {
   const [search, setSearch] = useState('');
   const [showNewProject, setShowNewProject] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
-  const [draggedTask, setDraggedTask] = useState<string | null>(null);
-  const [dragOverColumn, setDragOverColumn] = useState<string | null>(null);
   const [showNewTask, setShowNewTask] = useState(false);
   const [newTask, setNewTask] = useState({ title: '', description: '', assigneeId: '', dueDate: '' });
-  const dragCounterRef = useRef(0);
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
+
+  const sensors = useSensors(
+    useSensor(MouseSensor, {
+      activationConstraint: {
+        distance: 5,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 100,
+        tolerance: 5,
+      },
+    })
+  );
 
   useEffect(() => {
     if (currentUser && !currentProject) {
@@ -49,41 +101,31 @@ export default function ProjectBoard() {
     p.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleDragStart = useCallback((taskId: string) => {
-    setDraggedTask(taskId);
-  }, []);
-
-  const handleDragEnd = useCallback(() => {
-    setDraggedTask(null);
-    setDragOverColumn(null);
-    dragCounterRef.current = 0;
-  }, []);
-
-  const handleDragEnterColumn = useCallback((e: React.DragEvent, columnKey: string) => {
-    e.preventDefault();
-    dragCounterRef.current++;
-    setDragOverColumn(columnKey);
-  }, []);
-
-  const handleDragLeaveColumn = useCallback(() => {
-    dragCounterRef.current--;
-    if (dragCounterRef.current <= 0) {
-      setDragOverColumn(null);
-      dragCounterRef.current = 0;
+  const handleDragStart = useCallback((event: DragStartEvent) => {
+    const { active } = event;
+    const task = tasks.find(t => t.id === active.id);
+    if (task) {
+      setActiveTask(task);
     }
-  }, []);
+  }, [tasks]);
 
-  const handleDrop = useCallback(
-    async (e: React.DragEvent, columnKey: string) => {
-      e.preventDefault();
-      if (draggedTask) {
-        await updateTaskStatus(draggedTask, columnKey as any);
+  const handleDragEnd = useCallback(
+    async (event: DragEndEvent) => {
+      setActiveTask(null);
+      const { active, over } = event;
+      if (!over) return;
+
+      const taskId = active.id as string;
+      const newStatus = over.id as string;
+
+      const task = tasks.find(t => t.id === taskId);
+      if (!task) return;
+
+      if (task.status !== newStatus) {
+        await updateTaskStatus(taskId, newStatus as Task['status']);
       }
-      setDraggedTask(null);
-      setDragOverColumn(null);
-      dragCounterRef.current = 0;
     },
-    [draggedTask, updateTaskStatus]
+    [tasks, updateTaskStatus]
   );
 
   if (!currentProject) {
@@ -179,37 +221,51 @@ export default function ProjectBoard() {
           + 新建任务
         </button>
       </div>
-      <div className="kanban-board">
-        {STATUS_COLUMNS.map(col => {
-          const colTasks = tasks.filter(t => t.status === col.key);
-          return (
-            <div
-              key={col.key}
-              className={`kanban-column ${dragOverColumn === col.key ? 'drag-over' : ''}`}
-              onDragOver={e => e.preventDefault()}
-              onDragEnter={e => handleDragEnterColumn(e, col.key)}
-              onDragLeave={handleDragLeaveColumn}
-              onDrop={e => handleDrop(e, col.key)}
-            >
-              <div className="column-header">
-                <span className="column-dot" style={{ background: col.color }} />
-                <span className="column-label">{col.label}</span>
-                <span className="column-count">{colTasks.length}</span>
+      <DndContext
+        sensors={sensors}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="kanban-board">
+          {STATUS_COLUMNS.map(col => {
+            const colTasks = tasks.filter(t => t.status === col.key);
+            return (
+              <KanbanColumn key={col.key} column={col} tasks={colTasks} />
+            );
+          })}
+        </div>
+        <DragOverlay>
+          {activeTask ? (
+            <div className="task-card dragging-overlay">
+              <div className="task-card-header">
+                <span
+                  className="task-status-dot"
+                  style={{
+                    background:
+                      activeTask.status === 'unassigned'
+                        ? '#78909c'
+                        : activeTask.status === 'translating'
+                        ? '#42a5f5'
+                        : activeTask.status === 'reviewing'
+                        ? '#ffa726'
+                        : '#66bb6a',
+                  }}
+                />
+                <span className="task-title">{activeTask.title}</span>
               </div>
-              <div className="column-cards">
-                {colTasks.map(task => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    onDragStart={() => handleDragStart(task.id)}
-                    onDragEnd={handleDragEnd}
-                  />
-                ))}
+              <div className="task-card-meta">
+                <span className="task-due">截止：{activeTask.dueDate || '未设置'}</span>
+                <span className="task-assignee">
+                  {activeTask.assigneeAvatar && (
+                    <img src={activeTask.assigneeAvatar} alt="" className="avatar-xs" />
+                  )}
+                  {activeTask.assigneeName}
+                </span>
               </div>
             </div>
-          );
-        })}
-      </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
       {showNewTask && (
         <div className="modal-overlay" onClick={() => setShowNewTask(false)}>
           <div className="modal" onClick={e => e.stopPropagation()}>
