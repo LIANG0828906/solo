@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import * as THREE from 'three'
+import { calculateProgress, calculatePerfectScore } from './utils/geometry'
 
 export type ArtifactType = 'blue-porcelain' | 'bronze'
 
@@ -27,11 +28,13 @@ interface StoreState {
   fusedFragmentIds: Set<number>
   selectedFragmentId: number | null
   progress: number
+  perfectScore: number
   isComplete: boolean
   artifactType: ArtifactType
   artifactInfo: ArtifactInfo
   fuseSequence: number[]
   snapHighlightIds: Set<number>
+  fragmentThumbnails: Map<number, string>
 
   initFragments: () => void
   selectFragment: (id: number | null) => void
@@ -39,6 +42,7 @@ interface StoreState {
   updateFragmentTransform: (id: number, position: THREE.Vector3, rotation: THREE.Euler) => void
   setSnapHighlight: (ids: Set<number>) => void
   setComplete: () => void
+  setFragmentThumbnail: (id: number, dataUrl: string) => void
   reset: () => void
 }
 
@@ -48,6 +52,14 @@ const PORCELAIN_INFO: ArtifactInfo = {
   year: '永乐年间 (1403-1424)',
   discovery: '1964年出土于江苏省南京市明故宫遗址',
   description: '此瓶通体绘青花缠枝莲纹，釉色温润如玉，青花发色浓艳，为明代永乐官窑青花瓷之精品。器型端庄秀丽，线条流畅自然，代表了中国古代青花瓷烧制技艺的巅峰水平。'
+}
+
+const BRONZE_INFO: ArtifactInfo = {
+  name: '司母戊方鼎',
+  dynasty: '商代',
+  year: '公元前14世纪 - 公元前11世纪',
+  discovery: '1939年出土于河南省安阳市武官村',
+  description: '此鼎为中国现存最大最重的青铜器，鼎身饰有精美的兽面纹，造型厚重典雅，气势恢宏，是商代青铜铸造技术的巅峰之作。鼎腹内壁铸有"司母戊"三字铭文，为商王祭祀其母戊所铸。'
 }
 
 function generateFragments(): FragmentData[] {
@@ -93,22 +105,28 @@ export const useStore = create<StoreState>((set, get) => ({
   fusedFragmentIds: new Set(),
   selectedFragmentId: null,
   progress: 0,
+  perfectScore: 0,
   isComplete: false,
   artifactType: 'blue-porcelain',
   artifactInfo: PORCELAIN_INFO,
   fuseSequence: [],
   snapHighlightIds: new Set(),
+  fragmentThumbnails: new Map(),
 
   initFragments: () => {
     const fragments = generateFragments()
+    const artifactType = get().artifactType
     set({
       fragments,
       fusedFragmentIds: new Set(),
       selectedFragmentId: null,
       progress: 0,
+      perfectScore: 0,
       isComplete: false,
       fuseSequence: [],
-      snapHighlightIds: new Set()
+      snapHighlightIds: new Set(),
+      fragmentThumbnails: new Map(),
+      artifactInfo: artifactType === 'blue-porcelain' ? PORCELAIN_INFO : BRONZE_INFO
     })
   },
 
@@ -128,13 +146,20 @@ export const useStore = create<StoreState>((set, get) => ({
     )
 
     const newSequence = [...state.fuseSequence, id]
-    const progress = Math.round((newFusedIds.size / state.fragments.length) * 100)
+    const perfectScore = calculatePerfectScore(newSequence, state.fragments)
+    const progress = calculateProgress(
+      newFusedIds.size,
+      state.fragments.length,
+      newSequence,
+      state.fragments
+    )
     const isComplete = newFusedIds.size >= state.fragments.length
 
     set({
       fragments: newFragments,
       fusedFragmentIds: newFusedIds,
       fuseSequence: newSequence,
+      perfectScore,
       progress,
       isComplete
     })
@@ -157,7 +182,16 @@ export const useStore = create<StoreState>((set, get) => ({
   },
 
   setComplete: () => {
-    set({ isComplete: true, progress: 100 })
+    const state = get()
+    const perfectScore = calculatePerfectScore(state.fuseSequence, state.fragments)
+    set({ isComplete: true, progress: 100, perfectScore })
+  },
+
+  setFragmentThumbnail: (id, dataUrl) => {
+    const state = get()
+    const newThumbnails = new Map(state.fragmentThumbnails)
+    newThumbnails.set(id, dataUrl)
+    set({ fragmentThumbnails: newThumbnails })
   },
 
   reset: () => {

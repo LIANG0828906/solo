@@ -1,24 +1,61 @@
-import { useRef, useEffect, useMemo, useState } from 'react'
+import { useRef, useEffect, useMemo, useState, forwardRef, useImperativeHandle } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { OrbitControls, TransformControls, Environment } from '@react-three/drei'
+import { OrbitControls, TransformControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { useStore, FragmentData } from '../store'
-import { checkSnapEligibility, lerpTowardsTarget } from '../utils/geometry'
+import { checkSnapEligibility, lerpTowardsTarget, generateFragmentEdgeProfile } from '../utils/geometry'
 import { GoldenParticleSystem, SnapGlowEffect } from '../utils/particleSystem'
 
+const TOTAL_FRAGMENTS = 10
+
+function generateJaggedSawtooth(
+  startAngle: number,
+  endAngle: number,
+  radius: number,
+  fragmentId: number,
+  edgeSide: 'left' | 'right'
+): [number, number][] {
+  const points: [number, number][] = []
+  const segments = 12
+  const seed = fragmentId * 7919 + (edgeSide === 'left' ? 12345 : 67890)
+  
+  function pseudoRandom(step: number): number {
+    const x = Math.sin(seed + step * 12.9898) * 43758.5453
+    return x - Math.floor(x)
+  }
+  
+  for (let i = 0; i <= segments; i++) {
+    const t = i / segments
+    const baseAngle = startAngle + (endAngle - startAngle) * t
+    
+    const sawtoothWave = Math.abs(((i * 0.618) % 1) - 0.5) * 2
+    const jaggedAmount = 0.08 + sawtoothWave * 0.12
+    const randomJitter = (pseudoRandom(i) - 0.5) * 0.06
+    
+    const actualRadius = radius * (0.88 + jaggedAmount + randomJitter)
+    
+    points.push([baseAngle, actualRadius])
+  }
+  
+  return points
+}
+
 function createFragmentGeometry(id: number, total: number): THREE.BufferGeometry {
-  const group = new THREE.Group()
   const angleStep = (Math.PI * 2) / total
   const startAngle = id * angleStep - Math.PI / 2
   const endAngle = startAngle + angleStep
+  const midAngle = (startAngle + endAngle) / 2
   
-  const profileShape = new THREE.Shape()
-  const heightSegments = 8
-  const heightSteps: [number, number][] = []
+  generateFragmentEdgeProfile(id, total, 16)
   
+  const heightSegments = 16
+  const radialSegments = 8
+  
+  const profilePoints: [number, number][] = []
   for (let i = 0; i <= heightSegments; i++) {
     const t = i / heightSegments
     const y = t * 3 - 1.5
+    
     let r: number
     if (t < 0.15) {
       r = 0.3 + (0.4 - 0.3) * (t / 0.15)
@@ -31,47 +68,60 @@ function createFragmentGeometry(id: number, total: number): THREE.BufferGeometry
     } else {
       r = 0.6 + (0.35 - 0.6) * ((t - 0.9) / 0.1)
     }
-    heightSteps.push([y, r])
+    profilePoints.push([y, r])
   }
-
+  
+  const leftSawtooth = generateJaggedSawtooth(startAngle, endAngle, 1, id, 'left')
+  const rightSawtooth = generateJaggedSawtooth(startAngle, endAngle, 1, id, 'right')
+  
   const vertices: number[] = []
   const normals: number[] = []
   const uvs: number[] = []
   const indices: number[] = []
   
-  const radialSegments = 6
-  const midAngle = (startAngle + endAngle) / 2
-  const halfSpan = angleStep / 2
-
   for (let h = 0; h <= heightSegments; h++) {
-    const [y, radius] = heightSteps[h]
+    const [y, baseRadius] = profilePoints[h]
+    const leftJaggedFactor = leftSawtooth[h] ? leftSawtooth[h][1] : 1
+    const rightJaggedFactor = rightSawtooth[h] ? rightSawtooth[h][1] : 1
     
     for (let r = 0; r <= radialSegments; r++) {
-      const t = r / radialSegments
-      const angle = startAngle + t * angleStep
+      const tRadial = r / radialSegments
+      let angle: number
+      let radius: number
       
-      let actualRadius = radius
-      if (r === 0 || r === radialSegments) {
-        actualRadius *= 0.92
+      if (r === 0) {
+        angle = startAngle
+        radius = baseRadius * leftJaggedFactor
+      } else if (r === radialSegments) {
+        angle = endAngle
+        radius = baseRadius * rightJaggedFactor
+      } else {
+        angle = startAngle + tRadial * (endAngle - startAngle)
+        const edgeBlend = Math.sin(tRadial * Math.PI)
+        radius = baseRadius * (
+          1 + (leftJaggedFactor - 1) * (1 - tRadial) + (rightJaggedFactor - 1) * tRadial
+        ) * (1 + edgeBlend * 0.03)
       }
       
-      const noise = Math.sin(angle * 8 + id * 2.5) * 0.04 + Math.cos(y * 5 + id * 1.7) * 0.03
-      actualRadius += noise
+      const surfaceNoise = Math.sin(angle * 12 + id * 2.5) * 0.015 + 
+                          Math.cos(y * 7 + id * 1.7) * 0.01
+      radius += surfaceNoise
       
-      const x = Math.cos(angle) * actualRadius
-      const z = Math.sin(angle) * actualRadius
+      const x = Math.cos(angle) * radius
+      const z = Math.sin(angle) * radius
       
       vertices.push(x, y, z)
       
-      const nx = Math.cos(midAngle)
-      const nz = Math.sin(midAngle)
-      const len = Math.sqrt(nx * nx + nz * nz + 0.01)
-      normals.push(nx / len, 0.05, nz / len)
+      const nx = Math.cos(midAngle) * 0.9 + (Math.random() - 0.5) * 0.1
+      const nz = Math.sin(midAngle) * 0.9 + (Math.random() - 0.5) * 0.1
+      const ny = 0.1 + (Math.random() - 0.5) * 0.05
+      const nLen = Math.sqrt(nx * nx + ny * ny + nz * nz)
+      normals.push(nx / nLen, ny / nLen, nz / nLen)
       
-      uvs.push(t, h / heightSegments)
+      uvs.push(tRadial, h / heightSegments)
     }
   }
-
+  
   for (let h = 0; h < heightSegments; h++) {
     for (let r = 0; r < radialSegments; r++) {
       const i = h * (radialSegments + 1) + r
@@ -79,14 +129,78 @@ function createFragmentGeometry(id: number, total: number): THREE.BufferGeometry
       indices.push(i + 1, i + radialSegments + 1, i + radialSegments + 2)
     }
   }
-
+  
+  for (let h = 0; h < heightSegments; h++) {
+    const rowStart = h * (radialSegments + 1)
+    const nextRowStart = (h + 1) * (radialSegments + 1)
+    
+    const leftEdgeIdx = rowStart
+    const nextLeftEdgeIdx = nextRowStart
+    const innerY = profilePoints[h][0]
+    const innerR = profilePoints[h][1] * 0.3
+    const nextInnerY = profilePoints[h + 1][0]
+    const nextInnerR = profilePoints[h + 1][1] * 0.3
+    
+    const baseIdx = vertices.length / 3
+    
+    const innerX = Math.cos(midAngle) * innerR
+    const innerZ = Math.sin(midAngle) * innerR
+    const nextInnerX = Math.cos(midAngle) * nextInnerR
+    const nextInnerZ = Math.sin(midAngle) * nextInnerR
+    
+    vertices.push(innerX, innerY, innerZ)
+    vertices.push(nextInnerX, nextInnerY, nextInnerZ)
+    
+    normals.push(-Math.cos(midAngle), 0, -Math.sin(midAngle))
+    normals.push(-Math.cos(midAngle), 0, -Math.sin(midAngle))
+    
+    uvs.push(0, h / heightSegments)
+    uvs.push(0, (h + 1) / heightSegments)
+    
+    indices.push(leftEdgeIdx, baseIdx, baseIdx + 1)
+    indices.push(leftEdgeIdx, baseIdx + 1, nextLeftEdgeIdx)
+    
+    const rightEdgeIdx = rowStart + radialSegments
+    const nextRightEdgeIdx = nextRowStart + radialSegments
+    
+    indices.push(rightEdgeIdx, baseIdx + 1, baseIdx)
+    indices.push(rightEdgeIdx, nextRightEdgeIdx, baseIdx + 1)
+  }
+  
+  const topCapIdx = vertices.length / 3
+  const bottomCapIdx = topCapIdx + 1
+  
+  const topY = profilePoints[heightSegments][0]
+  const bottomY = profilePoints[0][0]
+  const topInnerR = profilePoints[heightSegments][1] * 0.3
+  const bottomInnerR = profilePoints[0][1] * 0.3
+  
+  vertices.push(Math.cos(midAngle) * topInnerR, topY, Math.sin(midAngle) * topInnerR)
+  vertices.push(Math.cos(midAngle) * bottomInnerR, bottomY, Math.sin(midAngle) * bottomInnerR)
+  
+  normals.push(0, 1, 0)
+  normals.push(0, -1, 0)
+  
+  uvs.push(0.5, 1)
+  uvs.push(0.5, 0)
+  
+  const topEdgeStart = heightSegments * (radialSegments + 1)
+  for (let r = 0; r < radialSegments; r++) {
+    indices.push(topCapIdx, topEdgeStart + r, topEdgeStart + r + 1)
+  }
+  
+  const bottomEdgeStart = 0
+  for (let r = 0; r < radialSegments; r++) {
+    indices.push(bottomCapIdx, bottomEdgeStart + r + 1, bottomEdgeStart + r)
+  }
+  
   const geometry = new THREE.BufferGeometry()
   geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3))
   geometry.setAttribute('normal', new THREE.Float32BufferAttribute(normals, 3))
   geometry.setAttribute('uv', new THREE.Float32BufferAttribute(uvs, 2))
   geometry.setIndex(indices)
   geometry.computeVertexNormals()
-
+  
   return geometry
 }
 
@@ -143,24 +257,77 @@ function createPorcelainMaterial(): THREE.MeshStandardMaterial {
   })
 }
 
-function FragmentMesh({ 
-  fragment, 
-  isSelected, 
-  isSnapHighlighted,
-  transformRef 
-}: { 
+function createBronzeMaterial(): THREE.MeshStandardMaterial {
+  const canvas = document.createElement('canvas')
+  canvas.width = 512
+  canvas.height = 512
+  const ctx = canvas.getContext('2d')!
+  
+  const gradient = ctx.createRadialGradient(256, 256, 0, 256, 256, 256)
+  gradient.addColorStop(0, '#8b7355')
+  gradient.addColorStop(0.5, '#6b5344')
+  gradient.addColorStop(1, '#4a3728')
+  ctx.fillStyle = gradient
+  ctx.fillRect(0, 0, 512, 512)
+  
+  for (let i = 0; i < 5000; i++) {
+    const x = Math.random() * 512
+    const y = Math.random() * 512
+    const age = Math.random()
+    const alpha = 0.1 + age * 0.3
+    
+    if (age < 0.3) {
+      ctx.fillStyle = `rgba(76, 175, 80, ${alpha})`
+    } else if (age < 0.6) {
+      ctx.fillStyle = `rgba(46, 125, 50, ${alpha})`
+    } else {
+      ctx.fillStyle = `rgba(27, 94, 32, ${alpha * 0.5})`
+    }
+    
+    ctx.fillRect(x, y, Math.random() * 3 + 1, Math.random() * 3 + 1)
+  }
+  
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.1)'
+  for (let i = 0; i < 100; i++) {
+    const x = Math.random() * 512
+    const y = Math.random() * 512
+    const r = Math.random() * 20 + 5
+    ctx.beginPath()
+    ctx.arc(x, y, r, 0, Math.PI * 2)
+    ctx.fill()
+  }
+  
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.wrapS = THREE.RepeatWrapping
+  texture.wrapT = THREE.RepeatWrapping
+  
+  return new THREE.MeshStandardMaterial({
+    map: texture,
+    color: 0x8b7355,
+    roughness: 0.7,
+    metalness: 0.4
+  })
+}
+
+const FragmentMesh = forwardRef<THREE.Mesh, {
   fragment: FragmentData
   isSelected: boolean
   isSnapHighlighted: boolean
+  artifactType: 'blue-porcelain' | 'bronze'
   transformRef: React.MutableRefObject<any>
-}) {
+}>(({ fragment, isSelected, isSnapHighlighted, artifactType, transformRef }, ref) => {
   const meshRef = useRef<THREE.Mesh>(null)
   const [hovered, setHovered] = useState(false)
   
-  const geometry = useMemo(() => createFragmentGeometry(fragment.id, 10), [fragment.id])
-  const material = useMemo(() => createPorcelainMaterial(), [])
+  useImperativeHandle(ref, () => meshRef.current!)
   
-  const emissiveIntensity = isSnapHighlighted ? 0.5 : (isSelected ? 0.3 : (hovered ? 0.15 : 0))
+  const geometry = useMemo(() => createFragmentGeometry(fragment.id, TOTAL_FRAGMENTS), [fragment.id])
+  const material = useMemo(() => 
+    artifactType === 'blue-porcelain' ? createPorcelainMaterial() : createBronzeMaterial(),
+    [artifactType]
+  )
+  
+  const emissiveIntensity = isSnapHighlighted ? 0.8 : (isSelected ? 0.4 : (hovered ? 0.2 : 0))
   const emissiveColor = isSnapHighlighted ? 0x00ff00 : 0x2e7d32
 
   return (
@@ -188,7 +355,9 @@ function FragmentMesh({
       </mesh>
     </TransformControls>
   )
-}
+})
+
+FragmentMesh.displayName = 'FragmentMesh'
 
 function WorkbenchTable() {
   return (
@@ -204,15 +373,18 @@ function WorkbenchTable() {
 }
 
 function SceneContent({ transformRef }: { transformRef: React.MutableRefObject<any> }) {
-  const { fragments, selectedFragmentId, snapHighlightIds, isComplete, fuseFragment, updateFragmentTransform } = useStore()
+  const { fragments, selectedFragmentId, snapHighlightIds, isComplete, artifactType, fuseFragment, updateFragmentTransform } = useStore()
   const groupRef = useRef<THREE.Group>(null)
-  const animTimeRef = useRef(0)
   const particleSystemRef = useRef<GoldenParticleSystem | null>(null)
   const snapGlowRef = useRef<SnapGlowEffect | null>(null)
   const { scene } = useThree()
   
   const [snappingId, setSnappingId] = useState<number | null>(null)
-  const [showGlow, setShowGlow] = useState(false)
+  
+  const targetRotationRef = useRef(0)
+  const currentRotationRef = useRef(0)
+  const targetHeightRef = useRef(0)
+  const currentHeightRef = useRef(0)
 
   useEffect(() => {
     particleSystemRef.current = new GoldenParticleSystem()
@@ -235,6 +407,8 @@ function SceneContent({ transformRef }: { transformRef: React.MutableRefObject<a
   useEffect(() => {
     if (isComplete && particleSystemRef.current) {
       particleSystemRef.current.start()
+      targetHeightRef.current = 2.5
+      targetRotationRef.current = Math.PI * 8
     }
   }, [isComplete])
 
@@ -242,18 +416,18 @@ function SceneContent({ transformRef }: { transformRef: React.MutableRefObject<a
     if (!groupRef.current) return
 
     if (isComplete) {
-      animTimeRef.current += delta
-      const t = Math.min(animTimeRef.current / 3, 1)
-      const easeT = 1 - Math.pow(1 - t, 3)
-      groupRef.current.position.y = easeT * 2
-      groupRef.current.rotation.y += delta * 0.8
+      currentRotationRef.current += (targetRotationRef.current - currentRotationRef.current) * 0.015
+      currentHeightRef.current += (targetHeightRef.current - currentHeightRef.current) * 0.02
+      
+      groupRef.current.rotation.y = currentRotationRef.current
+      groupRef.current.position.y = currentHeightRef.current
       
       if (particleSystemRef.current) {
         particleSystemRef.current.update(delta, groupRef.current.position)
       }
     }
 
-    if (snapGlowRef.current && showGlow) {
+    if (snapGlowRef.current) {
       snapGlowRef.current.update(delta)
     }
 
@@ -265,7 +439,7 @@ function SceneContent({ transformRef }: { transformRef: React.MutableRefObject<a
           frag.initialRotation,
           frag.correctPosition,
           frag.correctRotation,
-          0.12
+          0.15
         )
         
         const posDist = position.distanceTo(frag.correctPosition)
@@ -278,16 +452,15 @@ function SceneContent({ transformRef }: { transformRef: React.MutableRefObject<a
         if (posDist < 0.05 && THREE.MathUtils.radToDeg(angleDist) < 3) {
           if (snapGlowRef.current) {
             snapGlowRef.current.show(frag.correctPosition)
-            setShowGlow(true)
-            setTimeout(() => {
-              if (snapGlowRef.current) {
-                snapGlowRef.current.hide()
-                setShowGlow(false)
-              }
-            }, 1500)
           }
           fuseFragment(snappingId)
           setSnappingId(null)
+          
+          setTimeout(() => {
+            if (snapGlowRef.current) {
+              snapGlowRef.current.hide()
+            }
+          }, 1200)
         }
       }
     }
@@ -295,14 +468,18 @@ function SceneContent({ transformRef }: { transformRef: React.MutableRefObject<a
     if (selectedFragmentId !== null && snappingId === null && !isComplete) {
       const frag = fragments.find(f => f.id === selectedFragmentId)
       if (frag && !frag.isFused) {
-        if (checkSnapEligibility(
+        const { eligible } = checkSnapEligibility(
           frag.initialPosition,
           frag.initialRotation,
+          frag.id,
           frag.correctPosition,
           frag.correctRotation,
-          1.5,
-          20
-        )) {
+          fragments,
+          1.2,
+          15
+        )
+        
+        if (eligible) {
           setSnappingId(selectedFragmentId)
         }
       }
@@ -331,6 +508,7 @@ function SceneContent({ transformRef }: { transformRef: React.MutableRefObject<a
             fragment={fragment}
             isSelected={selectedFragmentId === fragment.id}
             isSnapHighlighted={snapHighlightIds.has(fragment.id)}
+            artifactType={artifactType}
             transformRef={transformRef}
           />
         ))}

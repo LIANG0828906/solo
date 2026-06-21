@@ -5,7 +5,7 @@ import FragmentPanel from './components/FragmentPanel'
 import ProgressBar from './components/ProgressBar'
 
 export default function App() {
-  const { initFragments, isComplete, artifactInfo, fragments, fuseSequence, progress } = useStore()
+  const { initFragments, isComplete, artifactInfo, progress, perfectScore, artifactType } = useStore()
 
   useEffect(() => {
     initFragments()
@@ -23,6 +23,10 @@ export default function App() {
         <div className="result-dialog">
           <div className="result-title">修复完成</div>
           <div className="result-section">
+            <div className="result-label">文物类型</div>
+            <div className="result-value">{artifactType === 'blue-porcelain' ? '青花瓷' : '青铜器'}</div>
+          </div>
+          <div className="result-section">
             <div className="result-label">文物名称</div>
             <div className="result-value">{artifactInfo.name}</div>
           </div>
@@ -39,21 +43,11 @@ export default function App() {
             <div className="result-value">{artifactInfo.description}</div>
           </div>
           <div className="result-section" style={{ borderBottom: 'none', marginBottom: 0, paddingBottom: 0 }}>
-            <div className="result-score">{calculateScore(fuseSequence, fragments)}%</div>
+            <div className="result-score">{perfectScore}%</div>
             <div className="result-score-label">完美修复率</div>
           </div>
         </div>
       )}
     </div>
   )
-}
-
-function calculateScore(sequence: number[], fragments: { id: number; correctOrder: number }[]): number {
-  if (sequence.length === 0) return 0
-  let correct = 0
-  const sorted = [...fragments].sort((a, b) => a.correctOrder - b.correctOrder).map(f => f.id)
-  for (let i = 0; i < sequence.length; i++) {
-    if (sequence[i] === sorted[i]) correct++
-  }
-  return Math.round((correct / sequence.length) * 100)
 }
