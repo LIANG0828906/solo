@@ -1,0 +1,18 @@
+{
+  "name": "particle-effects-editor",
+  "version": "1.0.0",
+  "description": "Retro-style particle effects editor with PixiJS",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "pixi.js": "^7.4.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0"
+  }
+}

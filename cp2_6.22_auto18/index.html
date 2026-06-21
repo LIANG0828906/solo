@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>粒子特效编辑器 | Particle Effects Editor</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .header {
+      height: 60px;
+      background: linear-gradient(90deg, #1a1a2e 0%, #0f3460 100%);
+      border-bottom: 1px solid rgba(233, 69, 96, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      box-shadow: 0 2px 20px rgba(233, 69, 96, 0.1);
+    }
+
+    .header h1 {
+      font-size: 20px;
+      font-weight: 700;
+      background: linear-gradient(90deg, #e94560, #00e5ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 1px;
+    }
+
+    .header-actions {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .mode-toggle {
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      border: 2px solid rgba(233, 69, 96, 0.5);
+      background: rgba(233, 69, 96, 0.1);
+      color: #e94560;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      transition: all 0.3s ease;
+      transform-style: preserve-3d;
+    }
+
+    .mode-toggle:hover {
+      background: rgba(233, 69, 96, 0.2);
+      box-shadow: 0 0 15px rgba(233, 69, 96, 0.5);
+    }
+
+    .mode-toggle.rotating {
+      animation: rotateY 0.3s ease forwards;
+    }
+
+    @keyframes rotateY {
+      from { transform: rotateY(0deg); }
+      to { transform: rotateY(180deg); }
+    }
+
+    .main-container {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+    }
+
+    .canvas-container {
+      flex: 0 0 70%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+
+    #pixi-canvas {
+      background: #16213e;
+      border-radius: 8px;
+      box-shadow: 0 0 20px rgba(233, 69, 96, 0.3);
+      transition: opacity 0.5s ease;
+    }
+
+    .control-panel {
+      flex: 0 0 30%;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-left: 1px solid rgba(255, 255, 255, 0.15);
+      padding: 20px;
+      overflow-y: auto;
+      transition: opacity 0.5s ease, transform 0.5s ease;
+    }
+
+    .control-panel.hidden {
+      opacity: 0;
+      transform: translateX(100%);
+      pointer-events: none;
+    }
+
+    .canvas-container.fullscreen {
+      flex: 1;
+    }
+
+    .section {
+      margin-bottom: 20px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      overflow: hidden;
+      transition: all 0.3s ease;
+    }
+
+    .section-header {
+      background: rgba(15, 52, 96, 0.6);
+      padding: 12px 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      user-select: none;
+      transition: background 0.3s ease;
+    }
+
+    .section-header:hover {
+      background: rgba(15, 52, 96, 0.8);
+    }
+
+    .section-header h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #00e5ff;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .section-header .toggle-icon {
+      font-size: 12px;
+      color: #e94560;
+      transition: transform 0.3s ease;
+    }
+
+    .section.collapsed .section-header .toggle-icon {
+      transform: rotate(-90deg);
+    }
+
+    .section-content {
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.2);
+      transition: max-height 0.3s ease, padding 0.3s ease;
+      overflow: hidden;
+    }
+
+    .section.collapsed .section-content {
+      max-height: 0;
+      padding-top: 0;
+      padding-bottom: 0;
+    }
+
+    .control-group {
+      margin-bottom: 16px;
+    }
+
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+
+    .control-label .label-name {
+      color: #e0e0e0;
+    }
+
+    .control-label .label-value {
+      color: #e94560;
+      font-weight: 600;
+      font-family: 'Consolas', monospace;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      background: linear-gradient(to right, #e94560 var(--progress, 50%), #3a3a5c var(--progress, 50%));
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #e94560;
+      box-shadow: 0 0 10px rgba(233, 69, 96, 0.6);
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .color-group {
+      display: flex;
+      gap: 16px;
+    }
+
+    .color-item {
+      flex: 1;
+    }
+
+    .color-item label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 12px;
+      color: #a0a0a0;
+    }
+
+    input[type="color"] {
+      width: 100%;
+      height: 40px;
+      border: 2px solid rgba(233, 69, 96, 0.3);
+      border-radius: 6px;
+      background: transparent;
+      cursor: pointer;
+      padding: 2px;
+    }
+
+    input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    input[type="color"]::-webkit-color-swatch {
+      border: none;
+      border-radius: 4px;
+    }
+
+    .preset-section {
+      margin-bottom: 24px;
+    }
+
+    .preset-select {
+      width: 100%;
+      padding: 12px 16px;
+      background: rgba(15, 52, 96, 0.6);
+      border: 1px solid rgba(0, 229, 255, 0.3);
+      border-radius: 6px;
+      color: #e0e0e0;
+      font-size: 14px;
+      cursor: pointer;
+      outline: none;
+      transition: border-color 0.3s ease;
+    }
+
+    .preset-select:hover {
+      border-color: #00e5ff;
+    }
+
+    .preset-select option {
+      background: #1a1a2e;
+      color: #e0e0e0;
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .btn {
+      flex: 1;
+      padding: 10px 16px;
+      border: 1px solid rgba(233, 69, 96, 0.5);
+      background: rgba(233, 69, 96, 0.1);
+      color: #e94560;
+      border-radius: 6px;
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .btn:hover {
+      background: rgba(233, 69, 96, 0.2);
+      box-shadow: 0 0 10px rgba(233, 69, 96, 0.3);
+    }
+
+    .btn.secondary {
+      border-color: rgba(0, 229, 255, 0.5);
+      color: #00e5ff;
+      background: rgba(0, 229, 255, 0.1);
+    }
+
+    .btn.secondary:hover {
+      background: rgba(0, 229, 255, 0.2);
+      box-shadow: 0 0 10px rgba(0, 229, 255, 0.3);
+    }
+
+    input[type="file"] {
+      display: none;
+    }
+
+    .status-bar {
+      height: 36px;
+      background: rgba(0, 0, 0, 0.4);
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      font-size: 12px;
+      font-family: 'Consolas', monospace;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-label {
+      color: #a0a0a0;
+    }
+
+    .status-value {
+      color: #00e5ff;
+      font-weight: 600;
+    }
+
+    .status-value.warning {
+      color: #ffaa00;
+    }
+
+    .status-value.danger {
+      color: #e94560;
+    }
+
+    .fade-transition {
+      transition: opacity 0.5s ease;
+    }
+
+    .fade-out {
+      opacity: 0;
+    }
+
+    .control-panel.locked .control-group,
+    .control-panel.locked .preset-section,
+    .control-panel.locked .btn {
+      pointer-events: none;
+      opacity: 0.5;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: rgba(233, 69, 96, 0.5);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(233, 69, 96, 0.8);
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <header class="header">
+      <h1>⚡ 粒子特效编辑器</h1>
+      <div class="header-actions">
+        <button class="mode-toggle" id="modeToggle" title="切换模式">
+          <span id="modeIcon">✏️</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="main-container">
+      <div class="canvas-container" id="canvasContainer">
+        <canvas id="pixi-canvas"></canvas>
+      </div>
+
+      <aside class="control-panel" id="controlPanel">
+        <div class="preset-section">
+          <label class="control-label">
+            <span class="label-name">预设效果</span>
+          </label>
+          <select class="preset-select" id="presetSelect">
+            <option value="fire">🔥 火焰</option>
+            <option value="explosion">💥 爆炸</option>
+            <option value="trail">✨ 尾迹</option>
+            <option value="snow">❄️ 雪花</option>
+            <option value="galaxy">🌌 星河</option>
+            <option value="custom">🎨 自定义</option>
+          </select>
+          <div class="btn-group">
+            <button class="btn" id="exportBtn">导出JSON</button>
+            <label class="btn secondary" for="importFile">导入JSON</label>
+            <input type="file" id="importFile" accept=".json">
+          </div>
+        </div>
+
+        <div class="section" id="sectionEmit">
+          <div class="section-header">
+            <h3>🚀 发射参数</h3>
+            <span class="toggle-icon">▼</span>
+          </div>
+          <div class="section-content">
+            <div class="control-group">
+              <label class="control-label">
+                <span class="label-name">发射速率</span>
+                <span class="label-value" id="rateValue">50 个/秒</span>
+              </label>
+              <input type="range" id="emissionRate" min="0" max="200" value="50" step="1">
+            </div>
+            <div class="control-group">
+              <label class="control-label">
+                <span class="label-name">扩散角度</span>
+                <span class="label-value" id="spreadValue">360°</span>
+              </label>
+              <input type="range" id="spreadAngle" min="0" max="360" value="360" step="1">
+            </div>
+          </div>
+        </div>
+
+        <div class="section" id="sectionMotion">
+          <div class="section-header">
+            <h3>💨 运动参数</h3>
+            <span class="toggle-icon">▼</span>
+          </div>
+          <div class="section-content">
+            <div class="control-group">
+              <label class="control-label">
+                <span class="label-name">初始速度</span>
+                <span class="label-value" id="speedValue">100 px/s</span>
+              </label>
+              <input type="range" id="initialSpeed" min="0" max="500" value="100" step="1">
+            </div>
+            <div class="control-group">
+              <label class="control-label">
+                <span class="label-name">生命周期</span>
+                <span class="label-value" id="lifeValue">2.0 s</span>
+              </label>
+              <input type="range" id="lifespan" min="0.1" max="5" value="2" step="0.1">
+            </div>
+          </div>
+        </div>
+
+        <div class="section" id="sectionAppearance">
+          <div class="section-header">
+            <h3>🎨 外观参数</h3>
+            <span class="toggle-icon">▼</span>
+          </div>
+          <div class="section-content">
+            <div class="control-group">
+              <label class="control-label">
+                <span class="label-name">粒子大小</span>
+                <span class="label-value" id="sizeValue">8 px</span>
+              </label>
+              <input type="range" id="particleSize" min="1" max="20" value="8" step="1">
+            </div>
+            <div class="control-group">
+              <label class="control-label">
+                <span class="label-name">颜色渐变</span>
+              </label>
+              <div class="color-group">
+                <div class="color-item">
+                  <label>起始色</label>
+                  <input type="color" id="startColor" value="#ff6b35">
+                </div>
+                <div class="color-item">
+                  <label>结束色</label>
+                  <input type="color" id="endColor" value="#ff0000">
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <footer class="status-bar">
+      <div class="status-item">
+        <span class="status-label">粒子数:</span>
+        <span class="status-value" id="particleCount">0</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">帧率:</span>
+        <span class="status-value" id="frameRate">60 FPS</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">模式:</span>
+        <span class="status-value" id="currentMode">编辑模式</span>
+      </div>
+    </footer>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
