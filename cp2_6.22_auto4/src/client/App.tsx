@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { io, Socket } from 'socket.io-client';
 import Canvas from './components/Canvas';
 import Toolbar from './components/Toolbar';
-import { ToolSettings, DrawPath, User } from '../shared/types';
+import { ToolSettings, DrawPath, User, TextItem } from '../shared/types';
 
 type AppScreen = 'login' | 'whiteboard';
 
@@ -16,6 +16,7 @@ function App() {
     color: '#212121',
     size: 5,
   });
+  const [fontSize, setFontSize] = useState(16);
   const [isMobileToolbarOpen, setIsMobileToolbarOpen] = useState(false);
   const [saveToast, setSaveToast] = useState<string | null>(null);
   const [canUndo, setCanUndo] = useState(false);
@@ -53,6 +54,28 @@ function App() {
     ctx.restore();
   };
 
+  const renderRemoteText = (text: TextItem) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    ctx.save();
+    ctx.fillStyle = text.color;
+    ctx.font = `${text.fontSize}px -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif`;
+    ctx.textBaseline = 'top';
+    ctx.fillText(text.text, text.x, text.y);
+    ctx.restore();
+  };
+
+  const deleteRemoteText = (id: string) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    console.warn('Delete remote text requires full redraw:', id);
+  };
+
   const handleJoinRoom = () => {
     if (!userName.trim() || !roomId.trim()) return;
 
@@ -69,6 +92,18 @@ function App() {
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
       drawRemotePath(ctx, path);
+    });
+
+    socket.on('text:add', (text: TextItem) => {
+      renderRemoteText(text);
+    });
+
+    socket.on('text:move', (_data: { id: string; x: number; y: number }) => {
+      console.warn('Remote text move received - full redraw needed');
+    });
+
+    socket.on('text:delete', (id: string) => {
+      deleteRemoteText(id);
     });
 
     socket.on('canvas:clear', () => {
@@ -110,6 +145,24 @@ function App() {
   const handleDrawPath = (path: DrawPath) => {
     if (socketRef.current) {
       socketRef.current.emit('draw:path', path);
+    }
+  };
+
+  const handleTextAdd = (text: TextItem) => {
+    if (socketRef.current) {
+      socketRef.current.emit('text:add', text);
+    }
+  };
+
+  const handleTextMove = (data: { id: string; x: number; y: number }) => {
+    if (socketRef.current) {
+      socketRef.current.emit('text:move', data);
+    }
+  };
+
+  const handleTextDelete = (id: string) => {
+    if (socketRef.current) {
+      socketRef.current.emit('text:delete', id);
     }
   };
 
@@ -248,6 +301,10 @@ function App() {
           onDrawPath={handleDrawPath}
           onClear={handleClearCanvas}
           onHistoryChange={handleHistoryChange}
+          fontSize={fontSize}
+          onTextAdd={handleTextAdd}
+          onTextMove={handleTextMove}
+          onTextDelete={handleTextDelete}
         />
       </div>
 
@@ -260,6 +317,8 @@ function App() {
           onClear={handleLocalClear}
           canUndo={canUndo}
           canRedo={canRedo}
+          fontSize={fontSize}
+          onFontSizeChange={setFontSize}
         />
       </div>
 
@@ -283,6 +342,8 @@ function App() {
             onClear={handleLocalClear}
             canUndo={canUndo}
             canRedo={canRedo}
+            fontSize={fontSize}
+            onFontSizeChange={setFontSize}
           />
         </div>
       )}

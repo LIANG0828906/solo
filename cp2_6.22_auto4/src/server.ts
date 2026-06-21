@@ -1,7 +1,7 @@
 import express from 'express';
 import http from 'http';
 import { Server } from 'socket.io';
-import { DrawPath, User, RoomState } from './shared/types';
+import { DrawPath, User, RoomState, TextItem } from './shared/types.js';
 
 const app = express();
 const server = http.createServer(app);
@@ -58,6 +58,21 @@ io.on('connection', (socket) => {
   socket.on('draw:path', (path: DrawPath) => {
     if (!currentUser) return;
     socket.to(currentUser.roomId).emit('draw:path', path);
+  });
+
+  socket.on('text:add', (text: TextItem) => {
+    if (!currentUser) return;
+    socket.to(currentUser.roomId).emit('text:add', text);
+  });
+
+  socket.on('text:move', (data: { id: string; x: number; y: number }) => {
+    if (!currentUser) return;
+    socket.to(currentUser.roomId).emit('text:move', data);
+  });
+
+  socket.on('text:delete', (id: string) => {
+    if (!currentUser) return;
+    socket.to(currentUser.roomId).emit('text:delete', id);
   });
 
   socket.on('canvas:clear', () => {

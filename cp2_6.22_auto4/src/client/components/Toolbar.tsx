@@ -8,6 +8,8 @@ interface ToolbarProps {
   onClear: () => void;
   canUndo: boolean;
   canRedo: boolean;
+  fontSize: number;
+  onFontSizeChange: (size: number) => void;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({
@@ -18,6 +20,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onClear,
   canUndo,
   canRedo,
+  fontSize,
+  onFontSizeChange,
 }) => {
   const colors = [
     '#E53935',
@@ -36,6 +40,10 @@ const Toolbar: React.FC<ToolbarProps> = ({
     { label: '粗', value: 12 },
   ];
 
+  const fontSizes = [12, 16, 20, 24];
+
+  const showTextOptions = toolSettings.type === 'text';
+
   return (
     <div className="toolbar-container">
       <div className="toolbar-section">
@@ -46,14 +54,21 @@ const Toolbar: React.FC<ToolbarProps> = ({
             onClick={() => onToolChange({ ...toolSettings, type: 'pen' })}
             title="画笔"
           >
-            <span className="tool-icon">✏️</span>
+            ✏️
           </button>
           <button
             className={`tool-btn ${toolSettings.type === 'eraser' ? 'active' : ''}`}
             onClick={() => onToolChange({ ...toolSettings, type: 'eraser' })}
             title="橡皮擦"
           >
-            <span className="tool-icon">🧹</span>
+            🧹
+          </button>
+          <button
+            className={`tool-btn ${toolSettings.type === 'text' ? 'active' : ''}`}
+            onClick={() => onToolChange({ ...toolSettings, type: 'text' })}
+            title="文本"
+          >
+            T
           </button>
         </div>
       </div>
@@ -64,36 +79,54 @@ const Toolbar: React.FC<ToolbarProps> = ({
           {colors.map((color) => (
             <button
               key={color}
-              className={`color-btn ${toolSettings.color === color && toolSettings.type === 'pen' ? 'selected' : ''}`}
+              className={`color-btn ${toolSettings.color === color && (toolSettings.type === 'pen' || toolSettings.type === 'text') ? 'selected' : ''}`}
               style={{
                 backgroundColor: color,
                 border: color === '#FFFFFF' ? '2px solid #e0e0e0' : 'none',
               }}
-              onClick={() => onToolChange({ ...toolSettings, color, type: 'pen' })}
+              onClick={() => onToolChange({ ...toolSettings, color, type: toolSettings.type === 'eraser' ? 'pen' : toolSettings.type })}
               title={color}
             />
           ))}
         </div>
       </div>
 
-      <div className="toolbar-section">
-        <div className="section-label">笔刷大小</div>
-        <div className="brush-sizes">
-          {brushSizes.map((size) => (
-            <button
-              key={size.value}
-              className={`size-btn ${toolSettings.size === size.value ? 'active' : ''}`}
-              onClick={() => onToolChange({ ...toolSettings, size: size.value })}
-              title={size.label}
-            >
-              <span
-                className="size-dot"
-                style={{ width: size.value * 2, height: size.value * 2 }}
-              />
-            </button>
-          ))}
+      {showTextOptions ? (
+        <div className="toolbar-section">
+          <div className="section-label">字号</div>
+          <div className="font-sizes">
+            {fontSizes.map((size) => (
+              <button
+                key={size}
+                className={`font-size-btn ${fontSize === size ? 'active' : ''}`}
+                onClick={() => onFontSizeChange(size)}
+                title={`${size}px`}
+              >
+                <span style={{ fontSize: size }}>A</span>
+              </button>
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="toolbar-section">
+          <div className="section-label">笔刷</div>
+          <div className="brush-sizes">
+            {brushSizes.map((size) => (
+              <button
+                key={size.value}
+                className={`size-btn ${toolSettings.size === size.value ? 'active' : ''}`}
+                onClick={() => onToolChange({ ...toolSettings, size: size.value })}
+                title={size.label}
+              >
+                <span
+                  className="size-dot"
+                  style={{ width: size.value * 2, height: size.value * 2 }}
+                />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="toolbar-section">
         <div className="section-label">操作</div>
