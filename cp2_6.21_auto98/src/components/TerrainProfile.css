@@ -1,0 +1,59 @@
+.terrain-profile {
+  position: fixed;
+  left: 20px;
+  bottom: 60px;
+  width: 380px;
+  height: 200px;
+  background: rgba(26, 26, 46, 0.9);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 212, 255, 0.2);
+  border-radius: 12px;
+  padding: 12px;
+  z-index: 50;
+  transition: all 0.3s ease;
+}
+
+.terrain-profile:hover {
+  border-color: rgba(0, 212, 255, 0.4);
+  box-shadow: 0 0 30px rgba(0, 212, 255, 0.1);
+}
+
+.profile-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.profile-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.profile-hint {
+  font-size: 11px;
+  color: #00d4ff;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.profile-canvas {
+  width: 100%;
+  height: calc(100% - 28px);
+  display: block;
+  border-radius: 6px;
+}
+
+@media (max-width: 768px) {
+  .terrain-profile {
+    width: calc(100% - 40px);
+    left: 20px;
+    height: 160px;
+    bottom: 70px;
+  }
+}
