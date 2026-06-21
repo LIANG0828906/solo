@@ -117,15 +117,18 @@ export default function TerrainProfile() {
       ctx.fillText(value.toFixed(2), padding.left - 8, y)
     }
 
-    const colors = ['#4444ff', '#ff4444', '#44ff44', '#ffff44', '#ff44ff']
+    // 剖面线颜色配置：当前剖面为蓝色，快照剖面为红色
+    const COLOR_CURRENT_PROFILE = '#4444ff'  // 当前地形剖面线：蓝色
+    const COLOR_SNAPSHOT_PROFILE = '#ff4444' // 快照地形剖面线：红色
 
+    // 绘制所有快照剖面线（红色）
     snapshotProfiles.forEach((sp, index) => {
-      const color = colors[(index + 1) % colors.length]
-      drawProfileLine(ctx, sp.heights, padding, chartWidth, chartHeight, yScale, yOffset, color, 2, false)
+      drawProfileLine(ctx, sp.heights, padding, chartWidth, chartHeight, yScale, yOffset, COLOR_SNAPSHOT_PROFILE, 2, false)
     })
 
+    // 绘制当前剖面线（蓝色，带渐变填充）
     if (profileData) {
-      drawProfileLine(ctx, profileData.heights, padding, chartWidth, chartHeight, yScale, yOffset, '#4444ff', 2.5, true)
+      drawProfileLine(ctx, profileData.heights, padding, chartWidth, chartHeight, yScale, yOffset, COLOR_CURRENT_PROFILE, 2.5, true)
     }
 
     if (profileData) {
@@ -137,7 +140,7 @@ export default function TerrainProfile() {
       const infoY = 5
       const lineHeight = 14
       
-      ctx.fillStyle = '#00d4ff'
+      ctx.fillStyle = COLOR_CURRENT_PROFILE
       ctx.fillText(`当前剖面`, padding.left, infoY)
       
       ctx.fillStyle = '#aaa'
@@ -149,6 +152,7 @@ export default function TerrainProfile() {
       )
     }
 
+    // 绘制图例
     if (snapshotProfiles.length > 0) {
       const legendY = height - 15
       ctx.font = '10px sans-serif'
@@ -157,10 +161,16 @@ export default function TerrainProfile() {
       
       let legendX = padding.left
       
-      snapshotProfiles.forEach((sp, index) => {
-        const color = colors[(index + 1) % colors.length]
-        
-        ctx.fillStyle = color
+      // 当前剖面（蓝色）
+      ctx.fillStyle = COLOR_CURRENT_PROFILE
+      ctx.fillRect(legendX, legendY - 4, 12, 2)
+      ctx.fillStyle = '#aaa'
+      ctx.fillText('当前', legendX + 16, legendY)
+      legendX += ctx.measureText('当前').width + 30
+      
+      // 快照剖面（红色）
+      snapshotProfiles.forEach((sp) => {
+        ctx.fillStyle = COLOR_SNAPSHOT_PROFILE
         ctx.fillRect(legendX, legendY - 4, 12, 2)
         
         ctx.fillStyle = '#aaa'

@@ -204,6 +204,7 @@ function ParticleSystem({ count }: ParticleSystemProps) {
   const pointsRef = useRef<THREE.Points>(null)
   const { heightMap, gridSize, terrainSize, windSpeed, waterFlow } = useTerrainStore()
   const velocitiesRef = useRef<Float32Array | null>(null)
+  const { camera } = useThree()
   
   const particlePositions = useMemo(() => {
     if (windSpeed === 0 && waterFlow === 0) {
@@ -280,11 +281,11 @@ function ParticleSystem({ count }: ParticleSystemProps) {
         />
       </bufferGeometry>
       <pointsMaterial
-        size={0.15}
+        size={2}
         color="#ffffff"
         transparent
         opacity={0.6}
-        sizeAttenuation
+        sizeAttenuation={false}
       />
     </points>
   )
@@ -321,11 +322,12 @@ function ProfileLine({ points }: ProfileLineProps) {
     return result
   }, [points, heightMap, gridSize, terrainSize])
   
-  if (points.length < 2) return null
-  
   const lineGeometry = useMemo(() => {
+    if (points3D.length < 2) return null
     return new THREE.BufferGeometry().setFromPoints(points3D)
   }, [points3D])
+  
+  if (!lineGeometry) return null
   
   return (
     <lineSegments geometry={lineGeometry}>
@@ -338,23 +340,37 @@ interface SingleRippleProps {
   ripple: { id: number; worldX: number; worldZ: number; startTime: number }
 }
 
+function getPixelToWorldScale(camera: THREE.Camera, distance: number): number {
+  const vFov = (camera as THREE.PerspectiveCamera).fov * Math.PI / 180
+  const visibleHeightAtDistance = 2 * Math.tan(vFov / 2) * distance
+  const pixelRatio = window.innerHeight / visibleHeightAtDistance
+  return 1 / pixelRatio
+}
+
 function SingleRipple({ ripple }: SingleRippleProps) {
   const rippleRef = useRef<THREE.Mesh>(null)
   const crossHRef = useRef<THREE.LineSegments>(null)
   const crossVRef = useRef<THREE.LineSegments>(null)
   const { heightMap, gridSize, terrainSize } = useTerrainStore()
+  const { camera } = useThree()
+  
+  const RIPPLE_START_PX = 10
+  const RIPPLE_END_PX = 30
+  const CROSS_SIZE_PX = 20
+  const RIPPLE_OPACITY_START = 0.6
+  const RIPPLE_OPACITY_END = 0
+  const CROSS_OPACITY_START = 1
+  const CROSS_OPACITY_END = 0
+  const ANIMATION_DURATION = 1000
+  
+  const rippleBaseInner = 0.45
+  const rippleBaseOuter = 0.55
   
   useFrame(() => {
     if (!rippleRef.current || !crossHRef.current || !crossVRef.current) return
     
     const elapsed = Date.now() - ripple.startTime
-    const progress = Math.min(1, elapsed / 1000)
-    
-    const rippleScale = 0.5 + progress * 2.5
-    rippleRef.current.scale.set(rippleScale, 1, rippleScale)
-    
-    const rippleMaterial = rippleRef.current.material as THREE.MeshBasicMaterial
-    rippleMaterial.opacity = 0.6 * (1 - progress)
+    const progress = Math.min(1, elapsed / ANIMATION_DURATION)
     
     const gridX = Math.floor((ripple.worldX / terrainSize + 0.5) * gridSize)
     const gridZ = Math.floor((ripple.worldZ / terrainSize + 0.5) * gridSize)
@@ -362,21 +378,35 @@ function SingleRipple({ ripple }: SingleRippleProps) {
     const clampedZ = Math.max(0, Math.min(gridSize - 1, gridZ))
     const height = heightMap[clampedZ * gridSize + clampedX] * HEIGHT_SCALE
     
+    const pointWorldPos = new THREE.Vector3(ripple.worldX, height + 0.1, ripple.worldZ)
+    const distance = camera.position.distanceTo(pointWorldPos)
+    const pixelScale = getPixelToWorldScale(camera, distance)
+    
+    const startRadiusWorld = RIPPLE_START_PX * pixelScale
+    const endRadiusWorld = RIPPLE_END_PX * pixelScale
+    const currentRadius = startRadiusWorld + (endRadiusWorld - startRadiusWorld) * progress
+    
+    const baseRadius = (rippleBaseInner + rippleBaseOuter) / 2
+    const rippleScale = currentRadius / baseRadius
+    rippleRef.current.scale.set(rippleScale, 1, rippleScale)
     rippleRef.current.position.y = height + 0.1
     
-    const crossOpacity = Math.max(0, 1 - progress * 2)
+    const rippleMaterial = rippleRef.current.material as THREE.MeshBasicMaterial
+    rippleMaterial.opacity = RIPPLE_OPACITY_START + (RIPPLE_OPACITY_END - RIPPLE_OPACITY_START) * progress
+    
+    const crossSizeWorld = CROSS_SIZE_PX * pixelScale
+    const crossOpacity = CROSS_OPACITY_START + (CROSS_OPACITY_END - CROSS_OPACITY_START) * progress
+    
     const crossHMaterial = crossHRef.current.material as THREE.LineBasicMaterial
     const crossVMaterial = crossVRef.current.material as THREE.LineBasicMaterial
     crossHMaterial.opacity = crossOpacity
     crossVMaterial.opacity = crossOpacity
     
-    const crossSize = 0.4 + progress * 0.6
-    
     const hPositions = crossHRef.current.geometry.attributes.position.array as Float32Array
-    hPositions[0] = ripple.worldX - crossSize
+    hPositions[0] = ripple.worldX - crossSizeWorld
     hPositions[1] = height + 0.15
     hPositions[2] = ripple.worldZ
-    hPositions[3] = ripple.worldX + crossSize
+    hPositions[3] = ripple.worldX + crossSizeWorld
     hPositions[4] = height + 0.15
     hPositions[5] = ripple.worldZ
     crossHRef.current.geometry.attributes.position.needsUpdate = true
@@ -384,10 +414,10 @@ function SingleRipple({ ripple }: SingleRippleProps) {
     const vPositions = crossVRef.current.geometry.attributes.position.array as Float32Array
     vPositions[0] = ripple.worldX
     vPositions[1] = height + 0.15
-    vPositions[2] = ripple.worldZ - crossSize
+    vPositions[2] = ripple.worldZ - crossSizeWorld
     vPositions[3] = ripple.worldX
     vPositions[4] = height + 0.15
-    vPositions[5] = ripple.worldZ + crossSize
+    vPositions[5] = ripple.worldZ + crossSizeWorld
     crossVRef.current.geometry.attributes.position.needsUpdate = true
   })
   
@@ -406,11 +436,11 @@ function SingleRipple({ ripple }: SingleRippleProps) {
         position={[ripple.worldX, 0, ripple.worldZ]}
         rotation={[-Math.PI / 2, 0, 0]}
       >
-        <ringGeometry args={[0.4, 0.5, 32]} />
+        <ringGeometry args={[rippleBaseInner, rippleBaseOuter, 48]} />
         <meshBasicMaterial 
           color="#00d4ff" 
           transparent 
-          opacity={0.6} 
+          opacity={RIPPLE_OPACITY_START} 
           side={THREE.DoubleSide} 
         />
       </mesh>
@@ -424,7 +454,7 @@ function SingleRipple({ ripple }: SingleRippleProps) {
             itemSize={3}
           />
         </bufferGeometry>
-        <lineBasicMaterial color="#ff4444" transparent opacity={1} linewidth={2} />
+        <lineBasicMaterial color="#ff4444" transparent opacity={CROSS_OPACITY_START} linewidth={3} />
       </lineSegments>
       
       <lineSegments ref={crossVRef}>
@@ -436,7 +466,7 @@ function SingleRipple({ ripple }: SingleRippleProps) {
             itemSize={3}
           />
         </bufferGeometry>
-        <lineBasicMaterial color="#ff4444" transparent opacity={1} linewidth={2} />
+        <lineBasicMaterial color="#ff4444" transparent opacity={CROSS_OPACITY_START} linewidth={3} />
       </lineSegments>
     </group>
   )

@@ -127,46 +127,79 @@ function getGradient(heightMap: Float32Array, x: number, y: number, gridSize: nu
   }
 }
 
+interface WaterErosionParams {
+  erosionRate: number
+  depositionRate: number
+  evaporationRate: number
+  sedimentCapacity: number
+  dropCountRatio: number
+  maxSteps: number
+  stepSize: number
+}
+
+const DEFAULT_WATER_EROSION_PARAMS: WaterErosionParams = {
+  erosionRate: 0.002,
+  depositionRate: 0.001,
+  evaporationRate: 0.02,
+  sedimentCapacity: 0.3,
+  dropCountRatio: 0.05,
+  maxSteps: 30,
+  stepSize: 0.5,
+}
+
 function waterErosion(
   heightMap: Float32Array,
   gridSize: number,
   intensity: number,
-  iterations: number
+  iterations: number,
+  customParams?: Partial<WaterErosionParams>
 ): Float32Array {
+  const params = { ...DEFAULT_WATER_EROSION_PARAMS, ...customParams }
   const result = new Float32Array(heightMap)
-  const erosionRate = intensity * 0.002
-  const depositionRate = intensity * 0.001
-  const evaporationRate = 0.02
-  const sedimentCapacity = 0.3
   
-  const numDrops = Math.floor(gridSize * gridSize * 0.05 * Math.min(1, intensity))
+  // 侵蚀速率与强度成正比，控制单位时间内从地表剥离的物质体积
+  // 公式: erosionAmount = (capacity - sediment) * erosionRate * intensity
+  const erosionRate = params.erosionRate * intensity
   
-  for (let i = 0; i < iterations; i++) {
+  // 沉积速率控制泥沙从水流中析出的速度
+  // 公式: depositAmount = (sediment - capacity) * depositionRate * intensity
+  const depositionRate = params.depositionRate * intensity
+  
+  // 水滴数量：与网格面积和强度成正比
+  // 每个水滴代表一定体积的水流，沿坡度方向侵蚀地表
+  const numDrops = Math.floor(gridSize * gridSize * params.dropCountRatio * Math.min(1, intensity))
+  
+  for (let iter = 0; iter < iterations; iter++) {
     for (let d = 0; d < numDrops; d++) {
+      // 在地形上随机生成水滴
       let x = Math.random() * (gridSize - 2) + 1
       let y = Math.random() * (gridSize - 2) + 1
-      let water = 1.0
-      let sediment = 0.0
+      let water = 1.0       // 水滴的水量（体积）
+      let sediment = 0.0    // 水滴携带的泥沙量
       
-      const maxSteps = 30
-      
-      for (let step = 0; step < maxSteps; step++) {
+      // 水滴沿坡度流动，直到蒸发或到达边界
+      for (let step = 0; step < params.maxSteps; step++) {
         const xi = Math.floor(x)
         const yi = Math.floor(y)
         
         if (xi < 1 || xi >= gridSize - 1 || yi < 1 || yi >= gridSize - 1) break
         
+        // 计算当前位置的坡度梯度
+        // gradient = (h(x+1) - h(x-1), h(x) - h(x-1) + (h(x+1) - h(x)) + ...，用中心差分近似
         const gradient = getGradient(result, x, y, gridSize)
         const currentHeight = getHeight(result, x, y, gridSize)
         
+        // 水流方向：沿坡度最陡方向（负梯度方向）
+        // flow_dir = -normalize(gradient)
         const dx = -gradient.gx
         const dy = -gradient.gy
         
-        const len = Math.sqrt(dx * dx + dy * dy)
-        if (len < 0.001) break
+        const gradLen = Math.sqrt(dx * dx + dy * dy)
+        if (gradLen < 0.001) break // 地形平坦，水流停止
         
-        const moveX = (dx / len) * 0.5
-        const moveY = (dy / len) * 0.5
+        // 归一化方向并按步长移动
+        const moveX = (dx / gradLen) * params.stepSize
+        const moveY = (dy / gradLen) * params.stepSize
         
         const newX = x + moveX
         const newY = y + moveY
@@ -174,25 +207,34 @@ function waterErosion(
         if (newX < 1 || newX >= gridSize - 1 || newY < 1 || newY >= gridSize - 1) break
         
         const newHeight = getHeight(result, newX, newY, gridSize)
-        const heightDiff = currentHeight - newHeight
+        const heightDiff = currentHeight - newHeight // 高程差（正值表示向下流动）
         
-        const capacity = Math.max(0, heightDiff * water * sedimentCapacity)
+        // 泥沙容量公式: capacity = height_diff * water * sediment_capacity
+        // 物理意义：水流速度越快（高差越大）、水量越大，能携带的泥沙越多
+        const capacity = Math.max(0, heightDiff * water * params.sedimentCapacity)
         
         if (sediment > capacity) {
+          // 沉积：当携带泥沙超过容量时，多余泥沙沉积到地面
+          // 沉积量 = (当前泥沙量 - 容量) * 沉积速率
           const deposit = (sediment - capacity) * depositionRate
           const idx = yi * gridSize + xi
           result[idx] += deposit
           sediment -= deposit
         } else {
+          // 侵蚀：当携带泥沙低于容量时，从地面侵蚀泥沙
+          // 侵蚀量 = min((容量 - 当前泥沙量) * 侵蚀速率, 高差 * 0.5)
+          // 限制侵蚀量不超过高差的一半，避免过度侵蚀造成尖刺
           const erode = Math.min((capacity - sediment) * erosionRate, heightDiff * 0.5)
           const idx = yi * gridSize + xi
           result[idx] -= erode
           sediment += erode
         }
         
+        // 移动到下一个位置
         x = newX
         y = newY
-        water *= (1 - evaporationRate)
+        // 水分蒸发，水量随流动距离递减
+        water *= (1 - params.evaporationRate)
       }
     }
   }
@@ -200,54 +242,87 @@ function waterErosion(
   return result
 }
 
+interface WindErosionParams {
+  windDirectionX: number
+  windDirectionY: number
+  erosionCoeff: number
+  depositionRatio: number
+  fetchDistance: number
+  depositDistance: number
+}
+
+const DEFAULT_WIND_EROSION_PARAMS: WindErosionParams = {
+  windDirectionX: 1.0,
+  windDirectionY: 0.3,
+  erosionCoeff: 0.001,
+  depositionRatio: 0.7,
+  fetchDistance: 2,
+  depositDistance: 3,
+}
+
 function windErosion(
   heightMap: Float32Array,
   gridSize: number,
   windSpeed: number,
-  iterations: number
+  iterations: number,
+  customParams?: Partial<WindErosionParams>
 ): Float32Array {
+  const params = { ...DEFAULT_WIND_EROSION_PARAMS, ...customParams }
   const result = new Float32Array(heightMap)
-  const windDirX = 1.0
-  const windDirY = 0.3
-  const windLen = Math.sqrt(windDirX * windDirX + windDirY * windDirY)
-  const wdx = windDirX / windLen
-  const wdy = windDirY / windLen
   
-  const intensity = windSpeed * 0.01
+  // 归一化风向向量
+  const windLen = Math.sqrt(params.windDirectionX * params.windDirectionX + params.windDirectionY * params.windDirectionY)
+  const wdx = params.windDirectionX / windLen
+  const wdy = params.windDirectionY / windLen
+  
+  // 风蚀强度与风速成正比
+  // 公式: erosion_intensity = wind_speed * erosion_coeff
+  // 物理意义：风速越大，风的携沙能力越强，侵蚀越剧烈
+  const intensity = windSpeed * params.erosionCoeff
   
   for (let iter = 0; iter < iterations; iter++) {
     const temp = new Float32Array(result)
     
+    // 遍历每个网格点，计算风蚀作用
     for (let y = 1; y < gridSize - 1; y++) {
       for (let x = 1; x < gridSize - 1; x++) {
         const idx = y * gridSize + x
         const currentH = result[idx]
         
-        const upX = Math.floor(x - wdx * 2)
-        const upY = Math.floor(y - wdy * 2)
+        // 获取上风向位置的高程（迎风面）
+        const upX = Math.floor(x - wdx * params.fetchDistance)
+        const upY = Math.floor(y - wdy * params.fetchDistance)
         
         if (upX < 0 || upX >= gridSize || upY < 0 || upY >= gridSize) continue
         
         const upIdx = upY * gridSize + upX
         const upH = result[upIdx]
         
-        const slope = (currentH - upH) / 2
+        // 计算迎风面坡度
+        // slope = (当前高度 - 上风向高度) / 距离
+        const slope = (currentH - upH) / params.fetchDistance
         
+        // 迎风面（坡度>0）发生侵蚀
+        // 侵蚀量 = 坡度 * 风蚀强度
+        // 物理意义：坡度越陡，风的紊流越强，侵蚀越严重
         if (slope > 0) {
-          const erosion = slope * intensity * 0.1
+          const erosion = slope * intensity
           temp[idx] -= erosion
           
-          const downX = Math.floor(x + wdx * 3)
-          const downY = Math.floor(y + wdy * 3)
+          // 泥沙在下风向沉积
+          // 沉积量 = 侵蚀量 * 沉积比例
+          const downX = Math.floor(x + wdx * params.depositDistance)
+          const downY = Math.floor(y + wdy * params.depositDistance)
           
           if (downX >= 0 && downX < gridSize && downY >= 0 && downY < gridSize) {
             const downIdx = downY * gridSize + downX
-            temp[downIdx] += erosion * 0.7
+            temp[downIdx] += erosion * params.depositionRatio
           }
         }
       }
     }
     
+    // 应用侵蚀结果并限制高度范围
     for (let i = 0; i < result.length; i++) {
       result[i] = Math.max(0, Math.min(1, temp[i]))
     }
@@ -256,29 +331,56 @@ function windErosion(
   return result
 }
 
+interface GlacierErosionParams {
+  erosionCoeff: number
+  valleyWidthCoeff: number
+  depositionRatio: number
+  minGradient: number
+  minHeight: number
+  searchRadius: number
+}
+
+const DEFAULT_GLACIER_EROSION_PARAMS: GlacierErosionParams = {
+  erosionCoeff: 0.0025,
+  valleyWidthCoeff: 0.5,
+  depositionRatio: 0.1,
+  minGradient: 0.01,
+  minHeight: 0.2,
+  searchRadius: 1,
+}
+
 function glacierErosion(
   heightMap: Float32Array,
   gridSize: number,
   strength: number,
-  iterations: number
+  iterations: number,
+  customParams?: Partial<GlacierErosionParams>
 ): Float32Array {
+  const params = { ...DEFAULT_GLACIER_EROSION_PARAMS, ...customParams }
   const result = new Float32Array(heightMap)
-  const intensity = strength * 0.05
+  
+  // 冰川侵蚀强度与冰川强度成正比
+  // 公式: intensity = strength * erosion_coeff
+  // 物理意义：冰川越厚（强度越大），刨蚀作用越强，U型谷越宽
+  const intensity = strength * params.erosionCoeff
   
   for (let iter = 0; iter < iterations; iter++) {
     const temp = new Float32Array(result)
     
+    // 遍历每个网格点，模拟冰川刨蚀作用
     for (let y = 2; y < gridSize - 2; y++) {
       for (let x = 2; x < gridSize - 2; x++) {
         const idx = y * gridSize + x
         const currentH = result[idx]
         
+        // 在邻域内寻找最大坡度方向（冰川流动方向）
+        // 冰川沿山谷向下流动，寻找最陡的下坡方向
         let maxGradient = 0
         let maxGX = 0
         let maxGY = 0
         
-        for (let dy = -1; dy <= 1; dy++) {
-          for (let dx = -1; dx <= 1; dx++) {
+        for (let dy = -params.searchRadius; dy <= params.searchRadius; dy++) {
+          for (let dx = -params.searchRadius; dx <= params.searchRadius; dx++) {
             if (dx === 0 && dy === 0) continue
             const nx = x + dx
             const ny = y + dy
@@ -292,28 +394,40 @@ function glacierErosion(
           }
         }
         
-        if (maxGradient > 0.01 && currentH > 0.2) {
-          const erosion = maxGradient * intensity * 0.05
+        // 冰川只在有一定坡度且高度足够的地方发生侵蚀
+        // 冰川侵蚀形成U型谷的机制：底部刨蚀 + 两侧磨蚀
+        if (maxGradient > params.minGradient && currentH > params.minHeight) {
+          // 底部刨蚀量 = 坡度 * 侵蚀强度
+          // 坡度越陡，冰川流速越快，侵蚀越强
+          const erosion = maxGradient * intensity
           temp[idx] -= erosion
           
-          const valleyWidth = Math.floor(strength * 0.5)
+          // U型谷宽度与冰川强度成正比
+          // 公式: valley_width = floor(strength * valley_width_coeff)
+          const valleyWidth = Math.floor(strength * params.valleyWidthCoeff)
+          
+          // 计算冰川流动方向的垂直方向（山谷横断面方向）
           const perpX = -maxGY
           const perpY = maxGX
           
+          // 在山谷两侧沉积侵蚀下来的物质，形成U型谷剖面
+          // 沉积量随距离中心的距离递减（抛物线分布）
           for (let w = -valleyWidth; w <= valleyWidth; w++) {
             const vx = Math.floor(x + perpX * w * 0.5)
             const vy = Math.floor(y + perpY * w * 0.5)
             
             if (vx >= 2 && vx < gridSize - 2 && vy >= 2 && vy < gridSize - 2) {
               const vIdx = vy * gridSize + vx
+              // 距离衰减因子：中心最小，边缘最大（U型谷两侧堆积）
               const distFactor = 1 - Math.abs(w) / (valleyWidth + 1)
-              temp[vIdx] += erosion * 0.1 * distFactor
+              temp[vIdx] += erosion * params.depositionRatio * distFactor
             }
           }
         }
       }
     }
     
+    // 应用侵蚀结果并限制高度范围
     for (let i = 0; i < result.length; i++) {
       result[i] = Math.max(0, Math.min(1, temp[i]))
     }
@@ -322,6 +436,27 @@ function glacierErosion(
   return result
 }
 
+/**
+ * 综合侵蚀处理函数
+ * 
+ * 依次应用水力侵蚀、风蚀和冰川侵蚀三种作用
+ * 每种侵蚀类型的强度由对应的参数控制
+ * 
+ * 算法流程：
+ * 1. 水力侵蚀：雨滴沿坡度流动，侵蚀地表并携带泥沙，在流速减缓处沉积
+ *    - 控制参数：水流量（0-50单位/秒），影响沟壑切割深度和宽度
+ * 
+ * 2. 风蚀：风沿水平方向搬运地表颗粒，迎风面侵蚀，背风面沉积
+ *    - 控制参数：风速（0-100m/s），影响地表颗粒剥离速率
+ * 
+ * 3. 冰川侵蚀：冰川沿山谷向下移动，刨蚀形成U型谷
+ *    - 控制参数：冰川强度（0-10级），影响U型谷的宽度和坡度
+ * 
+ * @param heightMap 地形高度图（一维Float32Array，按行优先存储）
+ * @param params 侵蚀参数对象，包含风速、水流量、冰川强度、网格大小
+ * @param steps 迭代步数，每步代表一次完整的侵蚀循环
+ * @returns 更新后的高度图数组
+ */
 export function processErosion(
   heightMap: Float32Array,
   params: ErosionParams,
@@ -330,14 +465,17 @@ export function processErosion(
   let result = new Float32Array(heightMap)
   const gridSize = params.gridSize
   
+  // 水力侵蚀：强度归一化为 0-1 范围
   if (params.waterFlow > 0) {
     result = waterErosion(result, gridSize, params.waterFlow / 50, steps)
   }
   
+  // 风蚀：强度归一化为 0-1 范围
   if (params.windSpeed > 0) {
     result = windErosion(result, gridSize, params.windSpeed / 100, steps)
   }
   
+  // 冰川侵蚀：强度归一化为 0-1 范围
   if (params.glacierStrength > 0) {
     result = glacierErosion(result, gridSize, params.glacierStrength / 10, steps)
   }
