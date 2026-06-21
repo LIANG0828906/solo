@@ -1,0 +1,4 @@
+{
+  "watch": ["api/", "src/server/"],
+  "exec": "tsx api/server.ts"
+}
