@@ -1,0 +1,161 @@
+.hudPanel {
+  position: fixed;
+  top: 20px;
+  left: 20px;
+  padding: 18px 20px;
+  min-width: 280px;
+  max-width: 340px;
+  width: auto;
+  z-index: 30;
+}
+
+.hudHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.levelBadge {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  color: #FFD700;
+  letter-spacing: 1px;
+}
+
+.stepsText {
+  font-family: var(--font-display);
+  font-size: 16px;
+  color: var(--text-secondary);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hudContent {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.controlsHint {
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.6;
+  padding-top: 8px;
+  border-top: 1px dashed rgba(255,255,255,0.08);
+  margin-top: 4px;
+}
+
+.controlsHintError {
+  color: var(--accent-red);
+}
+
+.buttonRow {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.angleSliderContainer {
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.03);
+}
+
+.angleLabel {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  margin-bottom: 8px;
+  color: var(--text-secondary);
+}
+
+.angleValue {
+  font-family: var(--font-display);
+  font-size: 15px;
+  color: var(--accent-gold);
+  font-weight: 700;
+}
+
+.sliderInput {
+  width: 100%;
+  accent-color: var(--accent-gold);
+  cursor: pointer;
+}
+
+.statusMessage {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 50;
+  padding: 18px 32px;
+  border-radius: 16px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-shadow: 0 0 20px currentColor;
+  animation: fadeInScale 0.4s ease-out;
+  pointer-events: none;
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+.mobileDialWrapper {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20px;
+  background: linear-gradient(transparent, rgba(15,15,30,0.95));
+  z-index: 40;
+}
+
+.dialCanvas {
+  display: block;
+  margin: 0 auto;
+  touch-action: none;
+}
+
+@media (max-width: 768px) {
+  .hudPanel {
+    top: 0;
+    left: 0;
+    right: 0;
+    min-width: 100%;
+    max-width: 100%;
+    border-radius: 0;
+    border-left: none;
+    border-right: none;
+    border-top: none;
+    padding: 14px 16px;
+  }
+
+  .levelBadge {
+    font-size: 18px;
+  }
+
+  .stepsText {
+    font-size: 14px;
+  }
+
+  .statusMessage {
+    font-size: 20px;
+    padding: 14px 24px;
+  }
+}
