@@ -1,70 +1,121 @@
-import type { Bookmark } from './types';
+import type { Bookmark, BookmarkTreeNode } from './types';
 
-export function parseBookmarks(html: string): Bookmark[] {
-  const parser = new DOMParser();
-  const doc = parser.parseFromString(html, 'text/html');
+function flattenTree(nodes: BookmarkTreeNode[]): Bookmark[] {
   const bookmarks: Bookmark[] = [];
+  const seen = new Set<string>();
 
-  const extractBookmarks = (container: Element): void => {
-    const anchors = container.querySelectorAll('a');
-    const dtElements = container.querySelectorAll(':scope > dt');
-
-    dtElements.forEach((dt) => {
-      const anchor = dt.querySelector('a');
-      if (anchor) {
-        const title = anchor.textContent?.trim() || '无标题';
-        const url = anchor.getAttribute('href') || '';
-        const addedAt = anchor.getAttribute('add_date') 
-          ? parseInt(anchor.getAttribute('add_date')!, 10) * 1000 
-          : Date.now();
-
-        if (url && url.startsWith('http')) {
-          bookmarks.push({
-            id: crypto.randomUUID(),
-            title,
-            url,
-            categories: [],
-            addedAt,
-          });
-        }
+  const traverse = (nodes: BookmarkTreeNode[]): void => {
+    nodes.forEach((node) => {
+      if (node.type === 'bookmark' && node.url) {
+        if (seen.has(node.url)) return;
+        seen.add(node.url);
+        bookmarks.push({
+          id: node.id,
+          title: node.title,
+          url: node.url,
+          categories: [],
+          addedAt: node.addedAt,
+        });
       }
-
-      const dl = dt.querySelector(':scope > dl');
-      if (dl) {
-        extractBookmarks(dl);
+      if (node.children && node.children.length > 0) {
+        traverse(node.children);
       }
     });
+  };
 
-    if (dtElements.length === 0) {
-      anchors.forEach((anchor) => {
-        const title = anchor.textContent?.trim() || '无标题';
-        const url = anchor.getAttribute('href') || '';
-        const addedAt = anchor.getAttribute('add_date')
-          ? parseInt(anchor.getAttribute('add_date')!, 10) * 1000
-          : Date.now();
+  traverse(nodes);
+  return bookmarks;
+}
 
-        if (url && url.startsWith('http')) {
-          bookmarks.push({
-            id: crypto.randomUUID(),
-            title,
-            url,
-            categories: [],
-            addedAt,
-          });
+function parseTreeNode(element: Element): BookmarkTreeNode | null {
+  const h3 = element.querySelector(':scope > h3');
+  const anchor = element.querySelector(':scope > a');
+
+  if (h3) {
+    const folderTitle = h3.textContent?.trim() || '未命名文件夹';
+    const addDate = h3.getAttribute('add_date');
+    const folderNode: BookmarkTreeNode = {
+      id: crypto.randomUUID(),
+      title: folderTitle,
+      type: 'folder',
+      addedAt: addDate ? parseInt(addDate, 10) * 1000 : Date.now(),
+      children: [],
+    };
+
+    const dl = element.querySelector(':scope > dl');
+    if (dl) {
+      const dtElements = dl.querySelectorAll(':scope > dt');
+      dtElements.forEach((dt) => {
+        const child = parseTreeNode(dt);
+        if (child) {
+          folderNode.children.push(child);
         }
       });
     }
-  };
 
-  const dlElements = doc.querySelectorAll('dl');
-  dlElements.forEach((dl) => {
-    extractBookmarks(dl);
-  });
+    return folderNode;
+  }
 
-  const seen = new Set<string>();
-  return bookmarks.filter((b) => {
-    if (seen.has(b.url)) return false;
-    seen.add(b.url);
-    return true;
-  });
+  if (anchor) {
+    const title = anchor.textContent?.trim() || '无标题';
+    const url = anchor.getAttribute('href') || '';
+    const addDate = anchor.getAttribute('add_date');
+
+    if (url && url.startsWith('http')) {
+      return {
+        id: crypto.randomUUID(),
+        title,
+        type: 'bookmark',
+        url,
+        addedAt: addDate ? parseInt(addDate, 10) * 1000 : Date.now(),
+        children: [],
+      };
+    }
+  }
+
+  return null;
 }
+
+export function parseBookmarkTree(html: string): BookmarkTreeNode[] {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const rootNodes: BookmarkTreeNode[] = [];
+
+  const rootDl = doc.querySelector('dl');
+  if (!rootDl) return rootNodes;
+
+  const dtElements = rootDl.querySelectorAll(':scope > dt');
+  dtElements.forEach((dt) => {
+    const node = parseTreeNode(dt);
+    if (node) {
+      rootNodes.push(node);
+    }
+  });
+
+  const topLevelAnchors = rootDl.querySelectorAll(':scope > a');
+  topLevelAnchors.forEach((anchor) => {
+    const title = anchor.textContent?.trim() || '无标题';
+    const url = anchor.getAttribute('href') || '';
+    const addDate = anchor.getAttribute('add_date');
+
+    if (url && url.startsWith('http')) {
+      rootNodes.push({
+        id: crypto.randomUUID(),
+        title,
+        type: 'bookmark',
+        url,
+        addedAt: addDate ? parseInt(addDate, 10) * 1000 : Date.now(),
+        children: [],
+      });
+    }
+  });
+
+  return rootNodes;
+}
+
+export function parseBookmarks(html: string): Bookmark[] {
+  const tree = parseBookmarkTree(html);
+  return flattenTree(tree);
+}
+
+export { flattenTree };

@@ -157,12 +157,27 @@
 }
 
 @media (max-width: 768px) {
-  .panel {
-    width: 100vw;
-    border-left: none;
+  .overlay {
+    display: block;
+    z-index: 49;
   }
 
-  .overlay {
-    display: none;
+  .overlay.hidden {
+    display: block;
+  }
+
+  .panel {
+    width: 100vw;
+    height: 100vh;
+    top: 0;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    border-left: none;
+    z-index: 60;
+  }
+
+  .panel.hidden {
+    transform: translateY(100%);
   }
 }

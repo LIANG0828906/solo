@@ -7,6 +7,15 @@ export interface Bookmark {
   addedAt?: number;
 }
 
+export interface BookmarkTreeNode {
+  id: string;
+  title: string;
+  type: 'folder' | 'bookmark';
+  url?: string;
+  addedAt?: number;
+  children: BookmarkTreeNode[];
+}
+
 export interface CategoryRule {
   id: string;
   name: string;
@@ -18,10 +27,12 @@ export interface CategoryRule {
 export interface CategoryNode {
   name: string;
   bookmarks: Bookmark[];
+  children: CategoryNode[];
 }
 
 export interface BookmarkState {
   bookmarkTree: CategoryNode[];
+  bookmarkFolderTree: BookmarkTreeNode[];
   allBookmarks: Bookmark[];
   searchKeyword: string;
   selectedCategory: string | null;

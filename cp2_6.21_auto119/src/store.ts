@@ -1,11 +1,26 @@
 import { create } from 'zustand';
-import type { Bookmark, BookmarkState, BookmarkActions, CategoryRule } from './types';
-import { parseBookmarks } from './parser';
+import type { Bookmark, BookmarkState, BookmarkActions, CategoryRule, CategoryNode } from './types';
+import { parseBookmarks, parseBookmarkTree } from './parser';
 import { classifyBookmarks, defaultRules } from './ruleEngine';
+
+function getAllCategoryNames(tree: CategoryNode[]): string[] {
+  const names: string[] = [];
+  const traverse = (nodes: CategoryNode[]) => {
+    nodes.forEach((node) => {
+      names.push(node.name);
+      if (node.children && node.children.length > 0) {
+        traverse(node.children);
+      }
+    });
+  };
+  traverse(tree);
+  return names;
+}
 
 export const useBookmarkStore = create<BookmarkState & BookmarkActions>()(
   (set, get) => ({
     bookmarkTree: [],
+    bookmarkFolderTree: [],
     allBookmarks: [],
     searchKeyword: '',
     selectedCategory: null,
@@ -18,6 +33,7 @@ export const useBookmarkStore = create<BookmarkState & BookmarkActions>()(
 
     importBookmarks: (html: string) => {
       const start = performance.now();
+      const folderTree = parseBookmarkTree(html);
       const parsed = parseBookmarks(html);
       const parseTime = performance.now() - start;
       
@@ -32,6 +48,7 @@ export const useBookmarkStore = create<BookmarkState & BookmarkActions>()(
       set({
         allBookmarks: bookmarks,
         bookmarkTree: tree,
+        bookmarkFolderTree: folderTree,
         importCount: parsed.length,
         selectedBookmark: null,
         showDetailPanel: false,
@@ -175,6 +192,6 @@ export const useFilteredBookmarks = () => {
 
 export const useCategories = () => {
   return useBookmarkStore((state) =>
-    state.bookmarkTree.map((node) => node.name)
+    getAllCategoryNames(state.bookmarkTree)
   );
 };

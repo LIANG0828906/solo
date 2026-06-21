@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useCallback } from 'react';
 import { X, ExternalLink } from 'lucide-react';
 import type { Bookmark } from '@/types';
 import { useBookmarkStore } from '@/store';
@@ -14,19 +14,39 @@ const highlightText = (text: string, keyword: string): React.ReactNode => {
 
   const lowerKeyword = keyword.toLowerCase();
   const lowerText = text.toLowerCase();
-  const index = lowerText.indexOf(lowerKeyword);
+  const keywordLength = keyword.length;
 
-  if (index === -1) return text;
+  const indices: number[] = [];
+  let startIndex = 0;
+  while (startIndex < lowerText.length) {
+    const idx = lowerText.indexOf(lowerKeyword, startIndex);
+    if (idx === -1) break;
+    indices.push(idx);
+    startIndex = idx + keywordLength;
+  }
 
-  return (
-    <>
-      {text.slice(0, index)}
-      <mark className={styles.highlight}>
-        {text.slice(index, index + keyword.length)}
+  if (indices.length === 0) return text;
+
+  const parts: React.ReactNode[] = [];
+  let lastEnd = 0;
+
+  indices.forEach((index, i) => {
+    if (index > lastEnd) {
+      parts.push(text.slice(lastEnd, index));
+    }
+    parts.push(
+      <mark key={`${index}-${i}`} className={styles.highlight}>
+        {text.slice(index, index + keywordLength)}
       </mark>
-      {text.slice(index + keyword.length)}
-    </>
-  );
+    );
+    lastEnd = index + keywordLength;
+  });
+
+  if (lastEnd < text.length) {
+    parts.push(text.slice(lastEnd));
+  }
+
+  return <>{parts}</>;
 };
 
 const truncateUrl = (url: string, maxLength: number = 50): string => {
@@ -47,6 +67,21 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = React.memo(({ bookmark,
   const setShowDetailPanel = useBookmarkStore((state) => state.setShowDetailPanel);
   const deleteBookmark = useBookmarkStore((state) => state.deleteBookmark);
   const [isDeleting, setIsDeleting] = useState(false);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const handleTransitionEnd = useCallback(
+    (e: React.TransitionEvent<HTMLDivElement>) => {
+      if (
+        isDeleting &&
+        (e.propertyName === 'transform' || e.propertyName === 'opacity')
+      ) {
+        if (cardRef.current && cardRef.current.classList.contains(styles.slideOut)) {
+          deleteBookmark(bookmark.id);
+        }
+      }
+    },
+    [isDeleting, bookmark.id, deleteBookmark]
+  );
 
   const handleClick = () => {
     if (isDeleting) return;
@@ -56,10 +91,9 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = React.memo(({ bookmark,
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
+    e.preventDefault();
+    if (isDeleting) return;
     setIsDeleting(true);
-    setTimeout(() => {
-      deleteBookmark(bookmark.id);
-    }, 300);
   };
 
   const handleOpenLink = (e: React.MouseEvent) => {
@@ -77,12 +111,16 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = React.memo(({ bookmark,
     [bookmark.url, searchKeyword]
   );
 
+  const cardClassName = `${styles.card} ${isDeleting ? styles.slideOut : ''}`;
+
   return (
     <div
-      className={`${styles.card} ${isDeleting ? styles.deleting : ''}`}
+      ref={cardRef}
+      className={cardClassName}
       onClick={handleClick}
       role="button"
       tabIndex={0}
+      onTransitionEnd={handleTransitionEnd}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault();
