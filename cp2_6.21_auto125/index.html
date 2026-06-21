@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>三维晶体生长模拟器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0a0a2e;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      color: #ffffff;
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    #stats {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      padding: 16px 20px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      font-size: 13px;
+      line-height: 1.8;
+      z-index: 10;
+      min-width: 180px;
+    }
+
+    #stats .label {
+      color: rgba(255, 255, 255, 0.7);
+      display: inline-block;
+      width: 90px;
+    }
+
+    #stats .value {
+      color: #88ccff;
+      font-weight: 600;
+    }
+
+    #stats .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+
+    #stats .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #4a9eff, #9b59ff);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    #hint {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      padding: 10px 16px;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 8px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      z-index: 10;
+    }
+
+    #hint kbd {
+      background: rgba(255, 255, 255, 0.15);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-family: monospace;
+      font-size: 11px;
+    }
+
+    #gui-container {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      z-index: 10;
+    }
+
+    #gui-container .dg {
+      width: 280px !important;
+    }
+
+    #gui-container .dg.main {
+      background: rgba(255, 255, 255, 0.1) !important;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border-radius: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      overflow: hidden;
+    }
+
+    #gui-container .dg.main .close-button {
+      background: rgba(255, 255, 255, 0.05) !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    #gui-container .dg .c .slider {
+      background: linear-gradient(90deg, #4a9eff, #9b59ff) !important;
+      height: 4px;
+      border-radius: 2px;
+    }
+
+    #gui-container .dg .c .slider-fg {
+      background: transparent !important;
+    }
+
+    #gui-container .dg .c .slider:hover .slider-knob {
+      transform: scale(1.2);
+    }
+
+    #gui-container .dg .slider-knob {
+      width: 16px !important;
+      height: 16px !important;
+      background: #ffffff !important;
+      border-radius: 50%;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      transition: transform 0.2s ease;
+      top: -6px !important;
+    }
+
+    #gui-container .dg li:not(.folder) {
+      background: transparent !important;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      height: auto !important;
+      padding: 10px 0;
+    }
+
+    #gui-container .dg .property-name {
+      color: rgba(255, 255, 255, 0.9) !important;
+      width: 40% !important;
+      padding-left: 12px !important;
+      font-size: 12px;
+    }
+
+    #gui-container .dg .c {
+      width: 55% !important;
+      margin-right: 5% !important;
+    }
+
+    #gui-container .dg .has-slider input[type="text"] {
+      display: none !important;
+    }
+
+    #export-btn {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #4a9eff, #9b59ff);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      z-index: 10;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 12px rgba(74, 158, 255, 0.3);
+    }
+
+    #export-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(74, 158, 255, 0.4);
+    }
+
+    #export-btn:active {
+      transform: translateY(0);
+    }
+
+    @media (max-width: 768px) {
+      #gui-container {
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+      }
+
+      #gui-container .dg {
+        width: 100% !important;
+      }
+
+      #gui-container .dg.main {
+        border-radius: 0;
+        height: 80px;
+      }
+
+      #gui-container .dg.main > ul {
+        display: flex;
+        flex-direction: row;
+        overflow-x: auto;
+      }
+
+      #gui-container .dg li:not(.folder) {
+        flex: 1;
+        min-width: 200px;
+        padding: 8px 12px;
+      }
+
+      #stats {
+        top: 10px;
+        left: 10px;
+        padding: 10px 14px;
+        font-size: 11px;
+      }
+
+      #export-btn {
+        bottom: 100px;
+        right: 10px;
+        padding: 10px 18px;
+        font-size: 12px;
+      }
+
+      #hint {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="stats">
+      <div><span class="label">晶面数:</span><span class="value" id="faceCount">0</span></div>
+      <div><span class="label">顶点数:</span><span class="value" id="vertexCount">0</span></div>
+      <div><span class="label">生长状态:</span><span class="value" id="growthStatus">进行中</span></div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill" style="width: 0%"></div></div>
+      <div style="text-align: center; margin-top: 4px; font-size: 11px; color: rgba(255,255,255,0.6);">
+        <span id="progressText">0%</span>
+      </div>
+    </div>
+    <div id="hint">
+      <kbd>Space</kbd> 暂停/恢复 &nbsp;|&nbsp; 鼠标拖拽旋转视角 &nbsp;|&nbsp; 滚轮缩放
+    </div>
+    <div id="gui-container"></div>
+    <button id="export-btn">导出 OBJ</button>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
