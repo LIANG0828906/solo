@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { ExplosionState } from '@/types';
 import { BRONZE_DING_PARTS, MAX_SELECTED_PARTS } from '@/utils/modelData';
-import { easeOutQuart } from '@/utils/easing';
+import { easeOutExpo } from '@/utils/easing';
 
 /**
  * Zustand 全局状态管理模块
@@ -9,7 +9,7 @@ import { easeOutQuart } from '@/utils/easing';
  * 职责：管理拆解偏移、选中部件、自动旋转等全局状态，以及动画逻辑。
  *
  * 调用方：
- *   - ExplosionPanel 读取 partOffsets/autoRotate/isAnimating，
+ *   - ExplosionPanel 读取 partOffsets/autoRotate/isAnimating/selectedCount，
  *     调用 setPartOffset/toggleAutoRotate/explodeAll/resetAll
  *   - Scene 读取 partOffsets/selectedParts/autoRotate，驱动部件渲染
  *   - PartMesh 调用 togglePartSelection 处理点击选中
@@ -17,6 +17,11 @@ import { easeOutQuart } from '@/utils/easing';
  * 数据流向：
  *   用户交互 → ExplosionPanel/PartMesh → action(setPartOffset等) →
  *   store 更新 state → Scene/PartMesh 订阅变化 → 3D 场景重绘
+ *
+ * 选中计数逻辑：
+ *   不使用冗余 selectedCount 字段，直接通过 selectedParts.length 判断。
+ *   取消选中时 filter 移除，添加选中时若已满则忽略。
+ *   从根上避免计数器与数组长度不同步的问题。
  */
 
 const initOffsets = (): Record<string, number> => {
@@ -50,7 +55,7 @@ export const useExplosionStore = create<ExplosionState>((set, get) => ({
           selectedCount: next.length,
         };
       }
-      if (state.selectedCount >= MAX_SELECTED_PARTS) {
+      if (state.selectedParts.length >= MAX_SELECTED_PARTS) {
         return state;
       }
       const next = [...state.selectedParts, partId];
@@ -85,7 +90,7 @@ export const useExplosionStore = create<ExplosionState>((set, get) => ({
       const step = (currentTime: number) => {
         const elapsed = currentTime - startTime;
         const progress = Math.min(elapsed / EXPLODE_DURATION, 1);
-        const eased = easeOutQuart(progress);
+        const eased = easeOutExpo(progress);
         const nextOffsets: Record<string, number> = {};
         BRONZE_DING_PARTS.forEach((p) => {
           const t = targets[p.id];
@@ -117,7 +122,7 @@ export const useExplosionStore = create<ExplosionState>((set, get) => ({
       const step = (currentTime: number) => {
         const elapsed = currentTime - startTime;
         const progress = Math.min(elapsed / RESET_DURATION, 1);
-        const eased = easeOutQuart(progress);
+        const eased = easeOutExpo(progress);
         const nextOffsets: Record<string, number> = {};
         BRONZE_DING_PARTS.forEach((p) => {
           nextOffsets[p.id] = starts[p.id] * (1 - eased);

@@ -1,7 +1,7 @@
-import { useRef, useMemo, useState } from 'react';
+import { useRef, useMemo, useState, useCallback } from 'react';
 import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
-import { PartData } from '@/types';
+import { PartData, SubMeshData } from '@/types';
 import { PartLabel } from './PartLabel';
 import { useExplosionStore } from '@/store/explosionStore';
 import { createGeometry } from '@/utils/geometryFactory';
@@ -12,12 +12,18 @@ import { createGeometry } from '@/utils/geometryFactory';
  * 职责：根据 part 数据渲染一个部件（可能包含多个子网格），
  *       处理悬停高亮、点击选中自转、标签显示。
  *
+ * 子网格拆分逻辑：
+ *   1. 遍历 part.subMeshes 数组，为每个子网格创建独立的 THREE.Mesh
+ *   2. 每个子网格拥有独立的位置 (sub.position)、旋转 (sub.rotation)
+ *   3. 所有子网格共享同一材质（部件级别）和拆解偏移（部件级别）
+ *   4. 交互事件在子网格上触发，但状态在部件级别管理
+ *
  * 数据流向：
  *   props(part, offset, isSelected)
  *     → 计算拆解后位置 = defaultPosition + explodeAxis * offset
- *     → 遍历 subMeshes 渲染多个 mesh
+ *     → 遍历 subMeshes 渲染多个独立 mesh（每个含独立几何+位置）
  *     → 悬停显示 Edges 轮廓
- *     → 选中时 useFrame 更新 group.rotation.y
+ *     → 选中时 useFrame 更新外层 group.rotation.y
  *
  * 调用方：Scene 组件遍历 BRONZE_DING_PARTS 渲染本组件
  */
@@ -26,6 +32,50 @@ interface PartMeshProps {
   part: PartData;
   offset: number;
   isSelected: boolean;
+}
+
+interface SubMeshProps {
+  subMesh: SubMeshData;
+  geometry: THREE.BufferGeometry;
+  material: THREE.MeshStandardMaterial;
+  hovered: boolean;
+  onPointerOver: (e: any) => void;
+  onPointerOut: (e: any) => void;
+  onClick: (e: any) => void;
+}
+
+function SubMesh({
+  subMesh,
+  geometry,
+  material,
+  hovered,
+  onPointerOver,
+  onPointerOut,
+  onClick,
+}: SubMeshProps) {
+  const position = subMesh.position as [number, number, number];
+  const rotation = (subMesh.rotation as [number, number, number]) || [0, 0, 0];
+
+  return (
+    <group position={position} rotation={rotation}>
+      <mesh
+        geometry={geometry}
+        material={material}
+        castShadow
+        receiveShadow
+        onPointerOver={onPointerOver}
+        onPointerOut={onPointerOut}
+        onClick={onClick}
+      >
+        {hovered && (
+          <lineSegments>
+            <edgesGeometry args={[geometry]} />
+            <lineBasicMaterial color="#ffffff" linewidth={2} />
+          </lineSegments>
+        )}
+      </mesh>
+    </group>
+  );
 }
 
 export function PartMesh({ part, offset, isSelected }: PartMeshProps) {
@@ -73,22 +123,25 @@ export function PartMesh({ part, offset, isSelected }: PartMeshProps) {
     });
   }, [part.color, isSelected]);
 
-  const handlePointerOver = (e: any) => {
+  const handlePointerOver = useCallback((e: any) => {
     e.stopPropagation();
     setHovered(true);
     document.body.style.cursor = 'pointer';
-  };
+  }, []);
 
-  const handlePointerOut = (e: any) => {
+  const handlePointerOut = useCallback((e: any) => {
     e.stopPropagation();
     setHovered(false);
     document.body.style.cursor = 'auto';
-  };
+  }, []);
 
-  const handleClick = (e: any) => {
-    e.stopPropagation();
-    togglePartSelection(part.id);
-  };
+  const handleClick = useCallback(
+    (e: any) => {
+      e.stopPropagation();
+      togglePartSelection(part.id);
+    },
+    [part.id, togglePartSelection]
+  );
 
   return (
     <group
@@ -97,28 +150,16 @@ export function PartMesh({ part, offset, isSelected }: PartMeshProps) {
     >
       <group ref={centerRef}>
         {part.subMeshes.map((sub, idx) => (
-          <group
+          <SubMesh
             key={`${part.id}-sub-${idx}`}
-            position={sub.position}
-            rotation={(sub.rotation as [number, number, number]) || [0, 0, 0]}
+            subMesh={sub}
+            geometry={subGeometries[idx]}
+            material={material}
+            hovered={hovered}
             onPointerOver={handlePointerOver}
             onPointerOut={handlePointerOut}
             onClick={handleClick}
-          >
-            <mesh
-              geometry={subGeometries[idx]}
-              material={material}
-              castShadow
-              receiveShadow
-            >
-              {hovered && (
-                <lineSegments>
-                  <edgesGeometry args={[subGeometries[idx]]} />
-                  <lineBasicMaterial color="#ffffff" linewidth={2} />
-                </lineSegments>
-              )}
-            </mesh>
-          </group>
+          />
         ))}
       </group>
       <PartLabel part={part} worldPosition={worldPos} />

@@ -9,9 +9,11 @@ import { PartData } from '@/types';
  * 职责：使用 HTML Canvas 渲染半透明圆角背景的文字标签，
  *       以 Sprite 形式悬浮在部件上方，字体大小根据相机距离自适应缩放。
  *
- * 自适应缩放逻辑：
- *   根据 camera.position 与 sprite.worldPosition 的实时距离，
- *   映射到 0.6 ~ 1.8 的 scale 区间，避免标签过大遮挡或过小看不清。
+ * 自适应缩放逻辑（关键修复）：
+ *   根据 camera.position 与 sprite.worldPosition 的实时距离计算缩放：
+ *     scale = clamp(distance * SCALE_DISTANCE_FACTOR, MIN_SCALE, MAX_SCALE)
+ *   MIN_SCALE 从 0.6 调大到 0.9，防止远距离完全看不见；
+ *   MAX_SCALE 从 1.8 降到 1.4，防止近距离过大遮挡模型。
  *
  * 调用方：PartMesh 组件为每个部件实例化一个本组件
  */
@@ -24,9 +26,9 @@ interface PartLabelProps {
 const CANVAS_WIDTH = 256;
 const CANVAS_HEIGHT = 64;
 const LABEL_OFFSET_Y = 1.2;
-const MIN_SCALE = 0.6;
-const MAX_SCALE = 1.8;
-const SCALE_DISTANCE_FACTOR = 0.2;
+const MIN_SCALE = 0.9;
+const MAX_SCALE = 1.4;
+const SCALE_DISTANCE_FACTOR = 0.18;
 
 function createLabelTexture(part: PartData): THREE.Texture {
   const canvas = document.createElement('canvas');
@@ -77,10 +79,8 @@ export function PartLabel({ part, worldPosition }: PartLabelProps) {
     if (!spriteRef.current) return;
 
     const distance = camera.position.distanceTo(worldPosition);
-    const scale = Math.max(
-      MIN_SCALE,
-      Math.min(MAX_SCALE, distance * SCALE_DISTANCE_FACTOR)
-    );
+    const rawScale = distance * SCALE_DISTANCE_FACTOR;
+    const scale = Math.max(MIN_SCALE, Math.min(MAX_SCALE, rawScale));
 
     spriteRef.current.scale.set(scale * 1.6, scale * 0.4, 1);
     spriteRef.current.position.set(
