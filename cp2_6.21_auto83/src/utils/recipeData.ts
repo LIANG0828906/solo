@@ -13,6 +13,7 @@ export interface RecipeStep {
 }
 
 export type CookMethod = '煮' | '蒸' | '炒' | '烤' | '拌';
+export type TimePreference = 'fast' | 'medium' | 'slow';
 
 export interface RecipeVariant {
   cookMethod: CookMethod;
@@ -356,18 +357,40 @@ export function fuzzySearchIngredient(keyword: string): Ingredient[] {
   return result;
 }
 
-export function matchRecipes(selectedIngredients: string[], cookMethod: CookMethod): Recipe[] {
+export function matchRecipes(
+  selectedIngredients: string[],
+  cookMethod: CookMethod,
+  timePreference: TimePreference = 'medium'
+): Recipe[] {
   if (selectedIngredients.length === 0) return RECIPES.slice(0, 3);
   const userSet = new Set(selectedIngredients);
+
+  const allTimes: number[] = [];
+  for (const r of RECIPES) {
+    for (const v of r.variants) allTimes.push(v.cookTimeMin);
+  }
+  const maxTime = Math.max(...allTimes);
+  const minTime = Math.min(...allTimes);
+  const timeRange = maxTime - minTime || 1;
+
   const scored = RECIPES.map(r => {
     let hits = 0;
     for (const ing of r.ingredients) if (userSet.has(ing)) hits++;
     const coverage = hits / r.ingredients.length;
     const utilization = selectedIngredients.length > 0 ? hits / selectedIngredients.length : 0;
     let score = coverage * 10 + utilization * 10;
+    const variant = r.variants.find(v => v.cookMethod === cookMethod) ?? r.variants[0];
     const hasMethod = r.variants.some(v => v.cookMethod === cookMethod);
     if (hasMethod) score += 5;
-    return { r, score, hasMethod };
+
+    const norm = (variant.cookTimeMin - minTime) / timeRange;
+    if (timePreference === 'fast') {
+      score += (1 - norm) * 4;
+    } else if (timePreference === 'slow') {
+      score += norm * 4;
+    }
+
+    return { r, score, hasMethod, time: variant.cookTimeMin };
   });
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, 3).map(x => x.r);
