@@ -140,16 +140,22 @@ class Game {
 
   private triggerScreenShake(): void {
     this.state.screenShakeDuration = 150;
-    this.state.screenShakeX = random(-3, 3);
-    this.state.screenShakeY = random(-3, 3);
+    this.state.screenShakeX = 0;
+    this.state.screenShakeY = 0;
   }
 
   private updateScreenShake(dt: number): void {
     if (this.state.screenShakeDuration > 0) {
       this.state.screenShakeDuration -= dt * 1000;
-      const intensity = Math.max(0, this.state.screenShakeDuration / 150);
-      this.state.screenShakeX = random(-3, 3) * intensity;
-      this.state.screenShakeY = random(-3, 3) * intensity;
+      if (this.state.screenShakeDuration > 0) {
+        const intensity = Math.min(1, this.state.screenShakeDuration / 75);
+        this.state.screenShakeX = (Math.random() * 2 - 1) * 3 * intensity;
+        this.state.screenShakeY = (Math.random() * 2 - 1) * 3 * intensity;
+      } else {
+        this.state.screenShakeX = 0;
+        this.state.screenShakeY = 0;
+        this.state.screenShakeDuration = 0;
+      }
     } else {
       this.state.screenShakeX = 0;
       this.state.screenShakeY = 0;
@@ -425,7 +431,10 @@ class Game {
 
   private render(): void {
     this.ctx.save();
-    this.ctx.translate(this.state.screenShakeX, this.state.screenShakeY);
+
+    if (this.state.screenShakeDuration > 0) {
+      this.ctx.translate(this.state.screenShakeX, this.state.screenShakeY);
+    }
 
     this.renderBackground();
 
@@ -437,6 +446,7 @@ class Game {
     this.scorePopups.forEach(p => p.render(this.ctx));
 
     this.ctx.restore();
+    this.ctx.setTransform(window.devicePixelRatio || 1, 0, 0, window.devicePixelRatio || 1, 0, 0);
 
     this.renderUI();
   }
