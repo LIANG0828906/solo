@@ -1,0 +1,182 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+}
+
+body {
+  background-color: #0F172A;
+  color: #F1F5F9;
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei",
+    "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+.mono-font {
+  font-family: "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+}
+
+.scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar::-webkit-scrollbar-thumb {
+  background: #475569;
+  border-radius: 3px;
+}
+.scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #64748B;
+}
+
+.card-hover {
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.card-hover:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 32px -8px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(139, 92, 246, 0.15);
+}
+
+.input-field {
+  width: 100%;
+  padding: 10px 14px;
+  background: #334155;
+  border: 1px solid #475569;
+  border-radius: 8px;
+  color: #F1F5F9;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+.input-field::placeholder {
+  color: #64748B;
+}
+.input-field:focus {
+  border-color: #8B5CF6;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+.btn-primary {
+  background: #8B5CF6;
+  color: #fff;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 14px;
+  font-weight: 500;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+.btn-primary:hover {
+  background: #7C3AED;
+  box-shadow: 0 6px 16px rgba(139, 92, 246, 0.35);
+}
+.btn-primary:active {
+  transform: scale(0.95);
+}
+.btn-primary:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-secondary {
+  background: #334155;
+  color: #F1F5F9;
+  border-radius: 8px;
+  padding: 9px 16px;
+  font-size: 14px;
+  border: 1px solid #475569;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+}
+.btn-secondary:hover {
+  background: #3F4B63;
+  border-color: #64748B;
+}
+.btn-secondary:active {
+  transform: scale(0.97);
+}
+
+.glass-nav {
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-bottom: 1px solid rgba(71, 85, 105, 0.5);
+}
+
+.divider {
+  background: linear-gradient(to right, transparent, #475569, transparent);
+  width: 1px;
+  cursor: col-resize;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+.divider:hover {
+  background: linear-gradient(to right, transparent, #8B5CF6, transparent);
+  width: 3px;
+  margin: 0 -1px;
+}
+.divider-horizontal {
+  background: linear-gradient(to bottom, transparent, #475569, transparent);
+  height: 1px;
+  cursor: row-resize;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+.divider-horizontal:hover {
+  background: linear-gradient(to bottom, transparent, #8B5CF6, transparent);
+  height: 3px;
+  margin: -1px 0;
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease both;
+}
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.modal-enter {
+  animation: modalEnter 0.3s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+@keyframes modalEnter {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.toast-enter {
+  animation: toastEnter 0.3s ease both;
+}
+.toast-leave {
+  animation: toastLeave 0.3s ease both;
+}
+@keyframes toastEnter {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes toastLeave {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(-10px); }
+}
+
+.dropzone {
+  border: 2px dashed #475569;
+  border-radius: 12px;
+  transition: border-color 0.2s ease, background 0.2s ease, border-style 0.2s ease;
+}
+.dropzone-active {
+  border-style: solid;
+  border-color: #3B82F6;
+  background: #1E3A5F;
+}
