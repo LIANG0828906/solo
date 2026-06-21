@@ -188,7 +188,14 @@ export default function App() {
   }, [])
 
   const handleSavePattern = useCallback(() => {
-    const name = state.patternName.trim() || `模式 ${state.savedPatterns.length + 1}`
+    let name = state.patternName.trim() || `模式 ${state.savedPatterns.length + 1}`
+    if (name.length > 20) {
+      name = name.slice(0, 20)
+    }
+    if (state.savedPatterns.length >= MAX_PATTERNS) {
+      alert(`模式库已满（最多${MAX_PATTERNS}个），请先删除部分模式后再保存。`)
+      return
+    }
     const pattern: SavedPattern = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       name,
@@ -198,6 +205,10 @@ export default function App() {
     }
     dispatch({ type: 'SAVE_PATTERN', pattern })
   }, [state.patternName, state.bpm, state.grid, state.savedPatterns.length])
+
+  const handleMetronomeToggle = useCallback(() => {
+    dispatch({ type: 'TOGGLE_METRONOME' })
+  }, [])
 
   const handleLoadPattern = useCallback((pattern: SavedPattern) => {
     audioEngineRef.current?.stop()
@@ -209,13 +220,44 @@ export default function App() {
     dispatch({ type: 'DELETE_PATTERN', id })
   }, [])
 
+  const drawIdleBaseline = useCallback(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const ctx = canvas.getContext('2d')
+    if (!ctx) return
+    const dpr = window.devicePixelRatio || 1
+    const rect = canvas.getBoundingClientRect()
+    const width = rect.width
+    const height = rect.height
+    if (canvas.width !== width * dpr || canvas.height !== height * dpr) {
+      canvas.width = width * dpr
+      canvas.height = height * dpr
+      ctx.scale(dpr, dpr)
+    }
+    ctx.clearRect(0, 0, width, height)
+    ctx.strokeStyle = 'rgba(0, 255, 136, 0.3)'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(0, height / 2)
+    ctx.lineTo(width, height / 2)
+    ctx.stroke()
+  }, [])
+
   useEffect(() => {
     const canvas = canvasRef.current
     const engine = audioEngineRef.current
     if (!canvas) return
-
     const ctx = canvas.getContext('2d')
     if (!ctx) return
+
+    if (!state.isPlaying) {
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current)
+        rafIdRef.current = null
+      }
+      drawIdleBaseline()
+      return
+    }
 
     const render = () => {
       const dpr = window.devicePixelRatio || 1
@@ -263,13 +305,6 @@ export default function App() {
 
         ctx.lineTo(width, height / 2)
         ctx.stroke()
-      } else {
-        ctx.strokeStyle = 'rgba(0, 255, 136, 0.3)'
-        ctx.lineWidth = 1
-        ctx.beginPath()
-        ctx.moveTo(0, height / 2)
-        ctx.lineTo(width, height / 2)
-        ctx.stroke()
       }
 
       rafIdRef.current = requestAnimationFrame(render)
@@ -279,9 +314,14 @@ export default function App() {
     return () => {
       if (rafIdRef.current !== null) {
         cancelAnimationFrame(rafIdRef.current)
+        rafIdRef.current = null
       }
     }
-  }, [])
+  }, [state.isPlaying, drawIdleBaseline])
+
+  useEffect(() => {
+    drawIdleBaseline()
+  }, [drawIdleBaseline, canvasHeight])
 
   const handleGridChange = useCallback((grid: GridData) => {
     dispatch({ type: 'SET_GRID', grid })
@@ -326,14 +366,21 @@ export default function App() {
             </div>
 
             <div className="control-group">
+              <button
+                className={`cyber-btn metronome-btn ${state.metronomeEnabled ? 'enabled' : ''}`}
+                onClick={handleMetronomeToggle}
+                title={state.metronomeEnabled ? '关闭节拍器' : '开启节拍器'}
+              >
+                {state.metronomeEnabled ? '🔊' : '🔇'} 节拍器
+              </button>
               <label className="cyber-toggle">
                 <input
                   type="checkbox"
                   checked={state.metronomeEnabled}
-                  onChange={() => dispatch({ type: 'TOGGLE_METRONOME' })}
+                  onChange={handleMetronomeToggle}
                 />
                 <span className="toggle-slider"></span>
-                <span className="toggle-label">节拍器</span>
+                <span className="toggle-label">{state.metronomeEnabled ? '开' : '关'}</span>
               </label>
             </div>
           </div>
@@ -424,14 +471,19 @@ export default function App() {
             </h2>
           </div>
           <div className="save-pattern-row">
-            <input
-              type="text"
-              className="cyber-input"
-              placeholder="输入模式名称 (最多20字符)"
-              maxLength={20}
-              value={state.patternName}
-              onChange={(e) => dispatch({ type: 'SET_PATTERN_NAME', name: e.target.value })}
-            />
+            <div className="input-wrapper">
+              <input
+                type="text"
+                className="cyber-input pattern-name-input"
+                placeholder="输入模式名称 (最多20字符)"
+                maxLength={20}
+                value={state.patternName}
+                onChange={(e) => dispatch({ type: 'SET_PATTERN_NAME', name: e.target.value })}
+              />
+              <span className={`char-counter ${state.patternName.length >= 18 ? 'warning' : ''}`}>
+                {state.patternName.length}/20
+              </span>
+            </div>
             <button
               className="cyber-btn save-btn"
               onClick={handleSavePattern}

@@ -9,6 +9,7 @@ interface BeatGridProps {
 }
 
 const CELL_SIZE = 25
+const PLAYHEAD_WIDTH = 25
 const TRACK_LABEL_WIDTH = 72
 
 export default function BeatGrid({ grid, currentCol, isPlaying, onGridChange }: BeatGridProps) {
@@ -18,20 +19,6 @@ export default function BeatGrid({ grid, currentCol, isPlaying, onGridChange }: 
   const [isShiftPressed, setIsShiftPressed] = useState(false)
   const [shiftStart, setShiftStart] = useState<{ row: number; col: number } | null>(null)
   const [shiftEnd, setShiftEnd] = useState<{ row: number; col: number } | null>(null)
-  const [cellSize, setCellSize] = useState(CELL_SIZE)
-
-  useEffect(() => {
-    const handleResize = () => {
-      if (window.innerWidth < 800) {
-        setCellSize(20)
-      } else {
-        setCellSize(CELL_SIZE)
-      }
-    }
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [])
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -114,8 +101,8 @@ export default function BeatGrid({ grid, currentCol, isPlaying, onGridChange }: 
     return row >= startR && row <= endR && col >= startC && col <= endC
   }
 
-  const gridWidth = GRID_COLS * cellSize
-  const gridHeight = GRID_ROWS * cellSize
+  const gridWidth = GRID_COLS * CELL_SIZE
+  const gridHeight = GRID_ROWS * CELL_SIZE
   const totalWidth = TRACK_LABEL_WIDTH + gridWidth
 
   return (
@@ -131,7 +118,7 @@ export default function BeatGrid({ grid, currentCol, isPlaying, onGridChange }: 
             <div
               key={track}
               className="track-label"
-              style={{ height: cellSize, lineHeight: `${cellSize}px` }}
+              style={{ height: CELL_SIZE, lineHeight: `${CELL_SIZE}px` }}
             >
               {TRACK_LABELS[track as TrackName]}
             </div>
@@ -151,8 +138,8 @@ export default function BeatGrid({ grid, currentCol, isPlaying, onGridChange }: 
                 key={`marker-${col}`}
                 className={`column-marker ${col % 4 === 0 ? 'beat-marker' : ''}`}
                 style={{
-                  width: cellSize,
-                  height: cellSize,
+                  width: CELL_SIZE,
+                  height: CELL_SIZE,
                 }}
               >
                 {col % 4 === 0 ? Math.floor(col / 4) + 1 : ''}
@@ -164,7 +151,6 @@ export default function BeatGrid({ grid, currentCol, isPlaying, onGridChange }: 
             <div key={rowIndex} className="beat-grid-row">
               {row.map((cell, colIndex) => {
                 const isActive = cell
-                const isPlayhead = isPlaying && currentCol === colIndex
                 const isBeat = colIndex % 4 === 0
                 const inShiftSel = getIsInShiftSelection(rowIndex, colIndex)
                 return (
@@ -172,14 +158,12 @@ export default function BeatGrid({ grid, currentCol, isPlaying, onGridChange }: 
                     key={`${rowIndex}-${colIndex}`}
                     className={`beat-grid-cell ${isActive ? 'active' : ''} ${isBeat ? 'beat-col' : ''} ${inShiftSel ? 'shift-select' : ''}`}
                     style={{
-                      width: cellSize,
-                      height: cellSize,
+                      width: CELL_SIZE,
+                      height: CELL_SIZE,
                     }}
                     onMouseDown={(e) => handleCellMouseDown(rowIndex, colIndex, e)}
                     onMouseEnter={() => handleCellMouseEnter(rowIndex, colIndex)}
-                  >
-                    {isPlayhead && <div className="playhead-indicator" style={{ width: cellSize, height: cellSize * GRID_ROWS }} />}
-                  </div>
+                  />
                 )
               })}
             </div>
@@ -189,9 +173,9 @@ export default function BeatGrid({ grid, currentCol, isPlaying, onGridChange }: 
             <div
               className="playhead-bar"
               style={{
-                width: cellSize,
+                width: PLAYHEAD_WIDTH,
                 height: gridHeight,
-                left: currentCol * cellSize,
+                left: currentCol * CELL_SIZE,
               }}
             />
           )}
