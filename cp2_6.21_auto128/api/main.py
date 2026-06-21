@@ -1,12 +1,14 @@
 import asyncio
 import random
 import uuid
-from fastapi import FastAPI, File, UploadFile, HTTPException
+import time
+from fastapi import FastAPI, File, UploadFile, HTTPException, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from typing import List, Dict
+from typing import List, Dict, Optional
+from enum import Enum
 
-app = FastAPI(title="会议录音转写API", version="1.0.0")
+app = FastAPI(title="会议录音转写API", version="1.0.0", description="模拟音频转写服务API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -61,6 +63,14 @@ MOCK_SENTENCES = [
 ]
 
 
+class TaskStatus(str, Enum):
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    TIMEOUT = "timeout"
+
+
 class Speaker(BaseModel):
     id: str
     name: str
@@ -84,22 +94,42 @@ class TranscriptResult(BaseModel):
 
 class UploadResponse(BaseModel):
     taskId: str
+    filename: str
+    status: TaskStatus
     message: str
 
 
 class TranscribeStatusResponse(BaseModel):
     taskId: str
-    status: str
+    status: TaskStatus
     progress: float
-    result: TranscriptResult | None = None
+    filename: str
+    createdAt: float
+    result: Optional[TranscriptResult] = None
+    error: Optional[str] = None
 
 
-transcript_tasks: Dict[str, dict] = {}
+class TaskInfo:
+    def __init__(self, task_id: str, filename: str):
+        self.task_id = task_id
+        self.filename = filename
+        self.status = TaskStatus.PENDING
+        self.progress = 0.0
+        self.result: Optional[TranscriptResult] = None
+        self.error: Optional[str] = None
+        self.created_at = time.time()
+        self.updated_at = time.time()
+
+
+transcript_tasks: Dict[str, TaskInfo] = {}
+TASK_TIMEOUT = 300
+MAX_FILE_SIZE = 50 * 1024 * 1024
+ALLOWED_EXTENSIONS = {'.mp3', '.wav'}
 
 
 def generate_mock_transcript() -> TranscriptResult:
     speaker_count = 3
-    speakers = []
+    speakers: List[Speaker] = []
 
     for i in range(speaker_count):
         speakers.append(
@@ -110,7 +140,7 @@ def generate_mock_transcript() -> TranscriptResult:
             )
         )
 
-    sentences = []
+    sentences: List[TranscriptSentence] = []
     current_time = 0.0
 
     for index, text in enumerate(MOCK_SENTENCES):
@@ -138,73 +168,175 @@ def generate_mock_transcript() -> TranscriptResult:
     )
 
 
+async def process_transcription(task_id: str):
+    task = transcript_tasks.get(task_id)
+    if not task:
+        return
+
+    try:
+        task.status = TaskStatus.PROCESSING
+        task.updated_at = time.time()
+
+        total_steps = 25
+        for i in range(total_steps):
+            await asyncio.sleep(0.08 + random.random() * 0.08)
+            task.progress = round(((i + 1) / total_steps) * 100, 1)
+            task.updated_at = time.time()
+
+            if task.progress < 30:
+                pass
+            elif task.progress < 60:
+                pass
+            else:
+                pass
+
+        result = generate_mock_transcript()
+        task.result = result
+        task.status = TaskStatus.COMPLETED
+        task.progress = 100.0
+        task.updated_at = time.time()
+
+    except asyncio.CancelledError:
+        task.status = TaskStatus.FAILED
+        task.error = "转写任务被取消"
+        task.updated_at = time.time()
+    except Exception as e:
+        task.status = TaskStatus.FAILED
+        task.error = f"转写失败: {str(e)}"
+        task.updated_at = time.time()
+
+
+def cleanup_tasks():
+    now = time.time()
+    expired_tasks = [
+        task_id
+        for task_id, task in transcript_tasks.items()
+        if now - task.created_at > TASK_TIMEOUT
+    ]
+    for task_id in expired_tasks:
+        task = transcript_tasks[task_id]
+        if task.status not in (TaskStatus.COMPLETED, TaskStatus.FAILED):
+            task.status = TaskStatus.TIMEOUT
+            task.error = "任务超时"
+        if now - task.created_at > TASK_TIMEOUT * 2:
+            del transcript_tasks[task_id]
+
+
 @app.post("/api/upload", response_model=UploadResponse)
-async def upload_audio(file: UploadFile = File(...)):
+async def upload_audio(background_tasks: BackgroundTasks, file: UploadFile = File(...)):
+    cleanup_tasks()
+
     if not file.filename:
         raise HTTPException(status_code=400, detail="未提供文件名")
 
-    if not file.filename.lower().endswith(('.mp3', '.wav')):
-        raise HTTPException(status_code=400, detail="只支持MP3和WAV格式")
+    file_ext = file.filename[file.filename.rfind('.'):].lower()
+    if file_ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(status_code=400, detail=f"不支持的文件格式，仅支持: {', '.join(ALLOWED_EXTENSIONS)}")
 
     file_size = 0
-    chunk = await file.read(1024 * 1024)
-    while chunk:
+    chunk_size = 1024 * 1024
+
+    while True:
+        chunk = await file.read(chunk_size)
+        if not chunk:
+            break
         file_size += len(chunk)
-        if file_size > 50 * 1024 * 1024:
-            raise HTTPException(status_code=400, detail="文件大小不能超过50MB")
-        chunk = await file.read(1024 * 1024)
+        if file_size > MAX_FILE_SIZE:
+            raise HTTPException(status_code=400, detail=f"文件大小不能超过{MAX_FILE_SIZE // (1024*1024)}MB")
 
     task_id = str(uuid.uuid4())
+    task_info = TaskInfo(task_id, file.filename)
+    transcript_tasks[task_id] = task_info
 
-    transcript_tasks[task_id] = {
-        "status": "pending",
-        "progress": 0,
-        "result": None,
-        "filename": file.filename,
-    }
-
-    asyncio.create_task(process_transcription(task_id))
+    background_tasks.add_task(process_transcription, task_id)
 
     return UploadResponse(
         taskId=task_id,
-        message="文件上传成功，开始转写",
+        filename=file.filename,
+        status=TaskStatus.PENDING,
+        message="文件上传成功，转写任务已创建",
     )
-
-
-async def process_transcription(task_id: str):
-    transcript_tasks[task_id]["status"] = "processing"
-
-    total_steps = 20
-    for i in range(total_steps):
-        await asyncio.sleep(0.1 + random.random() * 0.1)
-        progress = ((i + 1) / total_steps) * 100
-        transcript_tasks[task_id]["progress"] = round(progress, 1)
-
-    result = generate_mock_transcript()
-    transcript_tasks[task_id]["status"] = "completed"
-    transcript_tasks[task_id]["result"] = result
 
 
 @app.get("/api/transcribe/{task_id}", response_model=TranscribeStatusResponse)
 async def get_transcribe_status(task_id: str):
+    cleanup_tasks()
+
     task = transcript_tasks.get(task_id)
 
     if not task:
-        raise HTTPException(status_code=404, detail="任务不存在")
+        raise HTTPException(status_code=404, detail="任务不存在或已过期")
 
     return TranscribeStatusResponse(
-        taskId=task_id,
-        status=task["status"],
-        progress=task["progress"],
-        result=task["result"],
+        taskId=task.task_id,
+        status=task.status,
+        progress=task.progress,
+        filename=task.filename,
+        createdAt=task.created_at,
+        result=task.result,
+        error=task.error,
     )
+
+
+@app.get("/api/tasks")
+async def list_tasks(limit: int = 10):
+    cleanup_tasks()
+
+    tasks = sorted(
+        transcript_tasks.values(),
+        key=lambda t: t.created_at,
+        reverse=True
+    )[:limit]
+
+    return {
+        "total": len(transcript_tasks),
+        "tasks": [
+            {
+                "taskId": t.task_id,
+                "status": t.status,
+                "progress": t.progress,
+                "filename": t.filename,
+                "createdAt": t.created_at,
+            }
+            for t in tasks
+        ],
+    }
+
+
+@app.delete("/api/tasks/{task_id}")
+async def delete_task(task_id: str):
+    if task_id in transcript_tasks:
+        del transcript_tasks[task_id]
+        return {"message": "任务已删除"}
+    raise HTTPException(status_code=404, detail="任务不存在")
 
 
 @app.get("/api/health")
 async def health_check():
-    return {"status": "ok", "message": "转写服务运行中"}
+    return {
+        "status": "ok",
+        "service": "meeting-transcript-api",
+        "version": "1.0.0",
+        "activeTasks": len(transcript_tasks),
+        "timestamp": time.time(),
+    }
+
+
+@app.get("/")
+async def root():
+    return {
+        "name": "会议录音转写API",
+        "version": "1.0.0",
+        "endpoints": {
+            "upload": "POST /api/upload",
+            "status": "GET /api/transcribe/{task_id}",
+            "list": "GET /api/tasks",
+            "delete": "DELETE /api/tasks/{task_id}",
+            "health": "GET /api/health",
+        },
+    }
 
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    uvicorn.run(app, host="0.0.0.0", port=8000, log_level="info")

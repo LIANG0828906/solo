@@ -225,16 +225,22 @@
   background: #fdd835;
 }
 
-.timelineMarkerActive {
-  animation: blink 0.5s ease-in-out 2;
+.timelineMarkerBlink {
+  animation: markerBlink 0.3s ease-in-out 2;
+  z-index: 10;
+  height: 6px !important;
+  background: #ff9800 !important;
+  box-shadow: 0 0 8px rgba(255, 152, 0, 0.8);
 }
 
-@keyframes blink {
+@keyframes markerBlink {
   0%, 100% {
     opacity: 1;
+    transform: scaleY(1);
   }
   50% {
-    opacity: 0.3;
+    opacity: 0.2;
+    transform: scaleY(0.5);
   }
 }
 

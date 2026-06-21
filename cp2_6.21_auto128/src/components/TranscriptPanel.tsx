@@ -1,96 +1,87 @@
-import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useUploadStore } from '@/stores/uploadStore';
-import { useSearchStore } from '@/stores/searchStore';
+import { useVirtualList } from '@/hooks/useVirtualList';
+import { useSearch } from '@/hooks/useSearch';
 import { formatTime, formatSRTTime } from '@/utils/mockApi';
-import { useDebounce } from '@/hooks/useDebounce';
 import type { TranscriptSentence, ExportFormat } from '@/types';
 import styles from './TranscriptPanel.module.css';
 
 const ESTIMATED_SENTENCE_HEIGHT = 80;
 const VIRTUAL_THRESHOLD = 100;
-const OVERSCAN_COUNT = 5;
-const SEARCH_DEBOUNCE_MS = 100;
+const SEARCH_DELAY_MS = 100;
 
 export const TranscriptPanel: React.FC = () => {
   const { transcript, getSpeakerById, status } = useUploadStore();
-  const {
-    keyword,
-    matchedSentenceIds,
-    activeSentenceId,
-    timelineMarkers,
-    setKeyword,
-    setActiveSentence,
-  } = useSearchStore();
 
   const [showExportModal, setShowExportModal] = useState(false);
   const [exportFormat, setExportFormat] = useState<ExportFormat>('txt');
   const [exportProgress, setExportProgress] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
-  const [activeMarkerIndex, setActiveMarkerIndex] = useState<number | null>(null);
+  const [activeSentenceId, setActiveSentenceId] = useState<string | null>(null);
+  const [blinkingMarkerIndex, setBlinkingMarkerIndex] = useState<number | null>(null);
   const [searchInput, setSearchInput] = useState('');
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [containerHeight, setContainerHeight] = useState(0);
-  const [scrollTop, setScrollTop] = useState(0);
   const sentenceRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-
-  const debouncedSearch = useDebounce(searchInput, SEARCH_DEBOUNCE_MS);
+  const itemHeightCache = useRef<Map<number, number>>(new Map());
 
   const sentences = transcript?.sentences || [];
   const duration = transcript?.duration || 0;
-  const useVirtualList = sentences.length > VIRTUAL_THRESHOLD;
+  const enableVirtualList = sentences.length > VIRTUAL_THRESHOLD;
 
-  useEffect(() => {
-    setKeyword(debouncedSearch, sentences);
-  }, [debouncedSearch, sentences, setKeyword]);
-
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-
-    const resizeObserver = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setContainerHeight(entry.contentRect.height);
-      }
-    });
-
-    resizeObserver.observe(container);
-    return () => resizeObserver.disconnect();
-  }, [status]);
-
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    setScrollTop(e.currentTarget.scrollTop);
+  const searchFn = useCallback((sentence: TranscriptSentence, keyword: string) => {
+    return sentence.text.toLowerCase().includes(keyword);
   }, []);
 
-  const { startIndex, endIndex, totalHeight, offsetY } = useMemo(() => {
-    if (!useVirtualList) {
-      return {
-        startIndex: 0,
-        endIndex: sentences.length,
-        totalHeight: sentences.length * ESTIMATED_SENTENCE_HEIGHT,
-        offsetY: 0,
-      };
+  const {
+    keyword,
+    setKeyword,
+    matchedIndices,
+    isSearching,
+  } = useSearch({
+    items: sentences,
+    searchFn,
+    delay: SEARCH_DELAY_MS,
+  });
+
+  const matchedSentenceIds = useMemo(() => {
+    return matchedIndices.map((i) => sentences[i]?.id).filter(Boolean) as string[];
+  }, [matchedIndices, sentences]);
+
+  const timelineMarkers = useMemo(() => {
+    return matchedIndices.map((i) => sentences[i]?.startTime).filter((t): t is number => t !== undefined);
+  }, [matchedIndices, sentences]);
+
+  const virtualList = useVirtualList<TranscriptSentence>({
+    items: sentences,
+    estimatedItemHeight: ESTIMATED_SENTENCE_HEIGHT,
+    overscan: 8,
+  });
+
+  const {
+    visibleItems,
+    totalHeight,
+    onScroll,
+    containerRef,
+    scrollToIndex,
+    setItemHeight,
+  } = virtualList;
+
+  useEffect(() => {
+    if (keyword) {
+      setKeyword(searchInput);
     }
+  }, [searchInput, keyword, setKeyword]);
 
-    const startIndex = Math.max(0, Math.floor(scrollTop / ESTIMATED_SENTENCE_HEIGHT) - OVERSCAN_COUNT);
-    const endIndex = Math.min(
-      sentences.length,
-      Math.ceil((scrollTop + containerHeight) / ESTIMATED_SENTENCE_HEIGHT) + OVERSCAN_COUNT
-    );
-    const totalHeight = sentences.length * ESTIMATED_SENTENCE_HEIGHT;
-    const offsetY = startIndex * ESTIMATED_SENTENCE_HEIGHT;
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchInput(e.target.value);
+    setKeyword(e.target.value);
+  };
 
-    return { startIndex, endIndex, totalHeight, offsetY };
-  }, [scrollTop, containerHeight, sentences.length, useVirtualList]);
+  const highlightText = useCallback((text: string, highlightKeyword: string) => {
+    if (!highlightKeyword.trim()) return text;
 
-  const visibleSentences = useMemo(() => {
-    return sentences.slice(startIndex, endIndex);
-  }, [sentences, startIndex, endIndex]);
-
-  const highlightText = useCallback((text: string, keyword: string) => {
-    if (!keyword.trim()) return text;
-
-    const regex = new RegExp(`(${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const escapedKeyword = highlightKeyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const regex = new RegExp(`(${escapedKeyword})`, 'gi');
     const parts = text.split(regex);
 
     return parts.map((part, index) =>
@@ -104,51 +95,74 @@ export const TranscriptPanel: React.FC = () => {
     );
   }, []);
 
-  const scrollToSentence = useCallback((sentenceId: string) => {
-    const container = containerRef.current;
-    if (!container) return;
+  const triggerMarkerBlink = useCallback((markerIndex: number) => {
+    setBlinkingMarkerIndex(markerIndex);
+    setTimeout(() => {
+      setBlinkingMarkerIndex(null);
+    }, 1200);
+  }, []);
 
-    if (useVirtualList) {
+  const scrollToSentence = useCallback(
+    (sentenceId: string, markerIndex?: number) => {
       const sentenceIndex = sentences.findIndex((s) => s.id === sentenceId);
       if (sentenceIndex === -1) return;
 
-      const targetScrollTop = sentenceIndex * ESTIMATED_SENTENCE_HEIGHT - containerHeight / 3;
-      container.scrollTo({
-        top: Math.max(0, targetScrollTop),
-        behavior: 'smooth',
-      });
-    } else {
-      const element = sentenceRefs.current.get(sentenceId);
-      if (element) {
-        container.scrollTo({
-          top: element.offsetTop - container.offsetTop - 100,
-          behavior: 'smooth',
-        });
+      if (enableVirtualList) {
+        scrollToIndex(sentenceIndex, 'center');
+      } else {
+        const element = sentenceRefs.current.get(sentenceId);
+        const container = containerRef.current;
+        if (element && container) {
+          const targetTop = element.offsetTop - container.offsetTop - 100;
+          container.scrollTo({
+            top: Math.max(0, targetTop),
+            behavior: 'smooth',
+          });
+        }
       }
-    }
 
-    setActiveSentence(sentenceId);
-    setTimeout(() => setActiveSentence(null), 1000);
+      setActiveSentenceId(sentenceId);
+      setTimeout(() => setActiveSentenceId(null), 1000);
 
-    const index = matchedSentenceIds.indexOf(sentenceId);
-    if (index !== -1) {
-      setActiveMarkerIndex(index);
-      setTimeout(() => setActiveMarkerIndex(null), 1000);
-    }
-  }, [sentences, useVirtualList, containerHeight, matchedSentenceIds, setActiveSentence]);
+      if (markerIndex !== undefined) {
+        triggerMarkerBlink(markerIndex);
+      } else {
+        const idx = matchedSentenceIds.indexOf(sentenceId);
+        if (idx !== -1) {
+          triggerMarkerBlink(idx);
+        }
+      }
+    },
+    [sentences, enableVirtualList, scrollToIndex, containerRef, matchedSentenceIds, triggerMarkerBlink]
+  );
 
-  const handleTimelineClick = useCallback((markerTime: number, index: number) => {
-    const sentence = sentences.find((s) => Math.abs(s.startTime - markerTime) < 1);
-    if (sentence) {
-      scrollToSentence(sentence.id);
-      setActiveMarkerIndex(index);
-      setTimeout(() => setActiveMarkerIndex(null), 1000);
-    }
-  }, [sentences, scrollToSentence]);
+  const handleTimelineClick = useCallback(
+    (markerTime: number, markerIndex: number) => {
+      const sentenceIndex = matchedIndices[markerIndex];
+      if (sentenceIndex !== undefined) {
+        const sentence = sentences[sentenceIndex];
+        if (sentence) {
+          scrollToSentence(sentence.id, markerIndex);
+        }
+      }
+    },
+    [matchedIndices, sentences, scrollToSentence]
+  );
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchInput(e.target.value);
-  };
+  const handleSentenceRef = useCallback(
+    (sentenceId: string, index: number) => (el: HTMLDivElement | null) => {
+      if (el) {
+        sentenceRefs.current.set(sentenceId, el);
+        if (enableVirtualList && itemHeightCache.current.get(index) !== el.offsetHeight) {
+          itemHeightCache.current.set(index, el.offsetHeight);
+          setItemHeight(index, el.offsetHeight);
+        }
+      } else {
+        sentenceRefs.current.delete(sentenceId);
+      }
+    },
+    [enableVirtualList, setItemHeight]
+  );
 
   const handleExport = async () => {
     if (!transcript) return;
@@ -156,17 +170,17 @@ export const TranscriptPanel: React.FC = () => {
     setIsExporting(true);
     setExportProgress(0);
 
-    const interval = setInterval(() => {
-      setExportProgress((prev) => {
-        if (prev >= 85) {
-          clearInterval(interval);
-          return 85;
-        }
-        return prev + Math.random() * 12;
-      });
-    }, 100);
+    const steps = [
+      { progress: 20, delay: 200, label: '准备数据...' },
+      { progress: 50, delay: 300, label: '生成文件...' },
+      { progress: 80, delay: 200, label: '处理中...' },
+      { progress: 100, delay: 100, label: '完成' },
+    ];
 
-    await new Promise((resolve) => setTimeout(resolve, 600));
+    for (const step of steps) {
+      await new Promise((resolve) => setTimeout(resolve, step.delay));
+      setExportProgress(step.progress);
+    }
 
     let content = '';
     let fileName = '';
@@ -190,19 +204,18 @@ export const TranscriptPanel: React.FC = () => {
         break;
     }
 
-    clearInterval(interval);
-    setExportProgress(100);
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    downloadFile(content, fileName, mimeType);
 
     setTimeout(() => {
-      downloadFile(content, fileName, mimeType);
       setIsExporting(false);
       setShowExportModal(false);
       setExportProgress(0);
-    }, 400);
+    }, 500);
   };
 
-  const generateTXT = (sentences: TranscriptSentence[]): string => {
-    return sentences
+  const generateTXT = (sentenceList: TranscriptSentence[]): string => {
+    return sentenceList
       .map((s) => {
         const speaker = getSpeakerById(s.speakerId);
         const time = formatTime(s.startTime);
@@ -211,8 +224,8 @@ export const TranscriptPanel: React.FC = () => {
       .join('\n\n');
   };
 
-  const generateSRT = (sentences: TranscriptSentence[]): string => {
-    return sentences
+  const generateSRT = (sentenceList: TranscriptSentence[]): string => {
+    return sentenceList
       .map((s, index) => {
         const startTime = formatSRTTime(s.startTime);
         const endTime = formatSRTTime(s.endTime);
@@ -222,11 +235,13 @@ export const TranscriptPanel: React.FC = () => {
       .join('\n');
   };
 
-  const generateJSON = (transcriptData: typeof transcript): string => {
+  const generateJSON = (
+    transcriptData: NonNullable<typeof transcript>
+  ): string => {
     const data = {
-      duration: transcriptData?.duration,
-      speakers: transcriptData?.speakers,
-      sentences: transcriptData?.sentences.map((s) => ({
+      duration: transcriptData.duration,
+      speakers: transcriptData.speakers,
+      sentences: transcriptData.sentences.map((s) => ({
         id: s.id,
         speakerId: s.speakerId,
         speakerName: getSpeakerById(s.speakerId)?.name,
@@ -250,28 +265,33 @@ export const TranscriptPanel: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const setSentenceRef = useCallback((id: string) => (el: HTMLDivElement | null) => {
-    if (el) {
-      sentenceRefs.current.set(id, el);
-    } else {
-      sentenceRefs.current.delete(id);
-    }
-  }, []);
-
-  const renderSentence = (sentence: TranscriptSentence) => {
+  const renderSentence = (
+    sentence: TranscriptSentence,
+    index: number,
+    offset?: number
+  ) => {
     const speaker = getSpeakerById(sentence.speakerId);
     const isActive = activeSentenceId === sentence.id;
     const isMatch = keyword && sentence.text.toLowerCase().includes(keyword.toLowerCase());
 
+    const style: React.CSSProperties = {
+      backgroundColor: speaker?.color || '#f5f5f5',
+    };
+
+    if (offset !== undefined) {
+      style.position = 'absolute';
+      style.top = 0;
+      style.left = 0;
+      style.right = 0;
+      style.transform = `translateY(${offset}px)`;
+    }
+
     return (
       <div
         key={sentence.id}
-        ref={setSentenceRef(sentence.id)}
+        ref={handleSentenceRef(sentence.id, index)}
         className={`${styles.sentenceItem} ${isActive ? styles.sentenceActive : ''}`}
-        style={{
-          backgroundColor: speaker?.color || '#f5f5f5',
-          minHeight: useVirtualList ? ESTIMATED_SENTENCE_HEIGHT : 'auto',
-        }}
+        style={style}
         onClick={() => scrollToSentence(sentence.id)}
       >
         <div className={styles.sentenceHeader}>
@@ -289,21 +309,22 @@ export const TranscriptPanel: React.FC = () => {
   const renderVirtualList = () => {
     return (
       <div style={{ height: totalHeight, position: 'relative' }}>
-        <div style={{ transform: `translateY(${offsetY}px)` }}>
-          {visibleSentences.map((sentence) => renderSentence(sentence))}
-        </div>
+        {visibleItems.map(({ item, index, offset }) =>
+          renderSentence(item, index, offset)
+        )}
       </div>
     );
   };
 
   const renderFullList = () => {
-    return sentences.map((sentence) => renderSentence(sentence));
+    return sentences.map((sentence, index) => renderSentence(sentence, index));
   };
 
   const timelineHeight = Math.max(400, sentences.length * 12);
 
   const isLoading = status === 'uploading' || status === 'transcribing';
   const hasData = status === 'completed' && sentences.length > 0;
+  const noResults = hasData && keyword && matchedIndices.length === 0;
 
   return (
     <div className={styles.panel}>
@@ -329,7 +350,7 @@ export const TranscriptPanel: React.FC = () => {
         />
         {keyword && (
           <div className={styles.searchHint}>
-            找到 {matchedSentenceIds.length} 处匹配结果
+            {isSearching ? '搜索中...' : `找到 ${matchedIndices.length} 处匹配结果`}
           </div>
         )}
       </div>
@@ -337,8 +358,8 @@ export const TranscriptPanel: React.FC = () => {
       <div className={styles.contentWrapper}>
         <div
           className={styles.transcriptContainer}
-          ref={containerRef}
-          onScroll={handleScroll}
+          ref={containerRef as React.RefObject<HTMLDivElement>}
+          onScroll={onScroll}
         >
           {!hasData && !isLoading && (
             <div className={styles.emptyState}>
@@ -356,11 +377,11 @@ export const TranscriptPanel: React.FC = () => {
             </div>
           )}
 
-          {hasData && (
-            <>{useVirtualList ? renderVirtualList() : renderFullList()}</>
+          {hasData && !noResults && (
+            <>{enableVirtualList ? renderVirtualList() : renderFullList()}</>
           )}
 
-          {hasData && matchedSentenceIds.length === 0 && keyword && (
+          {noResults && (
             <div className={styles.noResults}>没有找到匹配的内容</div>
           )}
         </div>
@@ -373,14 +394,14 @@ export const TranscriptPanel: React.FC = () => {
           >
             {timelineMarkers.map((marker, index) => {
               const topPercent = duration > 0 ? (marker / duration) * 100 : 0;
-              const isActive = activeMarkerIndex === index;
+              const isBlinking = blinkingMarkerIndex === index;
               return (
                 <div
                   key={index}
-                  className={`${styles.timelineMarker} ${isActive ? styles.timelineMarkerActive : ''}`}
+                  className={`${styles.timelineMarker} ${isBlinking ? styles.timelineMarkerBlink : ''}`}
                   style={{ top: `${topPercent}%` }}
                   onClick={() => handleTimelineClick(marker, index)}
-                  title={formatTime(marker)}
+                  title={`${formatTime(marker)} - 第${matchedIndices[index] + 1}句`}
                 />
               );
             })}
@@ -402,7 +423,11 @@ export const TranscriptPanel: React.FC = () => {
       </div>
 
       {showExportModal && (
-        <div className={styles.modalOverlay}>
+        <div className={styles.modalOverlay} onClick={(e) => {
+          if (!isExporting && e.target === e.currentTarget) {
+            setShowExportModal(false);
+          }
+        }}>
           <div className={styles.modal}>
             <h3 className={styles.modalTitle}>导出转写结果</h3>
 
@@ -415,7 +440,9 @@ export const TranscriptPanel: React.FC = () => {
                   />
                 </div>
                 <div className={styles.progressText}>
-                  导出中... {Math.floor(exportProgress)}%
+                  {exportProgress < 100
+                    ? `导出中... ${Math.floor(exportProgress)}%`
+                    : '导出完成！'}
                 </div>
               </div>
             ) : (
@@ -478,7 +505,7 @@ export const TranscriptPanel: React.FC = () => {
                 onClick={handleExport}
                 disabled={isExporting}
               >
-                导出
+                {isExporting ? '导出中...' : '导出'}
               </button>
             </div>
           </div>
