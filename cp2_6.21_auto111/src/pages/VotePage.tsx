@@ -69,6 +69,8 @@ export default function VotePage() {
   const [error, setError] = useState<string | null>(null);
   const [clickingOptionId, setClickingOptionId] = useState<number | null>(null);
   const [justVoted, setJustVoted] = useState(false);
+  const [showVotedTip, setShowVotedTip] = useState(false);
+  const votedTipTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -95,6 +97,9 @@ export default function VotePage() {
 
     return () => {
       socket.leavePoll(id);
+      if (votedTipTimerRef.current) {
+        clearTimeout(votedTipTimerRef.current);
+      }
     };
   }, [id, setCurrentPoll, updatePollVote]);
 
@@ -103,7 +108,7 @@ export default function VotePage() {
       if (showResults) return;
       setClickingOptionId(optionId);
       toggleSelectedOption(optionId);
-      setTimeout(() => setClickingOptionId(null), 200);
+      setTimeout(() => setClickingOptionId(null), 300);
     },
     [toggleSelectedOption],
   );
@@ -119,6 +124,13 @@ export default function VotePage() {
       await submitVote(id, selectedOptionIds, getDeviceId());
       markAsVoted(id);
       setJustVoted(true);
+      setShowVotedTip(true);
+      if (votedTipTimerRef.current) {
+        clearTimeout(votedTipTimerRef.current);
+      }
+      votedTipTimerRef.current = window.setTimeout(() => {
+        setShowVotedTip(false);
+      }, 2000);
     } catch (err) {
       setError(err instanceof Error ? err.message : '投票失败');
     } finally {
@@ -224,17 +236,17 @@ export default function VotePage() {
                   key={option.id}
                   onClick={() => handleOptionClick(option.id, showResults)}
                   disabled={showResults}
-                  className={`w-full relative overflow-hidden rounded-xl border-2 transition-all duration-200
+                  className={`w-full relative overflow-hidden rounded-xl border-2 transition-all
                     ${isSelected
                       ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20'
                       : 'border-slate-200 dark:border-slate-700 hover:border-blue-300 dark:hover:border-blue-500 hover:shadow-md'
                     }
                     ${showResults && !isSelected ? 'opacity-50' : ''}
-                    ${isClicking ? 'scale-[0.98]' : 'scale-100'}
-                    ${showResults ? 'cursor-default' : 'cursor-pointer active:scale-[0.98]'}
+                    ${isClicking ? 'scale-[0.95]' : 'scale-100'}
+                    ${showResults ? 'cursor-default' : 'cursor-pointer active:scale-[0.95]'}
                   `}
                   style={{
-                    transition: 'transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s, opacity 0.3s, box-shadow 0.2s',
+                    transition: 'transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), border-color 0.2s, opacity 0.3s, box-shadow 0.2s',
                   }}
                 >
                   {showResults && (
@@ -281,6 +293,14 @@ export default function VotePage() {
                       </div>
                     )}
                   </div>
+                  {isMyVote && showVotedTip && (
+                    <div
+                      className="absolute bottom-2 left-0 right-0 text-center text-xs font-medium animate-[fadeOut_2s_ease_forwards] pointer-events-none"
+                      style={{ color }}
+                    >
+                      已投票
+                    </div>
+                  )}
                 </button>
               );
             })}
