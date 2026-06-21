@@ -131,3 +131,64 @@ export const rgbToHex = (r: number, g: number, b: number): string => {
 };
 
 export const clamp = (v: number, min: number, max: number): number => Math.max(min, Math.min(max, v));
+
+export interface Polar {
+  distance: number;
+  angleDeg: number;
+}
+
+export const svgPointToPolar = (
+  svgX: number,
+  svgY: number,
+  cx: number = CANVAS_CENTER,
+  cy: number = CANVAS_CENTER
+): Polar => {
+  const dx = svgX - cx;
+  const dy = svgY - cy;
+  const distance = Math.sqrt(dx * dx + dy * dy);
+  let angleDeg = (Math.atan2(dy, dx) * 180) / Math.PI;
+  if (angleDeg < 0) angleDeg += 360;
+  return { distance, angleDeg };
+};
+
+export const clientToSvgPoint = (
+  clientX: number,
+  clientY: number,
+  svg: SVGSVGElement
+): { x: number; y: number } => {
+  const pt = svg.createSVGPoint();
+  pt.x = clientX;
+  pt.y = clientY;
+  const ctm = svg.getScreenCTM();
+  if (!ctm) return { x: 0, y: 0 };
+  const svgPt = pt.matrixTransform(ctm.inverse());
+  return { x: svgPt.x, y: svgPt.y };
+};
+
+export const normalizeAngle = (deg: number): number => {
+  let a = deg % 360;
+  if (a < 0) a += 360;
+  return a;
+};
+
+export const findNearestSymmetryAngle = (
+  targetAngle: number,
+  config: CanvasConfig
+): { symmetryAngle: number; index: number } => {
+  if (config.symmetryMode === 'mirror') {
+    return { symmetryAngle: 0, index: 0 };
+  }
+  const count = config.symmetryCount;
+  const step = 360 / count;
+  let bestIdx = 0;
+  let bestDiff = Infinity;
+  for (let i = 0; i < count; i++) {
+    const sym = step * i + config.angleOffset;
+    let diff = Math.abs(normalizeAngle(targetAngle - sym + 180) - 180);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      bestIdx = i;
+    }
+  }
+  return { symmetryAngle: step * bestIdx + config.angleOffset, index: bestIdx };
+};
