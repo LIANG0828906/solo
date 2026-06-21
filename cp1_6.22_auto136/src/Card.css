@@ -1,0 +1,223 @@
+.card {
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  box-shadow: 2px 3px 8px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  animation: cardDrop 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes cardDrop {
+  0% {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 2px 6px 14px rgba(0, 0, 0, 0.15);
+}
+
+.card-dragging {
+  opacity: 0.6;
+  transform: rotate(2deg) scale(1.02);
+  box-shadow: 4px 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+.card-expanded {
+  background: #ffffff;
+  border-left: 3px solid #2b5a8a;
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.card-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #374151;
+  line-height: 1.4;
+  flex: 1;
+  word-break: break-word;
+}
+
+.card-delete-btn {
+  background: transparent;
+  color: #9ca3af;
+  font-size: 18px;
+  line-height: 1;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.card-delete-btn:hover {
+  background: #fee2e2;
+  color: #ef4444;
+}
+
+.card-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.card-assignee {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.card-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.card-assignee-name {
+  font-size: 12px;
+  color: #6b7280;
+  max-width: 100px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.card-due-date {
+  font-size: 11px;
+  color: #6b7280;
+  background: #f3f4f6;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.card-due-date.overdue {
+  color: #ef4444;
+  background: #fef2f2;
+  font-weight: 600;
+}
+
+.card-description {
+  font-size: 12px;
+  color: #6b7280;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow: hidden;
+}
+
+.card-edit-btn {
+  margin-top: 10px;
+  width: 100%;
+  padding: 6px 12px;
+  background: #f3f4f6;
+  color: #4b5563;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.card-edit-btn:hover {
+  background: #2b5a8a;
+  color: #fff;
+}
+
+.card-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card-edit-input {
+  padding: 8px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 13px;
+  background: #fff;
+  transition: border-color 0.2s;
+}
+
+.card-edit-input:focus {
+  border-color: #2b5a8a;
+  box-shadow: 0 0 0 2px rgba(43, 90, 138, 0.1);
+}
+
+.card-edit-textarea {
+  padding: 8px 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 13px;
+  resize: vertical;
+  background: #fff;
+  min-height: 60px;
+  transition: border-color 0.2s;
+}
+
+.card-edit-textarea:focus {
+  border-color: #2b5a8a;
+  box-shadow: 0 0 0 2px rgba(43, 90, 138, 0.1);
+}
+
+.card-edit-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+.btn-cancel {
+  padding: 6px 14px;
+  background: #f3f4f6;
+  color: #6b7280;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-cancel:hover {
+  background: #e5e7eb;
+}
+
+.btn-save {
+  padding: 6px 14px;
+  background: linear-gradient(135deg, #1e3a5f, #2b5a8a);
+  color: #fff;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-save:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(43, 90, 138, 0.3);
+}
