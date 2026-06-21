@@ -9,9 +9,15 @@ export interface MonsterState {
   x: number;
   y: number;
   speed: number;
+  measuredSpeed: number;
   currentFromId: number | null;
   currentToId: number | null;
   progress: number;
+}
+
+interface SpeedSample {
+  distance: number;
+  time: number;
 }
 
 export class MonsterAnimator {
@@ -26,6 +32,11 @@ export class MonsterAnimator {
   private progress: number = 0;
   private active: boolean = false;
   private radius: number = 10;
+  private prevX: number = 0;
+  private prevY: number = 0;
+  private speedSamples: SpeedSample[] = [];
+  private maxSpeedSamples: number = 10;
+  private smoothedSpeed: number = 0;
 
   constructor(pathManager: PathManager) {
     this.pathManager = pathManager;
@@ -48,10 +59,15 @@ export class MonsterAnimator {
       x: this.x,
       y: this.y,
       speed: this.speed,
+      measuredSpeed: this.smoothedSpeed,
       currentFromId: this.currentFromId,
       currentToId: this.currentToId,
       progress: this.progress
     };
+  }
+
+  getSmoothedSpeed(): number {
+    return this.smoothedSpeed;
   }
 
   start(): void {
@@ -63,7 +79,11 @@ export class MonsterAnimator {
 
     this.x = startNode.x;
     this.y = startNode.y;
+    this.prevX = startNode.x;
+    this.prevY = startNode.y;
     this.trail = [];
+    this.speedSamples = [];
+    this.smoothedSpeed = 0;
     this.currentFromId = startId;
     this.progress = 0;
 
@@ -88,15 +108,25 @@ export class MonsterAnimator {
   reset(): void {
     this.active = false;
     this.trail = [];
+    this.speedSamples = [];
+    this.smoothedSpeed = 0;
     this.currentFromId = null;
     this.currentToId = null;
     this.progress = 0;
     this.x = 0;
     this.y = 0;
+    this.prevX = 0;
+    this.prevY = 0;
   }
 
   update(deltaTime: number): void {
-    if (!this.active || this.currentFromId === null || this.currentToId === null) return;
+    if (!this.active || this.currentFromId === null || this.currentToId === null) {
+      this.smoothedSpeed = 0;
+      return;
+    }
+
+    this.prevX = this.x;
+    this.prevY = this.y;
 
     const segments = this.pathManager.getSegments();
     const seg = segments.find(
@@ -129,6 +159,25 @@ export class MonsterAnimator {
       this.trail.push({ x: this.x, y: this.y });
       if (this.trail.length > this.maxTrailLength) {
         this.trail.shift();
+      }
+
+      const dx = this.x - this.prevX;
+      const dy = this.y - this.prevY;
+      const dist = Math.sqrt(dx * dx + dy * dy);
+
+      if (deltaTime > 0) {
+        this.speedSamples.push({ distance: dist, time: deltaTime });
+        if (this.speedSamples.length > this.maxSpeedSamples) {
+          this.speedSamples.shift();
+        }
+
+        let totalDist = 0;
+        let totalTime = 0;
+        for (const s of this.speedSamples) {
+          totalDist += s.distance;
+          totalTime += s.time;
+        }
+        this.smoothedSpeed = totalTime > 0 ? totalDist / totalTime : 0;
       }
     }
   }
@@ -173,12 +222,12 @@ export class MonsterAnimator {
 
     const startAlpha = 0.6;
     const endAlpha = 0.1;
-    const alphaStep = (startAlpha - endAlpha) / Math.max(this.trail.length - 1, 1);
 
     for (let i = 0; i < this.trail.length; i++) {
       const point = this.trail[i];
-      const alpha = startAlpha - alphaStep * i;
-      const sizeRatio = 0.4 + 0.6 * (i / this.trail.length);
+      const t = i / Math.max(this.trail.length - 1, 1);
+      const alpha = startAlpha + (endAlpha - startAlpha) * t;
+      const sizeRatio = 0.4 + 0.6 * t;
       const r = this.radius * sizeRatio;
 
       ctx.beginPath();

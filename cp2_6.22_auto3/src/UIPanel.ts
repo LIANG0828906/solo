@@ -16,6 +16,10 @@ export class UIPanel {
   private onReset: () => void;
   private onClear: () => void;
   private lastUpdateTime: number = 0;
+  private destroyed: boolean = false;
+  private smoothDisplaySpeed: number = 0;
+  private speedEasing: number = 0.15;
+  private boundCleanup: (() => void) | null = null;
 
   constructor(
     controlPanelId: string,
@@ -41,6 +45,19 @@ export class UIPanel {
 
     this.renderControlPanel();
     this.renderInfoPanel();
+
+    this.boundCleanup = () => this.destroy();
+    window.addEventListener('beforeunload', this.boundCleanup);
+  }
+
+  destroy(): void {
+    if (this.destroyed) return;
+    this.destroyed = true;
+
+    if (this.boundCleanup) {
+      window.removeEventListener('beforeunload', this.boundCleanup);
+      this.boundCleanup = null;
+    }
   }
 
   private renderControlPanel(): void {
@@ -100,6 +117,10 @@ export class UIPanel {
   }
 
   update(state: MonsterState, nodeCount: number, isActive: boolean, currentTime: number): void {
+    if (this.destroyed) return;
+
+    this.smoothDisplaySpeed += (state.measuredSpeed - this.smoothDisplaySpeed) * this.speedEasing;
+
     if (currentTime - this.lastUpdateTime >= 1000) {
       this.lastUpdateTime = currentTime;
 
@@ -109,7 +130,7 @@ export class UIPanel {
       const statusEl = this.infoPanel.querySelector('#infoStatus') as HTMLElement;
       const nodeCountEl = this.infoPanel.querySelector('#infoNodeCount') as HTMLElement;
 
-      if (speedEl) speedEl.textContent = state.speed.toFixed(2);
+      if (speedEl) speedEl.textContent = this.smoothDisplaySpeed.toFixed(2);
       if (posXEl) posXEl.textContent = Math.round(state.x).toString();
       if (posYEl) posYEl.textContent = Math.round(state.y).toString();
       if (statusEl) statusEl.textContent = isActive ? '移动中' : '待机';

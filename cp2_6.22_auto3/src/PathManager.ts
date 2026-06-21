@@ -1,3 +1,11 @@
+export type FlowPointColor = 'purple' | 'cyan' | 'mixed';
+
+export interface FlowConfig {
+  spacing: number;
+  speed: number;
+  color: FlowPointColor;
+}
+
 export interface PathNode {
   id: number;
   x: number;
@@ -17,6 +25,19 @@ export class PathManager {
   private nextId: number = 1;
   private startNodeId: number | null = null;
   private flowOffset: number = 0;
+  private flowConfig: FlowConfig = {
+    spacing: 50,
+    speed: 80,
+    color: 'mixed'
+  };
+
+  setFlowConfig(config: Partial<FlowConfig>): void {
+    this.flowConfig = { ...this.flowConfig, ...config };
+  }
+
+  getFlowConfig(): FlowConfig {
+    return { ...this.flowConfig };
+  }
 
   addNode(x: number, y: number, parentId?: number, probability?: number): number {
     const id = this.nextId++;
@@ -157,8 +178,20 @@ export class PathManager {
     };
   }
 
-  updateFlow(deltaTime: number, speed: number = 80): void {
-    this.flowOffset = (this.flowOffset + deltaTime * speed) % 50;
+  getNodeGlowColor(id: number): { fill: string; glow: string } {
+    const node = this.nodes.get(id);
+    if (!node) {
+      return { fill: 'rgba(180, 120, 255, 0.95)', glow: 'rgba(180, 120, 255, 0.9)' };
+    }
+    if (node.isBranch) {
+      return { fill: 'rgba(60, 180, 255, 0.9)', glow: 'rgba(100, 220, 255, 0.9)' };
+    }
+    return { fill: 'rgba(140, 80, 220, 0.95)', glow: 'rgba(180, 120, 255, 0.9)' };
+  }
+
+  updateFlow(deltaTime: number): void {
+    const { spacing, speed } = this.flowConfig;
+    this.flowOffset = (this.flowOffset + deltaTime * speed) % spacing;
   }
 
   draw(ctx: CanvasRenderingContext2D): void {
@@ -193,9 +226,10 @@ export class PathManager {
 
   private drawFlowPoints(ctx: CanvasRenderingContext2D): void {
     const segments = this.getSegments();
-    const spacing = 50;
+    const { spacing, color } = this.flowConfig;
 
-    for (const seg of segments) {
+    for (let si = 0; si < segments.length; si++) {
+      const seg = segments[si];
       const from = this.nodes.get(seg.fromId);
       const to = this.nodes.get(seg.toId);
       if (!from || !to) continue;
@@ -204,6 +238,19 @@ export class PathManager {
       const dy = to.y - from.y;
       const len = Math.sqrt(dx * dx + dy * dy);
       if (len < 1) continue;
+
+      let fillRgba: string;
+      let glowRgba: string;
+      if (color === 'purple') {
+        fillRgba = 'rgba(180, 140, 255, ';
+        glowRgba = 'rgba(180, 140, 255, ';
+      } else if (color === 'cyan') {
+        fillRgba = 'rgba(120, 220, 255, ';
+        glowRgba = 'rgba(120, 220, 255, ';
+      } else {
+        fillRgba = si % 2 === 0 ? 'rgba(180, 140, 255, ' : 'rgba(120, 220, 255, ';
+        glowRgba = fillRgba;
+      }
 
       const numPoints = Math.ceil(len / spacing);
       for (let i = 0; i <= numPoints; i++) {
@@ -216,8 +263,8 @@ export class PathManager {
         const glow = 0.5 + 0.5 * Math.sin((t + this.flowOffset * 0.01) * Math.PI * 2);
         ctx.beginPath();
         ctx.arc(px, py, 3 + glow, 0, Math.PI * 2);
-        ctx.fillStyle = `rgba(180, 140, 255, ${0.7 + glow * 0.3})`;
-        ctx.shadowColor = 'rgba(180, 140, 255, 0.9)';
+        ctx.fillStyle = `${fillRgba}${0.7 + glow * 0.3})`;
+        ctx.shadowColor = `${glowRgba}0.9)`;
         ctx.shadowBlur = 10 + glow * 6;
         ctx.fill();
       }

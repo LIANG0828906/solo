@@ -8,6 +8,8 @@ interface Particle {
   life: number;
   maxLife: number;
   startRadius: number;
+  colorRgba: string;
+  glowRgba: string;
 }
 
 const canvas = document.getElementById('gameCanvas') as HTMLCanvasElement;
@@ -43,14 +45,22 @@ let selectedNodeId: number | null = null;
 let draggingNodeId: number | null = null;
 let particles: Particle[] = [];
 let lastFrameTime: number = performance.now();
+let particleLifetime: number = 0.3;
 
-function spawnParticle(x: number, y: number): void {
+function setParticleLifetime(seconds: number): void {
+  particleLifetime = seconds;
+}
+
+function spawnParticle(x: number, y: number, nodeId: number): void {
+  const colors = pathManager.getNodeGlowColor(nodeId);
   particles.push({
     x,
     y,
-    life: 0.3,
-    maxLife: 0.3,
-    startRadius: 8
+    life: particleLifetime,
+    maxLife: particleLifetime,
+    startRadius: 8,
+    colorRgba: colors.fill,
+    glowRgba: colors.glow
   });
 }
 
@@ -69,10 +79,13 @@ function drawParticles(): void {
     const radius = p.startRadius * t;
     const alpha = 0.8 * t;
 
+    const baseColor = p.colorRgba.replace(/[\d.]+\)$/, `${alpha})`);
+    const baseGlow = p.glowRgba.replace(/[\d.]+\)$/, `${Math.min(alpha * 1.2, 1)})`);
+
     ctx.beginPath();
     ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
-    ctx.fillStyle = `rgba(180, 120, 255, ${alpha})`;
-    ctx.shadowColor = 'rgba(180, 120, 255, 0.8)';
+    ctx.fillStyle = baseColor;
+    ctx.shadowColor = baseGlow;
     ctx.shadowBlur = 10;
     ctx.fill();
   }
@@ -141,7 +154,7 @@ canvas.addEventListener('mousemove', (e) => {
 
   if (draggingNodeId !== null) {
     pathManager.setNodePosition(draggingNodeId, x, y);
-    spawnParticle(x, y);
+    spawnParticle(x, y, draggingNodeId);
   }
 });
 
@@ -198,5 +211,7 @@ if (pathManager.getNodeCount() === 0) {
   pathManager.addNode(cx + 200, cy - 100, n3, 0.5);
   pathManager.addNode(cx + 200, cy + 100, n3, 0.5);
 }
+
+setParticleLifetime(0.3);
 
 requestAnimationFrame(frame);
