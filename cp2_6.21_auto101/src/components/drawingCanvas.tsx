@@ -180,7 +180,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>((
     ctx.fillStyle = paperBg;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    drawPaperNoise(ctx, paperConfig.noiseOpacity);
+    drawPaperTexture(ctx, paperConfig);
 
     const strokes = analyzerRef.current?.getStrokes() ?? [];
     const currentStroke = analyzerRef.current?.getCurrentStroke();
@@ -211,18 +211,114 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>((
     }
   }, [paperConfig, inkDepth, showCompare, comparePosition]);
 
-  const drawPaperNoise = (ctx: CanvasRenderingContext2D, opacity: number) => {
-    if (opacity <= 0) return;
+  const drawPaperTexture = (ctx: CanvasRenderingContext2D, config: typeof PAPER_PRESETS.rice) => {
+    if (config.noiseOpacity <= 0 && !config.goldSpots) return;
+
     const imageData = ctx.createImageData(CANVAS_WIDTH, CANVAS_HEIGHT);
     const data = imageData.data;
+
+    const bgR = parseInt(config.backgroundColor.substr(1, 2), 16);
+    const bgG = parseInt(config.backgroundColor.substr(3, 2), 16);
+    const bgB = parseInt(config.backgroundColor.substr(5, 2), 16);
+
     for (let i = 0; i < data.length; i += 4) {
-      const noise = (Math.random() - 0.5) * 30;
-      data[i] = 245 + noise;
-      data[i + 1] = 240 + noise;
-      data[i + 2] = 232 + noise;
-      data[i + 3] = Math.floor(opacity * 255);
+      let noise: number;
+      
+      if (config.textureType === 'rough') {
+        const baseNoise = (Math.random() - 0.5) * 40;
+        const fineNoise = (Math.random() - 0.5) * 15;
+        noise = baseNoise + fineNoise;
+      } else if (config.textureType === 'splotch') {
+        noise = (Math.random() - 0.5) * 20;
+      } else {
+        noise = (Math.random() - 0.5) * 25;
+      }
+
+      data[i] = Math.min(255, Math.max(0, bgR + noise));
+      data[i + 1] = Math.min(255, Math.max(0, bgG + noise * 0.9));
+      data[i + 2] = Math.min(255, Math.max(0, bgB + noise * 0.8));
+      data[i + 3] = Math.floor(config.noiseOpacity * 255);
     }
+
     ctx.putImageData(imageData, 0, 0);
+
+    if (config.textureType === 'rough' && config.fiberDensity > 0) {
+      const fiberCount = Math.floor(CANVAS_WIDTH * CANVAS_HEIGHT * config.fiberDensity * 0.0003);
+      ctx.save();
+      ctx.strokeStyle = `rgba(${bgR - 30}, ${bgG - 35}, ${bgB - 40}, 0.12)`;
+      ctx.lineCap = 'round';
+      
+      for (let i = 0; i < fiberCount; i++) {
+        const x = Math.random() * CANVAS_WIDTH;
+        const y = Math.random() * CANVAS_HEIGHT;
+        const length = 15 + Math.random() * 40;
+        const angle = (Math.random() - 0.5) * Math.PI * 0.3 + Math.random() * Math.PI;
+        const width = 0.3 + Math.random() * 0.8;
+        
+        ctx.beginPath();
+        ctx.lineWidth = width;
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + Math.cos(angle) * length, y + Math.sin(angle) * length);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    if (config.textureType === 'fine' && config.fiberDensity > 0) {
+      const fiberCount = Math.floor(CANVAS_WIDTH * CANVAS_HEIGHT * config.fiberDensity * 0.00015);
+      ctx.save();
+      ctx.strokeStyle = `rgba(${bgR - 20}, ${bgG - 22}, ${bgB - 25}, 0.08)`;
+      ctx.lineCap = 'round';
+      
+      for (let i = 0; i < fiberCount; i++) {
+        const x = Math.random() * CANVAS_WIDTH;
+        const y = Math.random() * CANVAS_HEIGHT;
+        const length = 8 + Math.random() * 20;
+        const angle = (Math.random() - 0.5) * Math.PI * 0.2;
+        const width = 0.2 + Math.random() * 0.5;
+        
+        ctx.beginPath();
+        ctx.lineWidth = width;
+        ctx.moveTo(x, y);
+        ctx.lineTo(x + length, y + Math.sin(angle) * length * 0.3);
+        ctx.stroke();
+      }
+      ctx.restore();
+    }
+
+    if (config.goldSpots && config.goldSpots > 0) {
+      ctx.save();
+      for (let i = 0; i < config.goldSpots; i++) {
+        const x = Math.random() * CANVAS_WIDTH;
+        const y = Math.random() * CANVAS_HEIGHT;
+        const size = 1.5 + Math.random() * 4;
+        const opacity = 0.3 + Math.random() * 0.5;
+        
+        const gradient = ctx.createRadialGradient(x, y, 0, x, y, size);
+        gradient.addColorStop(0, `rgba(255, 223, 128, ${opacity})`);
+        gradient.addColorStop(0.5, `rgba(255, 200, 80, ${opacity * 0.6})`);
+        gradient.addColorStop(1, 'rgba(255, 200, 80, 0)');
+        
+        ctx.fillStyle = gradient;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+
+      const smallSpots = Math.floor(config.goldSpots * 2.5);
+      for (let i = 0; i < smallSpots; i++) {
+        const x = Math.random() * CANVAS_WIDTH;
+        const y = Math.random() * CANVAS_HEIGHT;
+        const size = 0.5 + Math.random() * 1.2;
+        const opacity = 0.2 + Math.random() * 0.4;
+        
+        ctx.fillStyle = `rgba(255, 215, 100, ${opacity})`;
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
   };
 
   const renderExportCanvas = (): HTMLCanvasElement => {
@@ -237,7 +333,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>((
 
     ctx.fillStyle = paperConfig.backgroundColor;
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
-    drawPaperNoise(ctx, paperConfig.noiseOpacity);
+    drawPaperTexture(ctx, paperConfig);
 
     const processed = processedStrokesRef.current;
     const strokes = analyzerRef.current?.getStrokes() ?? [];
@@ -339,7 +435,7 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>((
     handleSliderDrag(e);
   };
 
-  const textureClass = paperTexture === 'rice' ? 'texture-rice' : paperTexture === 'kraft' ? 'texture-kraft' : '';
+  const textureClass = `texture-${paperTexture}`;
 
   return (
     <div className={`canvas-wrapper ${textureClass}`}>

@@ -101,7 +101,7 @@ export const STYLE_PRESETS: Record<CalligraphyStyle, StyleConfig> = {
   }
 };
 
-export type PaperTexture = 'rice' | 'kraft' | 'blank';
+export type PaperTexture = 'rice' | 'maobian' | 'sajin';
 
 export interface PaperConfig {
   name: PaperTexture;
@@ -109,29 +109,39 @@ export interface PaperConfig {
   backgroundColor: string;
   filter: string;
   noiseOpacity: number;
+  textureType: 'fine' | 'rough' | 'splotch';
+  fiberDensity: number;
+  goldSpots?: number;
 }
 
 export const PAPER_PRESETS: Record<PaperTexture, PaperConfig> = {
   rice: {
     name: 'rice',
-    label: '宣纸纹理',
+    label: '宣纸',
     backgroundColor: '#f5f0e8',
     filter: 'contrast(1.05) brightness(1.02)',
-    noiseOpacity: 0.08
+    noiseOpacity: 0.08,
+    textureType: 'fine',
+    fiberDensity: 0.3
   },
-  kraft: {
-    name: 'kraft',
-    label: '牛皮纸纹理',
-    backgroundColor: '#d4c4a8',
-    filter: 'contrast(1.1) sepia(0.15)',
-    noiseOpacity: 0.12
+  maobian: {
+    name: 'maobian',
+    label: '毛边纸',
+    backgroundColor: '#e8dcc4',
+    filter: 'contrast(1.08) sepia(0.08)',
+    noiseOpacity: 0.15,
+    textureType: 'rough',
+    fiberDensity: 0.7
   },
-  blank: {
-    name: 'blank',
-    label: '空白',
-    backgroundColor: '#faf6ef',
-    filter: 'none',
-    noiseOpacity: 0
+  sajin: {
+    name: 'sajin',
+    label: '洒金纸',
+    backgroundColor: '#faf3e3',
+    filter: 'brightness(1.03) saturate(1.02)',
+    noiseOpacity: 0.06,
+    textureType: 'splotch',
+    fiberDensity: 0.2,
+    goldSpots: 35
   }
 };
 

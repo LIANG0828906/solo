@@ -25,7 +25,7 @@ const App: React.FC = () => {
   const canvasRef = useRef<DrawingCanvasHandle>(null);
 
   const [selectedStyle, setSelectedStyle] = useState<CalligraphyStyle>('kaishu');
-  const [brushWidth, setBrushWidth] = useState(5);
+  const [brushWidth, setBrushWidth] = useState(5.0);
   const [inkDepth, setInkDepth] = useState(1);
   const [paperTexture, setPaperTexture] = useState<PaperTexture>('rice');
   const [brushColor, setBrushColor] = useState('#1a1a1a');

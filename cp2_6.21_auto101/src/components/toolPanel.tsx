@@ -90,11 +90,20 @@ const ToolPanel: React.FC<ToolPanelProps> = ({
   onToggleCompare,
   showCompare
 }) => {
-  const inkDepthPercent = Math.round(inkDepth * 100);
-  const minGray = 26;
-  const maxGray = 102;
-  const grayValue = Math.round(minGray + (maxGray - minGray) * (1 - inkDepth));
-  const inkPreviewColor = `rgb(${grayValue}, ${grayValue}, ${grayValue})`;
+  const brushWidthDisplay = brushWidth.toFixed(1);
+
+  const sliderInkValue = Math.round(Math.sqrt((inkDepth - 0.1) / 0.9) * 100);
+
+  const handleInkSliderChange = (value: number) => {
+    const t = value / 100;
+    const mappedDepth = 0.1 + 0.9 * t * t;
+    onInkDepthChange(mappedDepth);
+  };
+
+  const handleBrushWidthChange = (value: number) => {
+    const rounded = Math.round(value * 2) / 2;
+    onBrushWidthChange(rounded);
+  };
 
   return (
     <div className="tool-panel">
@@ -124,23 +133,23 @@ const ToolPanel: React.FC<ToolPanelProps> = ({
         <div className="control-item">
           <label className="control-label">
             笔触粗细
-            <span className="control-value">{brushWidth}px</span>
+            <span className="control-value">{brushWidthDisplay}px</span>
           </label>
           <input
             type="range"
             className="slider-input"
-            min={1}
+            min={0.5}
             max={20}
+            step={0.5}
             value={brushWidth}
-            onChange={(e) => onBrushWidthChange(Number(e.target.value))}
+            onChange={(e) => handleBrushWidthChange(Number(e.target.value))}
           />
           <div
             style={{
               marginTop: 8,
-              height: brushWidth,
-              maxHeight: 20,
+              height: Math.min(brushWidth, 20),
               background: brushColor,
-              borderRadius: brushWidth / 2,
+              borderRadius: Math.min(brushWidth, 20) / 2,
               opacity: 0.8
             }}
           />
@@ -186,22 +195,22 @@ const ToolPanel: React.FC<ToolPanelProps> = ({
         <div className="control-item">
           <label className="control-label">
             墨色深浅
-            <span className="control-value">{inkDepthPercent}%</span>
+            <span className="control-value">{Math.round(inkDepth * 100)}%</span>
           </label>
           <input
             type="range"
             className="slider-input"
             min={0}
             max={100}
-            value={inkDepthPercent}
-            onChange={(e) => onInkDepthChange(Number(e.target.value) / 100)}
+            value={sliderInkValue}
+            onChange={(e) => handleInkSliderChange(Number(e.target.value))}
           />
           <div
             style={{
               marginTop: 8,
               height: 6,
               borderRadius: 3,
-              background: `linear-gradient(90deg, #666666 0%, ${inkPreviewColor} ${inkDepthPercent}%, #1a1a1a 100%)`
+              background: `linear-gradient(90deg, #666666 0%, #444444 50%, #1a1a1a 100%)`
             }}
           />
         </div>
@@ -215,17 +224,17 @@ const ToolPanel: React.FC<ToolPanelProps> = ({
 
         <div className="control-item">
           <label className="control-label">纸张纹理</label>
-          <div className="button-group">
+          <select
+            className="select-input"
+            value={paperTexture}
+            onChange={(e) => onPaperTextureChange(e.target.value as PaperTexture)}
+          >
             {Object.values(PAPER_PRESETS).map((paper) => (
-              <button
-                key={paper.name}
-                className={`btn-option ${paperTexture === paper.name ? 'active' : ''}`}
-                onClick={() => onPaperTextureChange(paper.name as PaperTexture)}
-              >
+              <option key={paper.name} value={paper.name}>
                 {paper.label}
-              </button>
+              </option>
             ))}
-          </div>
+          </select>
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 16 }}>
@@ -234,7 +243,7 @@ const ToolPanel: React.FC<ToolPanelProps> = ({
               flex: 1,
               aspectRatio: '2 / 1',
               borderRadius: 6,
-              background: paperConfigBackground(paperTexture),
+              background: PAPER_PRESETS[paperTexture].backgroundColor,
               border: '1px solid var(--color-border)',
               position: 'relative',
               overflow: 'hidden'
@@ -325,10 +334,5 @@ const ToolPanel: React.FC<ToolPanelProps> = ({
     </div>
   );
 };
-
-function paperConfigBackground(texture: PaperTexture): string {
-  const config = PAPER_PRESETS[texture];
-  return config.backgroundColor;
-}
 
 export default ToolPanel;
