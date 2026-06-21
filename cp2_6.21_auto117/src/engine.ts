@@ -10,6 +10,7 @@ export interface Plant {
   framesSinceReproduction: number;
   alive: boolean;
   hue: number;
+  birthFrame: number;
 }
 
 export interface ResourcePoint {
@@ -93,6 +94,7 @@ export class Engine {
         framesSinceReproduction: 0,
         alive: true,
         hue: greenHue(),
+        birthFrame: 0,
       });
     }
   }
@@ -258,6 +260,7 @@ export class Engine {
       framesSinceReproduction: 0,
       alive: true,
       hue: parent.hue + rand(-8, 8),
+      birthFrame: this.frameCount,
     };
 
     this.plants.push(child);

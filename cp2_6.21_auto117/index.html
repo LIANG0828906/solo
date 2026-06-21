@@ -179,6 +179,75 @@
     .btn-reset:hover {
       filter: brightness(1.2);
     }
+
+    #canvas-wrapper {
+      position: relative;
+    }
+
+    #tooltip {
+      position: absolute;
+      pointer-events: none;
+      background: rgba(15, 15, 30, 0.85);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(100, 181, 246, 0.4);
+      border-radius: 8px;
+      padding: 10px 12px;
+      font-size: 12px;
+      line-height: 1.6;
+      color: #e0e0e0;
+      min-width: 160px;
+      box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
+      z-index: 10;
+      display: none;
+      white-space: nowrap;
+    }
+
+    #tooltip .tooltip-title {
+      color: #64b5f6;
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 6px;
+      border-bottom: 1px solid rgba(100, 181, 246, 0.25);
+      padding-bottom: 4px;
+    }
+
+    #tooltip .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    #tooltip .tooltip-label {
+      color: #9a9ac4;
+    }
+
+    #tooltip .tooltip-value {
+      color: #e0e0e0;
+      font-weight: 600;
+    }
+
+    .selected-group {
+      border-top: 1px solid rgba(255, 255, 255, 0.15);
+      padding-top: 14px;
+      font-size: 13px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .selected-title {
+      color: #64b5f6;
+      font-weight: 700;
+      font-size: 13px;
+      margin-bottom: 2px;
+    }
+
+    .selected-empty {
+      color: #666;
+      font-size: 12px;
+      font-style: italic;
+    }
   </style>
 </head>
 <body>
@@ -186,6 +255,7 @@
     <div id="canvas-wrapper">
       <canvas id="simCanvas" width="800" height="600"></canvas>
       <canvas id="chartCanvas" width="800" height="130"></canvas>
+      <div id="tooltip"></div>
     </div>
     <div id="control-panel">
       <div class="panel-title">🌿 演化模拟控制</div>
@@ -230,6 +300,37 @@
         <div class="stat-row">
           <span class="stat-label">平均采集半径</span>
           <span class="stat-value" id="statRadius">0</span>
+        </div>
+      </div>
+
+      <div class="selected-group" id="selectedGroup">
+        <div class="selected-title">🎯 当前选中植物</div>
+        <div class="selected-empty" id="selectedEmpty">未选中，请将鼠标悬停到画布上的植物</div>
+        <div id="selectedContent" style="display: none; flex-direction: column; gap: 6px;">
+          <div class="stat-row">
+            <span class="stat-label">当前资源</span>
+            <span class="stat-value" id="selResources">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">生长速度</span>
+            <span class="stat-value" id="selGrowth">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">采集半径</span>
+            <span class="stat-value" id="selRadius">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">光照/水分偏好</span>
+            <span class="stat-value" id="selPref">0 / 0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">繁殖间隔</span>
+            <span class="stat-value" id="selRepInt">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">存活帧数</span>
+            <span class="stat-value" id="selFrames">0</span>
+          </div>
         </div>
       </div>
 

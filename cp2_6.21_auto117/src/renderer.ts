@@ -46,16 +46,18 @@ export class Renderer {
   render(
     plants: Plant[],
     lightPoints: ResourcePoint[],
-    waterPoints: ResourcePoint[]
+    waterPoints: ResourcePoint[],
+    hoveredPlant: Plant | null = null
   ): void {
-    this.drawSimulation(plants, lightPoints, waterPoints);
+    this.drawSimulation(plants, lightPoints, waterPoints, hoveredPlant);
     this.drawChart();
   }
 
   private drawSimulation(
     plants: Plant[],
     lightPoints: ResourcePoint[],
-    waterPoints: ResourcePoint[]
+    waterPoints: ResourcePoint[],
+    hoveredPlant: Plant | null = null
   ): void {
     const ctx = this.ctx;
     ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
@@ -79,6 +81,24 @@ export class Renderer {
 
     for (const plant of plants) {
       if (!plant.alive) continue;
+
+      const isHovered = hoveredPlant === plant;
+
+      if (isHovered) {
+        ctx.save();
+        ctx.beginPath();
+        const glowR = plant.radius + 12;
+        const gradient = ctx.createRadialGradient(
+          plant.x, plant.y, plant.radius,
+          plant.x, plant.y, glowR
+        );
+        gradient.addColorStop(0, 'rgba(100, 181, 246, 0.45)');
+        gradient.addColorStop(1, 'rgba(100, 181, 246, 0)');
+        ctx.fillStyle = gradient;
+        ctx.arc(plant.x, plant.y, glowR, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.restore();
+      }
 
       const alpha = Math.min(1, plant.resources / 50);
       const h = plant.hue;
