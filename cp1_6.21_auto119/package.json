@@ -1,0 +1,31 @@
+{
+  "name": "code-screenshot-generator",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "client": "vite",
+    "server": "npx tsx backend/server.ts",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12",
+    "@vitejs/plugin-react": "^4.2.1",
+    "axios": "^1.6.5",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "uuid": "^9.0.0",
+    "prismjs": "^1.29.0",
+    "html-to-image": "^1.11.11"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.48",
+    "@types/react-dom": "^18.2.18",
+    "@types/prismjs": "^1.26.3",
+    "@types/uuid": "^9.0.7",
+    "concurrently": "^8.2.2"
+  }
+}
