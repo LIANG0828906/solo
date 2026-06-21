@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react'
+import React, { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useActivityStore } from '../store/activityStore'
 
@@ -48,29 +48,47 @@ const CreateActivity: React.FC = () => {
   const [useCustomList, setUseCustomList] = useState(false)
   const [nameText, setNameText] = useState('')
   const [importedNames, setImportedNames] = useState<string[]>([])
+  const [invalidNames, setInvalidNames] = useState<string[]>([])
+  const [duplicatesCount, setDuplicatesCount] = useState(0)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [submitting, setSubmitting] = useState(false)
 
-  const validateNames = (text: string): string[] => {
+  const INVALID_NAME_PATTERN = /[0-9!@#$%^&*()_+=\[\]{}|\\:;"'<>,.?/`~·！￥……（）——【】｛｝、；：""''《》，。？、\/]/
+
+  const validateNames = (text: string): { valid: string[]; invalid: string[]; duplicates: number } => {
     const lines = text
       .split(/[\n,，;；\t]/)
       .map((l) => l.trim())
       .filter((l) => l.length > 0)
+
     const seen = new Set<string>()
-    const result: string[] = []
+    const validNames: string[] = []
+    const invalidNames: string[] = []
+    let duplicateCount = 0
+
     for (const name of lines) {
-      if (!seen.has(name)) {
-        seen.add(name)
-        result.push(name)
+      if (INVALID_NAME_PATTERN.test(name)) {
+        invalidNames.push(name)
+        continue
       }
+      if (seen.has(name)) {
+        duplicateCount++
+        continue
+      }
+      seen.add(name)
+      validNames.push(name)
     }
-    return result
+
+    return { valid: validNames, invalid: invalidNames, duplicates: duplicateCount }
   }
 
   const handleTextChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const text = e.target.value
     setNameText(text)
-    setImportedNames(validateNames(text))
+    const result = validateNames(text)
+    setImportedNames(result.valid)
+    setInvalidNames(result.invalid)
+    setDuplicatesCount(result.duplicates)
   }
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -81,7 +99,10 @@ const CreateActivity: React.FC = () => {
     reader.onload = (event) => {
       const content = String(event.target?.result ?? '')
       setNameText(content)
-      setImportedNames(validateNames(content))
+      const result = validateNames(content)
+      setImportedNames(result.valid)
+      setInvalidNames(result.invalid)
+      setDuplicatesCount(result.duplicates)
     }
     reader.readAsText(file, 'UTF-8')
     if (fileInputRef.current) {
@@ -92,6 +113,8 @@ const CreateActivity: React.FC = () => {
   const handleClearNames = () => {
     setNameText('')
     setImportedNames([])
+    setInvalidNames([])
+    setDuplicatesCount(0)
   }
 
   const handleToggleCustomList = () => {
@@ -100,16 +123,10 @@ const CreateActivity: React.FC = () => {
     if (!newValue) {
       setNameText('')
       setImportedNames([])
+      setInvalidNames([])
+      setDuplicatesCount(0)
     }
   }
-
-  const duplicatesCount = useMemo(() => {
-    const rawLines = nameText
-      .split(/[\n,，;；\t]/)
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0)
-    return rawLines.length - importedNames.length
-  }, [nameText, importedNames])
 
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {}
@@ -283,11 +300,22 @@ const CreateActivity: React.FC = () => {
                 }}
               />
               <div style={styles.importMetaRow}>
-                <span style={importedNames.length >= 20 && importedNames.length <= 100 ? styles.metaOk : styles.metaBad}>
-                  已导入：{importedNames.length} 人
+                <span
+                  style={{
+                    ...(importedNames.length >= 20 && importedNames.length <= 100
+                      ? styles.metaOk
+                      : styles.metaBad),
+                  }}
+                >
+                  有效姓名：{importedNames.length} 人
                 </span>
                 {duplicatesCount > 0 && (
-                  <span style={styles.metaWarn}>已自动去重：{duplicatesCount} 条重复</span>
+                  <span style={styles.metaWarn}>已去重：{duplicatesCount} 条</span>
+                )}
+                {invalidNames.length > 0 && (
+                  <span style={styles.metaError}>
+                    非法姓名：{invalidNames.length} 条（已自动过滤）
+                  </span>
                 )}
                 <span style={styles.metaHint}>支持 .txt / .csv 文件</span>
               </div>
@@ -538,6 +566,10 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: 12,
     color: '#f59e0b',
   },
+  metaError: {
+    fontSize: 12,
+    color: '#ef4444',
+  },
   metaHint: {
     fontSize: 12,
     color: '#999',
@@ -567,7 +599,7 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 400,
   },
   previewList: {
-    maxHeight: 180,
+    maxHeight: 300,
     overflowY: 'auto',
     padding: 10,
     display: 'flex',

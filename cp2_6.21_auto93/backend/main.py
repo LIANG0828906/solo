@@ -100,14 +100,19 @@ def create_activity(request: CreateActivityRequest):
     participants = []
 
     if request.participants and len(request.participants) > 0:
-        seen_names = set()
+        seen_names: set = set()
+        name_list: List[str] = []
         for p in request.participants:
-            name = p.name.strip()
-            if not name:
+            raw_name = p.name
+            if not isinstance(raw_name, str):
+                continue
+            name = str(raw_name).strip()
+            if not name or len(name) == 0:
                 continue
             if name in seen_names:
                 continue
             seen_names.add(name)
+            name_list.append(name)
             participants.append({
                 "id": str(uuid.uuid4()),
                 "name": name
@@ -315,4 +320,4 @@ async def team_message(sid, data):
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:socket_app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run(socket_app, host="0.0.0.0", port=8001)
