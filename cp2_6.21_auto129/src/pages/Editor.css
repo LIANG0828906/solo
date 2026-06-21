@@ -1,0 +1,12 @@
+.editor-page {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  padding: 16px;
+}
+
+.editor-layout {
+  display: flex;
+  gap: 16px;
+  height: calc(100vh - 32px);
+  max-width: 100%;
+}

@@ -1,0 +1,6 @@
+fastapi
+uvicorn
+python-socketio[asyncio]==5.11.5
+pydantic
+aiofiles
+cors
