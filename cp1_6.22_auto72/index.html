@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=768px" />
+  <title>3D 地形编辑器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #1a1a2e;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      min-width: 768px;
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    .toolbar {
+      position: absolute;
+      left: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      padding: 16px;
+      background: rgba(26, 26, 46, 0.85);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      border: 1px solid rgba(100, 181, 246, 0.2);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      z-index: 10;
+    }
+
+    .tool-btn {
+      width: 56px;
+      height: 56px;
+      border: none;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.08);
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+      position: relative;
+    }
+
+    .tool-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      transform: scale(1.05);
+    }
+
+    .tool-btn:active {
+      transform: scale(0.95);
+    }
+
+    .tool-btn.active {
+      background: rgba(100, 181, 246, 0.3);
+      box-shadow: 0 0 20px rgba(100, 181, 246, 0.5);
+      transform: scale(1.1);
+    }
+
+    .tool-btn.active::after {
+      content: '';
+      position: absolute;
+      left: -8px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 4px;
+      height: 60%;
+      background: #64b5f6;
+      border-radius: 2px;
+    }
+
+    .tool-btn svg {
+      width: 24px;
+      height: 24px;
+      stroke: currentColor;
+      stroke-width: 2;
+      fill: none;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    .timeline {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 300px);
+      max-width: 800px;
+      padding: 16px 24px;
+      background: rgba(26, 26, 46, 0.85);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      border: 1px solid rgba(100, 181, 246, 0.2);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .play-btn {
+      width: 44px;
+      height: 44px;
+      border: none;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #64b5f6, #42a5f5);
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      flex-shrink: 0;
+      box-shadow: 0 4px 15px rgba(100, 181, 246, 0.4);
+    }
+
+    .play-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 20px rgba(100, 181, 246, 0.6);
+    }
+
+    .play-btn:active {
+      transform: scale(0.95);
+    }
+
+    .play-btn svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+
+    .timeline-track {
+      flex: 1;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      position: relative;
+      cursor: pointer;
+    }
+
+    .timeline-progress {
+      height: 100%;
+      background: linear-gradient(90deg, #64b5f6, #90caf9);
+      border-radius: 3px;
+      transition: width 0.3s ease;
+    }
+
+    .timeline-markers {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    .timeline-marker {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 8px;
+      height: 8px;
+      background: #64b5f6;
+      border-radius: 50%;
+      cursor: pointer;
+      pointer-events: auto;
+      transition: all 0.2s ease;
+    }
+
+    .timeline-marker:hover {
+      transform: translate(-50%, -50%) scale(1.5);
+      background: #90caf9;
+    }
+
+    .timeline-marker.active {
+      background: white;
+      box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+    }
+
+    .timeline-thumb {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 16px;
+      height: 16px;
+      background: white;
+      border-radius: 50%;
+      cursor: grab;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+      transition: transform 0.2s ease;
+      pointer-events: auto;
+    }
+
+    .timeline-thumb:hover {
+      transform: translate(-50%, -50%) scale(1.2);
+    }
+
+    .timeline-thumb:active {
+      cursor: grabbing;
+    }
+
+    .timeline-info {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 13px;
+      font-weight: 500;
+      flex-shrink: 0;
+      min-width: 60px;
+      text-align: right;
+    }
+
+    .tip {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 20px;
+      background: rgba(26, 26, 46, 0.85);
+      backdrop-filter: blur(10px);
+      border-radius: 8px;
+      border: 1px solid rgba(100, 181, 246, 0.2);
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 13px;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+
+    <div class="toolbar">
+      <button class="tool-btn active" data-mode="raise" title="抬高模式">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 2L2 22h20L12 2z"/>
+        </svg>
+      </button>
+      <button class="tool-btn" data-mode="lower" title="降低模式">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 22L2 2h20L12 22z"/>
+        </svg>
+      </button>
+      <button class="tool-btn" data-mode="smooth" title="平滑模式">
+        <svg viewBox="0 0 24 24">
+          <path d="M3 18c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2 2-2 4-2"/>
+          <path d="M3 12c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2 2-2 4-2"/>
+          <path d="M3 6c2 0 2-2 4-2s2 2 4 2 2-2 4-2 2 2 4 2 2-2 4-2"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="timeline">
+      <button class="play-btn" id="play-btn" title="播放">
+        <svg id="play-icon" viewBox="0 0 24 24">
+          <path d="M8 5v14l11-7z"/>
+        </svg>
+      </button>
+      <div class="timeline-track" id="timeline-track">
+        <div class="timeline-progress" id="timeline-progress"></div>
+        <div class="timeline-markers" id="timeline-markers"></div>
+        <div class="timeline-thumb" id="timeline-thumb" style="left: 0%;"></div>
+      </div>
+      <div class="timeline-info" id="timeline-info">0 / 0</div>
+    </div>
+
+    <div class="tip">
+      左键拖拽：旋转视角 | 右键拖拽：平移 | 滚轮：缩放 | 点击/拖拽地形：编辑
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
