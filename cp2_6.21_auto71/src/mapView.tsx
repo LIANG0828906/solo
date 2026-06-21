@@ -12,6 +12,7 @@ interface MapViewProps {
   azimuth: number;
   onSearchResults: (results: SearchResult[]) => void;
   onMapCenterChange: (center: [number, number]) => void;
+  onCategoryCountsChange: (counts: Record<POICategory, number>) => void;
 }
 
 const INITIAL_CENTER: [number, number] = [39.9042, 116.4074];
@@ -24,6 +25,7 @@ export default function MapView({
   azimuth,
   onSearchResults,
   onMapCenterChange,
+  onCategoryCountsChange,
 }: MapViewProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -83,7 +85,22 @@ export default function MapView({
       interactive: false,
     }).addTo(map);
 
-    const filteredPOIs = filterPOIsByCategory(poiDataRef.current, selectedLayers);
+    const allPOIs = poiDataRef.current;
+
+    const categoryCounts: Record<POICategory, number> = {
+      toilet: 0,
+      convenience: 0,
+      cafe: 0,
+      charging: 0,
+      pharmacy: 0,
+    };
+
+    for (const poi of allPOIs) {
+      categoryCounts[poi.category]++;
+    }
+    onCategoryCountsChange(categoryCounts);
+
+    const filteredPOIs = filterPOIsByCategory(allPOIs, selectedLayers);
     const results = searchInSector(filteredPOIs, centerCoord, searchRadius, azimuth, angleRange);
 
     const highlightedIds = new Set(results.map(r => r.poi.id));
@@ -112,7 +129,7 @@ export default function MapView({
     }
 
     onSearchResults(results);
-  }, [selectedLayers, searchRadius, angleRange, azimuth, getCategoryColor, createMarkerIcon, onSearchResults]);
+  }, [selectedLayers, searchRadius, angleRange, azimuth, getCategoryColor, createMarkerIcon, onSearchResults, onCategoryCountsChange]);
 
   const scheduleUpdate = useCallback(() => {
     if (animationFrameRef.current !== null) {
