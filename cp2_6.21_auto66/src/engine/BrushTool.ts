@@ -12,14 +12,14 @@ export class BrushTool {
   static applyBrush(
     positions: Float32Array,
     indices: Uint32Array | Uint16Array | null,
-    hitPoint: THREE.Vector3,
+    hitPointLocal: THREE.Vector3,
     viewDirection: THREE.Vector3,
     params: BrushParams,
     adjacencyList?: number[][]
   ): Float32Array {
     const affectedVertices = GeometryUtils.findNearestVertices(
       positions,
-      hitPoint,
+      hitPointLocal,
       params.size
     );
 
@@ -27,53 +27,82 @@ export class BrushTool {
 
     const newPositions = new Float32Array(positions);
 
+    const weightedVertices = affectedVertices.map((v) => ({
+      ...v,
+      weight: BrushTool.calculateBrushWeight(v.distance, params.size, params.hardness)
+    }));
+
     switch (params.type) {
       case 'pull':
         return BrushTool.pull(
           newPositions,
-          hitPoint,
+          weightedVertices,
           viewDirection,
-          affectedVertices,
-          params
+          params.intensity
         );
       case 'smooth':
         return BrushTool.smooth(
           newPositions,
           indices,
-          affectedVertices,
-          params,
+          weightedVertices,
+          params.intensity,
           adjacencyList
         );
       case 'inflate':
         return BrushTool.inflate(
           newPositions,
           indices,
-          hitPoint,
-          affectedVertices,
-          params
+          weightedVertices,
+          params.intensity
         );
       default:
         return positions;
     }
   }
 
+  private static calculateBrushWeight(
+    distance: number,
+    radius: number,
+    hardness: number
+  ): number {
+    if (radius <= 0 || distance > radius) return 0;
+
+    const t = distance / radius;
+
+    if (hardness >= 1) {
+      return t < 1 ? 1 : 0;
+    }
+
+    const softness = 1 - hardness;
+    const falloffRadius = radius * softness;
+    const innerRadius = radius - falloffRadius;
+
+    if (t <= innerRadius / radius) {
+      return 1;
+    }
+
+    const x = (t - innerRadius / radius) / (falloffRadius / radius);
+    const smoothFalloff = 1 - x * x * (3 - 2 * x);
+
+    return Math.max(0, Math.min(1, smoothFalloff));
+  }
+
   static pull(
     positions: Float32Array,
-    hitPoint: THREE.Vector3,
+    affectedVertices: (VertexInfo & { weight: number })[],
     viewDirection: THREE.Vector3,
-    affectedVertices: VertexInfo[],
-    params: BrushParams
+    intensity: number
   ): Float32Array {
     const direction = viewDirection.clone().normalize();
-    const displacement = direction.multiplyScalar(params.intensity * 0.1);
+    const displacementAmount = intensity * 0.3;
 
     for (const vertex of affectedVertices) {
-      const weight = BrushTool.getFalloffWeight(vertex.weight, params.hardness);
       const idx = vertex.index * 3;
+      const w = vertex.weight;
 
-      positions[idx] += displacement.x * weight;
-      positions[idx + 1] += displacement.y * weight;
-      positions[idx + 2] += displacement.z * weight;
+      positions[idx] += direction.x * displacementAmount * w;
+      positions[idx + 1] += direction.y * displacementAmount * w;
+      positions[idx + 2] += direction.z * displacementAmount * w;
     }
 
     return positions;
@@ -82,8 +111,8 @@ export class BrushTool {
   static smooth(
     positions: Float32Array,
     indices: Uint32Array | Uint16Array | null,
-    affectedVertices: VertexInfo[],
-    params: BrushParams,
+    affectedVertices: (VertexInfo & { weight: number })[],
+    intensity: number,
     adjacencyList?: number[][]
   ): Float32Array {
     const vertexCount = positions.length / 3;
@@ -97,17 +126,22 @@ export class BrushTool {
       if (neighbors.length === 0) continue;
 
       const avgPos = new THREE.Vector3(0, 0, 0);
+      let totalWeight = 0;
+
       for (const neighborIdx of neighbors) {
         avgPos.x += originalPositions[neighborIdx * 3];
         avgPos.y += originalPositions[neighborIdx * 3 + 1];
         avgPos.z += originalPositions[neighborIdx * 3 + 2];
+        totalWeight += 1;
       }
-      avgPos.divideScalar(neighbors.length);
 
-      const weight = BrushTool.getFalloffWeight(vertex.weight, params.hardness);
-      const smoothAmount = params.intensity * weight;
+      if (totalWeight > 0) {
+        avgPos.divideScalar(totalWeight);
+      }
 
+      const smoothAmount = intensity * vertex.weight;
       const idx = vertex.index * 3;
+
       positions[idx] =
         originalPositions[idx] * (1 - smoothAmount) + avgPos.x * smoothAmount;
       positions[idx + 1] =
@@ -124,10 +158,11 @@ export class BrushTool {
   static inflate(
     positions: Float32Array,
     indices: Uint32Array | Uint16Array | null,
-    hitPoint: THREE.Vector3,
-    affectedVertices: VertexInfo[],
-    params: BrushParams
+    affectedVertices: (VertexInfo & { weight: number })[],
+    intensity: number
   ): Float32Array {
+    const displacementAmount = intensity * 0.3;
+
     for (const vertex of affectedVertices) {
       const normal = GeometryUtils.computeVertexNormal(
         positions,
@@ -135,8 +170,9 @@ export class BrushTool {
         vertex.index
       );
 
-      const weight = BrushTool.getFalloffWeight(vertex.weight, params.hardness);
-      const displacement = normal.multiplyScalar(params.intensity * 0.1 * weight);
+      const displacement = normal.multiplyScalar(
+        displacementAmount * vertex.weight
+      );
 
       const idx = vertex.index * 3;
       positions[idx] += displacement.x;
@@ -145,17 +181,5 @@ export class BrushTool {
     }
 
     return positions;
-  }
-
-  private static getFalloffWeight(
-    distanceWeight: number,
-    hardness: number
-  ): number {
-    const softness = 1 - hardness;
-    if (softness === 0) {
-      return distanceWeight > 0 ? 1 : 0;
-    }
-    const falloff = Math.pow(distanceWeight, 1 / (softness + 0.01));
-    return falloff;
   }
 }

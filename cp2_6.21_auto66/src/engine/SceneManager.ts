@@ -27,8 +27,70 @@ export const MATERIAL_CONFIGS: Record<MaterialType, MaterialConfig> = {
   metal: { color: 0xe0e0e0, roughness: 0.05, metalness: 0.9 }
 };
 
+interface EnvGradientStop {
+  position: number;
+  color: string;
+}
+
+const ENV_GRADIENTS: Record<EnvType, { top: EnvGradientStop[]; bottom: EnvGradientStop[]; horizon: string }> = {
+  sunset: {
+    top: [
+      { position: 0, color: '#1a0a2e' },
+      { position: 0.3, color: '#4a1942' },
+      { position: 0.5, color: '#ff6b35' }
+    ],
+    bottom: [
+      { position: 0, color: '#ff9a56' },
+      { position: 0.4, color: '#ffc857' },
+      { position: 1, color: '#2d3a4a' }
+    ],
+    horizon: '#ffb347'
+  },
+  bluehour: {
+    top: [
+      { position: 0, color: '#0a1628' },
+      { position: 0.4, color: '#1e3a5f' },
+      { position: 0.6, color: '#3a6ea5' }
+    ],
+    bottom: [
+      { position: 0, color: '#5b9bd5' },
+      { position: 0.3, color: '#7eb8da' },
+      { position: 1, color: '#1a2a3a' }
+    ],
+    horizon: '#6ba3d6'
+  },
+  space: {
+    top: [
+      { position: 0, color: '#000008' },
+      { position: 0.5, color: '#0a0a1a' },
+      { position: 0.8, color: '#1a1a3a' }
+    ],
+    bottom: [
+      { position: 0, color: '#2a1a4a' },
+      { position: 0.5, color: '#1a0a2a' },
+      { position: 1, color: '#050510' }
+    ],
+    horizon: '#1a1a3a'
+  },
+  neutral: {
+    top: [
+      { position: 0, color: '#2a2a3a' },
+      { position: 0.5, color: '#4a4a5a' },
+      { position: 0.7, color: '#6a6a7a' }
+    ],
+    bottom: [
+      { position: 0, color: '#8a8a9a' },
+      { position: 0.4, color: '#7a7a8a' },
+      { position: 1, color: '#3a3a4a' }
+    ],
+    horizon: '#7a7a8a'
+  }
+};
+
 export class SceneManager {
   private models: Map<string, ModelData> = new Map();
+  private envTextureCache: Map<EnvType, THREE.Texture> = new Map();
+  private raycaster: THREE.Raycaster = new THREE.Raycaster();
 
   createModel(type: ModelType, id: string): ModelData {
     let geometry: THREE.BufferGeometry;
@@ -81,14 +143,25 @@ export class SceneManager {
     return this.models.get(id);
   }
 
+  worldToLocal(modelId: string, worldPoint: THREE.Vector3): THREE.Vector3 {
+    const model = this.models.get(modelId);
+    if (!model) return worldPoint.clone();
+
+    const localPoint = worldPoint.clone();
+    model.mesh.worldToLocal(localPoint);
+    return localPoint;
+  }
+
   applyBrush(
     modelId: string,
-    hitPoint: THREE.Vector3,
+    hitPointWorld: THREE.Vector3,
     viewDirection: THREE.Vector3,
     params: BrushParams
   ): Float32Array | null {
     const model = this.models.get(modelId);
     if (!model) return null;
+
+    const hitPointLocal = this.worldToLocal(modelId, hitPointWorld);
 
     const positions = model.geometry.getAttribute(
       'position'
@@ -99,11 +172,15 @@ export class SceneManager {
       ? (indices.array as Uint32Array | Uint16Array)
       : null;
 
+    const localViewDir = viewDirection.clone();
+    const inverseQuat = model.mesh.quaternion.clone().invert();
+    localViewDir.applyQuaternion(inverseQuat);
+
     const newPositions = BrushTool.applyBrush(
       currentPositions,
       indicesArray,
-      hitPoint,
-      viewDirection,
+      hitPointLocal,
+      localViewDir,
       params,
       model.adjacencyList
     );
@@ -139,6 +216,12 @@ export class SceneManager {
     if (!model) return;
 
     GeometryUtils.applyPositionsToGeometry(model.geometry, positions);
+
+    model.geometry.computeVertexNormals();
+    const normalAttr = model.geometry.getAttribute(
+      'normal'
+    ) as THREE.BufferAttribute;
+    normalAttr.needsUpdate = true;
   }
 
   getVertexCount(modelId: string): number {
@@ -157,42 +240,85 @@ export class SceneManager {
   }
 
   createEnvironmentTexture(envType: EnvType): THREE.Texture {
+    if (this.envTextureCache.has(envType)) {
+      return this.envTextureCache.get(envType)!;
+    }
+
     const canvas = document.createElement('canvas');
-    canvas.width = 256;
+    canvas.width = 512;
     canvas.height = 256;
     const ctx = canvas.getContext('2d')!;
 
-    const gradient = ctx.createLinearGradient(0, 0, 0, 256);
+    const gradientConfig = ENV_GRADIENTS[envType];
 
-    switch (envType) {
-      case 'sunset':
-        gradient.addColorStop(0, '#ff7e5f');
-        gradient.addColorStop(0.5, '#feb47b');
-        gradient.addColorStop(1, '#86a8e7');
-        break;
-      case 'bluehour':
-        gradient.addColorStop(0, '#1e3c72');
-        gradient.addColorStop(0.5, '#2a5298');
-        gradient.addColorStop(1, '#7aa8ff');
-        break;
-      case 'space':
-        gradient.addColorStop(0, '#0f0c29');
-        gradient.addColorStop(0.5, '#302b63');
-        gradient.addColorStop(1, '#24243e');
-        break;
-      case 'neutral':
-        gradient.addColorStop(0, '#434343');
-        gradient.addColorStop(0.5, '#666666');
-        gradient.addColorStop(1, '#999999');
-        break;
+    const topGradient = ctx.createLinearGradient(0, 0, 0, canvas.height / 2);
+    gradientConfig.top.forEach((stop) => {
+      topGradient.addColorStop(stop.position, stop.color);
+    });
+
+    const bottomGradient = ctx.createLinearGradient(
+      0,
+      canvas.height / 2,
+      0,
+      canvas.height
+    );
+    gradientConfig.bottom.forEach((stop) => {
+      bottomGradient.addColorStop(stop.position, stop.color);
+    });
+
+    ctx.fillStyle = topGradient;
+    ctx.fillRect(0, 0, canvas.width, canvas.height / 2);
+
+    ctx.fillStyle = bottomGradient;
+    ctx.fillRect(0, canvas.height / 2, canvas.width, canvas.height / 2);
+
+    const horizonY = canvas.height / 2;
+    const horizonGradient = ctx.createLinearGradient(
+      0,
+      horizonY - 20,
+      0,
+      horizonY + 20
+    );
+    horizonGradient.addColorStop(0, 'rgba(255,255,255,0)');
+    horizonGradient.addColorStop(0.5, gradientConfig.horizon);
+    horizonGradient.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = horizonGradient;
+    ctx.fillRect(0, horizonY - 20, canvas.width, 40);
+
+    if (envType === 'sunset' || envType === 'space') {
+      const starCount = envType === 'space' ? 100 : 30;
+      for (let i = 0; i < starCount; i++) {
+        const x = Math.random() * canvas.width;
+        const y = Math.random() * canvas.height * 0.5;
+        const size = Math.random() * 1.5 + 0.5;
+        const brightness = Math.random() * 0.5 + 0.5;
+
+        ctx.beginPath();
+        ctx.arc(x, y, size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(255, 255, 255, ${brightness})`;
+        ctx.fill();
+      }
     }
-
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, 256, 256);
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.mapping = THREE.EquirectangularReflectionMapping;
+    texture.needsUpdate = true;
+
+    this.envTextureCache.set(envType, texture);
     return texture;
+  }
+
+  preloadEnvironmentTextures(): void {
+    const envTypes: EnvType[] = ['sunset', 'bluehour', 'space', 'neutral'];
+    envTypes.forEach((type) => {
+      if (!this.envTextureCache.has(type)) {
+        this.createEnvironmentTexture(type);
+      }
+    });
+  }
+
+  getRaycaster(): THREE.Raycaster {
+    return this.raycaster;
   }
 
   dispose(): void {
@@ -201,5 +327,10 @@ export class SceneManager {
       model.material.dispose();
     });
     this.models.clear();
+
+    this.envTextureCache.forEach((texture) => {
+      texture.dispose();
+    });
+    this.envTextureCache.clear();
   }
 }
