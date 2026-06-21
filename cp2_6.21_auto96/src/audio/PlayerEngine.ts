@@ -12,6 +12,7 @@ const INSTRUMENT_COLORS: Record<InstrumentType, string> = {
 class PlayerEngine {
   private synths: Map<InstrumentType, Tone.PolySynth | Tone.MembraneSynth>
   private volumes: Map<InstrumentType, Tone.Volume>
+  private masterGain: Tone.Gain | null
   private initialized: boolean
   private scheduledEvents: number[]
   private animationFrameId: number | null
@@ -19,6 +20,7 @@ class PlayerEngine {
   constructor() {
     this.synths = new Map()
     this.volumes = new Map()
+    this.masterGain = null
     this.initialized = false
     this.scheduledEvents = []
     this.animationFrameId = null
@@ -28,22 +30,29 @@ class PlayerEngine {
     if (this.initialized) return
 
     await Tone.start()
-    Tone.Transport.bpm.value = 120
+
+    const state = useScoreStore.getState()
+    Tone.Transport.bpm.value = state.tempo
+
+    this.masterGain = new Tone.Gain(1)
+    this.masterGain.toDestination()
 
     const polyphonicInstruments: InstrumentType[] = ['piano', 'guitar', 'violin', 'bass']
     polyphonicInstruments.forEach(inst => {
-      const synth = new Tone.PolySynth(Tone.Synth).toDestination()
-      const volume = new Tone.Volume(-6).toDestination()
+      const track = state.tracks.find(t => t.instrument === inst)
+      const volume = new Tone.Volume(track ? track.volume : -6)
+      const synth = new Tone.PolySynth(Tone.Synth)
       synth.connect(volume)
-      volume.toDestination()
+      volume.connect(this.masterGain!)
       this.synths.set(inst, synth)
       this.volumes.set(inst, volume)
     })
 
-    const drumsSynth = new Tone.MembraneSynth().toDestination()
-    const drumsVolume = new Tone.Volume(-6).toDestination()
+    const drumsTrack = state.tracks.find(t => t.instrument === 'drums')
+    const drumsVolume = new Tone.Volume(drumsTrack ? drumsTrack.volume : -6)
+    const drumsSynth = new Tone.MembraneSynth()
     drumsSynth.connect(drumsVolume)
-    drumsVolume.toDestination()
+    drumsVolume.connect(this.masterGain!)
     this.synths.set('drums', drumsSynth)
     this.volumes.set('drums', drumsVolume)
 
@@ -74,7 +83,7 @@ class PlayerEngine {
     notesByTime.forEach((noteList, beat) => {
       const time = (beat - startBeat) * 0.25
 
-      const eventId = Tone.Transport.schedule((time) => {
+      const eventId = Tone.Transport.schedule((transportTime) => {
         noteList.forEach(({ note, track }) => {
           if (track.muted) return
 
@@ -90,13 +99,13 @@ class PlayerEngine {
             const drumSynth = synth as Tone.MembraneSynth
             const beatInBar = note.time % 4
             if (beatInBar === 0) {
-              drumSynth.triggerAttackRelease('C1', duration, time)
+              drumSynth.triggerAttackRelease('C1', duration, transportTime)
             } else if (beatInBar === 2) {
-              drumSynth.triggerAttackRelease('C2', duration, time)
+              drumSynth.triggerAttackRelease('C2', duration, transportTime)
             }
           } else {
             const polySynth = synth as Tone.PolySynth
-            polySynth.triggerAttackRelease('C4', duration, time)
+            polySynth.triggerAttackRelease('C4', duration, transportTime)
           }
         })
 
@@ -106,18 +115,19 @@ class PlayerEngine {
       this.scheduledEvents.push(eventId)
     })
 
+    const totalTime = 8
     if (isLooping) {
       const loopEventId = Tone.Transport.schedule(() => {
         useScoreStore.getState().setCurrentBeat(0)
         this.scheduleNotes(notes, tracks)
-      }, 8)
+      }, totalTime)
       this.scheduledEvents.push(loopEventId)
     } else {
       const endEventId = Tone.Transport.schedule(() => {
         useScoreStore.getState().setPlaying(false)
         Tone.Transport.stop()
         useScoreStore.getState().setCurrentBeat(0)
-      }, 8)
+      }, totalTime)
       this.scheduledEvents.push(endEventId)
     }
   }
@@ -133,6 +143,7 @@ class PlayerEngine {
     }
 
     const state = useScoreStore.getState()
+    Tone.Transport.bpm.value = state.tempo
     this.scheduleNotes(state.notes, state.tracks)
 
     Tone.Transport.start()
@@ -150,6 +161,19 @@ class PlayerEngine {
     this.clearScheduledEvents()
     this.stopProgressUpdate()
     useScoreStore.getState().setCurrentBeat(0)
+  }
+
+  seekToBeat(beat: number) {
+    const clampedBeat = Math.max(0, Math.min(31, beat))
+    const secondsPerBeat = 60 / useScoreStore.getState().tempo / 4
+    Tone.Transport.seconds = clampedBeat * secondsPerBeat
+    useScoreStore.getState().setCurrentBeat(clampedBeat)
+
+    if (Tone.Transport.state === 'started') {
+      const state = useScoreStore.getState()
+      this.clearScheduledEvents()
+      this.scheduleNotes(state.notes, state.tracks)
+    }
   }
 
   private startProgressUpdate() {
@@ -178,6 +202,12 @@ class PlayerEngine {
     }
   }
 
+  setMasterVolume(value: number) {
+    if (this.masterGain) {
+      this.masterGain.gain.value = Math.max(0, Math.min(1, value))
+    }
+  }
+
   getInstrumentColor(instrument: InstrumentType): string {
     return INSTRUMENT_COLORS[instrument]
   }
@@ -186,6 +216,10 @@ class PlayerEngine {
     this.stop()
     this.synths.forEach(synth => synth.dispose())
     this.volumes.forEach(vol => vol.dispose())
+    if (this.masterGain) {
+      this.masterGain.dispose()
+      this.masterGain = null
+    }
     this.synths.clear()
     this.volumes.clear()
     this.initialized = false

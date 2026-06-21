@@ -36,6 +36,7 @@ interface ScoreState {
   tempo: number
 
   setSelectedInstrument: (instrument: InstrumentType) => void
+  setTempo: (tempo: number) => void
   addNote: (instrument: InstrumentType, time: number) => void
   deleteNote: (noteId: string) => void
   moveNote: (noteId: string, newTime: number) => void
@@ -50,7 +51,7 @@ interface ScoreState {
   clearSelection: () => void
   setPlaying: (playing: boolean) => void
   exportScore: () => ExportScore
-  importScore: (data: ExportScore) => void
+  importScore: (data: unknown) => boolean
 }
 
 const INSTRUMENTS: InstrumentType[] = ['piano', 'guitar', 'drums', 'violin', 'bass']
@@ -63,6 +64,66 @@ const initialTracks: Track[] = INSTRUMENTS.map(instrument => ({
 
 const generateId = () => Math.random().toString(36).substring(2, 11)
 
+function isValidInstrumentType(value: string): value is InstrumentType {
+  return INSTRUMENTS.includes(value as InstrumentType)
+}
+
+function validateExportScore(data: unknown): { valid: boolean; errors: string[] } {
+  const errors: string[] = []
+
+  if (!data || typeof data !== 'object') {
+    return { valid: false, errors: ['数据必须是一个对象'] }
+  }
+
+  const obj = data as Record<string, unknown>
+
+  if (obj.tempo === undefined || obj.tempo === null) {
+    errors.push('缺少 tempo 字段')
+  } else if (typeof obj.tempo !== 'number' || obj.tempo <= 0) {
+    errors.push('tempo 必须是大于0的数字')
+  }
+
+  if (!Array.isArray(obj.tracks)) {
+    errors.push('缺少 tracks 数组字段')
+    return { valid: false, errors }
+  }
+
+  const tracks = obj.tracks as unknown[]
+  tracks.forEach((track, index) => {
+    if (!track || typeof track !== 'object') {
+      errors.push(`第${index + 1}个轨道数据无效`)
+      return
+    }
+    const t = track as Record<string, unknown>
+
+    if (typeof t.instrument !== 'string' || !isValidInstrumentType(t.instrument)) {
+      errors.push(`第${index + 1}个轨道的 instrument 无效，必须是: ${INSTRUMENTS.join(', ')}`)
+    }
+
+    if (!Array.isArray(t.notes)) {
+      errors.push(`第${index + 1}个轨道缺少 notes 数组`)
+      return
+    }
+
+    const notes = t.notes as unknown[]
+    notes.forEach((note, noteIndex) => {
+      if (!note || typeof note !== 'object') {
+        errors.push(`第${index + 1}个轨道的第${noteIndex + 1}个音符数据无效`)
+        return
+      }
+      const n = note as Record<string, unknown>
+      if (typeof n.time !== 'number' || n.time < 0 || n.time > 31) {
+        errors.push(`第${index + 1}个轨道的第${noteIndex + 1}个音符的 time 无效(0-31)`)
+      }
+      if (typeof n.duration !== 'number' || n.duration <= 0) {
+        errors.push(`第${index + 1}个轨道的第${noteIndex + 1}个音符的 duration 无效`)
+      }
+    })
+  })
+
+  return { valid: errors.length === 0, errors }
+}
+
 export const useScoreStore = create<ScoreState>((set, get) => ({
   selectedInstrument: 'piano',
   notes: [],
@@ -74,6 +135,12 @@ export const useScoreStore = create<ScoreState>((set, get) => ({
   tempo: 120,
 
   setSelectedInstrument: (instrument) => set({ selectedInstrument: instrument }),
+
+  setTempo: (tempo) => {
+    if (tempo > 0 && tempo <= 300) {
+      set({ tempo })
+    }
+  },
 
   addNote: (instrument, time) => {
     const existingNote = get().notes.find(
@@ -171,27 +238,37 @@ export const useScoreStore = create<ScoreState>((set, get) => ({
     return { tempo, tracks }
   },
 
-  importScore: (data) => {
+  importScore: (data: unknown): boolean => {
+    const validation = validateExportScore(data)
+    if (!validation.valid) {
+      console.error('导入验证失败:', validation.errors)
+      alert('导入验证失败:\n' + validation.errors.join('\n'))
+      return false
+    }
+
+    const score = data as ExportScore
     const newNotes: Note[] = []
-    data.tracks.forEach(track => {
+    score.tracks.forEach(track => {
       const instrument = track.instrument as InstrumentType
-      if (INSTRUMENTS.includes(instrument)) {
+      if (isValidInstrumentType(instrument)) {
         track.notes.forEach(note => {
           newNotes.push({
             id: generateId(),
             instrument,
-            time: note.time,
+            time: Math.max(0, Math.min(31, Math.floor(note.time))),
             duration: note.duration,
           })
         })
       }
     })
+
     set({
       notes: newNotes,
-      tempo: data.tempo || 120,
+      tempo: score.tempo || 120,
       currentBeat: 0,
       isPlaying: false,
       selectedNoteIds: [],
     })
+    return true
   },
 }))

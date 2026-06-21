@@ -38,6 +38,28 @@ export const ScoreEditor: React.FC = React.memo(() => {
   })
   const [mouseDownPos, setMouseDownPos] = useState<{ x: number; y: number } | null>(null)
 
+  const endDrag = useCallback(() => {
+    setDragState({
+      isDragging: false,
+      noteId: null,
+      startX: 0,
+      startBeat: 0,
+      isMultiDrag: false,
+    })
+    setMouseDownPos(null)
+  }, [])
+
+  const clampNotePositions = useCallback(() => {
+    const { notes: currentNotes, selectedNoteIds: selectedIds } = useScoreStore.getState()
+    currentNotes.forEach(n => {
+      if (n.time < 0) moveNote(n.id, 0)
+      if (n.time > 31) moveNote(n.id, 31)
+    })
+    if (selectedIds.length > 1) {
+      moveSelectedNotes(0)
+    }
+  }, [moveNote, moveSelectedNotes])
+
   const getBeatFromX = useCallback((clientX: number): number => {
     if (!editorRef.current) return 0
     const rect = editorRef.current.getBoundingClientRect()
@@ -55,9 +77,6 @@ export const ScoreEditor: React.FC = React.memo(() => {
 
   const handleMouseDown = useCallback((e: React.MouseEvent, note?: Note) => {
     if (e.button === 2) return
-
-    getBeatFromX(e.clientX)
-    getInstrumentRow(e.clientY)
 
     setMouseDownPos({ x: e.clientX, y: e.clientY })
 
@@ -81,7 +100,7 @@ export const ScoreEditor: React.FC = React.memo(() => {
         clearSelection()
       }
     }
-  }, [getBeatFromX, getInstrumentRow, selectedNoteIds, selectNote, clearSelection])
+  }, [selectedNoteIds, selectNote, clearSelection])
 
   const handleMouseMove = useCallback((e: MouseEvent) => {
     if (!dragState.isDragging) return
@@ -115,15 +134,16 @@ export const ScoreEditor: React.FC = React.memo(() => {
       }
     }
 
-    setDragState({
-      isDragging: false,
-      noteId: null,
-      startX: 0,
-      startBeat: 0,
-      isMultiDrag: false,
-    })
-    setMouseDownPos(null)
-  }, [mouseDownPos, dragState.isDragging, getBeatFromX, getInstrumentRow, addNote])
+    clampNotePositions()
+    endDrag()
+  }, [mouseDownPos, dragState.isDragging, getBeatFromX, getInstrumentRow, addNote, endDrag, clampNotePositions])
+
+  const handleMouseLeave = useCallback(() => {
+    if (dragState.isDragging) {
+      clampNotePositions()
+      endDrag()
+    }
+  }, [dragState.isDragging, endDrag, clampNotePositions])
 
   const handleContextMenu = useCallback((e: React.MouseEvent, note?: Note) => {
     e.preventDefault()
@@ -154,24 +174,39 @@ export const ScoreEditor: React.FC = React.memo(() => {
     notesByInstrumentAndTime.get(key)!.push(note)
   })
 
+  const overlapKeys = new Map<string, number>()
+  notesByInstrumentAndTime.forEach((noteList, key) => {
+    if (noteList.length > 1) {
+      overlapKeys.set(key, noteList.length)
+    }
+  })
+
   const renderNote = (note: Note, overlapCount: number) => {
     const rowIndex = INSTRUMENTS.indexOf(note.instrument)
     const color = INSTRUMENT_COLORS[note.instrument]
     const isSelected = selectedNoteIds.includes(note.id)
-    const isDragging = dragState.isDragging && dragState.noteId === note.id
+    const isDraggingActive = dragState.isDragging &&
+      (dragState.noteId === note.id ||
+        (dragState.isMultiDrag && selectedNoteIds.includes(note.id)))
+    const isOverlap = overlapCount > 1
+
+    const noteSize = isOverlap ? NOTE_SIZE * 1.4 : NOTE_SIZE
+    const noteOpacity = isOverlap ? 0.65 : 1
 
     return (
       <div
         key={note.id}
-        className={`note ${isSelected ? 'selected' : ''} ${isDragging ? 'dragging' : ''}`}
+        className={`note ${isSelected ? 'selected' : ''} ${isDraggingActive ? 'dragging' : ''} ${isOverlap ? 'overlap' : ''}`}
         style={{
-          left: `calc(${note.time / TOTAL_BEATS * 100}% + (100% / ${TOTAL_BEATS} - ${NOTE_SIZE * (overlapCount > 1 ? 1.3 : 1)}px) / 2)`,
-          top: `${rowIndex * ROW_HEIGHT + (ROW_HEIGHT - NOTE_SIZE * (overlapCount > 1 ? 1.3 : 1)) / 2}px`,
-          width: `${NOTE_SIZE * (overlapCount > 1 ? 1.3 : 1)}px`,
-          height: `${NOTE_SIZE * (overlapCount > 1 ? 1.3 : 1)}px`,
+          left: `calc(${note.time / TOTAL_BEATS * 100}% + (100% / ${TOTAL_BEATS} - ${noteSize}px) / 2)`,
+          top: `${rowIndex * ROW_HEIGHT + (ROW_HEIGHT - noteSize) / 2}px`,
+          width: `${noteSize}px`,
+          height: `${noteSize}px`,
           backgroundColor: color,
-          boxShadow: `0 0 10px ${color}80`,
-          opacity: overlapCount > 1 ? 0.7 : 1,
+          boxShadow: isOverlap
+            ? `0 0 16px ${color}99, 0 0 24px ${color}66`
+            : `0 0 10px ${color}80`,
+          opacity: noteOpacity,
         }}
         onMouseDown={(e) => handleMouseDown(e, note)}
         onContextMenu={(e) => handleContextMenu(e, note)}
@@ -180,7 +215,12 @@ export const ScoreEditor: React.FC = React.memo(() => {
   }
 
   return (
-    <div className="score-editor" ref={editorRef} onMouseDown={handleMouseDown}>
+    <div
+      className="score-editor"
+      ref={editorRef}
+      onMouseDown={handleMouseDown}
+      onMouseLeave={handleMouseLeave}
+    >
       <div className="beat-labels">
         {Array.from({ length: TOTAL_BEATS }, (_, i) => (
           <div
@@ -196,10 +236,7 @@ export const ScoreEditor: React.FC = React.memo(() => {
         {INSTRUMENTS.map((instrument) => (
           <div key={instrument} className="track-row-grid">
             {Array.from({ length: TOTAL_BEATS }, (_, beat) => {
-              const key = `${instrument}-${beat}`
-              notesByInstrumentAndTime.get(key)
               const isEvenBeat = beat % 2 === 0
-
               return (
                 <div
                   key={beat}

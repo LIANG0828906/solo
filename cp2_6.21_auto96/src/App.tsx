@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react'
-import { useScoreStore, ExportScore } from './store/useScoreStore'
+import { useScoreStore } from './store/useScoreStore'
 import { TrackList } from './components/TrackList'
 import { ScoreEditor } from './components/ScoreEditor'
 import { playerEngine } from './audio/PlayerEngine'
@@ -12,7 +12,6 @@ const App: React.FC = () => {
     togglePlay,
     stop,
     toggleLoop,
-    setCurrentBeat,
     exportScore,
     importScore,
   } = useScoreStore()
@@ -60,11 +59,13 @@ const App: React.FC = () => {
     const reader = new FileReader()
     reader.onload = (event) => {
       try {
-        const data = JSON.parse(event.target?.result as string) as ExportScore
-        importScore(data)
-      } catch (err) {
-        console.error('导入失败:', err)
-        alert('文件格式错误，请导入正确的JSON文件')
+        const data = JSON.parse(event.target?.result as string)
+        const success = importScore(data)
+        if (!success) {
+          alert('文件格式错误，请检查JSON结构')
+        }
+      } catch {
+        alert('文件解析失败，请导入正确的JSON文件')
       }
     }
     reader.readAsText(file)
@@ -81,7 +82,8 @@ const App: React.FC = () => {
     const x = e.clientX - rect.left
     const progress = x / rect.width
     const newBeat = Math.floor(progress * 32)
-    setCurrentBeat(Math.max(0, Math.min(31, newBeat)))
+    const clampedBeat = Math.max(0, Math.min(31, newBeat))
+    playerEngine.seekToBeat(clampedBeat)
   }
 
   const progressPercent = (currentBeat / 31) * 100
