@@ -117,7 +117,7 @@ export default function TerrainProfile() {
       ctx.fillText(value.toFixed(2), padding.left - 8, y)
     }
 
-    const colors = ['#00d4ff', '#ff4444', '#44ff44', '#ffff44', '#ff44ff']
+    const colors = ['#4444ff', '#ff4444', '#44ff44', '#ffff44', '#ff44ff']
 
     snapshotProfiles.forEach((sp, index) => {
       const color = colors[(index + 1) % colors.length]
@@ -125,7 +125,7 @@ export default function TerrainProfile() {
     })
 
     if (profileData) {
-      drawProfileLine(ctx, profileData.heights, padding, chartWidth, chartHeight, yScale, yOffset, '#00d4ff', 2.5, true)
+      drawProfileLine(ctx, profileData.heights, padding, chartWidth, chartHeight, yScale, yOffset, '#4444ff', 2.5, true)
     }
 
     if (profileData) {

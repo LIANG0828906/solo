@@ -280,7 +280,7 @@ function ParticleSystem({ count }: ParticleSystemProps) {
         />
       </bufferGeometry>
       <pointsMaterial
-        size={0.08}
+        size={0.15}
         color="#ffffff"
         transparent
         opacity={0.6}
@@ -334,52 +334,121 @@ function ProfileLine({ points }: ProfileLineProps) {
   )
 }
 
-function RippleEffects() {
-  const { ripples, heightMap, gridSize, terrainSize } = useTerrainStore()
-  const meshRefs = useRef<Map<number, THREE.Mesh>>(new Map())
+interface SingleRippleProps {
+  ripple: { id: number; worldX: number; worldZ: number; startTime: number }
+}
+
+function SingleRipple({ ripple }: SingleRippleProps) {
+  const rippleRef = useRef<THREE.Mesh>(null)
+  const crossHRef = useRef<THREE.LineSegments>(null)
+  const crossVRef = useRef<THREE.LineSegments>(null)
+  const { heightMap, gridSize, terrainSize } = useTerrainStore()
   
   useFrame(() => {
-    meshRefs.current.forEach((mesh, id) => {
-      const ripple = ripples.find(r => r.id === id)
-      if (!ripple) return
-      
-      const elapsed = Date.now() - ripple.startTime
-      const progress = Math.min(1, elapsed / 1000)
-      
-      const scale = 0.5 + progress * 1.5
-      mesh.scale.set(scale, 1, scale)
-      
-      const material = mesh.material as THREE.MeshBasicMaterial
-      material.opacity = 0.6 * (1 - progress)
-      
-      const gridX = Math.floor((ripple.worldX / terrainSize + 0.5) * gridSize)
-      const gridZ = Math.floor((ripple.worldZ / terrainSize + 0.5) * gridSize)
-      const clampedX = Math.max(0, Math.min(gridSize - 1, gridX))
-      const clampedZ = Math.max(0, Math.min(gridSize - 1, gridZ))
-      const height = heightMap[clampedZ * gridSize + clampedX] * HEIGHT_SCALE
-      mesh.position.y = height + 0.05
-    })
+    if (!rippleRef.current || !crossHRef.current || !crossVRef.current) return
+    
+    const elapsed = Date.now() - ripple.startTime
+    const progress = Math.min(1, elapsed / 1000)
+    
+    const rippleScale = 0.5 + progress * 2.5
+    rippleRef.current.scale.set(rippleScale, 1, rippleScale)
+    
+    const rippleMaterial = rippleRef.current.material as THREE.MeshBasicMaterial
+    rippleMaterial.opacity = 0.6 * (1 - progress)
+    
+    const gridX = Math.floor((ripple.worldX / terrainSize + 0.5) * gridSize)
+    const gridZ = Math.floor((ripple.worldZ / terrainSize + 0.5) * gridSize)
+    const clampedX = Math.max(0, Math.min(gridSize - 1, gridX))
+    const clampedZ = Math.max(0, Math.min(gridSize - 1, gridZ))
+    const height = heightMap[clampedZ * gridSize + clampedX] * HEIGHT_SCALE
+    
+    rippleRef.current.position.y = height + 0.1
+    
+    const crossOpacity = Math.max(0, 1 - progress * 2)
+    const crossHMaterial = crossHRef.current.material as THREE.LineBasicMaterial
+    const crossVMaterial = crossVRef.current.material as THREE.LineBasicMaterial
+    crossHMaterial.opacity = crossOpacity
+    crossVMaterial.opacity = crossOpacity
+    
+    const crossSize = 0.4 + progress * 0.6
+    
+    const hPositions = crossHRef.current.geometry.attributes.position.array as Float32Array
+    hPositions[0] = ripple.worldX - crossSize
+    hPositions[1] = height + 0.15
+    hPositions[2] = ripple.worldZ
+    hPositions[3] = ripple.worldX + crossSize
+    hPositions[4] = height + 0.15
+    hPositions[5] = ripple.worldZ
+    crossHRef.current.geometry.attributes.position.needsUpdate = true
+    
+    const vPositions = crossVRef.current.geometry.attributes.position.array as Float32Array
+    vPositions[0] = ripple.worldX
+    vPositions[1] = height + 0.15
+    vPositions[2] = ripple.worldZ - crossSize
+    vPositions[3] = ripple.worldX
+    vPositions[4] = height + 0.15
+    vPositions[5] = ripple.worldZ + crossSize
+    crossVRef.current.geometry.attributes.position.needsUpdate = true
   })
+  
+  const crossHPositions = useMemo(() => {
+    return new Float32Array([ripple.worldX, 0, ripple.worldZ, ripple.worldX, 0, ripple.worldZ])
+  }, [ripple.worldX, ripple.worldZ])
+  
+  const crossVPositions = useMemo(() => {
+    return new Float32Array([ripple.worldX, 0, ripple.worldZ, ripple.worldX, 0, ripple.worldZ])
+  }, [ripple.worldX, ripple.worldZ])
+  
+  return (
+    <group>
+      <mesh
+        ref={rippleRef}
+        position={[ripple.worldX, 0, ripple.worldZ]}
+        rotation={[-Math.PI / 2, 0, 0]}
+      >
+        <ringGeometry args={[0.4, 0.5, 32]} />
+        <meshBasicMaterial 
+          color="#00d4ff" 
+          transparent 
+          opacity={0.6} 
+          side={THREE.DoubleSide} 
+        />
+      </mesh>
+      
+      <lineSegments ref={crossHRef}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={2}
+            array={crossHPositions}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <lineBasicMaterial color="#ff4444" transparent opacity={1} linewidth={2} />
+      </lineSegments>
+      
+      <lineSegments ref={crossVRef}>
+        <bufferGeometry>
+          <bufferAttribute
+            attach="attributes-position"
+            count={2}
+            array={crossVPositions}
+            itemSize={3}
+          />
+        </bufferGeometry>
+        <lineBasicMaterial color="#ff4444" transparent opacity={1} linewidth={2} />
+      </lineSegments>
+    </group>
+  )
+}
+
+function RippleEffects() {
+  const { ripples } = useTerrainStore()
   
   return (
     <>
       {ripples.map((ripple) => (
-        <mesh
-          key={ripple.id}
-          ref={(el) => {
-            if (el) meshRefs.current.set(ripple.id, el)
-          }}
-          position={[ripple.worldX, 0, ripple.worldZ]}
-          rotation={[-Math.PI / 2, 0, 0]}
-        >
-          <ringGeometry args={[0.4, 0.5, 32]} />
-          <meshBasicMaterial 
-            color="#00d4ff" 
-            transparent 
-            opacity={0.6} 
-            side={THREE.DoubleSide} 
-          />
-        </mesh>
+        <SingleRipple key={ripple.id} ripple={ripple} />
       ))}
     </>
   )
