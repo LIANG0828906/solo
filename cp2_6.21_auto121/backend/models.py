@@ -12,6 +12,7 @@ class Furniture(BaseModel):
     description: str
     dimensions: Optional[str] = None
     material: Optional[str] = None
+    style_tags: List[str]
 
 
 class Style(BaseModel):
