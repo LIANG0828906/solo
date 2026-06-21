@@ -159,4 +159,109 @@ function Earth() {
       <directionalLight
         ref={directionalLightRef}
         position={sunPosition}
-        intensity
+        intensity={1.5}
+        castShadow
+      />
+      <mesh ref={earthRef} onClick={handleEarthClick}>
+        <sphereGeometry args={[EARTH_RADIUS, 64, 64]} />
+        <meshStandardMaterial
+          map={earthTexture}
+          normalMap={earthNormalMap}
+          roughness={0.8}
+          metalness={0.1}
+        />
+      </mesh>
+      <mesh ref={terminatorRef}>
+        <sphereGeometry args={[TERMINATOR_RADIUS, 64, 64]} />
+        <shaderMaterial
+          vertexShader={terminatorVertexShader}
+          fragmentShader={terminatorFragmentShader}
+          uniforms={terminatorUniforms}
+          transparent
+          side={THREE.DoubleSide}
+          depthWrite={false}
+        />
+      </mesh>
+      <mesh ref={cloudsRef}>
+        <sphereGeometry args={[CLOUDS_RADIUS, 64, 64]} />
+        <meshStandardMaterial
+          map={cloudsTexture}
+          transparent
+          opacity={0.4}
+          depthWrite={false}
+        />
+      </mesh>
+      <Line
+        points={equatorPoints}
+        color="rgba(255,255,255,0.4)"
+        lineWidth={1}
+        dashed
+        dashSize={0.05}
+        gapSize={0.05}
+      />
+      <Line
+        points={tropicOfCancerPoints}
+        color="rgba(255,80,80,0.5)"
+        lineWidth={1}
+        dashed
+        dashSize={0.05}
+        gapSize={0.05}
+      />
+      <Line
+        points={tropicOfCapricornPoints}
+        color="rgba(255,80,80,0.5)"
+        lineWidth={1}
+        dashed
+        dashSize={0.05}
+        gapSize={0.05}
+      />
+      {clickMarkers.map((marker) => {
+        const now = Date.now();
+        const opacity = 1 - (now - marker.createdAt) / CLICK_MARKER_DURATION;
+        return (
+          <mesh key={marker.id} position={marker.position}>
+            <sphereGeometry args={[0.015, 16, 16]} />
+            <meshBasicMaterial color="#66ffff" transparent opacity={opacity} />
+          </mesh>
+        );
+      })}
+    </group>
+  );
+}
+
+function SceneContent() {
+  const { camera } = useThree();
+  const setCameraPosition = useSimulationStore((state) => state.setCameraPosition);
+
+  const handleControlsEnd = () => {
+    setCameraPosition([camera.position.x, camera.position.y, camera.position.z]);
+  };
+
+  return (
+    <>
+      <OrbitControls
+        enablePan={false}
+        minDistance={1.5}
+        maxDistance={8}
+        target={[0, 0, 0]}
+        makeDefault
+        onEnd={handleControlsEnd}
+      />
+      <Earth />
+    </>
+  );
+}
+
+export default function Scene() {
+  const cameraPosition = useSimulationStore((state) => state.cameraPosition);
+
+  return (
+    <Canvas
+      gl={{ antialias: true }}
+      camera={{ position: cameraPosition, fov: 45 }}
+      style={{ position: 'absolute', inset: 0, zIndex: 1 }}
+    >
+      <SceneContent />
+    </Canvas>
+  );
+}
