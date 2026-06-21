@@ -196,12 +196,16 @@ function GiftBoxMesh({ boxShape, ribbonColor, cardText, cardFont, cardColor, cho
           <Text
             position={[0.8, 0.5, 0.015]}
             rotation={[0, 0, 0.15]}
-            fontSize={0.06}
+            fontSize={0.055}
             color={cardColor}
             font={cardFont}
-            maxWidth={0.8}
+            maxWidth={0.5}
+            lineHeight={1.3}
+            textAlign="center"
             anchorX="center"
             anchorY="middle"
+            wrapLines={true}
+            whiteSpace="normal"
           >
             {cardText}
           </Text>

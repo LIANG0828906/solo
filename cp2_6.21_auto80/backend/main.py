@@ -1,9 +1,12 @@
+import re
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime
 from uuid import uuid4
+
+VALID_FLAVOR_IDS = {'sea-salt-caramel', 'matcha', 'dark-chocolate', 'strawberry', 'pistachio', 'baileys'}
 
 app = FastAPI()
 
@@ -44,6 +47,21 @@ orders_db: dict[str, OrderResponse] = {}
 
 @app.post("/api/orders", response_model=OrderResponse)
 def create_order(order: OrderCreate):
+    if len(order.chocolates) < 3 or len(order.chocolates) > 6:
+        raise HTTPException(status_code=400, detail="巧克力数量必须在3-6颗之间")
+    for chocolate in order.chocolates:
+        if chocolate.flavorId not in VALID_FLAVOR_IDS:
+            raise HTTPException(status_code=400, detail=f"无效的口味ID: {chocolate.flavorId}")
+        if not re.match(r'^#[0-9A-Fa-f]{6}$', chocolate.color):
+            raise HTTPException(status_code=400, detail=f"无效的颜色格式: {chocolate.color}. 必须是十六进制如 #RRGGBB")
+        if chocolate.shape not in {'circle', 'square', 'heart', 'shell'}:
+            raise HTTPException(status_code=400, detail=f"无效的形状: {chocolate.shape}")
+        if chocolate.texture not in {'matte', 'glossy', 'crushed-nuts', 'gold-foil'}:
+            raise HTTPException(status_code=400, detail=f"无效的纹理: {chocolate.texture}")
+    if order.giftBox.boxShape not in {'square', 'heart', 'drawer'}:
+        raise HTTPException(status_code=400, detail=f"无效的礼盒形状: {order.giftBox.boxShape}")
+    if len(order.giftBox.cardText) > 200:
+        raise HTTPException(status_code=400, detail="贺卡文字不能超过200个字符")
     order_id = str(uuid4())
     response = OrderResponse(
         orderId=order_id,

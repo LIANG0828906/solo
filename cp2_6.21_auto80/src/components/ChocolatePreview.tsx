@@ -102,18 +102,21 @@ function ChocolateMesh({ shape, color, texture, size = 1 }: ChocolatePreviewProp
     return geo
   }, [shape, size])
 
+  const circleGeometry = useMemo(() => {
+    if (shape !== 'circle') return null
+    return new THREE.CylinderGeometry(0.4 * size, 0.4 * size, 0.2 * size, 48, 1)
+  }, [shape, size])
+
   useFrame(() => {
     if (!meshRef.current) return
     meshRef.current.rotation.y += 0.003
     meshRef.current.position.y = Math.sin(Date.now() * 0.001) * 0.02
   })
 
-  const circleScale = shape === 'circle' ? [1, 0.5, 1] as [number, number, number] : [1, 1, 1]
-
   return (
-    <mesh ref={meshRef} material={material} scale={circleScale}>
-      {shape === 'circle' && (
-        <sphereGeometry args={[0.4 * size, 32, 32]} />
+    <mesh ref={meshRef} material={material}>
+      {shape === 'circle' && circleGeometry && (
+        <primitive object={circleGeometry} attach="geometry" />
       )}
       {shape === 'square' && (
         <RoundedBox args={[0.7 * size, 0.35 * size, 0.7 * size, 4, 0.05]} />
