@@ -765,3 +765,150 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* ===== 动态氛围动画 ===== */
+
+/* 乐手呼吸动画 - 根据曲风有不同频率 */
+.musician-card.playing .musician-icon svg {
+  animation: breathe 2.5s ease-in-out infinite;
+}
+
+.musician-card.playing.genre-rock .musician-icon svg {
+  animation-duration: 1.2s;
+}
+
+.musician-card.playing.genre-funk .musician-icon svg {
+  animation-duration: 1.5s;
+}
+
+.musician-card.playing.genre-blues .musician-icon svg {
+  animation-duration: 3s;
+}
+
+.musician-card.playing.genre-reggae .musician-icon svg {
+  animation-duration: 2s;
+}
+
+@keyframes breathe {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.03);
+  }
+}
+
+.musician-card.paused .musician-icon svg {
+  animation: none;
+  opacity: 1;
+  transform: scale(1);
+}
+
+/* 选中乐手金色脉动光晕效果 */
+.musician-card.selected .musician-icon {
+  animation: gold-pulse 1.8s ease-in-out infinite;
+}
+
+@keyframes gold-pulse {
+  0%, 100% {
+    box-shadow:
+      0 0 20px 2px rgba(255, 215, 0, 0.9),
+      0 0 40px 4px rgba(255, 215, 0, 0.4),
+      inset 0 0 20px rgba(255, 255, 255, 0.03);
+  }
+  50% {
+    box-shadow:
+      0 0 30px 6px rgba(255, 215, 0, 1),
+      0 0 60px 12px rgba(255, 215, 0, 0.5),
+      inset 0 0 20px rgba(255, 255, 255, 0.03);
+  }
+}
+
+.musician-card.selected.paused .musician-icon {
+  animation-play-state: paused;
+}
+
+.musician-card.selected.playing .musician-icon {
+  animation-play-state: running;
+}
+
+/* 播放按钮唱片旋转纹理效果 */
+.play-btn {
+  position: relative;
+  overflow: hidden;
+}
+
+.play-btn-record {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background:
+    repeating-radial-gradient(
+      circle at center,
+      transparent 0px,
+      transparent 4px,
+      rgba(0, 255, 170, 0.06) 4px,
+      rgba(0, 255, 170, 0.06) 5px
+    ),
+    radial-gradient(
+      circle at center,
+      rgba(0, 255, 170, 0.15) 0%,
+      rgba(0, 255, 170, 0.05) 40%,
+      transparent 70%
+    );
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.play-btn.playing .play-btn-record {
+  opacity: 1;
+  animation: record-spin 4s linear infinite;
+}
+
+.play-btn-record::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  margin: -5px 0 0 -5px;
+  background: var(--neon-green);
+  border-radius: 50%;
+  box-shadow: 0 0 6px var(--neon-green);
+}
+
+.play-btn-record::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border: 2px solid rgba(0, 255, 170, 0.3);
+  border-top-color: var(--neon-green);
+  border-radius: 50%;
+}
+
+@keyframes record-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* 确保按钮图标在唱片纹理之上 */
+.play-btn svg {
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 0 2px rgba(0, 255, 170, 0.5));
+}

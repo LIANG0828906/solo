@@ -56,6 +56,7 @@ export function ControlPanel() {
             className={`play-btn ${isPlaying ? 'playing' : ''}`}
             onClick={handlePlayClick}
           >
+            <span className="play-btn-record" />
             {isPlaying ? (
               <svg viewBox="0 0 24 24" fill="currentColor">
                 <rect x="6" y="5" width="4" height="14" rx="1" />

@@ -90,13 +90,21 @@ interface MusicianCardProps {
 
 function MusicianCard({ type, isSelected, onClick }: MusicianCardProps) {
   const musician = useBandStore(state => state.musicians[type]);
+  const isPlaying = useBandStore(state => state.isPlaying);
   const updateMusician = useBandStore(state => state.updateMusician);
   const color = NEON_COLORS[type];
+
+  const cardClasses = [
+    'musician-card',
+    `genre-${musician.genre}`,
+    isPlaying ? 'playing' : 'paused',
+    isSelected ? 'selected' : ''
+  ].filter(Boolean).join(' ');
 
   return (
     <div
       onClick={onClick}
-      className="musician-card"
+      className={cardClasses}
       style={{
         '--musician-color': color,
         '--selected-glow': isSelected ? '0 0 20px 3px #ffd700, 0 0 40px 6px rgba(255, 215, 0, 0.4)' : 'none',
