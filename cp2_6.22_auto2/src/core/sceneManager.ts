@@ -12,6 +12,8 @@ export class SceneManager {
   public hemiLight: THREE.HemisphereLight;
   public ground: THREE.Mesh;
   public ambientLight: THREE.AmbientLight;
+  public sunGlow: THREE.Mesh;
+  public sunCorona: THREE.Mesh;
 
   private container: HTMLElement | null = null;
   private buildingGroup: THREE.Group;
@@ -91,10 +93,70 @@ export class SceneManager {
     this.scene.add(this.sunLight);
     this.scene.add(this.sunLight.target);
 
-    const sunGeo = new THREE.SphereGeometry(8, 32, 32);
+    const sunGeo = new THREE.SphereGeometry(10, 48, 48);
     const sunMat = new THREE.MeshBasicMaterial({ color: 0xffee88, fog: false });
     this.sun = new THREE.Mesh(sunGeo, sunMat);
     this.scene.add(this.sun);
+
+    const glowGeo = new THREE.SphereGeometry(18, 48, 48);
+    const glowMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      fog: false,
+      transparent: true,
+      depthWrite: false,
+      uniforms: {
+        color: { value: new THREE.Color(0xffaa44) },
+        intensity: { value: 0.8 }
+      },
+      vertexShader: `
+        varying vec3 vNormal;
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vNormal;
+        uniform vec3 color;
+        uniform float intensity;
+        void main() {
+          float intensity = pow(0.7 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 2.0);
+          gl_FragColor = vec4(color, intensity * 1.2);
+        }
+      `
+    });
+    this.sunGlow = new THREE.Mesh(glowGeo, glowMat);
+    this.scene.add(this.sunGlow);
+
+    const coronaGeo = new THREE.SphereGeometry(28, 48, 48);
+    const coronaMat = new THREE.ShaderMaterial({
+      side: THREE.BackSide,
+      fog: false,
+      transparent: true,
+      depthWrite: false,
+      uniforms: {
+        color: { value: new THREE.Color(0xff6633) },
+        intensity: { value: 0.5 }
+      },
+      vertexShader: `
+        varying vec3 vNormal;
+        void main() {
+          vNormal = normalize(normalMatrix * normal);
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        varying vec3 vNormal;
+        uniform vec3 color;
+        uniform float intensity;
+        void main() {
+          float intensity = pow(0.6 - dot(vNormal, vec3(0.0, 0.0, 1.0)), 3.0);
+          gl_FragColor = vec4(color, intensity * 0.8);
+        }
+      `
+    });
+    this.sunCorona = new THREE.Mesh(coronaGeo, coronaMat);
+    this.scene.add(this.sunCorona);
 
     const groundGeo = new THREE.PlaneGeometry(600, 600);
     const groundMat = new THREE.MeshStandardMaterial({
@@ -210,12 +272,15 @@ export class SceneManager {
 
   private applyTime(hour: number): void {
     const angle = ((hour - 6) / 24) * Math.PI * 2;
-    const radius = 350;
+    const radius = 380;
     const sunX = Math.cos(angle) * radius;
-    const sunY = Math.sin(angle) * radius * 0.9 + 20;
-    const sunZ = Math.sin(angle * 0.5) * 100;
+    const sunY = Math.sin(angle) * radius * 0.95 + 30;
+    const sunZ = Math.sin(angle * 0.5) * 120;
 
     this.sun.position.set(sunX, sunY, sunZ);
+    this.sunGlow.position.copy(this.sun.position);
+    this.sunCorona.position.copy(this.sun.position);
+
     this.sunLight.position.copy(this.sun.position);
     this.sunLight.target.position.set(0, 0, 0);
     this.sunLight.target.updateMatrixWorld();
@@ -225,6 +290,42 @@ export class SceneManager {
     this.sunLight.intensity = intensity;
     this.sunLight.color.setHex(sunColor);
     (this.sun.material as THREE.MeshBasicMaterial).color.setHex(sunColor);
+
+    const normalizedHeight = Math.max(0, Math.min(1, sunY / 350));
+    const glowMat = this.sunGlow.material as THREE.ShaderMaterial;
+    const coronaMat = this.sunCorona.material as THREE.ShaderMaterial;
+    glowMat.uniforms.color.value.setHex(sunColor);
+    coronaMat.uniforms.color.value.setHex(sunColor);
+    const glowIntensity = 0.3 + normalizedHeight * 0.8;
+    glowMat.uniforms.intensity.value = glowIntensity;
+    coronaMat.uniforms.intensity.value = glowIntensity * 0.7;
+
+    const sunScale = 0.5 + normalizedHeight * 1.0;
+    this.sun.scale.setScalar(sunScale);
+    this.sunGlow.scale.setScalar(sunScale * 1.4);
+    this.sunCorona.scale.setScalar(sunScale * 2.0);
+
+    const altitudeAngle = Math.atan2(sunY, Math.sqrt(sunX * sunX + sunZ * sunZ));
+    const shadowMultiplier = Math.max(0.5, 1.5 - Math.sin(altitudeAngle) * 1.0);
+    const shadowSoftness = 0.0002 + (1 - normalizedHeight) * 0.0008;
+    this.sunLight.shadow.bias = -shadowSoftness;
+    this.sunLight.shadow.normalBias = 0.01 + (1 - normalizedHeight) * 0.03;
+
+    const shadowSize = 1536 + Math.floor(normalizedHeight * 512);
+    if (this.sunLight.shadow.mapSize.width !== shadowSize) {
+      this.sunLight.shadow.mapSize.set(shadowSize, shadowSize);
+      if (this.sunLight.shadow.map) {
+        this.sunLight.shadow.map.dispose();
+        this.sunLight.shadow.map = null;
+      }
+    }
+
+    const d = 200 + shadowMultiplier * 150;
+    this.sunLight.shadow.camera.left = -d;
+    this.sunLight.shadow.camera.right = d;
+    this.sunLight.shadow.camera.top = d;
+    this.sunLight.shadow.camera.bottom = -d;
+    this.sunLight.shadow.camera.updateProjectionMatrix();
 
     const sky = getSkyColors(hour);
     this.skyTop.setHex(sky.top);
@@ -236,6 +337,8 @@ export class SceneManager {
     }
     if (this.scene.fog instanceof THREE.Fog) {
       this.scene.fog.color.lerpColors(this.skyBottom, this.skyTop, 0.5);
+      this.scene.fog.near = 150 + normalizedHeight * 100;
+      this.scene.fog.far = 500 + normalizedHeight * 300;
     }
 
     this.hemiLight.color.setHex(sky.top);
@@ -245,7 +348,10 @@ export class SceneManager {
     this.ambientLight.color.setHex(sky.ambient);
     this.ambientLight.intensity = 0.2 + intensity * 0.2;
 
-    this.renderer.toneMappingExposure = 0.85 + intensity * 0.25;
+    this.renderer.toneMappingExposure = 0.75 + normalizedHeight * 0.5;
+
+    this.sunGlow.lookAt(this.camera.position);
+    this.sunCorona.lookAt(this.camera.position);
   }
 
   public setGroundColor(color: number): void {
@@ -283,6 +389,23 @@ export class SceneManager {
     this.controls.dispose();
     this.renderer.dispose();
     this.clearBuildings();
+
+    this.scene.remove(this.sun);
+    this.scene.remove(this.sunGlow);
+    this.scene.remove(this.sunCorona);
+    this.sun.geometry.dispose();
+    (this.sun.material as THREE.Material).dispose();
+    this.sunGlow.geometry.dispose();
+    (this.sunGlow.material as THREE.Material).dispose();
+    this.sunCorona.geometry.dispose();
+    (this.sunCorona.material as THREE.Material).dispose();
+
+    if (this.skyMesh) {
+      this.scene.remove(this.skyMesh);
+      this.skyMesh.geometry.dispose();
+      (this.skyMesh.material as THREE.Material).dispose();
+    }
+
     if (this.container && this.renderer.domElement.parentNode === this.container) {
       this.container.removeChild(this.renderer.domElement);
     }

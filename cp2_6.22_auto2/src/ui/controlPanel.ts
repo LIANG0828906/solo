@@ -522,10 +522,14 @@ function buildPanelStyles(): void {
         left: 0;
         width: 100%;
         max-height: 85vh;
+        overflow-y: auto;
+        overflow-x: hidden;
+        -webkit-overflow-scrolling: touch;
         border-radius: 16px 16px 0 0;
         padding: 16px;
         transform: translateY(100%);
         display: none;
+        padding-bottom: 80px;
       }
       .city-control-panel.open {
         display: block;
@@ -535,7 +539,18 @@ function buildPanelStyles(): void {
         from { transform: translateY(100%); }
         to { transform: translateY(0); }
       }
-      .panel-toggle { display: flex; }
+      .panel-toggle {
+        display: flex;
+        transition: transform 0.2s ease, background 0.2s ease;
+      }
+      .panel-toggle.open {
+        transform: rotate(45deg);
+        background: var(--accent-color);
+        color: #fff;
+      }
+      .panel-toggle:active {
+        transform: scale(0.92);
+      }
     }
   `;
   document.head.appendChild(style);
@@ -565,7 +580,8 @@ export function createControlPanel(container: HTMLElement, cbs: ControlPanelCall
     </svg>
   `;
   toggleBtn.addEventListener('click', () => {
-    panelRoot?.classList.toggle('open');
+    const isOpen = panelRoot?.classList.toggle('open');
+    toggleBtn.classList.toggle('open', isOpen || false);
   });
   container.appendChild(toggleBtn);
 
