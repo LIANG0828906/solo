@@ -15,6 +15,8 @@ export class Renderer {
   private scale: number = 1;
   private offsetX: number = 0;
   private offsetY: number = 0;
+  private aimLineVisible: boolean = true;
+  private lastAimBlinkTime: number = 0;
 
   constructor(ctx: CanvasRenderingContext2D) {
     this.ctx = ctx;
@@ -71,17 +73,17 @@ export class Renderer {
       this.ts(innerH)
     );
 
-    const spotX = table.x + table.cushionWidth + (table.width - 2 * table.cushionWidth) * 0.25;
-    const spotY = table.y + table.cushionWidth + (table.height - 2 * table.cushionWidth) / 2;
+    const spotX = table.x + table.cushionWidth + innerW * 0.25;
+    const spotY = table.y + table.cushionWidth + innerH / 2;
     ctx.beginPath();
     ctx.arc(this.tx(spotX), this.ty(spotY), this.ts(2), 0, Math.PI * 2);
     ctx.fillStyle = 'rgba(255,255,255,0.3)';
     ctx.fill();
 
-    const headX = table.x + table.cushionWidth + (table.width - 2 * table.cushionWidth) * 0.75;
+    const headX = table.x + table.cushionWidth + innerW * 0.75;
     ctx.beginPath();
-    ctx.moveTo(this.tx(headX), this.ty(innerY));
-    ctx.lineTo(this.tx(headX), this.ty(innerY + innerH));
+    ctx.moveTo(this.tx(headX), this.ty(innerY + this.ts(1)));
+    ctx.lineTo(this.tx(headX), this.ty(innerY + innerH - this.ts(1)));
     ctx.strokeStyle = 'rgba(255,255,255,0.15)';
     ctx.lineWidth = this.ts(1);
     ctx.stroke();
@@ -95,7 +97,7 @@ export class Renderer {
       ctx.fillStyle = '#000000';
       ctx.fill();
       ctx.beginPath();
-      ctx.arc(this.tx(pocket.x), this.ty(pocket.y), this.ts(pocket.radius - 1), 0, Math.PI * 2);
+      ctx.arc(this.tx(pocket.x), this.ty(pocket.y), this.ts(pocket.radius - 1.5), 0, Math.PI * 2);
       ctx.fillStyle = '#111111';
       ctx.fill();
     }
@@ -162,7 +164,7 @@ export class Renderer {
 
     ctx.beginPath();
     ctx.arc(x - r * 0.25, y - r * 0.25, r * 0.2, 0, Math.PI * 2);
-    ctx.fillStyle = 'rgba(255,255,255,0.35)';
+    ctx.fillStyle = 'rgba(255,255,255,0.4)';
     ctx.fill();
   }
 
@@ -181,8 +183,13 @@ export class Renderer {
     show: boolean
   ): void {
     if (!show || cueBall.pocketed) return;
+
     const now = Date.now();
-    if (Math.floor(now / AIM_BLINK_INTERVAL) % 2 === 0) return;
+    if (now - this.lastAimBlinkTime >= AIM_BLINK_INTERVAL / 2) {
+      this.aimLineVisible = !this.aimLineVisible;
+      this.lastAimBlinkTime = now;
+    }
+    if (!this.aimLineVisible) return;
 
     const ctx = this.ctx;
     const dx = mouseX - cueBall.x;
@@ -193,16 +200,16 @@ export class Renderer {
     const nx = dx / dist;
     const ny = dy / dist;
 
-    const startX = cueBall.x + nx * cueBall.radius;
-    const startY = cueBall.y + ny * cueBall.radius;
-    const endX = cueBall.x + nx * (cueBall.radius + AIM_LINE_LENGTH);
-    const endY = cueBall.y + ny * (cueBall.radius + AIM_LINE_LENGTH);
+    const startX = cueBall.x + nx * (cueBall.radius + 2);
+    const startY = cueBall.y + ny * (cueBall.radius + 2);
+    const endX = cueBall.x + nx * AIM_LINE_LENGTH;
+    const endY = cueBall.y + ny * AIM_LINE_LENGTH;
 
     ctx.beginPath();
-    ctx.setLineDash([this.ts(4), this.ts(4)]);
+    ctx.setLineDash([this.ts(5), this.ts(5)]);
     ctx.moveTo(this.tx(startX), this.ty(startY));
     ctx.lineTo(this.tx(endX), this.ty(endY));
-    ctx.strokeStyle = 'rgba(255,255,255,0.7)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
     ctx.lineWidth = this.ts(1.5);
     ctx.stroke();
     ctx.setLineDash([]);
@@ -217,15 +224,15 @@ export class Renderer {
     if (!show) return;
     const ctx = this.ctx;
 
-    const barWidth = canvasWidth * 0.4;
-    const barHeight = 14;
+    const barWidth = Math.max(200, canvasWidth * 0.35);
+    const barHeight = 16;
     const barX = (canvasWidth - barWidth) / 2;
-    const barY = canvasHeight - 40;
+    const barY = canvasHeight - 44;
 
     ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(barX - 4, barY - 4, barWidth + 8, barHeight + 8);
+    ctx.fillRect(barX - 5, barY - 5, barWidth + 10, barHeight + 10);
 
-    ctx.fillStyle = '#333';
+    ctx.fillStyle = '#222';
     ctx.fillRect(barX, barY, barWidth, barHeight);
 
     const fillWidth = (power / 100) * barWidth;
@@ -236,15 +243,15 @@ export class Renderer {
     ctx.fillStyle = grad;
     ctx.fillRect(barX, barY, fillWidth, barHeight);
 
-    ctx.strokeStyle = '#666';
+    ctx.strokeStyle = '#555';
     ctx.lineWidth = 1;
     ctx.strokeRect(barX, barY, barWidth, barHeight);
 
     ctx.fillStyle = '#FFFF00';
-    ctx.font = '14px Arial';
+    ctx.font = 'bold 14px Arial';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'bottom';
-    ctx.fillText(`${Math.round(power)}`, barX + barWidth / 2, barY - 6);
+    ctx.fillText(`${Math.round(power)}`, barX + barWidth / 2, barY - 8);
   }
 
   drawCushionFlash(
@@ -264,7 +271,7 @@ export class Renderer {
       const innerY = table.y + table.cushionWidth;
       const innerW = table.width - 2 * table.cushionWidth;
       const innerH = table.height - 2 * table.cushionWidth;
-      const flashSize = this.ts(3);
+      const flashSize = this.ts(4);
 
       switch (flash.side) {
         case 'top':
@@ -300,26 +307,26 @@ export class Renderer {
       if (traj.points.length < 2) continue;
 
       ctx.beginPath();
-      ctx.setLineDash([this.ts(3), this.ts(3)]);
+      ctx.setLineDash([this.ts(4), this.ts(4)]);
       ctx.moveTo(this.tx(traj.points[0].x), this.ty(traj.points[0].y));
       for (let i = 1; i < traj.points.length; i++) {
         ctx.lineTo(this.tx(traj.points[i].x), this.ty(traj.points[i].y));
       }
-      ctx.strokeStyle = 'rgba(255,255,255,0.25)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.3)';
       ctx.lineWidth = this.ts(1);
       ctx.stroke();
       ctx.setLineDash([]);
 
       const first = traj.points[0];
       ctx.beginPath();
-      ctx.arc(this.tx(first.x), this.ty(first.y), this.ts(2.5), 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,255,255,0.6)';
+      ctx.arc(this.tx(first.x), this.ty(first.y), this.ts(3), 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,255,255,0.7)';
       ctx.fill();
 
       const last = traj.points[traj.points.length - 1];
       ctx.beginPath();
-      ctx.arc(this.tx(last.x), this.ty(last.y), this.ts(2.5), 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(255,100,100,0.6)';
+      ctx.arc(this.tx(last.x), this.ty(last.y), this.ts(3), 0, Math.PI * 2);
+      ctx.fillStyle = 'rgba(255,80,80,0.8)';
       ctx.fill();
     }
   }
@@ -336,9 +343,29 @@ export class Renderer {
       ctx.globalAlpha = 0.7;
       ctx.fill();
       ctx.globalAlpha = 1;
-      ctx.strokeStyle = 'rgba(255,255,255,0.4)';
+      ctx.strokeStyle = 'rgba(255,255,255,0.5)';
       ctx.lineWidth = this.ts(0.5);
       ctx.stroke();
     }
+  }
+
+  drawFoul(canvasWidth: number, canvasHeight: number, show: boolean, intensity: number): void {
+    if (!show) return;
+    const ctx = this.ctx;
+
+    const pulseAlpha = 0.4 + 0.4 * intensity;
+    ctx.strokeStyle = `rgba(255, 0, 0, ${pulseAlpha})`;
+    ctx.lineWidth = 6;
+    ctx.strokeRect(3, 3, canvasWidth - 6, canvasHeight - 6);
+
+    ctx.font = 'bold 48px Arial';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle = `rgba(255, 50, 50, ${0.8 + 0.2 * intensity})`;
+    ctx.fillText('犯规', canvasWidth / 2, canvasHeight / 2 - 60);
+
+    ctx.font = '20px Arial';
+    ctx.fillStyle = 'rgba(255, 200, 200, 0.9)';
+    ctx.fillText('击球顺序错误', canvasWidth / 2, canvasHeight / 2 - 15);
   }
 }

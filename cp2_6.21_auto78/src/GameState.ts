@@ -7,6 +7,7 @@ import {
   BallTrajectory,
   SnapshotBall,
   HistoryFrame,
+  TrajectoryPoint,
   FOUL_FLASH_DURATION,
 } from './types';
 
@@ -32,7 +33,7 @@ interface GameStore {
   addPocketedBall: (id: number) => void;
   setCurrentTarget: (target: number) => void;
   triggerFoul: () => void;
-  clearFoul: () => void;
+  clearFoul: () => boolean;
   addCushionFlash: (flash: CushionFlash) => void;
   cleanCushionFlashes: () => void;
   startShot: () => void;
@@ -44,6 +45,25 @@ interface GameStore {
   endReplay: () => void;
   setPower: (power: number) => void;
   resetGame: () => void;
+}
+
+function buildTrajectories(frames: HistoryFrame[]): BallTrajectory[] {
+  const map = new Map<number, TrajectoryPoint[]>();
+  for (const frame of frames) {
+    for (const sb of frame.balls) {
+      let points = map.get(sb.id);
+      if (!points) {
+        points = [];
+        map.set(sb.id, points);
+      }
+      points.push({ x: sb.x, y: sb.y });
+    }
+  }
+  const result: BallTrajectory[] = [];
+  for (const [ballId, points] of map.entries()) {
+    result.push({ ballId, points });
+  }
+  return result;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -62,7 +82,15 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isReplaying: false,
   power: 0,
 
-  setMode: (mode) => set({ mode, score: 0, pocketedBallIds: [], currentTarget: 1, foul: false }),
+  setMode: (mode) =>
+    set({
+      mode,
+      score: 0,
+      pocketedBallIds: [],
+      currentTarget: 1,
+      foul: false,
+      foulTime: 0,
+    }),
 
   setPhase: (phase) => set({ phase }),
 
@@ -78,8 +106,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   clearFoul: () => {
     const s = get();
     if (s.foul && Date.now() - s.foulTime > FOUL_FLASH_DURATION) {
-      set({ foul: false });
+      set({ foul: false, foulTime: 0 });
+      return true;
     }
+    return false;
   },
 
   addCushionFlash: (flash) =>
@@ -92,49 +122,54 @@ export const useGameStore = create<GameStore>((set, get) => ({
       ),
     })),
 
-  startShot: () => set({ currentShotFrames: [], currentTrajectories: [] }),
+  startShot: () => {
+    set({ currentShotFrames: [], currentTrajectories: [] });
+  },
 
   addFrameToShot: (frame) =>
     set((s) => ({ currentShotFrames: [...s.currentShotFrames, frame] })),
 
   setTrajectories: (traj) => set({ currentTrajectories: traj }),
 
-  endShot: () =>
+  endShot: () => {
+    const s = get();
+    const trajectories = buildTrajectories(s.currentShotFrames);
     set((s) => ({
       shotHistory: [
         ...s.shotHistory,
         {
           frames: s.currentShotFrames,
-          trajectories: s.currentTrajectories,
+          trajectories,
         },
       ],
       currentShotFrames: [],
       currentTrajectories: [],
-    })),
+    }));
+  },
 
   startReplay: () =>
-    set((s) => ({
+    set({
       isReplaying: true,
       replayFrameIndex: 0,
-      phase: 'replay' as GamePhase,
-    })),
+      phase: 'replay',
+    }),
 
   advanceReplay: () => {
     const s = get();
     const lastShot = s.shotHistory[s.shotHistory.length - 1];
     if (!lastShot) {
-      set({ isReplaying: false, phase: 'idle' as GamePhase });
+      set({ isReplaying: false, phase: 'idle' });
       return;
     }
     const nextIndex = s.replayFrameIndex + 2;
     if (nextIndex >= lastShot.frames.length) {
-      set({ isReplaying: false, phase: 'idle' as GamePhase });
+      set({ isReplaying: false, phase: 'idle' });
     } else {
       set({ replayFrameIndex: nextIndex });
     }
   },
 
-  endReplay: () => set({ isReplaying: false, phase: 'idle' as GamePhase }),
+  endReplay: () => set({ isReplaying: false, phase: 'idle' }),
 
   setPower: (power) => set({ power }),
 
@@ -144,6 +179,7 @@ export const useGameStore = create<GameStore>((set, get) => ({
       pocketedBallIds: [],
       currentTarget: 1,
       foul: false,
+      foulTime: 0,
       shotHistory: [],
       currentShotFrames: [],
       currentTrajectories: [],

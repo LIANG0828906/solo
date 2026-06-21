@@ -15,25 +15,48 @@ import {
   CUSHION_WIDTH,
   MAX_SHOT_SPEED,
   SnapshotBall,
-  BallTrajectory,
-  TrajectoryPoint,
   CushionFlash,
+  FOUL_FLASH_DURATION,
 } from './types';
 
 function createTable(): TableDimensions {
+  const playW = TABLE_WIDTH;
+  const playH = TABLE_HEIGHT;
+
   const pockets: Pocket[] = [
     { x: CUSHION_WIDTH, y: CUSHION_WIDTH, radius: POCKET_RADIUS },
-    { x: CUSHION_WIDTH + TABLE_WIDTH / 2, y: CUSHION_WIDTH, radius: POCKET_RADIUS },
-    { x: CUSHION_WIDTH + TABLE_WIDTH, y: CUSHION_WIDTH, radius: POCKET_RADIUS },
-    { x: CUSHION_WIDTH, y: CUSHION_WIDTH + TABLE_HEIGHT, radius: POCKET_RADIUS },
-    { x: CUSHION_WIDTH + TABLE_WIDTH / 2, y: CUSHION_WIDTH + TABLE_HEIGHT, radius: POCKET_RADIUS },
-    { x: CUSHION_WIDTH + TABLE_WIDTH, y: CUSHION_WIDTH + TABLE_HEIGHT, radius: POCKET_RADIUS },
+    {
+      x: CUSHION_WIDTH + playW / 2,
+      y: CUSHION_WIDTH,
+      radius: POCKET_RADIUS,
+    },
+    {
+      x: CUSHION_WIDTH + playW,
+      y: CUSHION_WIDTH,
+      radius: POCKET_RADIUS,
+    },
+    {
+      x: CUSHION_WIDTH,
+      y: CUSHION_WIDTH + playH,
+      radius: POCKET_RADIUS,
+    },
+    {
+      x: CUSHION_WIDTH + playW / 2,
+      y: CUSHION_WIDTH + playH,
+      radius: POCKET_RADIUS,
+    },
+    {
+      x: CUSHION_WIDTH + playW,
+      y: CUSHION_WIDTH + playH,
+      radius: POCKET_RADIUS,
+    },
   ];
+
   return {
     x: 0,
     y: 0,
-    width: TABLE_WIDTH + 2 * CUSHION_WIDTH,
-    height: TABLE_HEIGHT + 2 * CUSHION_WIDTH,
+    width: playW + 2 * CUSHION_WIDTH,
+    height: playH + 2 * CUSHION_WIDTH,
     cushionWidth: CUSHION_WIDTH,
     pockets,
   };
@@ -56,29 +79,47 @@ function createBall(id: number, x: number, y: number): Ball {
 
 function createBallsSequential(): Ball[] {
   const balls: Ball[] = [];
-  balls.push(createBall(0, CUSHION_WIDTH + TABLE_WIDTH * 0.25, CUSHION_WIDTH + TABLE_HEIGHT / 2));
+  balls.push(
+    createBall(
+      0,
+      CUSHION_WIDTH + TABLE_WIDTH * 0.25,
+      CUSHION_WIDTH + TABLE_HEIGHT / 2
+    )
+  );
+
   const startX = CUSHION_WIDTH + TABLE_WIDTH * 0.72;
   const startY = CUSHION_WIDTH + TABLE_HEIGHT / 2;
   const spacing = BALL_RADIUS * 2 + 1;
   const rowDx = spacing * Math.sqrt(3) / 2;
-  let ballNum = 1;
+
+  const order = [1, 9, 2, 10, 8, 3, 11, 4, 12, 5, 13, 6, 14, 7, 15];
+  let idx = 0;
   for (let row = 0; row < 5; row++) {
     for (let col = 0; col <= row; col++) {
       const x = startX + row * rowDx;
       const y = startY + (col - row / 2) * spacing;
-      balls.push(createBall(ballNum, x, y));
-      ballNum++;
+      balls.push(createBall(order[idx], x, y));
+      idx++;
     }
   }
+
   return balls;
 }
 
 function createBallsFree(): Ball[] {
   const balls: Ball[] = [];
-  balls.push(createBall(0, CUSHION_WIDTH + TABLE_WIDTH * 0.25, CUSHION_WIDTH + TABLE_HEIGHT / 2));
-  const startX = CUSHION_WIDTH + TABLE_WIDTH * 0.65;
-  const startY = CUSHION_WIDTH + TABLE_HEIGHT * 0.2;
-  const spacing = BALL_RADIUS * 2 + 2;
+  balls.push(
+    createBall(
+      0,
+      CUSHION_WIDTH + TABLE_WIDTH * 0.25,
+      CUSHION_WIDTH + TABLE_HEIGHT / 2
+    )
+  );
+
+  const startX = CUSHION_WIDTH + TABLE_WIDTH * 0.6;
+  const startY = CUSHION_WIDTH + TABLE_HEIGHT * 0.5;
+  const spacing = BALL_RADIUS * 2 + 3;
+
   let row = 0;
   let col = 0;
   let rowMax = 0;
@@ -93,6 +134,7 @@ function createBallsFree(): Ball[] {
       rowMax++;
     }
   }
+
   return balls;
 }
 
@@ -154,7 +196,6 @@ const App: React.FC = () => {
   const isReplaying = useGameStore((s) => s.isReplaying);
   const replayFrameIndex = useGameStore((s) => s.replayFrameIndex);
   const power = useGameStore((s) => s.power);
-  const cushionFlashes = useGameStore((s) => s.cushionFlashes);
 
   const computeTransform = useCallback((cw: number, ch: number) => {
     const table = tableRef.current;
@@ -176,17 +217,27 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    ballsRef.current = mode === 'sequential' ? createBallsSequential() : createBallsFree();
+    ballsRef.current =
+      mode === 'sequential' ? createBallsSequential() : createBallsFree();
   }, [mode]);
 
   useEffect(() => {
     const check = () => {
       isMobileRef.current = window.innerWidth < 768;
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const parent = canvas.parentElement;
+        if (parent) {
+          const rect = parent.getBoundingClientRect();
+          canvasSizeRef.current = { w: rect.width, h: rect.height };
+          computeTransform(rect.width, rect.height);
+        }
+      }
     };
     check();
     window.addEventListener('resize', check);
     return () => window.removeEventListener('resize', check);
-  }, []);
+  }, [computeTransform]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -247,7 +298,10 @@ const App: React.FC = () => {
         updateBalls(ballsRef.current, table, (flash: CushionFlash) => {
           useGameStore.getState().addCushionFlash(flash);
         });
-        checkCollisions(ballsRef.current);
+
+        for (let iter = 0; iter < 2; iter++) {
+          checkCollisions(ballsRef.current);
+        }
         const pocketed = checkPockets(ballsRef.current, table.pockets);
 
         const latestState = useGameStore.getState();
@@ -292,11 +346,12 @@ const App: React.FC = () => {
 
           renderer.drawTable(table);
           renderer.drawPockets(table);
-          renderer.drawReplayBalls(frame.balls, BALL_COLORS);
 
           if (lastShot.trajectories.length > 0) {
             renderer.drawTrajectories(lastShot.trajectories);
           }
+
+          renderer.drawReplayBalls(frame.balls, BALL_COLORS);
         } else {
           useGameStore.getState().endReplay();
         }
@@ -313,7 +368,7 @@ const App: React.FC = () => {
 
         const cueBall = ballsRef.current.find((b) => b.id === 0);
         const currentPhase = useGameStore.getState().phase;
-        if (cueBall && (currentPhase === 'idle' || currentPhase === 'aiming')) {
+        if (cueBall && !cueBall.pocketed && currentPhase === 'idle') {
           renderer.drawAimLine(cueBall, mouseRef.current.x, mouseRef.current.y, true);
         }
 
@@ -324,10 +379,11 @@ const App: React.FC = () => {
       const currentFoul = useGameStore.getState().foul;
       const currentFoulTime = useGameStore.getState().foulTime;
       useGameStore.getState().clearFoul();
-      if (currentFoul && Date.now() - currentFoulTime < 2000) {
-        ctx.strokeStyle = `rgba(255, 0, 0, ${0.7 + 0.3 * Math.sin(Date.now() / 100)})`;
-        ctx.lineWidth = 4;
-        ctx.strokeRect(2, 2, cw - 4, ch - 4);
+      if (currentFoul && Date.now() - currentFoulTime < FOUL_FLASH_DURATION) {
+        const elapsed = Date.now() - currentFoulTime;
+        const progress = elapsed / FOUL_FLASH_DURATION;
+        const intensity = Math.abs(Math.sin(elapsed / 150)) * (1 - progress * 0.5);
+        renderer.drawFoul(cw, ch, true, intensity);
       }
 
       useGameStore.getState().cleanCushionFlashes();
@@ -357,10 +413,11 @@ const App: React.FC = () => {
           if (ball.id === 0) {
             dragRef.current = { type: 'cue', ballId: 0, offsetX: dx, offsetY: dy };
             useGameStore.getState().setPhase('idle');
+            return;
           } else if (state.mode === 'free') {
             dragRef.current = { type: 'target', ballId: ball.id, offsetX: dx, offsetY: dy };
+            return;
           }
-          return;
         }
       }
 
@@ -409,7 +466,7 @@ const App: React.FC = () => {
         const dx = sx - powerStartRef.current.x;
         const dy = sy - powerStartRef.current.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const p = Math.min(100, (dist / 200) * 100);
+        const p = Math.min(100, (dist / 250) * 100);
         state.setPower(p);
 
         const cueBall = ballsRef.current.find((b) => b.id === 0);
@@ -423,7 +480,7 @@ const App: React.FC = () => {
         }
       } else if (state.phase === 'idle') {
         const cueBall = ballsRef.current.find((b) => b.id === 0);
-        if (cueBall) {
+        if (cueBall && !cueBall.pocketed) {
           const dx = gp.x - cueBall.x;
           const dy = gp.y - cueBall.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
@@ -464,7 +521,8 @@ const App: React.FC = () => {
     const state = useGameStore.getState();
     state.setMode(newMode);
     state.resetGame();
-    ballsRef.current = newMode === 'sequential' ? createBallsSequential() : createBallsFree();
+    ballsRef.current =
+      newMode === 'sequential' ? createBallsSequential() : createBallsFree();
     state.setPhase('idle');
     forceUpdate((n) => n + 1);
   }, []);
@@ -472,19 +530,6 @@ const App: React.FC = () => {
   const handleReplay = useCallback(() => {
     const state = useGameStore.getState();
     if (state.shotHistory.length === 0) return;
-    const lastShot = state.shotHistory[state.shotHistory.length - 1];
-    const trajs: BallTrajectory[] = [];
-    for (const frame of lastShot.frames) {
-      for (const sb of frame.balls) {
-        let traj = trajs.find((t) => t.ballId === sb.id);
-        if (!traj) {
-          traj = { ballId: sb.id, points: [] };
-          trajs.push(traj);
-        }
-        traj.points.push({ x: sb.x, y: sb.y });
-      }
-    }
-    state.setTrajectories(trajs);
     state.startReplay();
     forceUpdate((n) => n + 1);
   }, []);
@@ -492,7 +537,8 @@ const App: React.FC = () => {
   const handleReset = useCallback(() => {
     const state = useGameStore.getState();
     state.resetGame();
-    ballsRef.current = state.mode === 'sequential' ? createBallsSequential() : createBallsFree();
+    ballsRef.current =
+      state.mode === 'sequential' ? createBallsSequential() : createBallsFree();
     state.setPhase('idle');
     forceUpdate((n) => n + 1);
   }, []);
@@ -591,6 +637,7 @@ const App: React.FC = () => {
           >
             {Array.from({ length: 15 }, (_, i) => i + 1).map((num) => {
               const isPocketed = pocketedBallIds.includes(num);
+              const isTarget = mode === 'sequential' && num === currentTarget;
               return (
                 <div
                   key={num}
@@ -598,7 +645,7 @@ const App: React.FC = () => {
                     display: 'flex',
                     alignItems: 'center',
                     gap: 6,
-                    color: isPocketed ? '#666' : '#fff',
+                    color: isPocketed ? '#666' : isTarget ? '#FFD700' : '#fff',
                     fontWeight: isPocketed ? 'normal' : 'bold',
                     textDecoration: isPocketed ? 'line-through' : 'none',
                   }}
@@ -610,7 +657,7 @@ const App: React.FC = () => {
                       height: 10,
                       borderRadius: '50%',
                       background: BALL_COLORS[num],
-                      border: '1px solid #555',
+                      border: isTarget ? '1px solid #FFD700' : '1px solid #555',
                     }}
                   />
                   {num}号
@@ -664,11 +711,13 @@ const App: React.FC = () => {
               padding: '8px 6px',
               border: 'none',
               borderRadius: 6,
-              cursor: shotHistory.length === 0 || isReplaying ? 'not-allowed' : 'pointer',
+              cursor:
+                shotHistory.length === 0 || isReplaying ? 'not-allowed' : 'pointer',
               fontSize: 12,
               fontWeight: 'bold',
               color: '#fff',
-              background: shotHistory.length === 0 || isReplaying ? '#333' : '#0f3460',
+              background:
+                shotHistory.length === 0 || isReplaying ? '#333' : '#0f3460',
               width: '100%',
               transition: 'background 0.3s',
             }}
