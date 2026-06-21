@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>星穹脉络 - Stardust Constellations</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0A0B1E;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+    #app {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    #control-panel {
+      position: absolute;
+      left: 24px;
+      top: 50%;
+      transform: translateY(-50%) translateX(-280px);
+      width: 240px;
+      padding: 24px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      z-index: 100;
+      transition: transform 0.3s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+    }
+    #control-panel.visible {
+      transform: translateY(-50%) translateX(0);
+    }
+    .panel-header {
+      margin-bottom: 24px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .stat-label {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 13px;
+    }
+    .stat-value-stars {
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 700;
+    }
+    .stat-value-beams {
+      color: #ffffff;
+      font-size: 14px;
+    }
+    .panel-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+    .btn {
+      width: 100%;
+      padding: 12px 16px;
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+      user-select: none;
+    }
+    .btn:hover {
+      filter: brightness(1.1);
+    }
+    .btn:active {
+      transform: scale(0.95);
+    }
+    .btn-clear {
+      background: #EF4444;
+    }
+    .btn-random {
+      background: #3B82F6;
+    }
+    .btn-export {
+      background: #10B981;
+    }
+    .panel-toggle {
+      position: absolute;
+      left: 0;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 32px;
+      height: 64px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-left: none;
+      border-radius: 0 8px 8px 0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 18px;
+      transition: all 0.3s ease;
+      z-index: 99;
+    }
+    .panel-toggle:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #ffffff;
+    }
+    .instructions {
+      position: absolute;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 13px;
+      text-align: center;
+      pointer-events: none;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    <button class="panel-toggle" id="panel-toggle">◀</button>
+    <div id="control-panel">
+      <div class="panel-header">
+        <div class="stat-row">
+          <span class="stat-label">光点数量</span>
+          <span class="stat-value-stars" id="star-count">0</span>
+        </div>
+        <div class="stat-row">
+          <span class="stat-label">光柱数量</span>
+          <span class="stat-value-beams" id="beam-count">0</span>
+        </div>
+      </div>
+      <div class="panel-buttons">
+        <button class="btn btn-clear" id="btn-clear">清空场景</button>
+        <button class="btn btn-random" id="btn-random">随机生成星座</button>
+        <button class="btn btn-export" id="btn-export">导出截图</button>
+      </div>
+    </div>
+    <div class="instructions">
+      点击场景创建光点 · 拖拽旋转视角 · 滚轮缩放
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
