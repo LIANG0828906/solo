@@ -12,10 +12,8 @@ import type {
 } from './types';
 
 const BOARD_SIZE = 5;
-const TRAP_COUNT = 5;
-const SPEED_COUNT = 3;
 const TURN_TIME = 15;
-const MAX_CONSECUTIVE_NOPS = 3;
+const MAX_CONSECUTIVE_NOOP_ROUNDS = 3;
 
 const TERRAIN_SCORES: Record<TerrainType, number> = {
   normal: 1,
@@ -58,88 +56,7 @@ export class GameEngine {
     this.emit('turnChange', this.state);
   }
 
-  generateRandomBoard(): Cell[][] {
-    const board: Cell[][] = [];
-    for (let y = 0; y < BOARD_SIZE; y++) {
-      const row: Cell[] = [];
-      for (let x = 0; x < BOARD_SIZE; x++) {
-        row.push({ x, y, terrain: 'normal', owner: null });
-      }
-      board.push(row);
-    }
 
-    const usedPositions = new Set<string>();
-    const player1Start = ['0,0', '0,1'];
-    const player2Start = ['4,4', '4,3'];
-    player1Start.forEach((p) => usedPositions.add(p));
-    player2Start.forEach((p) => usedPositions.add(p));
-
-    let trapsPlaced = 0;
-    while (trapsPlaced < TRAP_COUNT) {
-      const x = Math.floor(Math.random() * BOARD_SIZE);
-      const y = Math.floor(Math.random() * BOARD_SIZE);
-      const key = `${x},${y}`;
-      if (!usedPositions.has(key)) {
-        board[y][x].terrain = 'trap';
-        usedPositions.add(key);
-        trapsPlaced++;
-      }
-    }
-
-    let speedPlaced = 0;
-    while (speedPlaced < SPEED_COUNT) {
-      const x = Math.floor(Math.random() * BOARD_SIZE);
-      const y = Math.floor(Math.random() * BOARD_SIZE);
-      const key = `${x},${y}`;
-      if (!usedPositions.has(key)) {
-        board[y][x].terrain = 'speed';
-        usedPositions.add(key);
-        speedPlaced++;
-      }
-    }
-
-    return board;
-  }
-
-  createInitialPlayers(): Record<PlayerId, Player> {
-    const player1Id = 'player1';
-    const player2Id = 'player2';
-
-    const player1Pieces: Piece[] = [
-      { id: 'p1-piece-1', playerId: player1Id, x: 0, y: 0 },
-      { id: 'p1-piece-2', playerId: player1Id, x: 1, y: 0 },
-    ];
-
-    const player2Pieces: Piece[] = [
-      { id: 'p2-piece-1', playerId: player2Id, x: 4, y: 4 },
-      { id: 'p2-piece-2', playerId: player2Id, x: 3, y: 4 },
-    ];
-
-    const players: Record<PlayerId, Player> = {
-      [player1Id]: {
-        id: player1Id,
-        name: '玩家 1',
-        color: '#ff7043',
-        pieces: player1Pieces,
-        score: 0,
-        capturedCells: 2,
-        hasSpeedBonus: false,
-        remainingMoves: 1,
-      },
-      [player2Id]: {
-        id: player2Id,
-        name: '玩家 2',
-        color: '#26c6da',
-        pieces: player2Pieces,
-        score: 0,
-        capturedCells: 2,
-        hasSpeedBonus: false,
-        remainingMoves: 1,
-      },
-    };
-
-    return players;
-  }
 
   getState(): GameState {
     return { ...this.state };
@@ -308,7 +225,6 @@ export class GameEngine {
   }
 
   private returnPieceToBase(piece: Piece): void {
-    const player = this.state.players[piece.playerId];
     if (piece.playerId === 'player1') {
       if (piece.id === 'p1-piece-1') {
         piece.x = 0;
@@ -322,11 +238,10 @@ export class GameEngine {
         piece.x = 4;
         piece.y = 4;
       } else {
-        piece.x = 3;
-        piece.y = 4;
+        piece.x = 4;
+        piece.y = 3;
       }
     }
-    void player;
   }
 
   private applyTerrainEffect(cell: Cell, player: Player): void {
@@ -344,10 +259,6 @@ export class GameEngine {
   }
 
   private switchTurn(): void {
-    const currentPlayer = this.state.players[this.state.currentPlayerId];
-    currentPlayer.remainingMoves = currentPlayer.hasSpeedBonus ? 2 : 1;
-    currentPlayer.hasSpeedBonus = false;
-
     const playerIds = Object.keys(this.state.players);
     const currentIndex = playerIds.indexOf(this.state.currentPlayerId);
     const nextIndex = (currentIndex + 1) % playerIds.length;
@@ -378,7 +289,8 @@ export class GameEngine {
   private checkGameEnd(): boolean {
     if (this.state.gameStatus !== 'playing') return false;
 
-    if (this.state.consecutiveNoOpTurns >= MAX_CONSECUTIVE_NOPS * 2) {
+    const noOpRounds = Math.floor(this.state.consecutiveNoOpTurns / 2);
+    if (noOpRounds >= MAX_CONSECUTIVE_NOOP_ROUNDS) {
       this.endGame();
       return true;
     }

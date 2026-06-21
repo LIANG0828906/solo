@@ -1,17 +1,14 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useMemo } from 'react';
 import { GameBoard } from './GameBoard';
 import { PlayerPanel } from './PlayerPanel';
 import { WaitingRoom } from './WaitingRoom';
 import { GameResult } from './GameResult';
 import { BattleModal } from './BattleModal';
 import { GameEngine } from '../game/gameEngine';
-import { createSocketService } from '../game/socketService';
+import { createSocketService, SocketService } from '../game/socketService';
 import { useGameStore } from '../store/useGameStore';
 import type { BattleResult, InitialGameData, Piece, TerrainType } from '../game/types';
 import './App.css';
-
-const gameEngine = new GameEngine();
-const socketService = createSocketService(gameEngine, { useMock: true });
 
 export function App() {
   const {
@@ -23,6 +20,7 @@ export function App() {
     showBattle,
     setPage,
     setGameState,
+    setYourPlayerId,
     setSelectedPieceId,
     setBattleResult,
     setShowBattle,
@@ -32,20 +30,40 @@ export function App() {
 
   const [battleAttackerId, setBattleAttackerId] = useState('');
   const [terrainStats, setTerrainStats] = useState<Record<string, Record<TerrainType, number>>>({});
+  const [sessionKey, setSessionKey] = useState(0);
+
+  const gameEngineRef = useRef<GameEngine | null>(null);
+  const socketServiceRef = useRef<SocketService | null>(null);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const initializedRef = useRef(false);
 
-  const handleGameStart = useCallback((data: InitialGameData) => {
-    gameEngine.initGame(data);
-    initFromGameData(data);
-    setTerrainStats(gameEngine.getTerrainStats());
-  }, [initFromGameData]);
+  const engine = useMemo(() => new GameEngine(), [sessionKey]);
+  const socketSvc = useMemo(
+    () => createSocketService(engine, { useMock: true }),
+    [engine, sessionKey],
+  );
 
-  const handleBattle = useCallback((result: BattleResult) => {
-    setBattleAttackerId(result.attackerId);
-    setBattleResult(result);
-    setShowBattle(true);
-  }, [setBattleResult, setShowBattle]);
+  useEffect(() => {
+    gameEngineRef.current = engine;
+    socketServiceRef.current = socketSvc;
+  }, [engine, socketSvc]);
+
+  const handleGameStart = useCallback(
+    (data: InitialGameData) => {
+      engine.initGame(data);
+      initFromGameData(data);
+      setTerrainStats(engine.getTerrainStats());
+    },
+    [engine, initFromGameData],
+  );
+
+  const handleBattle = useCallback(
+    (result: BattleResult) => {
+      setBattleAttackerId(result.attackerId);
+      setBattleResult(result);
+      setShowBattle(true);
+    },
+    [setBattleResult, setShowBattle],
+  );
 
   const handleBattleClose = useCallback(() => {
     setShowBattle(false);
@@ -57,55 +75,62 @@ export function App() {
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-    setTerrainStats(gameEngine.getTerrainStats());
+    setTerrainStats(engine.getTerrainStats());
     setPage('result');
-  }, [setPage]);
+  }, [engine, setPage]);
 
   useEffect(() => {
-    if (initializedRef.current) return;
-    initializedRef.current = true;
+    const svc = socketServiceRef.current;
+    const eng = gameEngineRef.current;
+    if (!svc || !eng) return;
 
     const connectAndJoin = async () => {
       try {
-        await socketService.connect();
-        socketService.joinQueue('玩家 1');
+        await svc.connect();
+        svc.joinQueue('玩家 1');
       } catch (err) {
         console.error('连接失败:', err);
       }
     };
 
-    const unsubGameStart = socketService.on('game_start', (data: unknown) => {
+    const unsubMatchFound = svc.on('match_found', (data: unknown) => {
+      const d = data as { yourPlayerId: string };
+      setYourPlayerId(d.yourPlayerId);
+    });
+
+    const unsubGameStart = svc.on('game_start', (data: unknown) => {
       handleGameStart(data as InitialGameData);
     });
 
-    const unsubStateChange = gameEngine.on('stateChange', () => {
-      setGameState(gameEngine.getState());
-      setTerrainStats(gameEngine.getTerrainStats());
+    const unsubStateChange = eng.on('stateChange', () => {
+      setGameState(eng.getState());
+      setTerrainStats(eng.getTerrainStats());
     });
 
-    const unsubBattle = gameEngine.on('battle', (result: unknown) => {
+    const unsubBattle = eng.on('battle', (result: unknown) => {
       handleBattle(result as BattleResult);
     });
 
-    const unsubGameEnd = gameEngine.on('gameEnd', () => {
+    const unsubGameEnd = eng.on('gameEnd', () => {
       handleGameEnd();
     });
 
     connectAndJoin();
 
     return () => {
+      unsubMatchFound();
       unsubGameStart();
       unsubStateChange();
       unsubBattle();
       unsubGameEnd();
-      socketService.disconnect();
+      svc.disconnect();
     };
-  }, [handleGameStart, handleBattle, handleGameEnd, setGameState]);
+  }, [sessionKey, handleGameStart, handleBattle, handleGameEnd, setGameState, setYourPlayerId]);
 
   useEffect(() => {
     if (gameState?.gameStatus === 'playing' && !timerRef.current) {
       timerRef.current = setInterval(() => {
-        gameEngine.decrementTime();
+        gameEngineRef.current?.decrementTime();
       }, 1000);
     }
 
@@ -121,19 +146,19 @@ export function App() {
     (pieceId: string, targetX: number, targetY: number) => {
       if (!gameState || gameState.gameStatus !== 'playing') return;
       if (gameState.currentPlayerId !== yourPlayerId) return;
-
-      socketService.sendMove(pieceId, targetX, targetY);
+      socketServiceRef.current?.sendMove(pieceId, targetX, targetY);
     },
     [gameState, yourPlayerId],
   );
 
   const handleRematch = useCallback(() => {
+    if (timerRef.current) {
+      clearInterval(timerRef.current);
+      timerRef.current = null;
+    }
     resetGame();
-    initializedRef.current = false;
-    setTimeout(() => {
-      initializedRef.current = true;
-      socketService.rematch();
-    }, 100);
+    setTerrainStats({});
+    setSessionKey((k) => k + 1);
   }, [resetGame]);
 
   const getPieces = useCallback((): Piece[] => {

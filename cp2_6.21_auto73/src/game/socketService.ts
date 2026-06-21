@@ -1,6 +1,96 @@
 import { io, Socket } from 'socket.io-client';
 import type { GameEngine } from './gameEngine';
-import type { Cell, Player, PlayerId, InitialGameData, MoveAction } from './types';
+import type { Cell, Piece, Player, PlayerId, InitialGameData, MoveAction, TerrainType } from './types';
+
+const BOARD_SIZE = 5;
+const TRAP_COUNT = 5;
+const SPEED_COUNT = 3;
+
+function generateServerBoard(): Cell[][] {
+  const board: Cell[][] = [];
+  for (let y = 0; y < BOARD_SIZE; y++) {
+    const row: Cell[] = [];
+    for (let x = 0; x < BOARD_SIZE; x++) {
+      row.push({ x, y, terrain: 'normal' as TerrainType, owner: null });
+    }
+    board.push(row);
+  }
+
+  const usedPositions = new Set<string>();
+  const player1Start = ['0,0', '0,1'];
+  const player2Start = ['4,4', '4,3'];
+  player1Start.forEach((p) => usedPositions.add(p));
+  player2Start.forEach((p) => usedPositions.add(p));
+
+  let trapsPlaced = 0;
+  while (trapsPlaced < TRAP_COUNT) {
+    const x = Math.floor(Math.random() * BOARD_SIZE);
+    const y = Math.floor(Math.random() * BOARD_SIZE);
+    const key = `${x},${y}`;
+    if (!usedPositions.has(key)) {
+      board[y][x].terrain = 'trap';
+      usedPositions.add(key);
+      trapsPlaced++;
+    }
+  }
+
+  let speedPlaced = 0;
+  while (speedPlaced < SPEED_COUNT) {
+    const x = Math.floor(Math.random() * BOARD_SIZE);
+    const y = Math.floor(Math.random() * BOARD_SIZE);
+    const key = `${x},${y}`;
+    if (!usedPositions.has(key)) {
+      board[y][x].terrain = 'speed';
+      usedPositions.add(key);
+      speedPlaced++;
+    }
+  }
+
+  board[0][0].owner = 'player1';
+  board[0][1].owner = 'player1';
+  board[4][4].owner = 'player2';
+  board[4][3].owner = 'player2';
+
+  return board;
+}
+
+function createServerPlayers(): Record<PlayerId, Player> {
+  const player1Id = 'player1';
+  const player2Id = 'player2';
+
+  const player1Pieces: Piece[] = [
+    { id: 'p1-piece-1', playerId: player1Id, x: 0, y: 0 },
+    { id: 'p1-piece-2', playerId: player1Id, x: 1, y: 0 },
+  ];
+
+  const player2Pieces: Piece[] = [
+    { id: 'p2-piece-1', playerId: player2Id, x: 4, y: 4 },
+    { id: 'p2-piece-2', playerId: player2Id, x: 4, y: 3 },
+  ];
+
+  return {
+    [player1Id]: {
+      id: player1Id,
+      name: '玩家 1',
+      color: '#ff7043',
+      pieces: player1Pieces,
+      score: 0,
+      capturedCells: 2,
+      hasSpeedBonus: false,
+      remainingMoves: 1,
+    },
+    [player2Id]: {
+      id: player2Id,
+      name: '玩家 2',
+      color: '#26c6da',
+      pieces: player2Pieces,
+      score: 0,
+      capturedCells: 2,
+      hasSpeedBonus: false,
+      remainingMoves: 1,
+    },
+  };
+}
 
 export interface SocketServiceOptions {
   url?: string;
@@ -106,15 +196,8 @@ export class SocketService {
       this.emit('match_found', { yourPlayerId: 'player1' });
 
       setTimeout(() => {
-        if (!this.gameEngine) return;
-
-        const board = this.gameEngine.generateRandomBoard();
-        const players = this.gameEngine.createInitialPlayers();
-
-        board[0][0].owner = 'player1';
-        board[0][1].owner = 'player1';
-        board[4][4].owner = 'player2';
-        board[4][3].owner = 'player2';
+        const board = generateServerBoard();
+        const players = createServerPlayers();
 
         const initialData: InitialGameData = {
           board,
