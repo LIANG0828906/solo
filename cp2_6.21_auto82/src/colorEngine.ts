@@ -16,6 +16,13 @@ export interface HSV {
   v: number;
 }
 
+export interface PaletteColor {
+  id: string;
+  hex: string;
+  rgb: RGB;
+  hsl: HSL;
+}
+
 export type BlendMode = 'multiply' | 'screen' | 'overlay' | 'softLight';
 export type ColorBlindnessType = 'protanopia' | 'deuteranopia' | 'tritanopia';
 
@@ -365,33 +372,46 @@ export function wcagLevel(ratio: number, isLargeText = false): 'AAA' | 'AA' | 'F
   return 'Fail';
 }
 
-function applyMatrix(rgb: RGB, m: number[][]): RGB {
-  const r = rgb.r;
-  const g = rgb.g;
-  const b = rgb.b;
+function srgbToLinear(c: number): number {
+  const v = c / 255;
+  return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+}
+
+function linearToSrgb(v: number): number {
+  const s = v <= 0.0031308 ? 12.92 * v : 1.055 * Math.pow(v, 1 / 2.4) - 0.055;
+  return clamp(s * 255);
+}
+
+function applyLinearMatrix(rgb: RGB, m: number[][]): RGB {
+  const lr = srgbToLinear(rgb.r);
+  const lg = srgbToLinear(rgb.g);
+  const lb = srgbToLinear(rgb.b);
+  const rr = lr * m[0][0] + lg * m[0][1] + lb * m[0][2];
+  const rg = lr * m[1][0] + lg * m[1][1] + lb * m[1][2];
+  const rb = lr * m[2][0] + lg * m[2][1] + lb * m[2][2];
   return {
-    r: clamp(r * m[0][0] + g * m[0][1] + b * m[0][2]),
-    g: clamp(r * m[1][0] + g * m[1][1] + b * m[1][2]),
-    b: clamp(r * m[2][0] + g * m[2][1] + b * m[2][2]),
+    r: linearToSrgb(rr),
+    g: linearToSrgb(rg),
+    b: linearToSrgb(rb),
   };
 }
 
 const PROTANOPIA_MATRIX: number[][] = [
-  [0.567, 0.433, 0],
-  [0.558, 0.442, 0],
-  [0, 0.242, 0.758],
+  [0.152286, 1.052583, -0.204868],
+  [0.114503, 0.786281, 0.099216],
+  [-0.003882, -0.048116, 1.051998],
 ];
 
 const DEUTERANOPIA_MATRIX: number[][] = [
-  [0.625, 0.375, 0],
-  [0.7, 0.3, 0],
-  [0, 0.3, 0.7],
+  [0.367322, 0.860646, -0.227968],
+  [0.280085, 0.672501, 0.047413],
+  [-0.011820, 0.042940, 0.968881],
 ];
 
 const TRITANOPIA_MATRIX: number[][] = [
-  [0.95, 0.05, 0],
-  [0, 0.433, 0.567],
-  [0, 0.475, 0.525],
+  [1.255528, -0.076749, -0.178779],
+  [-0.078411, 0.930809, 0.147602],
+  [0.004733, 0.691367, 0.303900],
 ];
 
 export function simulateColorBlindness(
@@ -402,13 +422,13 @@ export function simulateColorBlindness(
   let result: RGB;
   switch (type) {
     case 'protanopia':
-      result = applyMatrix(rgb, PROTANOPIA_MATRIX);
+      result = applyLinearMatrix(rgb, PROTANOPIA_MATRIX);
       break;
     case 'deuteranopia':
-      result = applyMatrix(rgb, DEUTERANOPIA_MATRIX);
+      result = applyLinearMatrix(rgb, DEUTERANOPIA_MATRIX);
       break;
     case 'tritanopia':
-      result = applyMatrix(rgb, TRITANOPIA_MATRIX);
+      result = applyLinearMatrix(rgb, TRITANOPIA_MATRIX);
       break;
   }
   return rgbToHex(result);
@@ -429,16 +449,22 @@ export interface EmotionTagGroup {
 const EMOTION_MAP: EmotionTagGroup[] = [
   { range: [0, 10], tags: ['激情', '活力', '温暖'] },
   { range: [340, 360], tags: ['激情', '活力', '温暖'] },
-  { range: [10, 40], tags: ['热情', '创意', '友善'] },
-  { range: [40, 70], tags: ['快乐', '乐观', '希望'] },
-  { range: [70, 100], tags: ['清新', '自然', '生机'] },
-  { range: [100, 160], tags: ['平静', '和谐', '治愈'] },
-  { range: [160, 190], tags: ['清爽', '灵动', '青春'] },
-  { range: [190, 230], tags: ['专业', '稳重', '信任'] },
-  { range: [230, 260], tags: ['平静', '专业', '冷漠'] },
-  { range: [260, 290], tags: ['神秘', '奢华', '创意'] },
-  { range: [290, 320], tags: ['浪漫', '优雅', '梦幻'] },
-  { range: [320, 340], tags: ['甜美', '柔软', '可爱'] },
+  { range: [10, 30], tags: ['热情', '创意', '友善'] },
+  { range: [30, 45], tags: ['活力', '温馨', '开朗'] },
+  { range: [45, 65], tags: ['快乐', '乐观', '希望'] },
+  { range: [65, 85], tags: ['明亮', '自信', '愉悦'] },
+  { range: [85, 105], tags: ['清新', '自然', '生机'] },
+  { range: [105, 135], tags: ['平和', '舒适', '安宁'] },
+  { range: [135, 160], tags: ['治愈', '放松', '和谐'] },
+  { range: [160, 180], tags: ['清爽', '灵动', '青春'] },
+  { range: [180, 200], tags: ['宁静', '深邃', '理性'] },
+  { range: [200, 230], tags: ['专业', '稳重', '信任'] },
+  { range: [230, 255], tags: ['平静', '专业', '睿智'] },
+  { range: [255, 275], tags: ['深沉', '高贵', '内敛'] },
+  { range: [275, 295], tags: ['神秘', '奢华', '创意'] },
+  { range: [295, 315], tags: ['浪漫', '优雅', '梦幻'] },
+  { range: [315, 330], tags: ['甜美', '柔软', '可爱'] },
+  { range: [330, 340], tags: ['温柔', '感性', '娇媚'] },
 ];
 
 export function getEmotionTags(hue: number): string[] {
@@ -478,36 +504,42 @@ export function generateId(): string {
   return Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
 }
 
-export function exportCSSVariables(hexColors: string[], prefix = 'color'): string {
+export function exportCSSVariables(hexColors: string[]): string {
   const names = ['primary', 'secondary', 'accent', 'info', 'success', 'warning', 'danger', 'neutral-1', 'neutral-2', 'neutral-3', 'neutral-4', 'neutral-5'];
-  return hexColors
-    .map((hex, i) => `  --${prefix}-${names[i] || `color-${i + 1}`}: ${hex};`)
-    .join('\n');
+  const lines = hexColors
+    .map((hex, i) => {
+      const name = names[i] || `color-${i + 1}`;
+      return `--color-${name}: ${hex};`;
+    });
+  return lines.join('\n');
 }
 
 export function exportJSON(hexColors: string[]): string {
   return JSON.stringify(hexColors, null, 2);
 }
 
-export function generateSVGSwatch(hexColors: string[], width = 1200, height = 200): string {
+export function generateSVGSwatch(hexColors: string[]): string {
   if (hexColors.length === 0) return '';
+  const width = 1200;
+  const height = 200;
   const cellWidth = width / hexColors.length;
-  const fontSize = Math.max(10, Math.min(14, Math.floor(cellWidth / 8)));
+  const fontSize = Math.max(12, Math.min(20, Math.floor(cellWidth / 5)));
+  const labelY = height / 2 + fontSize / 3;
   const cells = hexColors
     .map((hex, i) => {
       const x = i * cellWidth;
       const hsl = hexToHsl(hex);
       const textColor = hsl.l > 55 ? '#1a1a2e' : '#ffffff';
       return `
-  <rect x="${x}" y="0" width="${cellWidth}" height="${height}" fill="${hex}" />
-  <text x="${x + cellWidth / 2}" y="${height / 2}" text-anchor="middle" dominant-baseline="middle"
-        font-family="monospace" font-size="${fontSize}" fill="${textColor}" font-weight="bold">
+  <rect x="${x.toFixed(2)}" y="0" width="${cellWidth.toFixed(4)}" height="${height}" fill="${hex}" stroke="rgba(0,0,0,0.05)" stroke-width="1" />
+  <text x="${(x + cellWidth / 2).toFixed(2)}" y="${labelY}" text-anchor="middle"
+        font-family="'Consolas', 'Monaco', monospace" font-size="${fontSize}" fill="${textColor}" font-weight="700" letter-spacing="0.5">
     ${hex}
   </text>`;
     })
     .join('');
 
-  return `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">${cells}
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="200" viewBox="0 0 1200 200">${cells}
 </svg>`;
 }
 

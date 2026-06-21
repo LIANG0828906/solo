@@ -33,7 +33,8 @@ const ExportToolbar: React.FC<ExportToolbarProps> = ({ colors, onToast }) => {
 
   const handleExportCSS = async () => {
     if (disabled) return;
-    const css = `:root {\n${exportCSSVariables(filled)}\n}\n`;
+    const vars = exportCSSVariables(filled);
+    const css = `:root {\n${vars.split('\n').map((l) => `  ${l}`).join('\n')}\n}\n`;
     const ok = await copyToClipboard(css);
     if (ok) {
       onToast('CSS变量已复制到剪贴板', true);
@@ -46,9 +47,9 @@ const ExportToolbar: React.FC<ExportToolbarProps> = ({ colors, onToast }) => {
 
   const handleExportSVG = () => {
     if (disabled) return;
-    const svg = generateSVGSwatch(filled, 1200, 200);
+    const svg = generateSVGSwatch(filled);
     downloadFile(svg, 'palette.svg', 'image/svg+xml');
-    onToast('SVG色板已下载', true);
+    onToast('SVG色板已下载 (1200 × 200)', true);
   };
 
   const handleExportJSON = async () => {
