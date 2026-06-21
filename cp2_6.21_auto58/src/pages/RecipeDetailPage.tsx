@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store';
-import { Ingredient } from '../types';
+import { Ingredient, isNumericQuantity, toNumericQuantity } from '../types';
 
 const pageStyle: React.CSSProperties = {
   minHeight: '100vh',
@@ -259,7 +259,7 @@ const buttonRowStyle: React.CSSProperties = {
 export const RecipeDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getRecipeById, toggleRecipeSelection, selectedRecipeIds } = useAppStore();
+  const { getRecipeById, toggleRecipeSelection, selectedRecipeIds, generateShoppingList } = useAppStore();
 
   const recipe = id ? getRecipeById(id) : undefined;
   const [servings, setServings] = useState(2);
@@ -271,7 +271,9 @@ export const RecipeDetailPage: React.FC = () => {
     if (!recipe) return [];
     return recipe.ingredients.map((ing) => ({
       ...ing,
-      quantity: Math.round(ing.quantity * scaleFactor * 100) / 100,
+      quantity: isNumericQuantity(ing.quantity)
+        ? Math.round(toNumericQuantity(ing.quantity) * scaleFactor * 100) / 100
+        : ing.quantity,
     }));
   }, [recipe, scaleFactor]);
 
@@ -285,7 +287,17 @@ export const RecipeDetailPage: React.FC = () => {
       if (!selectedRecipeIds.includes(recipe.id)) {
         toggleRecipeSelection(recipe.id);
       }
-      navigate('/shopping-list');
+      const scaledMap = new Map<string, { quantity: number; unit: string; name: string }[]>();
+      scaledMap.set(recipe.id, scaledIngredients
+        .filter(ing => isNumericQuantity(ing.quantity))
+        .map(ing => ({
+          name: ing.name,
+          quantity: toNumericQuantity(ing.quantity),
+          unit: ing.unit,
+        }))
+      );
+      generateShoppingList(scaledMap);
+      navigate('/shopping');
     }
   };
 

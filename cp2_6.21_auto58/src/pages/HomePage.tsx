@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store';
 import { RecipeCard } from '../components/RecipeCard';
@@ -125,7 +125,12 @@ export const HomePage: React.FC = () => {
     setSortOrder,
     clearSelection,
     generateShoppingList,
+    fetchRecipes,
   } = useAppStore();
+
+  useEffect(() => {
+    fetchRecipes();
+  }, []);
 
   const filteredRecipes = useMemo(() => {
     let result = [...recipes];
@@ -148,7 +153,7 @@ export const HomePage: React.FC = () => {
 
   const handleGenerateShoppingList = () => {
     generateShoppingList();
-    navigate('/shopping-list');
+    navigate('/shopping');
   };
 
   return (

@@ -1,10 +1,18 @@
 export interface Ingredient {
   id?: string;
   name: string;
-  quantity: number;
+  quantity: number | string;
   unit: string;
   category?: '蔬菜' | '肉类' | '调味料' | '其他';
 }
+
+export const isNumericQuantity = (q: number | string): q is number => {
+  return typeof q === 'number';
+};
+
+export const toNumericQuantity = (q: number | string): number => {
+  return typeof q === 'number' ? q : parseFloat(String(q)) || 0;
+};
 
 export interface Recipe {
   id: string;

@@ -139,12 +139,9 @@ const getItemStyle = (isRemoving: boolean, isChecked: boolean): React.CSSPropert
   background: isChecked ? '#F5F5F5' : '#FFFBF5',
   borderRadius: '8px',
   border: '1px solid #E8D5BC',
-  transition: 'opacity 0.3s ease, all 0.2s ease',
+  transition: 'opacity 0.3s ease, transform 0.3s ease',
   opacity: isRemoving ? 0 : 1,
-  height: isRemoving ? '0px' : undefined,
-  overflow: isRemoving ? 'hidden' : undefined,
-  padding: isRemoving ? '0px 14px' : undefined,
-  margin: isRemoving ? '0px' : undefined,
+  transform: isRemoving ? 'translateX(20px)' : 'none',
 });
 
 const checkboxStyle: React.CSSProperties = {
@@ -315,11 +312,11 @@ export const ShoppingListPage: React.FC = () => {
 
   const handleQuantityChange = (item: ShoppingListItem, delta: number) => {
     const newQuantity = Math.max(0, item.quantity + delta);
-    updateShoppingListItem({ ...item, quantity: newQuantity });
+    updateShoppingListItem(item.id, { quantity: newQuantity });
   };
 
   const handleToggleChecked = (item: ShoppingListItem) => {
-    updateShoppingListItem({ ...item, checked: !item.checked });
+    updateShoppingListItem(item.id, { checked: !item.checked });
   };
 
   const handleRegenerate = () => {

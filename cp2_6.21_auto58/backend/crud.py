@@ -34,7 +34,7 @@ SEASONING_KEYWORDS = [
 ]
 
 SPECIAL_OTHERS = ["鸡蛋", "鸭蛋", "鹅蛋", "鹌鹑蛋", "皮蛋", "咸蛋"]
-SPECIAL_VEGETABLES = ["花椒", "辣椒", "青椒", "红椒"]
+SPECIAL_VEGETABLES = ["辣椒", "青椒", "红椒"]
 
 
 def detect_category(name: str) -> str:
@@ -255,7 +255,7 @@ def generate_shopping_list(db: Session, recipe_ids: List[int]):
                 if need_qty is not None and inv_qty is not None and inv_qty >= need_qty:
                     continue
                 elif need_qty is not None and inv_qty is not None:
-                    remaining = round(need_qty - inv_qty, 2)
+                    remaining = max(0, round(need_qty - inv_qty, 2))
                     if remaining <= 0:
                         continue
                     qty_val = str(remaining)
@@ -268,7 +268,8 @@ def generate_shopping_list(db: Session, recipe_ids: List[int]):
                 exist_qty = parse_quantity(existing["quantity"])
                 new_qty = parse_quantity(qty_val)
                 if exist_qty is not None and new_qty is not None:
-                    existing["quantity"] = str(round(exist_qty + new_qty, 2))
+                    merged = max(0, round(exist_qty + new_qty, 2))
+                    existing["quantity"] = str(merged)
                 else:
                     existing["quantity"] = f"{existing['quantity']} + {qty_val}"
             else:

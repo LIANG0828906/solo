@@ -31,7 +31,7 @@ const inputRowStyle: React.CSSProperties = {
   flexWrap: 'wrap',
 };
 
-const getInputStyle = (isValid: boolean, isTouched: boolean): React.CSSProperties => ({
+const getInputStyle = (isValid: boolean, isTouched: boolean, isAnimating: boolean): React.CSSProperties => ({
   padding: '10px 12px',
   borderRadius: '8px',
   border: `2px solid ${isTouched ? (isValid ? '#4CAF50' : '#F44336') : '#D4C4B0'}`,
@@ -39,7 +39,7 @@ const getInputStyle = (isValid: boolean, isTouched: boolean): React.CSSPropertie
   outline: 'none',
   fontFamily: "'Quicksand', sans-serif",
   transition: 'border-color 0.2s ease',
-  animation: isTouched && !isValid ? 'shake 0.3s' : undefined,
+  animation: isAnimating && isTouched && !isValid ? 'shake 0.3s ease' : 'none',
 });
 
 const nameInputStyle: React.CSSProperties = {
@@ -134,7 +134,7 @@ export const IngredientInput: React.FC<IngredientInputProps> = ({
     quantity: false,
     unit: false,
   });
-  const [shakeTrigger, setShakeTrigger] = useState(0);
+  const [animating, setAnimating] = useState(false);
 
   const isNameValid = name.trim().length > 0;
   const isQuantityValid = !isNaN(Number(quantity)) && Number(quantity) > 0;
@@ -144,7 +144,11 @@ export const IngredientInput: React.FC<IngredientInputProps> = ({
   const handleAdd = () => {
     setTouched({ name: true, quantity: true, unit: true });
     if (!isAllValid) {
-      setShakeTrigger((prev) => prev + 1);
+      setAnimating(false);
+      requestAnimationFrame(() => {
+        setAnimating(true);
+        setTimeout(() => setAnimating(false), 300);
+      });
       return;
     }
 
@@ -171,9 +175,8 @@ export const IngredientInput: React.FC<IngredientInputProps> = ({
           onChange={(e) => setName(e.target.value)}
           onBlur={() => setTouched((t) => ({ ...t, name: true }))}
           style={{
-            ...getInputStyle(isNameValid, touched.name),
+            ...getInputStyle(isNameValid, touched.name, animating),
             ...nameInputStyle,
-            animation: touched.name && !isNameValid ? `shake 0.3s ${shakeTrigger}` : undefined,
           }}
         />
         <input
@@ -185,9 +188,8 @@ export const IngredientInput: React.FC<IngredientInputProps> = ({
           min="0"
           step="any"
           style={{
-            ...getInputStyle(isQuantityValid, touched.quantity),
+            ...getInputStyle(isQuantityValid, touched.quantity, animating),
             ...quantityInputStyle,
-            animation: touched.quantity && !isQuantityValid ? `shake 0.3s ${shakeTrigger}` : undefined,
           }}
         />
         <select
@@ -195,9 +197,8 @@ export const IngredientInput: React.FC<IngredientInputProps> = ({
           onChange={(e) => setUnit(e.target.value)}
           onBlur={() => setTouched((t) => ({ ...t, unit: true }))}
           style={{
-            ...getInputStyle(isUnitValid, touched.unit),
+            ...getInputStyle(isUnitValid, touched.unit, animating),
             ...unitSelectStyle,
-            animation: touched.unit && !isUnitValid ? `shake 0.3s ${shakeTrigger}` : undefined,
           }}
         >
           <option value="">选择单位</option>
