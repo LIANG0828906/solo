@@ -15,6 +15,7 @@ export interface BondInfo {
 
 export interface MoleculeData {
   name: string;
+  displayName?: string;
   atoms: AtomInfo[];
   bonds: BondInfo[];
 }

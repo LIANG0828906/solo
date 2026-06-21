@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { Canvas, useFrame, useThree, ThreeEvent } from '@react-three/fiber';
-import { OrbitControls, Html } from '@react-three/drei';
+import { OrbitControls, Html, Grid, Line } from '@react-three/drei';
 import * as THREE from 'three';
 import { useAppStore } from './stores/appStore';
 import { moleculeMap } from './data/molecules';
@@ -34,7 +34,6 @@ const glowFragmentShader = `
 `;
 
 function AtomGlow({ position, baseRadius }: { position: [number, number, number]; baseRadius: number }) {
-  const meshRef = useRef<THREE.Mesh>(null);
   const materialRef = useRef<THREE.ShaderMaterial>(null);
 
   useFrame((_, delta) => {
@@ -44,7 +43,7 @@ function AtomGlow({ position, baseRadius }: { position: [number, number, number]
   });
 
   return (
-    <mesh ref={meshRef} position={position}>
+    <mesh position={position}>
       <sphereGeometry args={[baseRadius * 1.5, 32, 32]} />
       <shaderMaterial
         ref={materialRef}
@@ -67,40 +66,35 @@ function MeasurementLines({ measurements }: { measurements: Measurement[] }) {
   return (
     <group>
       {measurements.map((m, i) => {
-        const start = new THREE.Vector3(...m.atom1.position);
-        const end = new THREE.Vector3(...m.atom2.position);
-        const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
-
-        const points: THREE.Vector3[] = [];
-        const segments = 40;
-        for (let j = 0; j <= segments; j++) {
-          const t = j / segments;
-          points.push(new THREE.Vector3().lerpVectors(start, end, t));
-        }
-        const lineGeometry = new THREE.BufferGeometry().setFromPoints(points);
-        const lineMaterial = new THREE.LineDashedMaterial({
-          color: 0xffdd44,
-          dashSize: 0.1,
-          gapSize: 0.1,
-        });
-        lineGeometry.computeLineDistances();
-
+        const mid: [number, number, number] = [
+          (m.atom1.position[0] + m.atom2.position[0]) / 2,
+          (m.atom1.position[1] + m.atom2.position[1]) / 2 + 0.3,
+          (m.atom1.position[2] + m.atom2.position[2]) / 2,
+        ];
         return (
           <group key={i}>
-            <line geometry={lineGeometry} material={lineMaterial} />
+            <Line
+              points={[m.atom1.position, m.atom2.position]}
+              color="#ffdd44"
+              dashed
+              dashSize={0.1}
+              gapSize={0.1}
+              lineWidth={1.5}
+            />
             <Html
-              position={[mid.x, mid.y + 0.3, mid.z]}
+              position={mid}
               center
               style={{
                 color: '#ffffff',
                 fontSize: '14px',
-                fontFamily: "'Exo 2', sans-serif",
+                fontFamily: "'Inter', sans-serif",
                 fontWeight: 600,
-                background: 'rgba(10,14,26,0.75)',
-                padding: '2px 8px',
-                borderRadius: '4px',
+                background: 'rgba(15, 20, 35, 0.85)',
+                padding: '3px 10px',
+                borderRadius: '6px',
                 pointerEvents: 'none',
                 whiteSpace: 'nowrap',
+                border: '1px solid rgba(255,255,255,0.08)',
               }}
             >
               {m.distance.toFixed(2)} Å
@@ -127,9 +121,11 @@ function MoleculeScene() {
 
   const groupRef = useRef<THREE.Group>(null);
   const controlsRef = useRef<any>(null);
-  const { camera, scene } = useThree();
+  const { camera } = useThree();
   const [opacity, setOpacity] = useState(1);
+  const [scale, setScale] = useState(1);
   const prevMoleculeRef = useRef(currentMolecule);
+  const animRef = useRef<number | null>(null);
 
   const moleculeData = moleculeMap[currentMolecule];
   const model = useMemo(
@@ -137,30 +133,35 @@ function MoleculeScene() {
     [moleculeData, displayMode]
   );
 
-  useEffect(() => {
-    if (prevMoleculeRef.current !== currentMolecule) {
-      setOpacity(0);
-      prevMoleculeRef.current = currentMolecule;
-    }
-  }, [currentMolecule]);
+  const animateTransition = useCallback(() => {
+    if (animRef.current) cancelAnimationFrame(animRef.current);
+    setScale(0.6);
+    setOpacity(0);
+
+    const start = performance.now();
+    const duration = 500;
+    const animate = (now: number) => {
+      const elapsed = now - start;
+      const t = Math.min(elapsed / duration, 1);
+      const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
+      setOpacity(t);
+      setScale(0.6 + 0.4 * eased);
+      if (t < 1) {
+        animRef.current = requestAnimationFrame(animate);
+      }
+    };
+    animRef.current = requestAnimationFrame(animate);
+  }, []);
 
   useEffect(() => {
-    if (opacity < 1) {
-      let frame: number;
-      const start = performance.now();
-      const duration = 500;
-      const animate = (now: number) => {
-        const elapsed = now - start;
-        const t = Math.min(elapsed / duration, 1);
-        setOpacity(t);
-        if (t < 1) {
-          frame = requestAnimationFrame(animate);
-        }
-      };
-      frame = requestAnimationFrame(animate);
-      return () => cancelAnimationFrame(frame);
+    if (prevMoleculeRef.current !== currentMolecule) {
+      prevMoleculeRef.current = currentMolecule;
+      animateTransition();
     }
-  }, [opacity]);
+    return () => {
+      if (animRef.current) cancelAnimationFrame(animRef.current);
+    };
+  }, [currentMolecule, animateTransition]);
 
   useEffect(() => {
     if (!groupRef.current) return;
@@ -263,20 +264,35 @@ function MoleculeScene() {
 
   return (
     <>
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[5, 5, 5]} intensity={0.8} />
-      <directionalLight position={[-3, -3, 3]} intensity={0.3} />
+      <ambientLight intensity={0.55} />
+      <directionalLight position={[5, 5, 5]} intensity={0.9} />
+      <directionalLight position={[-4, -2, 3]} intensity={0.35} />
+      <directionalLight position={[0, 4, -2]} intensity={0.25} />
 
       <OrbitControls
         ref={controlsRef}
         enableDamping
-        dampingFactor={0.1}
+        dampingFactor={0.08}
         rotateSpeed={0.8}
-        zoomSpeed={1.2}
-        panSpeed={0.8}
+        zoomSpeed={1.1}
+        panSpeed={0.7}
       />
 
-      <group ref={groupRef} onClick={handleMissedClick}>
+      <Grid
+        args={[30, 30]}
+        cellSize={1}
+        cellThickness={0.5}
+        cellColor="#3a4560"
+        sectionSize={5}
+        sectionThickness={1}
+        sectionColor="#5a6888"
+        fadeDistance={25}
+        fadeStrength={1}
+        infiniteGrid
+        position={[0, -2.5, 0]}
+      />
+
+      <group ref={groupRef} onClick={handleMissedClick} scale={[scale, scale, scale]}>
         {atomMeshes.map((mesh, i) => {
           const atom = moleculeData.atoms[i];
           if (!atom) return null;
@@ -284,20 +300,20 @@ function MoleculeScene() {
           const isMFirst = isMeasureFirst(atom);
           const isSpaceFilling = displayMode === 'space-filling';
           const radius = isSpaceFilling ? atom.radius * 2 : 0.3;
-          const scale = selected ? 1.2 : isMFirst ? 1.1 : 1;
+          const atomScale = selected ? 1.2 : isMFirst ? 1.1 : 1;
 
           return (
             <mesh
               key={`${currentMolecule}-${i}`}
               position={mesh.position.clone()}
-              scale={[scale, scale, scale]}
+              scale={[atomScale, atomScale, atomScale]}
               onClick={handleAtomClick}
             >
               <sphereGeometry args={[radius, 32, 32]} />
               <meshStandardMaterial
                 color={atom.color}
-                roughness={0.3}
-                metalness={0.1}
+                roughness={0.25}
+                metalness={0.15}
                 transparent
                 opacity={opacity}
               />
@@ -336,8 +352,8 @@ function MoleculeScene() {
                 <mesh key={`bond-${i}-${oi}`} position={pos} quaternion={quaternion}>
                   <cylinderGeometry args={[0.08, 0.08, length, 8]} />
                   <meshStandardMaterial
-                    color="#cccccc"
-                    roughness={0.5}
+                    color="#cfd4dc"
+                    roughness={0.45}
                     metalness={0.1}
                     transparent
                     opacity={opacity}
@@ -369,14 +385,13 @@ function MoleculeScene() {
 
 export default function App() {
   return (
-    <div style={{ width: '100vw', height: '100vh', cursor: useAppStore.getState().isMeasuring ? 'crosshair' : 'default' }}>
+    <div style={{ width: '100vw', height: '100vh' }}>
       <Canvas
         camera={{ position: [0, 0, 5], fov: 50 }}
         gl={{ antialias: true, alpha: false }}
         onCreated={({ gl }) => {
-          gl.setClearColor(new THREE.Color('#0a0e1a'));
+          gl.setClearColor(new THREE.Color('#0d1222'));
         }}
-        style={{ cursor: useAppStore.getState().isMeasuring ? 'crosshair' : 'grab' }}
       >
         <MoleculeScene />
       </Canvas>

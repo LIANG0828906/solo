@@ -2,10 +2,11 @@ import type { MoleculeData } from '../types';
 
 export const H2O: MoleculeData = {
   name: 'H₂O',
+  displayName: '水',
   atoms: [
-    { symbol: 'O', name: 'Oxygen', atomicNumber: 8, position: [0, 0, 0], color: '#ff4444', radius: 0.6 },
-    { symbol: 'H', name: 'Hydrogen', atomicNumber: 1, position: [0.76, 0.59, 0], color: '#ffffff', radius: 0.3 },
-    { symbol: 'H', name: 'Hydrogen', atomicNumber: 1, position: [-0.76, 0.59, 0], color: '#ffffff', radius: 0.3 },
+    { symbol: 'O', name: '氧', atomicNumber: 8, position: [0, 0, 0], color: '#ff4444', radius: 0.6 },
+    { symbol: 'H', name: '氢', atomicNumber: 1, position: [0.76, 0.59, 0], color: '#ffffff', radius: 0.3 },
+    { symbol: 'H', name: '氢', atomicNumber: 1, position: [-0.76, 0.59, 0], color: '#ffffff', radius: 0.3 },
   ],
   bonds: [
     { atom1: 0, atom2: 1, order: 1 },
@@ -15,10 +16,11 @@ export const H2O: MoleculeData = {
 
 export const CO2: MoleculeData = {
   name: 'CO₂',
+  displayName: '二氧化碳',
   atoms: [
-    { symbol: 'C', name: 'Carbon', atomicNumber: 6, position: [0, 0, 0], color: '#888888', radius: 0.5 },
-    { symbol: 'O', name: 'Oxygen', atomicNumber: 8, position: [1.16, 0, 0], color: '#ff4444', radius: 0.6 },
-    { symbol: 'O', name: 'Oxygen', atomicNumber: 8, position: [-1.16, 0, 0], color: '#ff4444', radius: 0.6 },
+    { symbol: 'C', name: '碳', atomicNumber: 6, position: [0, 0, 0], color: '#888888', radius: 0.5 },
+    { symbol: 'O', name: '氧', atomicNumber: 8, position: [1.16, 0, 0], color: '#ff4444', radius: 0.6 },
+    { symbol: 'O', name: '氧', atomicNumber: 8, position: [-1.16, 0, 0], color: '#ff4444', radius: 0.6 },
   ],
   bonds: [
     { atom1: 0, atom2: 1, order: 2 },
@@ -28,12 +30,13 @@ export const CO2: MoleculeData = {
 
 export const CH4: MoleculeData = {
   name: 'CH₄',
+  displayName: '甲烷',
   atoms: [
-    { symbol: 'C', name: 'Carbon', atomicNumber: 6, position: [0, 0, 0], color: '#888888', radius: 0.5 },
-    { symbol: 'H', name: 'Hydrogen', atomicNumber: 1, position: [0.63, 0.63, 0.63], color: '#ffffff', radius: 0.3 },
-    { symbol: 'H', name: 'Hydrogen', atomicNumber: 1, position: [-0.63, -0.63, 0.63], color: '#ffffff', radius: 0.3 },
-    { symbol: 'H', name: 'Hydrogen', atomicNumber: 1, position: [-0.63, 0.63, -0.63], color: '#ffffff', radius: 0.3 },
-    { symbol: 'H', name: 'Hydrogen', atomicNumber: 1, position: [0.63, -0.63, -0.63], color: '#ffffff', radius: 0.3 },
+    { symbol: 'C', name: '碳', atomicNumber: 6, position: [0, 0, 0], color: '#888888', radius: 0.5 },
+    { symbol: 'H', name: '氢', atomicNumber: 1, position: [0.63, 0.63, 0.63], color: '#ffffff', radius: 0.3 },
+    { symbol: 'H', name: '氢', atomicNumber: 1, position: [-0.63, -0.63, 0.63], color: '#ffffff', radius: 0.3 },
+    { symbol: 'H', name: '氢', atomicNumber: 1, position: [-0.63, 0.63, -0.63], color: '#ffffff', radius: 0.3 },
+    { symbol: 'H', name: '氢', atomicNumber: 1, position: [0.63, -0.63, -0.63], color: '#ffffff', radius: 0.3 },
   ],
   bonds: [
     { atom1: 0, atom2: 1, order: 1 },
@@ -57,10 +60,11 @@ for (let i = 0; i < 6; i++) {
 
 export const C6H6: MoleculeData = {
   name: 'C₆H₆',
+  displayName: '苯',
   atoms: [
-    ...cPositions.map((pos, i) => ({
+    ...cPositions.map((pos) => ({
       symbol: 'C' as const,
-      name: 'Carbon' as const,
+      name: '碳' as const,
       atomicNumber: 6,
       position: pos,
       color: '#888888',
@@ -68,7 +72,7 @@ export const C6H6: MoleculeData = {
     })),
     ...hPositions.map((pos) => ({
       symbol: 'H' as const,
-      name: 'Hydrogen' as const,
+      name: '氢' as const,
       atomicNumber: 1,
       position: pos,
       color: '#ffffff',

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAppStore } from '../stores/appStore';
 import { moleculeKeys, moleculeMap } from '../data/molecules';
 import type { DisplayMode } from '../types';
@@ -13,18 +13,29 @@ const UIOverlay: React.FC = () => {
     measureFirstAtom,
     setMolecule,
     setSelectedAtom,
-    toggleDisplayMode,
+    setDisplayMode,
     clearMeasurements,
     setIsMeasuring,
     setMeasureFirstAtom,
   } = useAppStore();
 
+  const [infoVisible, setInfoVisible] = useState(false);
+
+  useEffect(() => {
+    if (selectedAtom) {
+      setInfoVisible(true);
+    } else {
+      const timer = setTimeout(() => setInfoVisible(false), 200);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedAtom]);
+
   const handleMoleculeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setMolecule(e.target.value);
   };
 
-  const handleDisplayModeToggle = () => {
-    toggleDisplayMode();
+  const handleModeChange = (mode: DisplayMode) => {
+    setDisplayMode(mode);
   };
 
   const handleMeasureToggle = () => {
@@ -49,7 +60,7 @@ const UIOverlay: React.FC = () => {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Exo+2:wght@300;400;600;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
         * {
           margin: 0;
@@ -58,457 +69,623 @@ const UIOverlay: React.FC = () => {
         }
 
         body {
-          font-family: 'Exo 2', sans-serif;
+          font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
           overflow: hidden;
-          background: linear-gradient(135deg, #0a0e1a 0%, #1a2035 100%);
+          background: #0d1222;
+          color: #e0e6f0;
         }
 
         #root {
           width: 100vw;
           height: 100vh;
-        }
-
-        .toolbar {
-          position: fixed;
-          top: 0;
-          left: 0;
-          right: 0;
-          height: 56px;
-          background: rgba(10, 14, 26, 0.85);
-          backdrop-filter: blur(12px);
-          -webkit-backdrop-filter: blur(12px);
-          border-bottom: 1px solid rgba(255, 255, 255, 0.08);
-          display: flex;
-          align-items: center;
-          padding: 0 20px;
-          gap: 12px;
-          z-index: 100;
-        }
-
-        .toolbar-title {
-          font-size: 16px;
-          font-weight: 700;
-          color: #e0e6f0;
-          letter-spacing: 1px;
-          text-transform: uppercase;
-          margin-right: 16px;
-          white-space: nowrap;
-        }
-
-        .toolbar-select {
-          background: linear-gradient(135deg, #667eea, #764ba2);
-          color: #fff;
-          border: none;
-          padding: 8px 14px;
-          border-radius: 8px;
-          font-family: 'Exo 2', sans-serif;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          outline: none;
-          transition: all 0.15s ease;
-          -webkit-appearance: none;
-          appearance: none;
-          min-width: 120px;
-        }
-
-        .toolbar-select:hover {
-          filter: brightness(1.2);
-        }
-
-        .toolbar-select:active {
-          transform: scale(0.95);
-        }
-
-        .toolbar-select option {
-          background: #1a2035;
-          color: #e0e6f0;
-        }
-
-        .toolbar-btn {
-          background: linear-gradient(135deg, #667eea, #764ba2);
-          color: #fff;
-          border: none;
-          padding: 8px 16px;
-          border-radius: 8px;
-          font-family: 'Exo 2', sans-serif;
-          font-size: 13px;
-          font-weight: 600;
-          cursor: pointer;
-          outline: none;
-          transition: all 0.15s ease;
-          white-space: nowrap;
           position: relative;
         }
 
-        .toolbar-btn:hover {
-          filter: brightness(1.2);
-          transform: scale(1.05);
-        }
-
-        .toolbar-btn:active {
-          transform: scale(0.95);
-        }
-
-        .toolbar-btn.active {
-          box-shadow: 0 0 12px rgba(102, 126, 234, 0.6), inset 0 0 8px rgba(255, 255, 255, 0.2);
-        }
-
-        .toolbar-btn.danger {
-          background: linear-gradient(135deg, #e74c3c, #c0392b);
-        }
-
-        .toolbar-btn.danger:hover {
-          filter: brightness(1.2);
-        }
-
-        .toolbar-divider {
-          width: 1px;
-          height: 28px;
-          background: rgba(255, 255, 255, 0.1);
-          margin: 0 4px;
-        }
-
-        .mode-label {
-          color: #8a94a8;
-          font-size: 12px;
-          margin-left: 4px;
-        }
-
-        .info-panel {
+        /* ===== 顶部分子选择下拉 ===== */
+        .top-bar {
           position: fixed;
-          left: 0;
-          top: 56px;
-          bottom: 0;
-          width: 260px;
-          background: rgba(20, 25, 40, 0.9);
-          backdrop-filter: blur(8px);
-          -webkit-backdrop-filter: blur(8px);
-          border-radius: 0 16px 16px 0;
-          padding: 20px;
-          z-index: 90;
-          transform: translateX(-100%);
-          transition: transform 0.3s ease-out;
+          top: 20px;
+          left: 50%;
+          transform: translateX(-50%);
+          z-index: 50;
+        }
+
+        .molecule-select-wrap {
+          position: relative;
+          background: rgba(22, 28, 48, 0.85);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 14px;
+          padding: 4px 4px 4px 18px;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+        }
+
+        .molecule-label {
+          font-size: 12px;
+          font-weight: 500;
+          color: #8a94a8;
+          letter-spacing: 0.5px;
+        }
+
+        .molecule-select {
+          background: linear-gradient(135deg, #5b6fd4, #6b4fa8);
+          color: #ffffff;
+          border: none;
+          padding: 10px 36px 10px 14px;
+          border-radius: 10px;
+          font-family: inherit;
+          font-size: 14px;
+          font-weight: 600;
+          cursor: pointer;
+          outline: none;
+          transition: all 0.2s ease;
+          -webkit-appearance: none;
+          appearance: none;
+          min-width: 140px;
+        }
+
+        .molecule-select:hover {
+          filter: brightness(1.15);
+          transform: translateY(-1px);
+          box-shadow: 0 4px 16px rgba(91, 111, 212, 0.4);
+        }
+
+        .molecule-select:active {
+          transform: scale(0.97);
+        }
+
+        .molecule-select option {
+          background: #1a2038;
           color: #e0e6f0;
-          border-right: 1px solid rgba(255, 255, 255, 0.05);
-          border-top: 1px solid rgba(255, 255, 255, 0.05);
+          font-size: 14px;
         }
 
-        .info-panel.open {
-          transform: translateX(0);
-        }
-
-        .info-panel-close {
+        .molecule-select-arrow {
           position: absolute;
-          top: 12px;
-          right: 12px;
-          background: none;
+          right: 18px;
+          top: 50%;
+          transform: translateY(-50%);
+          pointer-events: none;
+          color: rgba(255, 255, 255, 0.7);
+          font-size: 10px;
+        }
+
+        /* ===== 右侧信息面板 ===== */
+        .right-panel {
+          position: fixed;
+          right: 20px;
+          top: 80px;
+          width: 280px;
+          background: rgba(22, 28, 48, 0.9);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 16px;
+          padding: 20px;
+          z-index: 40;
+          opacity: 0;
+          transform: translateX(20px);
+          pointer-events: none;
+          transition: opacity 0.25s ease-out, transform 0.25s ease-out;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+        }
+
+        .right-panel.visible {
+          opacity: 1;
+          transform: translateX(0);
+          pointer-events: auto;
+        }
+
+        .right-panel-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          margin-bottom: 16px;
+        }
+
+        .right-panel-close {
+          background: rgba(255, 255, 255, 0.05);
           border: none;
           color: #8a94a8;
-          font-size: 20px;
+          width: 24px;
+          height: 24px;
+          border-radius: 6px;
           cursor: pointer;
+          font-size: 14px;
           line-height: 1;
-          padding: 4px;
-          transition: color 0.2s;
+          transition: all 0.15s ease;
         }
 
-        .info-panel-close:hover {
+        .right-panel-close:hover {
+          background: rgba(255, 255, 255, 0.12);
           color: #e0e6f0;
         }
 
-        .info-panel-title {
-          font-size: 24px;
-          font-weight: 700;
-          margin-bottom: 16px;
-          color: #fff;
+        .info-title {
+          display: flex;
+          align-items: center;
+          gap: 10px;
         }
 
-        .info-panel-row {
+        .info-symbol {
+          font-size: 28px;
+          font-weight: 700;
+          color: #ffffff;
+        }
+
+        .info-dot {
+          width: 12px;
+          height: 12px;
+          border-radius: 50%;
+          border: 2px solid rgba(255, 255, 255, 0.25);
+        }
+
+        .info-name {
+          font-size: 18px;
+          font-weight: 600;
+          color: #ffffff;
+          margin-top: 2px;
+        }
+
+        .info-rows {
+          display: flex;
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .info-row {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 8px 0;
+          padding: 10px 0;
           border-bottom: 1px solid rgba(255, 255, 255, 0.05);
         }
 
-        .info-panel-label {
-          font-size: 13px;
-          color: #8a94a8;
-          font-weight: 400;
+        .info-row:last-child {
+          border-bottom: none;
         }
 
-        .info-panel-value {
-          font-size: 16px;
-          color: #e0e6f0;
-          font-weight: 400;
+        .info-key {
+          font-size: 12px;
+          font-weight: 500;
+          color: #7a8498;
         }
 
-        .info-panel-color-dot {
-          display: inline-block;
-          width: 14px;
-          height: 14px;
-          border-radius: 50%;
-          margin-right: 8px;
-          vertical-align: middle;
-          border: 2px solid rgba(255, 255, 255, 0.2);
+        .info-val {
+          font-size: 14px;
+          font-weight: 500;
+          color: #dde4ef;
+          font-variant-numeric: tabular-nums;
         }
 
-        .measure-panel {
+        /* ===== 测量记录区 ===== */
+        .measure-section {
           position: fixed;
-          right: 16px;
-          bottom: 16px;
-          width: 320px;
-          max-height: 200px;
-          background: rgba(10, 14, 26, 0.8);
-          backdrop-filter: blur(8px);
-          -webkit-backdrop-filter: blur(8px);
-          border-radius: 12px;
-          padding: 12px;
-          z-index: 90;
-          overflow-y: auto;
-          color: #e0e6f0;
-          border: 1px solid rgba(255, 255, 255, 0.05);
+          right: 20px;
+          top: 380px;
+          bottom: 120px;
+          width: 280px;
+          background: rgba(22, 28, 48, 0.85);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 16px;
+          padding: 16px;
+          z-index: 40;
+          display: flex;
+          flex-direction: column;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
         }
 
-        .measure-panel::-webkit-scrollbar {
+        .measure-section-title {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          margin-bottom: 10px;
+        }
+
+        .measure-section-title span {
+          font-size: 12px;
+          font-weight: 600;
+          color: #7a8498;
+          letter-spacing: 0.8px;
+          text-transform: uppercase;
+        }
+
+        .measure-clear {
+          background: none;
+          border: none;
+          color: #6b7fd6;
+          font-size: 12px;
+          font-weight: 500;
+          cursor: pointer;
+          padding: 2px 6px;
+          border-radius: 4px;
+          transition: all 0.15s;
+        }
+
+        .measure-clear:hover {
+          background: rgba(107, 127, 214, 0.12);
+          color: #8a9def;
+        }
+
+        .measure-list {
+          flex: 1;
+          overflow-y: auto;
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .measure-list::-webkit-scrollbar {
           width: 4px;
         }
 
-        .measure-panel::-webkit-scrollbar-track {
-          background: transparent;
-        }
-
-        .measure-panel::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.15);
+        .measure-list::-webkit-scrollbar-thumb {
+          background: rgba(255, 255, 255, 0.12);
           border-radius: 2px;
-        }
-
-        .measure-panel-title {
-          font-size: 13px;
-          font-weight: 600;
-          color: #8a94a8;
-          margin-bottom: 8px;
-          text-transform: uppercase;
-          letter-spacing: 1px;
         }
 
         .measure-item {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          padding: 6px 8px;
+          padding: 8px 10px;
           background: rgba(255, 255, 255, 0.03);
-          border-radius: 6px;
-          margin-bottom: 4px;
-          font-size: 14px;
+          border: 1px solid rgba(255, 255, 255, 0.04);
+          border-radius: 8px;
         }
 
-        .measure-item-label {
+        .measure-item-left {
+          display: flex;
+          align-items: center;
+          gap: 6px;
+          font-size: 13px;
           color: #c0c8d8;
         }
 
-        .measure-item-value {
-          color: #667eea;
+        .measure-dash {
+          color: #5a6478;
+        }
+
+        .measure-item-val {
+          font-size: 13px;
           font-weight: 600;
+          color: #6b85e0;
+          font-variant-numeric: tabular-nums;
         }
 
         .measure-empty {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          flex: 1;
           color: #5a6478;
-          font-size: 13px;
-          text-align: center;
-          padding: 8px;
+          font-size: 12px;
+          gap: 4px;
         }
 
-        .measuring-hint {
+        /* ===== 左下角显示模式按钮组 ===== */
+        .mode-group {
           position: fixed;
-          bottom: 240px;
-          right: 16px;
-          background: rgba(102, 126, 234, 0.9);
-          color: #fff;
-          padding: 8px 16px;
+          left: 20px;
+          bottom: 20px;
+          display: flex;
+          background: rgba(22, 28, 48, 0.9);
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 12px;
+          padding: 4px;
+          z-index: 40;
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+        }
+
+        .mode-btn {
+          background: transparent;
+          color: #8a94a8;
+          border: none;
+          padding: 10px 16px;
           border-radius: 8px;
+          font-family: inherit;
           font-size: 13px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          gap: 6px;
+        }
+
+        .mode-btn:hover {
+          color: #d0d8e8;
+          background: rgba(255, 255, 255, 0.04);
+        }
+
+        .mode-btn.active {
+          background: linear-gradient(135deg, #5b6fd4, #6b4fa8);
+          color: #ffffff;
+          box-shadow: 0 2px 12px rgba(91, 111, 212, 0.4);
+        }
+
+        .mode-icon {
+          width: 14px;
+          height: 14px;
+          border-radius: 50%;
+          background: currentColor;
+          opacity: 0.8;
+        }
+
+        .mode-icon.stick {
+          position: relative;
+        }
+
+        .mode-icon.stick::after {
+          content: '';
+          position: absolute;
+          width: 10px;
+          height: 2px;
+          background: currentColor;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          border-radius: 1px;
+          opacity: 0.8;
+        }
+
+        /* ===== 右下角测量按钮 ===== */
+        .measure-btn-wrap {
+          position: fixed;
+          right: 20px;
+          bottom: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          z-index: 40;
+          align-items: flex-end;
+        }
+
+        .measure-btn {
+          background: rgba(22, 28, 48, 0.9);
+          color: #e0e6f0;
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          padding: 12px 18px;
+          border-radius: 12px;
+          font-family: inherit;
+          font-size: 14px;
           font-weight: 600;
-          z-index: 95;
-          animation: pulse-hint 1.5s ease-in-out infinite;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          backdrop-filter: blur(14px);
+          -webkit-backdrop-filter: blur(14px);
+          box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
         }
 
-        @keyframes pulse-hint {
+        .measure-btn:hover {
+          transform: translateY(-1px);
+          border-color: rgba(255, 255, 255, 0.15);
+          box-shadow: 0 10px 36px rgba(0, 0, 0, 0.4);
+        }
+
+        .measure-btn.active {
+          background: linear-gradient(135deg, #5b6fd4, #6b4fa8);
+          border-color: transparent;
+          color: #ffffff;
+          box-shadow: 0 6px 20px rgba(91, 111, 212, 0.45);
+        }
+
+        .measure-btn-icon {
+          width: 16px;
+          height: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+
+        /* ===== 测量提示条 ===== */
+        .measure-hint {
+          background: rgba(91, 111, 212, 0.95);
+          color: #ffffff;
+          padding: 8px 14px;
+          border-radius: 8px;
+          font-size: 12px;
+          font-weight: 500;
+          box-shadow: 0 4px 16px rgba(91, 111, 212, 0.35);
+          animation: hintPulse 1.6s ease-in-out infinite;
+        }
+
+        @keyframes hintPulse {
           0%, 100% { opacity: 1; }
-          50% { opacity: 0.6; }
+          50% { opacity: 0.75; }
         }
 
-        .measure-crosshair {
-          cursor: crosshair !important;
-        }
-
+        /* ===== 响应式 ===== */
         @media (max-width: 768px) {
-          .toolbar {
-            height: auto;
-            flex-wrap: wrap;
-            padding: 10px 12px;
-            gap: 8px;
+          .top-bar {
+            top: 12px;
           }
 
-          .toolbar-title {
-            width: 100%;
-            font-size: 14px;
-            margin-right: 0;
+          .molecule-select-wrap {
+            padding: 4px 4px 4px 14px;
           }
 
-          .toolbar-select {
-            flex: 1;
-            min-width: auto;
-            height: 44px;
+          .molecule-select {
+            padding: 12px 36px 12px 12px;
+            min-width: 160px;
           }
 
-          .toolbar-btn {
-            flex: 1;
-            min-width: auto;
-            height: 44px;
-            padding: 8px 10px;
-            font-size: 12px;
+          .right-panel {
+            right: 12px;
+            left: 12px;
+            top: auto;
+            bottom: 140px;
+            width: auto;
           }
 
-          .toolbar-divider {
+          .measure-section {
             display: none;
           }
 
-          .info-panel {
-            left: 0;
-            right: 0;
-            top: auto;
-            bottom: 0;
-            width: 100%;
-            height: auto;
-            max-height: 60vh;
-            border-radius: 16px 16px 0 0;
-            transform: translateY(100%);
-            transition: transform 0.3s ease-out;
+          .mode-group {
+            left: 12px;
+            bottom: 12px;
           }
 
-          .info-panel.open {
-            transform: translateY(0);
+          .mode-btn {
+            padding: 10px 12px;
+            font-size: 12px;
           }
 
-          .measure-panel {
-            left: 16px;
-            right: 16px;
-            width: auto;
+          .measure-btn-wrap {
+            right: 12px;
+            bottom: 12px;
+          }
+
+          .measure-btn {
+            padding: 10px 14px;
+            font-size: 13px;
           }
         }
       `}</style>
 
-      <div className="toolbar">
-        <span className="toolbar-title">Mol Viewer</span>
-        <select
-          className="toolbar-select"
-          value={currentMolecule}
-          onChange={handleMoleculeChange}
-        >
-          {moleculeKeys.map((key) => (
-            <option key={key} value={key}>
-              {moleculeMap[key].name}
-            </option>
-          ))}
-        </select>
-
-        <div className="toolbar-divider" />
-
-        <button className="toolbar-btn" onClick={handleDisplayModeToggle}>
-          {displayMode === 'ball-stick' ? '⚛ 球棍' : '◉ 填充'}
-        </button>
-        <span className="mode-label">
-          {displayMode === 'ball-stick' ? 'Ball-Stick' : 'Space-Filling'}
-        </span>
-
-        <div className="toolbar-divider" />
-
-        <button
-          className={`toolbar-btn ${isMeasuring ? 'active' : ''}`}
-          onClick={handleMeasureToggle}
-        >
-          {isMeasuring ? '✕ 退出测量' : '📏 测量'}
-        </button>
-
-        {measurements.length > 0 && (
-          <button className="toolbar-btn danger" onClick={handleClearMeasurements}>
-            清除测量
-          </button>
-        )}
-
-        <div className="toolbar-divider" />
-
-        <button className="toolbar-btn" onClick={() => {
-          setSelectedAtom(null);
-          setIsMeasuring(false);
-          setMeasureFirstAtom(null);
-          window.dispatchEvent(new CustomEvent('reset-camera'));
-        }}>
-          ⟳ 重置视角
-        </button>
+      {/* 顶部分子选择 */}
+      <div className="top-bar">
+        <div className="molecule-select-wrap">
+          <span className="molecule-label">分子</span>
+          <select
+            className="molecule-select"
+            value={currentMolecule}
+            onChange={handleMoleculeChange}
+          >
+            {moleculeKeys.map((key) => (
+              <option key={key} value={key}>
+                {moleculeMap[key].displayName || moleculeMap[key].name}
+              </option>
+            ))}
+          </select>
+          <span className="molecule-select-arrow">▾</span>
+        </div>
       </div>
 
-      <div className={`info-panel ${selectedAtom ? 'open' : ''}`}>
+      {/* 右侧原子信息面板 */}
+      <div className={`right-panel ${infoVisible && selectedAtom ? 'visible' : ''}`}>
         {selectedAtom && (
           <>
-            <button className="info-panel-close" onClick={handleCloseInfo}>✕</button>
-            <div className="info-panel-title">
-              <span
-                className="info-panel-color-dot"
-                style={{ backgroundColor: selectedAtom.color }}
-              />
-              {selectedAtom.name}
+            <div className="right-panel-header">
+              <div>
+                <div className="info-title">
+                  <span className="info-symbol">{selectedAtom.symbol}</span>
+                  <span
+                    className="info-dot"
+                    style={{ backgroundColor: selectedAtom.color }}
+                  />
+                </div>
+                <div className="info-name">{selectedAtom.name}</div>
+              </div>
+              <button className="right-panel-close" onClick={handleCloseInfo}>✕</button>
             </div>
-            <div className="info-panel-row">
-              <span className="info-panel-label">元素符号</span>
-              <span className="info-panel-value" style={{ fontWeight: 700 }}>{selectedAtom.symbol}</span>
-            </div>
-            <div className="info-panel-row">
-              <span className="info-panel-label">元素名称</span>
-              <span className="info-panel-value">{selectedAtom.name}</span>
-            </div>
-            <div className="info-panel-row">
-              <span className="info-panel-label">原子序数</span>
-              <span className="info-panel-value">{selectedAtom.atomicNumber}</span>
-            </div>
-            <div className="info-panel-row">
-              <span className="info-panel-label">坐标 (Å)</span>
-              <span className="info-panel-value">
-                ({selectedAtom.position[0].toFixed(2)}, {selectedAtom.position[1].toFixed(2)}, {selectedAtom.position[2].toFixed(2)})
-              </span>
+            <div className="info-rows">
+              <div className="info-row">
+                <span className="info-key">元素符号</span>
+                <span className="info-val">{selectedAtom.symbol}</span>
+              </div>
+              <div className="info-row">
+                <span className="info-key">元素名称</span>
+                <span className="info-val">{selectedAtom.name}</span>
+              </div>
+              <div className="info-row">
+                <span className="info-key">原子序数</span>
+                <span className="info-val">{selectedAtom.atomicNumber}</span>
+              </div>
+              <div className="info-row">
+                <span className="info-key">坐标 (Å)</span>
+                <span className="info-val">
+                  {selectedAtom.position[0].toFixed(2)}, {selectedAtom.position[1].toFixed(2)}, {selectedAtom.position[2].toFixed(2)}
+                </span>
+              </div>
             </div>
           </>
         )}
       </div>
 
-      {isMeasuring && (
-        <div className="measuring-hint">
-          {measureFirstAtom
-            ? `点击第二个原子完成测量（已选: ${measureFirstAtom.symbol}）`
-            : '点击第一个原子开始测量'}
-        </div>
-      )}
-
-      {(measurements.length > 0 || isMeasuring) && (
-        <div className="measure-panel">
-          <div className="measure-panel-title">测量结果</div>
-          {measurements.length === 0 ? (
-            <div className="measure-empty">暂无测量数据</div>
-          ) : (
-            measurements.map((m, i) => (
-              <div className="measure-item" key={i}>
-                <span className="measure-item-label">
-                  {m.atom1.symbol}–{m.atom2.symbol}
-                </span>
-                <span className="measure-item-value">
-                  {m.distance.toFixed(2)} Å
-                </span>
-              </div>
-            ))
+      {/* 右侧测量记录 */}
+      <div className="measure-section">
+        <div className="measure-section-title">
+          <span>测量记录</span>
+          {measurements.length > 0 && (
+            <button className="measure-clear" onClick={handleClearMeasurements}>
+              清除
+            </button>
           )}
         </div>
-      )}
+        {measurements.length === 0 ? (
+          <div className="measure-empty">
+            <span>暂无测量</span>
+            <span style={{ fontSize: 11, opacity: 0.7 }}>点击右下角按钮开始</span>
+          </div>
+        ) : (
+          <div className="measure-list">
+            {measurements.map((m, i) => (
+              <div className="measure-item" key={i}>
+                <div className="measure-item-left">
+                  <span style={{ color: m.atom1.color }}>●</span>
+                  <span>{m.atom1.symbol}</span>
+                  <span className="measure-dash">—</span>
+                  <span style={{ color: m.atom2.color }}>●</span>
+                  <span>{m.atom2.symbol}</span>
+                </div>
+                <span className="measure-item-val">{m.distance.toFixed(2)} Å</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* 左下角显示模式切换 */}
+      <div className="mode-group">
+        <button
+          className={`mode-btn ${displayMode === 'ball-stick' ? 'active' : ''}`}
+          onClick={() => handleModeChange('ball-stick')}
+        >
+          <span className="mode-icon stick" />
+          球棍模型
+        </button>
+        <button
+          className={`mode-btn ${displayMode === 'space-filling' ? 'active' : ''}`}
+          onClick={() => handleModeChange('space-filling')}
+        >
+          <span className="mode-icon" />
+          空间填充
+        </button>
+      </div>
+
+      {/* 右下角测量工具按钮 */}
+      <div className="measure-btn-wrap">
+        {isMeasuring && (
+          <div className="measure-hint">
+            {measureFirstAtom
+              ? `已选 ${measureFirstAtom.symbol}，点击第二个原子`
+              : '点击第一个原子'}
+          </div>
+        )}
+        <button
+          className={`measure-btn ${isMeasuring ? 'active' : ''}`}
+          onClick={handleMeasureToggle}
+        >
+          <span className="measure-btn-icon">
+            {isMeasuring ? '✕' : '📏'}
+          </span>
+          {isMeasuring ? '退出测量' : '测量距离'}
+        </button>
+      </div>
     </>
   );
 };
