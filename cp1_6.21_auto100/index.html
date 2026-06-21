@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>流动数据瀑布图</title>
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <canvas id="canvas"></canvas>
+  
+  <div id="info-panel">
+    <div class="info-item">
+      <span class="label">时间戳:</span>
+      <span id="timestamp">--</span>
+    </div>
+    <div class="info-item">
+      <span class="label">最新数值:</span>
+      <span id="latest-value">--</span>
+    </div>
+  </div>
+  
+  <div id="side-panel" class="expanded">
+    <div class="panel-header">
+      <h3>数据输入</h3>
+      <button id="toggle-panel" class="icon-btn">−</button>
+    </div>
+    <div class="panel-content">
+      <div class="form-group">
+        <label for="manual-input">手动输入数值 (逗号分隔)</label>
+        <textarea 
+          id="manual-input" 
+          placeholder="例如: 12.3, 45.6, 78.9, 34.5, 67.8"
+          rows="4"
+        ></textarea>
+      </div>
+      
+      <div class="form-group">
+        <label for="csv-upload">或上传CSV文件</label>
+        <input type="file" id="csv-upload" accept=".csv">
+      </div>
+      
+      <button id="submit-btn" class="primary-btn">解析数据</button>
+      
+      <div class="form-group">
+        <label for="speed-control">滚动速度: <span id="speed-value">1.0</span>x</label>
+        <input 
+          type="range" 
+          id="speed-control" 
+          min="0.5" 
+          max="2" 
+          step="0.1" 
+          value="1"
+        >
+      </div>
+      
+      <button id="pause-btn" class="secondary-btn">⏸ 暂停</button>
+      
+      <div id="message" class="message"></div>
+    </div>
+  </div>
+  
+  <div id="collapsed-icon" class="hidden">
+    <button id="expand-panel" class="icon-btn">📊</button>
+  </div>
+
+  <div id="tooltip" class="hidden">
+    <div class="tooltip-content"></div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
