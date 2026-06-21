@@ -106,22 +106,26 @@ const RelationGraph: React.FC<RelationGraphProps> = ({
   }, [isDraggingNew, stageScale, stagePos, nodes, dragStart]);
 
   const handleStageMouseUp = useCallback(() => {
-    if (isDraggingNew && dragStart && dragPos) {
-      const hitNode = nodes.find((n) => {
-        if (n.id === dragStart.nodeId) return false;
-        const dx = n.x - dragPos.x;
-        const dy = n.y - dragPos.y;
-        return Math.sqrt(dx * dx + dy * dy) < n.radius + 10;
-      });
-      if (hitNode) {
-        onCreateRelation(dragStart.nodeId, hitNode.id);
+    if (isDraggingNew && dragStart) {
+      if (dragTargetNodeId) {
+        onCreateRelation(dragStart.nodeId, dragTargetNodeId);
+      } else if (dragPos) {
+        const hitNode = nodes.find((n) => {
+          if (n.id === dragStart.nodeId) return false;
+          const dx = n.x - dragPos.x;
+          const dy = n.y - dragPos.y;
+          return Math.sqrt(dx * dx + dy * dy) < n.radius + 10;
+        });
+        if (hitNode) {
+          onCreateRelation(dragStart.nodeId, hitNode.id);
+        }
       }
     }
     setIsDraggingNew(false);
     setDragStart(null);
     setDragPos(null);
     setDragTargetNodeId(null);
-  }, [isDraggingNew, dragStart, dragPos, nodes, onCreateRelation]);
+  }, [isDraggingNew, dragStart, dragTargetNodeId, dragPos, nodes, onCreateRelation]);
 
   const getEdgeStyle = (type: string) => {
     switch (type) {

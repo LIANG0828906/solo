@@ -13,15 +13,18 @@ const StatsCharts: React.FC<StatsChartsProps> = ({ stats }) => {
   const lineRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    drawHistogram();
+    const raf = requestAnimationFrame(() => drawHistogram());
+    return () => cancelAnimationFrame(raf);
   }, [stats.age_distribution]);
 
   useEffect(() => {
-    drawPieChart();
+    const raf = requestAnimationFrame(() => drawPieChart());
+    return () => cancelAnimationFrame(raf);
   }, [stats.event_type_counts]);
 
   useEffect(() => {
-    drawLineChart();
+    const raf = requestAnimationFrame(() => drawLineChart());
+    return () => cancelAnimationFrame(raf);
   }, [stats.generation_gaps, stats.avg_generation_gap]);
 
   const drawHistogram = () => {
@@ -38,6 +41,7 @@ const StatsCharts: React.FC<StatsChartsProps> = ({ stats }) => {
 
     const w = rect.width;
     const h = rect.height;
+    if (w === 0 || h === 0) return;
     const padding = { top: 30, right: 20, bottom: 40, left: 40 };
     const chartW = w - padding.left - padding.right;
     const chartH = h - padding.top - padding.bottom;
@@ -111,6 +115,7 @@ const StatsCharts: React.FC<StatsChartsProps> = ({ stats }) => {
 
     const w = rect.width;
     const h = rect.height;
+    if (w === 0 || h === 0) return;
     const cx = w * 0.4;
     const cy = h / 2 + 10;
     const radius = Math.min(w * 0.35, (h - 60) / 2);
@@ -197,6 +202,7 @@ const StatsCharts: React.FC<StatsChartsProps> = ({ stats }) => {
 
     const w = rect.width;
     const h = rect.height;
+    if (w === 0 || h === 0) return;
     const padding = { top: 30, right: 20, bottom: 40, left: 40 };
     const chartW = w - padding.left - padding.right;
     const chartH = h - padding.top - padding.bottom;

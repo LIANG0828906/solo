@@ -697,7 +697,25 @@ const App: React.FC = () => {
           className="alert-banner"
           style={{ backgroundColor: alert.type === 'error' ? '#E74C3C' : '#27AE60' }}
         >
-          {alert.message}
+          <span>{alert.type === 'error' ? '❌ ' : '✅ '}{alert.message}</span>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setAlert((a) => ({ ...a, visible: false }));
+            }}
+            style={{
+              marginLeft: 16,
+              background: 'none',
+              border: 'none',
+              color: 'white',
+              cursor: 'pointer',
+              fontSize: 18,
+              fontWeight: 'bold',
+              verticalAlign: 'middle',
+            }}
+          >
+            ×
+          </button>
         </div>
       )}
 

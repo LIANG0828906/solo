@@ -46,13 +46,13 @@ const TimelineMap: React.FC<TimelineMapProps> = ({
     memberName: '',
   });
 
-  const paddingLeft = 60;
-  const paddingTop = 50;
-  const paddingBottom = 40;
-  const paddingRight = 30;
-  const timelineHeight = height - paddingTop - paddingBottom;
+  const PADDING_LEFT = 60;
+  const PADDING_TOP = 50;
+  const PADDING_BOTTOM = 40;
+  const PADDING_RIGHT = 30;
+  const timelineHeight = height - PADDING_TOP - PADDING_BOTTOM;
 
-  const visibleWidth = Math.max(0, width - paddingLeft - paddingRight);
+  const visibleWidth = Math.max(0, width - PADDING_LEFT - PADDING_RIGHT);
   const visibleStartYear = minYear + (Math.max(0, -offsetX) / yearScale);
   const visibleEndYear = visibleStartYear + (visibleWidth / yearScale);
 
@@ -69,7 +69,7 @@ const TimelineMap: React.FC<TimelineMapProps> = ({
     let newScale = direction > 0 ? oldScale * scaleBy : oldScale / scaleBy;
     newScale = Math.max(50, Math.min(200, newScale));
 
-    const relX = pointer.x - paddingLeft;
+    const relX = pointer.x - PADDING_LEFT;
     const yearAtPointer = (relX - offsetX) / oldScale + minYear;
     const newOffset = relX - (yearAtPointer - minYear) * newScale;
 
@@ -114,26 +114,26 @@ const TimelineMap: React.FC<TimelineMapProps> = ({
   const getEventY = (node: TimelineNode): number => {
     const member = memberMap[node.memberId];
     if (!member) {
-      return paddingTop + node.lifeProgress * timelineHeight;
+      return PADDING_TOP + node.lifeProgress * timelineHeight;
     }
     const lifeProgress = calculateLifeProgress(member.birth_year, member.death_year, node.year);
-    const y = paddingTop + lifeProgress * timelineHeight;
-    return Math.max(paddingTop, Math.min(height - paddingBottom, y));
+    const y = PADDING_TOP + lifeProgress * timelineHeight;
+    return Math.max(PADDING_TOP, Math.min(height - PADDING_BOTTOM, y));
   };
 
   const renderYearTicks = () => {
     const ticks = [];
-    const baseY = height - paddingBottom;
+    const baseY = height - PADDING_BOTTOM;
 
     for (const year of years) {
-      const x = paddingLeft + (year - minYear) * yearScale + offsetX;
-      if (x < paddingLeft - 30 || x > width - paddingRight + 30) continue;
+      const x = PADDING_LEFT + (year - minYear) * yearScale + offsetX;
+      if (x < PADDING_LEFT - 30 || x > width - PADDING_RIGHT + 30) continue;
 
       const isCurrentYear = year === currentYear;
       ticks.push(
         <Line
           key={`tick-${year}`}
-          points={[x, paddingTop - 10, x, baseY]}
+          points={[x, PADDING_TOP - 10, x, baseY]}
           stroke={isCurrentYear ? '#F1C40F' : '#95A5A6'}
           strokeWidth={isCurrentYear ? 2 : 0.5}
           opacity={0.6}
@@ -155,10 +155,10 @@ const TimelineMap: React.FC<TimelineMapProps> = ({
   };
 
   const renderTimelineAxis = () => {
-    const baseY = height - paddingBottom;
+    const baseY = height - PADDING_BOTTOM;
     return (
       <Line
-        points={[paddingLeft, baseY, width - paddingRight, baseY]}
+        points={[PADDING_LEFT, baseY, width - PADDING_RIGHT, baseY]}
         stroke="#95A5A6"
         strokeWidth={2}
       />
@@ -171,12 +171,12 @@ const TimelineMap: React.FC<TimelineMapProps> = ({
     const labels: Record<number, string> = { 0: '出生', 100: '逝世' };
 
     for (const pct of percentages) {
-      const y = paddingTop + (pct / 100) * timelineHeight;
+      const y = PADDING_TOP + (pct / 100) * timelineHeight;
 
       elements.push(
         <Line
           key={`ygrid-${pct}`}
-          points={[paddingLeft, y, width - paddingRight, y]}
+          points={[PADDING_LEFT, y, width - PADDING_RIGHT, y]}
           stroke="#95A5A6"
           strokeWidth={1}
           opacity={0.3}
@@ -215,7 +215,7 @@ const TimelineMap: React.FC<TimelineMapProps> = ({
     elements.push(
       <Line
         key="yaxis"
-        points={[paddingLeft, paddingTop, paddingLeft, height - paddingBottom]}
+        points={[PADDING_LEFT, PADDING_TOP, PADDING_LEFT, height - PADDING_BOTTOM]}
         stroke="#95A5A6"
         strokeWidth={2}
       />
@@ -229,17 +229,17 @@ const TimelineMap: React.FC<TimelineMapProps> = ({
 
     rawMembers.forEach((member) => {
       const endYear = member.death_year || currentYear;
-      const startX = paddingLeft + (member.birth_year - minYear) * yearScale + offsetX;
-      const endX = paddingLeft + (endYear - minYear) * yearScale + offsetX;
+      const startX = PADDING_LEFT + (member.birth_year - minYear) * yearScale + offsetX;
+      const endX = PADDING_LEFT + (endYear - minYear) * yearScale + offsetX;
 
-      if (endX < paddingLeft || startX > width - paddingRight) return;
+      if (endX < PADDING_LEFT || startX > width - PADDING_RIGHT) return;
 
       const lineColor = getGenderColor(member.gender);
 
       lines.push(
         <Line
           key={`lifeline-${member.id}`}
-          points={[startX, paddingTop, endX, height - paddingBottom]}
+          points={[startX, PADDING_TOP, endX, height - PADDING_BOTTOM]}
           stroke={lineColor}
           strokeWidth={2.5}
           opacity={0.4}
@@ -252,8 +252,8 @@ const TimelineMap: React.FC<TimelineMapProps> = ({
 
   const renderEventNodes = () => {
     return nodes.map((node) => {
-      const x = paddingLeft + (node.year - minYear) * yearScale + offsetX;
-      if (x < paddingLeft - 20 || x > width - paddingRight + 20) return null;
+      const x = PADDING_LEFT + (node.year - minYear) * yearScale + offsetX;
+      if (x < PADDING_LEFT - 20 || x > width - PADDING_RIGHT + 20) return null;
 
       const y = getEventY(node);
 

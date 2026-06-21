@@ -202,7 +202,8 @@ def delete_event(event_id: str):
 
 
 @app.get("/api/timeline")
-def get_timeline():
+def get_timeline(current_year: Optional[int] = None):
+    now_year = current_year if current_year is not None else datetime.now().year
     all_years = set()
     for e in events_db:
         all_years.add(e.year)
@@ -237,7 +238,7 @@ def get_timeline():
             lifespan = m.death_year - m.birth_year
             is_deceased = True
         else:
-            lifespan = 2024 - m.birth_year
+            lifespan = now_year - m.birth_year
             is_deceased = False
         life_spans.append({
             "member_id": m.id,
@@ -303,6 +304,7 @@ def delete_relation(relation_id: str):
 
 @app.get("/api/stats")
 def get_stats():
+    now_year = datetime.now().year
     total_members = len(members_db)
     total_events = len(events_db)
 
@@ -315,12 +317,12 @@ def get_stats():
             death_years.append(m.death_year)
             ages.append(m.death_year - m.birth_year)
         else:
-            ages.append(2024 - m.birth_year)
+            ages.append(now_year - m.birth_year)
 
     if birth_years and death_years:
         max_age_diff = max(death_years) - min(birth_years)
     elif birth_years:
-        max_age_diff = 2024 - min(birth_years)
+        max_age_diff = now_year - min(birth_years)
     else:
         max_age_diff = 0
 
