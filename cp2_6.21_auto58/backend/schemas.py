@@ -27,6 +27,7 @@ class RecipeBase(BaseModel):
     cooking_time: int
     steps: List[str]
     image_data: Optional[str] = None
+    is_favorite: Optional[bool] = False
 
 
 class RecipeCreate(RecipeBase):
@@ -39,12 +40,14 @@ class RecipeUpdate(BaseModel):
     steps: Optional[List[str]] = None
     image_data: Optional[str] = None
     ingredients: Optional[List[IngredientCreate]] = None
+    is_favorite: Optional[bool] = None
 
 
 class Recipe(RecipeBase):
     id: int
     created_at: datetime
     ingredients: List[Ingredient] = []
+    is_favorite: bool = False
 
     class Config:
         from_attributes = True

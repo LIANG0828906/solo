@@ -89,6 +89,19 @@ const secondaryButtonStyle: React.CSSProperties = {
   border: '2px solid #D4C4B0',
 };
 
+const favoriteToggleStyle: React.CSSProperties = {
+  padding: '12px 20px',
+  borderRadius: '8px',
+  border: '2px solid #8B5A2B',
+  fontSize: '14px',
+  fontWeight: 600,
+  cursor: 'pointer',
+  fontFamily: "'Quicksand', sans-serif",
+  transition: 'all 0.2s ease',
+  background: '#FFFFFF',
+  color: '#8B5A2B',
+};
+
 const gridStyle: React.CSSProperties = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))',
@@ -120,9 +133,12 @@ export const HomePage: React.FC = () => {
     selectedRecipeIds,
     searchQuery,
     sortOrder,
+    showFavoritesOnly,
     toggleRecipeSelection,
     setSearchQuery,
     setSortOrder,
+    setShowFavoritesOnly,
+    toggleFavorite,
     clearSelection,
     generateShoppingList,
     fetchRecipes,
@@ -134,6 +150,10 @@ export const HomePage: React.FC = () => {
 
   const filteredRecipes = useMemo(() => {
     let result = [...recipes];
+
+    if (showFavoritesOnly) {
+      result = result.filter((r) => r.is_favorite);
+    }
 
     if (searchQuery.trim()) {
       const query = searchQuery.toLowerCase();
@@ -149,7 +169,7 @@ export const HomePage: React.FC = () => {
     }
 
     return result;
-  }, [recipes, searchQuery, sortOrder]);
+  }, [recipes, searchQuery, sortOrder, showFavoritesOnly]);
 
   const handleGenerateShoppingList = () => {
     generateShoppingList();
@@ -186,6 +206,28 @@ export const HomePage: React.FC = () => {
             <option value="asc">⏱️ 时间短→长</option>
             <option value="desc">⏱️ 时间长→短</option>
           </select>
+
+          <button
+            onClick={() => setShowFavoritesOnly(!showFavoritesOnly)}
+            style={{
+              ...favoriteToggleStyle,
+              background: showFavoritesOnly ? '#E91E63' : '#FFFFFF',
+              color: showFavoritesOnly ? '#FFFFFF' : '#8B5A2B',
+              borderColor: showFavoritesOnly ? '#FFFFFF' : '#8B5A2B',
+            }}
+            onMouseEnter={(e) => {
+              if (!showFavoritesOnly) {
+                (e.currentTarget as HTMLButtonElement).style.background = '#FFEBEE';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!showFavoritesOnly) {
+                (e.currentTarget as HTMLButtonElement).style.background = '#FFFFFF';
+              }
+            }}
+          >
+            ❤️ 只显示收藏
+          </button>
 
           <div style={actionContainerStyle}>
             {selectedRecipeIds.length > 0 && (
@@ -251,6 +293,8 @@ export const HomePage: React.FC = () => {
               isSelected={selectedRecipeIds.includes(recipe.id)}
               onToggleSelect={() => toggleRecipeSelection(recipe.id)}
               onClick={() => navigate(`/recipe/${recipe.id}`)}
+              isFavorite={recipe.is_favorite || false}
+              onToggleFavorite={() => toggleFavorite(recipe.id)}
             />
           ))}
         </div>

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store';
-import { ShoppingListItem } from '../types';
+import { ShoppingListItem, Recipe } from '../types';
 
 const pageStyle: React.CSSProperties = {
   minHeight: '100vh',
@@ -44,6 +44,42 @@ const countBadgeStyle: React.CSSProperties = {
   borderRadius: '20px',
   fontSize: '14px',
   fontWeight: 700,
+};
+
+const sourceRecipesContainerStyle: React.CSSProperties = {
+  background: '#FFFFFF',
+  borderRadius: '12px',
+  padding: '20px 24px',
+  marginBottom: '24px',
+  boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+};
+
+const sourceRecipesTitleStyle: React.CSSProperties = {
+  fontSize: '18px',
+  fontWeight: 700,
+  color: '#4A2F1A',
+  margin: '0 0 12px 0',
+};
+
+const sourceRecipesTagsStyle: React.CSSProperties = {
+  display: 'flex',
+  flexWrap: 'wrap',
+  gap: '8px',
+};
+
+const sourceRecipeTagStyle: React.CSSProperties = {
+  display: 'inline-flex',
+  alignItems: 'center',
+  gap: '6px',
+  padding: '8px 16px',
+  background: '#FFFBF5',
+  border: '1px solid #E8D5BC',
+  borderRadius: '20px',
+  fontSize: '14px',
+  fontWeight: 500,
+  color: '#4A2F1A',
+  cursor: 'pointer',
+  transition: 'all 0.2s ease',
 };
 
 const actionsStyle: React.CSSProperties = {
@@ -266,6 +302,8 @@ export const ShoppingListPage: React.FC = () => {
     setShoppingList,
     generateShoppingList,
     selectedRecipeIds,
+    recipes,
+    shoppingListSourceRecipeIds,
   } = useAppStore();
 
   const [removingIds, setRemovingIds] = useState<Set<string>>(new Set());
@@ -337,6 +375,10 @@ export const ShoppingListPage: React.FC = () => {
   const totalItems = shoppingList.length;
   const checkedItems = shoppingList.filter((i) => i.checked).length;
 
+  const sourceRecipes = shoppingListSourceRecipeIds
+    .map((id) => recipes.find((r) => r.id === id))
+    .filter(Boolean) as Recipe[];
+
   return (
     <div style={pageStyle}>
       <div style={containerStyle}>
@@ -395,6 +437,32 @@ export const ShoppingListPage: React.FC = () => {
             )}
           </div>
         </div>
+
+        {sourceRecipes.length > 0 && (
+          <div style={sourceRecipesContainerStyle}>
+            <h3 style={sourceRecipesTitleStyle}>📋 来源菜谱</h3>
+            <div style={sourceRecipesTagsStyle}>
+              {sourceRecipes.map((recipe) => (
+                <div
+                  key={recipe.id}
+                  style={sourceRecipeTagStyle}
+                  onClick={() => navigate(`/recipe/${recipe.id}`)}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLDivElement).style.background = '#FFF3E0';
+                    (e.currentTarget as HTMLDivElement).style.transform = 'scale(1.05)';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLDivElement).style.background = '#FFFBF5';
+                    (e.currentTarget as HTMLDivElement).style.transform = 'scale(1)';
+                  }}
+                >
+                  {recipe.is_favorite && <span style={{ color: '#E91E63' }}>❤️</span>}
+                  <span>{recipe.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {totalItems === 0 ? (
           <div style={emptyStateStyle}>

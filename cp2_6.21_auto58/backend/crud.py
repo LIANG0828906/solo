@@ -65,7 +65,8 @@ def get_recipes(
     sort_by: str = "created_at",
     order: str = "desc",
     skip: int = 0,
-    limit: int = 100
+    limit: int = 100,
+    is_favorite_only: Optional[bool] = None
 ):
     query = db.query(models.Recipe)
     if search:
@@ -79,6 +80,8 @@ def get_recipes(
                 )
             )
         )
+    if is_favorite_only:
+        query = query.filter(models.Recipe.is_favorite == True)
     if sort_by == "name":
         order_col = models.Recipe.name
     elif sort_by == "cooking_time":
@@ -90,6 +93,16 @@ def get_recipes(
     else:
         query = query.order_by(order_col.desc())
     return query.offset(skip).limit(limit).all()
+
+
+def toggle_favorite(db: Session, recipe_id: int):
+    db_recipe = get_recipe(db, recipe_id)
+    if not db_recipe:
+        return None
+    db_recipe.is_favorite = not db_recipe.is_favorite
+    db.commit()
+    db.refresh(db_recipe)
+    return db_recipe
 
 
 def get_recipe(db: Session, recipe_id: int):

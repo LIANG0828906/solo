@@ -6,6 +6,8 @@ interface RecipeCardProps {
   isSelected: boolean;
   onToggleSelect: () => void;
   onClick: () => void;
+  isFavorite: boolean;
+  onToggleFavorite: () => void;
 }
 
 const cardBaseStyle: React.CSSProperties = {
@@ -39,6 +41,24 @@ const checkboxStyle: React.CSSProperties = {
   height: '20px',
   cursor: 'pointer',
   accentColor: '#D4A574',
+};
+
+const favoriteButtonStyle: React.CSSProperties = {
+  position: 'absolute',
+  top: '12px',
+  right: '12px',
+  zIndex: 10,
+  background: 'rgba(255, 255, 255, 0.9)',
+  border: 'none',
+  borderRadius: '50%',
+  padding: '4px 8px',
+  cursor: 'pointer',
+  fontSize: '22px',
+  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+  transition: 'transform 0.2s ease',
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
 };
 
 const imageContainerStyle: React.CSSProperties = {
@@ -89,6 +109,8 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
   isSelected,
   onToggleSelect,
   onClick,
+  isFavorite,
+  onToggleFavorite,
 }) => {
   const [isHovered, setIsHovered] = React.useState(false);
 
@@ -112,6 +134,11 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
     e.stopPropagation();
   };
 
+  const handleFavoriteClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onToggleFavorite();
+  };
+
   return (
     <div
       style={combinedStyle}
@@ -127,6 +154,21 @@ export const RecipeCard: React.FC<RecipeCardProps> = ({
           style={checkboxStyle}
         />
       </div>
+
+      <button
+        onClick={handleFavoriteClick}
+        style={favoriteButtonStyle}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.2)';
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
+        }}
+      >
+        <span style={{ color: isFavorite ? '#E91E63' : '#CCCCCC' }}>
+          {isFavorite ? '❤️' : '🤍'}
+        </span>
+      </button>
 
       <div style={imageContainerStyle}>
         {recipe.image_data ? (

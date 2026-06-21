@@ -13,6 +13,7 @@ class Recipe(Base):
     steps = Column(Text, nullable=False)
     image_data = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
+    is_favorite = Column(Boolean, default=False, nullable=False)
 
     ingredients = relationship("Ingredient", back_populates="recipe", cascade="all, delete-orphan")
 

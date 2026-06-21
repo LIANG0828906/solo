@@ -260,7 +260,7 @@ const deleteRecipeButtonStyle: React.CSSProperties = {
 
 export const RecipesPage: React.FC = () => {
   const navigate = useNavigate();
-  const { recipes, addRecipe, deleteRecipe } = useAppStore();
+  const { recipes, addRecipe, deleteRecipe, toggleFavorite } = useAppStore();
 
   const [name, setName] = useState('');
   const [cookingTime, setCookingTime] = useState('');
@@ -492,7 +492,33 @@ export const RecipesPage: React.FC = () => {
                       )}
                     </div>
                     <div style={recipeItemContentStyle}>
-                      <div style={recipeItemNameStyle}>{recipe.name}</div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                        <div style={recipeItemNameStyle}>{recipe.name}</div>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleFavorite(recipe.id);
+                          }}
+                          style={{
+                            background: 'none',
+                            border: 'none',
+                            cursor: 'pointer',
+                            fontSize: '18px',
+                            padding: 0,
+                            transition: 'transform 0.2s ease',
+                          }}
+                          onMouseEnter={(e) => {
+                            e.stopPropagation();
+                            (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1.2)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.stopPropagation();
+                            (e.currentTarget as HTMLButtonElement).style.transform = 'scale(1)';
+                          }}
+                        >
+                          {recipe.is_favorite ? '❤️' : '🤍'}
+                        </button>
+                      </div>
                       <div style={recipeItemMetaStyle}>
                         ⏱️ {recipe.cooking_time}分钟 · 🥗 {recipe.ingredients.length}种食材 · 📝 {recipe.steps.length}步
                       </div>

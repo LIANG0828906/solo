@@ -11,6 +11,14 @@ import crud
 
 Base.metadata.create_all(bind=engine)
 
+from sqlalchemy import text
+with engine.connect() as conn:
+    try:
+        conn.execute(text("ALTER TABLE recipes ADD COLUMN is_favorite BOOLEAN DEFAULT 0 NOT NULL"))
+        conn.commit()
+    except Exception:
+        pass
+
 app = FastAPI(title="菜谱管理系统 API", description="温馨风格的家庭菜谱管理后端")
 
 app.add_middleware(
@@ -50,7 +58,8 @@ def recipe_to_response(db_recipe: models.Recipe) -> schemas.Recipe:
         steps=steps_list,
         image_data=db_recipe.image_data,
         created_at=db_recipe.created_at,
-        ingredients=ingredients
+        ingredients=ingredients,
+        is_favorite=db_recipe.is_favorite
     )
 
 
@@ -66,10 +75,19 @@ def read_recipes(
     order: str = Query("desc", description="排序方向: asc, desc"),
     skip: int = 0,
     limit: int = 100,
+    is_favorite_only: Optional[bool] = Query(None, description="只显示收藏的菜谱"),
     db: Session = Depends(get_db)
 ):
-    recipes = crud.get_recipes(db, search=search, sort_by=sort_by, order=order, skip=skip, limit=limit)
+    recipes = crud.get_recipes(db, search=search, sort_by=sort_by, order=order, skip=skip, limit=limit, is_favorite_only=is_favorite_only)
     return [recipe_to_response(r) for r in recipes]
+
+
+@app.patch("/api/recipes/{recipe_id}/favorite", response_model=schemas.Recipe)
+def toggle_recipe_favorite(recipe_id: int, db: Session = Depends(get_db)):
+    db_recipe = crud.toggle_favorite(db, recipe_id=recipe_id)
+    if db_recipe is None:
+        raise HTTPException(status_code=404, detail="菜谱不存在")
+    return recipe_to_response(db_recipe)
 
 
 @app.get("/api/recipes/{recipe_id}", response_model=schemas.Recipe)
@@ -267,10 +285,12 @@ def create_sample_data():
         if recipe_count == 0:
             for recipe_data in sample_recipes:
                 steps_json = json.dumps(recipe_data["steps"], ensure_ascii=False)
+                is_favorite = recipe_data["name"] in ["番茄炒蛋", "红烧肉"]
                 db_recipe = models.Recipe(
                     name=recipe_data["name"],
                     cooking_time=recipe_data["cooking_time"],
-                    steps=steps_json
+                    steps=steps_json,
+                    is_favorite=is_favorite
                 )
                 db.add(db_recipe)
                 db.flush()

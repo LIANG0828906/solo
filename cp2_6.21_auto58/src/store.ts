@@ -11,6 +11,8 @@ interface AppState {
   sortOrder: SortOrder;
   ingredientNames: string[];
   loading: boolean;
+  showFavoritesOnly: boolean;
+  shoppingListSourceRecipeIds: string[];
 
   _recipesCacheTime: number;
   _inventoryCacheTime: number;
@@ -36,6 +38,8 @@ interface AppState {
   clearSelection: () => void;
   setSearchQuery: (query: string) => void;
   setSortOrder: (order: SortOrder) => void;
+  setShowFavoritesOnly: (v: boolean) => void;
+  toggleFavorite: (id: string) => Promise<void>;
 
   fetchRecipes: (force?: boolean) => Promise<void>;
   fetchInventory: (force?: boolean) => Promise<void>;
@@ -68,7 +72,7 @@ const categorizeIngredient = (name: string): ShoppingListItem['category'] => {
 
 const mockRecipes: Recipe[] = [
   {
-    id: '1', name: '红烧肉', cooking_time: 90, servings: 2,
+    id: '1', name: '红烧肉', cooking_time: 90, servings: 2, is_favorite: true,
     ingredients: [
       { name: '五花肉', quantity: 500, unit: '克' },
       { name: '冰糖', quantity: 20, unit: '克' },
@@ -83,7 +87,7 @@ const mockRecipes: Recipe[] = [
     steps: ['五花肉切块焯水', '锅中放糖炒出糖色', '放入肉块翻炒上色', '加入调料和水炖煮', '大火收汁即可'],
   },
   {
-    id: '2', name: '番茄炒蛋', cooking_time: 15, servings: 2,
+    id: '2', name: '番茄炒蛋', cooking_time: 15, servings: 2, is_favorite: true,
     ingredients: [
       { name: '番茄', quantity: 2, unit: '个' },
       { name: '鸡蛋', quantity: 3, unit: '个' },
@@ -143,6 +147,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   sortOrder: null,
   ingredientNames: [],
   loading: false,
+  showFavoritesOnly: false,
+  shoppingListSourceRecipeIds: [],
   _recipesCacheTime: 0,
   _inventoryCacheTime: 0,
   _ingredientNamesCacheTime: 0,
@@ -184,6 +190,23 @@ export const useAppStore = create<AppState>((set, get) => ({
   clearSelection: () => set({ selectedRecipeIds: [] }),
   setSearchQuery: (query) => set({ searchQuery: query }),
   setSortOrder: (order) => set({ sortOrder: order }),
+  setShowFavoritesOnly: (show) => set({ showFavoritesOnly: show }),
+  toggleFavorite: async (id) => {
+    try {
+      const updated = await api.toggleFavorite(Number(id));
+      set((state) => ({
+        recipes: state.recipes.map((r) =>
+          r.id === id ? { ...r, is_favorite: updated.is_favorite } : r
+        ),
+      }));
+    } catch {
+      set((state) => ({
+        recipes: state.recipes.map((r) =>
+          r.id === id ? { ...r, is_favorite: !r.is_favorite } : r
+        ),
+      }));
+    }
+  },
 
   fetchRecipes: async (force = false) => {
     const state = get();
@@ -192,7 +215,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
     set({ loading: true });
     try {
-      const recipes = await api.getRecipes();
+      const params: api.RecipeParams = {};
+      if (state.showFavoritesOnly) {
+        params.is_favorite_only = true;
+      }
+      const recipes = await api.getRecipes(params);
       const mapped = recipes.map((r: any) => ({
         id: String(r.id),
         name: r.name,
@@ -207,6 +234,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         steps: r.steps || [],
         servings: r.servings || 2,
         image_data: r.image_data || r.image,
+        is_favorite: r.is_favorite,
       }));
       set({ recipes: mapped, _recipesCacheTime: Date.now(), loading: false });
     } catch {
@@ -295,7 +323,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     });
 
-    set({ shoppingList });
+    set({ shoppingList, shoppingListSourceRecipeIds: [...state.selectedRecipeIds] });
   },
 
   getAllIngredientNames: () => {

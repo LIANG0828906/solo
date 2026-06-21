@@ -259,7 +259,7 @@ const buttonRowStyle: React.CSSProperties = {
 export const RecipeDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { getRecipeById, toggleRecipeSelection, selectedRecipeIds, generateShoppingList } = useAppStore();
+  const { getRecipeById, toggleRecipeSelection, selectedRecipeIds, generateShoppingList, toggleFavorite } = useAppStore();
 
   const recipe = id ? getRecipeById(id) : undefined;
   const [servings, setServings] = useState(2);
@@ -305,7 +305,7 @@ export const RecipeDetailPage: React.FC = () => {
     return (
       <div style={pageStyle}>
         <div style={containerStyle}>
-          <div style={headerStyle}>
+          <div style={{ ...headerStyle, gap: '12px' }}>
             <button
               onClick={() => navigate('/')}
               style={backButtonStyle}
@@ -335,7 +335,7 @@ export const RecipeDetailPage: React.FC = () => {
   return (
     <div style={pageStyle}>
       <div style={containerStyle}>
-        <div style={headerStyle}>
+        <div style={{ ...headerStyle, gap: '12px' }}>
           <button
             onClick={() => navigate('/')}
             style={backButtonStyle}
@@ -347,6 +347,27 @@ export const RecipeDetailPage: React.FC = () => {
             }}
           >
             ← 返回首页
+          </button>
+          <button
+            onClick={() => recipe && toggleFavorite(recipe.id)}
+            style={{
+              ...backButtonStyle,
+              background: recipe?.is_favorite ? '#E91E63' : '#FFFFFF',
+              color: recipe?.is_favorite ? '#FFFFFF' : '#4A2F1A',
+              borderColor: recipe?.is_favorite ? '#E91E63' : '#D4C4B0',
+            }}
+            onMouseEnter={(e) => {
+              if (!recipe?.is_favorite) {
+                (e.currentTarget as HTMLButtonElement).style.background = '#FFEBEE';
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!recipe?.is_favorite) {
+                (e.currentTarget as HTMLButtonElement).style.background = '#FFFFFF';
+              }
+            }}
+          >
+            {recipe?.is_favorite ? '❤️ 取消收藏' : '🤍 收藏菜谱'}
           </button>
         </div>
 

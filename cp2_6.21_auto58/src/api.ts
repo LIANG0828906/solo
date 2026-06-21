@@ -18,6 +18,7 @@ export interface Recipe {
   category?: string;
   createdAt: string;
   updatedAt: string;
+  is_favorite?: boolean;
 }
 
 export interface Ingredient {
@@ -49,6 +50,7 @@ export interface RecipeParams {
   search?: string;
   sortBy?: string;
   order?: 'asc' | 'desc';
+  is_favorite_only?: boolean;
 }
 
 export const getRecipes = (params?: RecipeParams) => {
@@ -93,6 +95,10 @@ export const getIngredientNames = () => {
 
 export const generateShoppingList = (recipeIds: number[]) => {
   return api.post<ShoppingItem[]>('/shopping-list/generate', { recipeIds }).then(res => res.data);
+};
+
+export const toggleFavorite = (id: number) => {
+  return api.patch<Recipe>(`/recipes/${id}/favorite`).then(res => res.data);
 };
 
 export default api;

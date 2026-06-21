@@ -22,6 +22,7 @@ export interface Recipe {
   ingredients: Ingredient[];
   steps: string[];
   servings: number;
+  is_favorite?: boolean;
 }
 
 export interface InventoryItem {
