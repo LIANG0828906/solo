@@ -1,0 +1,456 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  line-height: 1.5;
+  font-weight: 400;
+  background-color: #0F172A;
+  color: #F1F5F9;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:root {
+  --magic-color-1: #6366F1;
+  --magic-color-2: #EC4899;
+  --magic-color-3: #10B981;
+  --magic-color-4: #F59E0B;
+  --magic-color-5: #EF4444;
+  --magic-color-6: #8B5CF6;
+  --magic-color-7: #06B6D4;
+  --magic-color-8: #84CC16;
+  --magic-color-9: #F97316;
+  --magic-color-10: #14B8A6;
+  --magic-color-11: #A855F7;
+  --magic-color-12: #E11D48;
+  
+  --bg-primary: #0F172A;
+  --bg-secondary: #1E293B;
+  --bg-tertiary: #334155;
+  --text-primary: #F1F5F9;
+  --text-secondary: #94A3B8;
+  --text-muted: #64748B;
+  --border-color: #334155;
+}
+
+.app-container {
+  min-height: 100vh;
+  width: 100%;
+  background-color: var(--bg-primary);
+}
+
+.room-select-page {
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+  padding: 40px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.page-title {
+  font-size: 36px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.page-subtitle {
+  font-size: 16px;
+  color: var(--text-secondary);
+  margin-bottom: 40px;
+  text-align: center;
+}
+
+.create-join-section {
+  width: 100%;
+  max-width: 720px;
+  background-color: var(--bg-secondary);
+  border-radius: 16px;
+  padding: 32px;
+  margin-bottom: 40px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 24px;
+}
+
+.input-group {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.input-wrapper {
+  flex: 1;
+  min-width: 200px;
+}
+
+.input-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.text-input {
+  width: 100%;
+  padding: 12px 16px;
+  background-color: var(--bg-tertiary);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  color: var(--text-primary);
+  font-size: 15px;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.text-input:focus {
+  border-color: var(--magic-color-1);
+}
+
+.text-input::placeholder {
+  color: var(--text-muted);
+}
+
+.button-group {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.btn {
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background-color: var(--magic-color-1);
+  color: #fff;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #4F46E5;
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background-color: var(--bg-tertiary);
+  color: var(--text-primary);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #475569;
+}
+
+.rooms-list-section {
+  width: 100%;
+  max-width: 1080px;
+}
+
+.rooms-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.rooms-count {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.rooms-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 20px;
+}
+
+.room-card {
+  width: 320px;
+  background-color: var(--bg-secondary);
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+}
+
+.room-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+  border-color: var(--magic-color-1);
+}
+
+.room-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+}
+
+.room-card-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  word-break: break-word;
+}
+
+.room-card-status {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background-color: rgba(16, 185, 129, 0.15);
+  color: var(--magic-color-3);
+}
+
+.status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--magic-color-3);
+}
+
+.room-card-players {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.players-avatars {
+  display: flex;
+}
+
+.player-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  border: 2px solid var(--bg-secondary);
+  margin-right: -8px;
+  position: relative;
+  z-index: 1;
+}
+
+.player-avatar:first-child {
+  z-index: 2;
+}
+
+.player-avatar:nth-child(2) {
+  z-index: 1;
+}
+
+.players-count {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-left: 16px;
+}
+
+.lock-icon {
+  color: var(--magic-color-4);
+}
+
+.empty-rooms {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+  font-size: 15px;
+}
+
+.notification-container {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.notification {
+  min-width: 280px;
+  max-width: 400px;
+  padding: 14px 18px;
+  border-radius: 10px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  animation: slideIn 0.3s ease;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.3);
+}
+
+.notification-info {
+  background-color: rgba(59, 130, 246, 0.15);
+  border: 1px solid var(--magic-color-1);
+  color: #93C5FD;
+}
+
+.notification-success {
+  background-color: rgba(16, 185, 129, 0.15);
+  border: 1px solid var(--magic-color-3);
+  color: #6EE7B7;
+}
+
+.notification-error {
+  background-color: rgba(239, 68, 68, 0.15);
+  border: 1px solid var(--magic-color-5);
+  color: #FCA5A5;
+}
+
+.notification-warning {
+  background-color: rgba(245, 158, 11, 0.15);
+  border: 1px solid var(--magic-color-4);
+  color: #FCD34D;
+}
+
+.notification-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.notification-content {
+  flex: 1;
+  font-size: 14px;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+.drawing-page {
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+  display: flex;
+  flex-direction: column;
+}
+
+.drawing-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 24px;
+  background-color: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.drawing-room-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.drawing-players {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.drawing-canvas-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.drawing-canvas {
+  background-color: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+}
+
+.drawing-toolbar {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  background-color: var(--bg-secondary);
+  border-top: 1px solid var(--border-color);
+}
+
+.color-picker {
+  display: flex;
+  gap: 8px;
+}
+
+.color-option {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.color-option:hover {
+  transform: scale(1.1);
+}
+
+.color-option.active {
+  border-color: #fff;
+  box-shadow: 0 0 0 2px var(--magic-color-1);
+}
+
+.brush-size {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.brush-label {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+
+.brush-slider {
+  width: 120px;
+  cursor: pointer;
+}
