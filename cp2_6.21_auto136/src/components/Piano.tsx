@@ -6,6 +6,7 @@ interface PianoProps {
   onKeyRelease?: (midi: number, pitch: string) => void;
   highlightedMidis?: number[];
   activeMidis?: number[];
+  upcomingMidis?: number[];
   compactMode?: boolean;
 }
 
@@ -55,6 +56,7 @@ export const Piano: React.FC<PianoProps> = ({
   onKeyRelease,
   highlightedMidis = [],
   activeMidis = [],
+  upcomingMidis = [],
   compactMode = false,
 }) => {
   const minMidi = compactMode ? 36 : 21;
@@ -156,6 +158,7 @@ export const Piano: React.FC<PianoProps> = ({
 
   const highlightedSet = useMemo(() => new Set(highlightedMidis), [highlightedMidis]);
   const activeSet = useMemo(() => new Set(activeMidis), [activeMidis]);
+  const upcomingSet = useMemo(() => new Set(upcomingMidis), [upcomingMidis]);
 
   return (
     <div
@@ -180,11 +183,16 @@ export const Piano: React.FC<PianoProps> = ({
         {keys.map((key) => {
           const isPressed = pressedMidis.has(key.midi) || activeSet.has(key.midi);
           const isHighlighted = highlightedSet.has(key.midi);
+          const isUpcoming = upcomingSet.has(key.midi);
           let bgColor = key.isBlack ? BLACK_KEY_COLOR : WHITE_KEY_COLOR;
           if (isHighlighted) {
             bgColor = HIGHLIGHT_COLOR;
           } else if (isPressed) {
             bgColor = key.isBlack ? BLACK_KEY_PRESSED : WHITE_KEY_PRESSED;
+          } else if (isUpcoming) {
+            bgColor = key.isBlack
+              ? '#5c4f2e'
+              : '#fff3c4';
           }
           const borderStyle = key.isBlack
             ? '1px solid #111'
@@ -218,56 +226,57 @@ export const Piano: React.FC<PianoProps> = ({
                 transition: 'background-color 0.1s ease-out, box-shadow 0.1s ease-out, transform 0.1s ease-out',
                 boxShadow: key.isBlack
                   ? isPressed
-                    ? 'inset 0 2px 4px rgba(0,0,0,0.6)'
-                    : '0 2px 4px rgba(0,0,0,0.5), inset 0 -2px 4px rgba(255,255,255,0.1)'
+                    ? 'inset 0 3px 6px rgba(0,0,0,0.8), 0 4px 8px rgba(0,0,0,0.5)'
+                    : '0 3px 6px rgba(0,0,0,0.55), inset 0 -2px 4px rgba(255,255,255,0.12)'
                   : isPressed
-                  ? 'inset 0 3px 6px rgba(0,0,0,0.15)'
-                  : '0 2px 3px rgba(0,0,0,0.2)',
-                transform: isPressed ? 'translateY(1px)' : 'translateY(0)',
+                  ? 'inset 0 4px 8px rgba(0,0,0,0.2), 0 5px 10px rgba(0,0,0,0.3)'
+                  : '0 3px 5px rgba(0,0,0,0.25)',
+                transform: isPressed
+                  ? `translateY(${key.isBlack ? 1 : 2}px)`
+                  : 'translateY(0)',
                 zIndex: key.isBlack ? 10 : 1,
                 display: 'flex',
                 flexDirection: 'column',
-                justifyContent: 'flex-end',
+                justifyContent: 'flex-start',
                 alignItems: 'center',
-                paddingBottom: 8,
-                overflow: 'hidden',
+                paddingTop: key.isBlack ? 3 : 5,
+                paddingBottom: 6,
+                overflow: 'visible',
               }}
             >
-              {key.label && !key.isBlack && (
+              {key.label && (
                 <span
                   style={{
                     fontSize: 10,
-                    color: isPressed ? '#1a365d' : '#888',
+                    lineHeight: 1,
+                    color: key.isBlack
+                      ? isPressed ? '#fff' : 'rgba(200,200,220,0.85)'
+                      : isPressed ? '#1a365d' : 'rgba(90,100,130,0.9)',
                     fontFamily: 'monospace',
-                    padding: '1px 4px',
+                    padding: '2px 3px',
                     borderRadius: 3,
-                    backgroundColor: 'rgba(255,255,255,0.5)',
-                    backdropFilter: 'blur(2px)',
+                    backgroundColor: key.isBlack
+                      ? 'rgba(255,255,255,0.10)'
+                      : 'rgba(0,0,0,0.06)',
+                    backdropFilter: 'blur(1px)',
+                    whiteSpace: 'nowrap',
+                    fontWeight: 600,
                   }}
                 >
                   {key.label}
                 </span>
               )}
+              <div style={{ flex: 1 }} />
               {!key.isBlack && (
                 <span
                   style={{
                     fontSize: 8,
-                    color: '#bbb',
+                    color: 'rgba(140,140,160,0.85)',
                     marginTop: 2,
-                  }}
-                >
-                  {midiToPitch(key.midi)}
-                </span>
-              )}
-              {key.isBlack && key.label && (
-                <span
-                  style={{
-                    fontSize: 9,
-                    color: isPressed ? '#fff' : '#777',
                     fontFamily: 'monospace',
                   }}
                 >
-                  {key.label}
+                  {midiToPitch(key.midi)}
                 </span>
               )}
             </div>

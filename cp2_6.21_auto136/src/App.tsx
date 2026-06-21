@@ -51,6 +51,7 @@ const App: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [currentTime, setCurrentTime] = useState(0);
   const [highlightedMidis, setHighlightedMidis] = useState<number[]>([]);
+  const [upcomingMidis, setUpcomingMidis] = useState<number[]>([]);
   const [evaluationResult, setEvaluationResult] = useState<EvaluationResult | null>(null);
   const [practiceMode, setPracticeMode] = useState(false);
   const [sectionStart, setSectionStart] = useState(0);
@@ -108,12 +109,19 @@ const App: React.FC = () => {
     );
     setHighlightedMidis(activeNotes.map((n) => n.midi));
 
+    const upcomingWindow = 1.0;
+    const upcomingNotes = currentScore.notes.filter(
+      (n) => n.startTime > nowRel && n.startTime <= nowRel + upcomingWindow
+    );
+    setUpcomingMidis(Array.from(new Set(upcomingNotes.map((n) => n.midi))));
+
     progressRafRef.current = requestAnimationFrame(updateProgress);
   }, [currentScore]);
 
   const handlePlayComplete = useCallback(() => {
     setIsPlaying(false);
     setHighlightedMidis([]);
+    setUpcomingMidis([]);
     if (recorderRef.current?.getIsRecording()) {
       recorderRef.current.stopRecording();
       setIsRecording(false);
@@ -180,6 +188,7 @@ const App: React.FC = () => {
     setIsPlaying(false);
     setIsRecording(false);
     setHighlightedMidis([]);
+    setUpcomingMidis([]);
   };
 
   const handleKeyPress = useCallback((midi: number) => {
@@ -369,19 +378,36 @@ const App: React.FC = () => {
                   bottom: 0,
                   left: `${progressPercent}%`,
                   width: 3,
-                  background: '#ff3b3b',
-                  boxShadow: '0 0 12px rgba(255,59,59,0.8)',
+                  background: 'linear-gradient(180deg, #ff6b6b 0%, #ff3b3b 50%, #c0392b 100%)',
+                  boxShadow: '0 0 14px rgba(255,59,59,0.9), 0 0 30px rgba(255,59,59,0.4)',
                   transform: 'translateX(-1.5px)',
-                  zIndex: 5,
-                  transition: 'left 0.08s linear',
+                  zIndex: 6,
+                  transition: 'left 0.05s linear',
+                  borderRadius: 2,
                 }}
               />
               {currentScore.notes.map((note, idx) => {
                 const leftPct = (note.startTime / currentScore.totalDuration) * 100;
                 const widthPct = (note.duration / currentScore.totalDuration) * 100;
-                const minMidi = 21, maxMidi = 108;
-                const normalizedY = (note.midi - minMidi) / (maxMidi - minMidi);
+                const minMidi = compactMode ? 36 : 21;
+                const maxMidi = compactMode ? 96 : 108;
+                const range = Math.max(1, maxMidi - minMidi);
+                const normalizedY = Math.max(0, Math.min(1, (note.midi - minMidi) / range));
                 const top = (1 - normalizedY) * 70 + 5;
+                const isActive = highlightedMidis.includes(note.midi);
+                const isUpcoming = upcomingMidis.includes(note.midi);
+                let bg: string;
+                let shadow: string;
+                if (isActive) {
+                  bg = 'linear-gradient(90deg, #ffd166, #ffb347)';
+                  shadow = '0 0 10px rgba(255,209,102,0.9)';
+                } else if (isUpcoming) {
+                  bg = 'rgba(255,211,102,0.45)';
+                  shadow = '0 0 6px rgba(255,211,102,0.5)';
+                } else {
+                  bg = 'rgba(160,196,255,0.55)';
+                  shadow = 'none';
+                }
                 return (
                   <div
                     key={idx}
@@ -390,15 +416,11 @@ const App: React.FC = () => {
                       left: `${leftPct}%`,
                       top: `${top}%`,
                       width: `${Math.max(0.8, widthPct)}%`,
-                      height: 6,
-                      background: highlightedMidis.includes(note.midi)
-                        ? 'linear-gradient(90deg, #ffd166, #ffb347)'
-                        : 'rgba(160,196,255,0.6)',
+                      height: isActive ? 8 : 6,
+                      background: bg,
                       borderRadius: 3,
-                      boxShadow: highlightedMidis.includes(note.midi)
-                        ? '0 0 8px rgba(255,209,102,0.8)'
-                        : 'none',
-                      transition: 'background 0.1s',
+                      boxShadow: shadow,
+                      transition: 'background 0.1s, height 0.1s, box-shadow 0.1s',
                     }}
                   />
                 );
@@ -548,6 +570,7 @@ const App: React.FC = () => {
             <Piano
               onKeyPress={handleKeyPress}
               highlightedMidis={highlightedMidis}
+              upcomingMidis={upcomingMidis}
               compactMode={compactMode}
             />
           </div>
