@@ -45,7 +45,7 @@ const Game: React.FC = () => {
     playerProgress,
     levels,
     setPrismRotation,
-    checkCrystalLit,
+    updateCrystalStates,
     loadLevel,
     resetLevel,
     nextLevel,
@@ -349,13 +349,19 @@ const Game: React.FC = () => {
 
     let segments: LightSegment[] = [];
     let lastCalcTime = 0;
+    let lastParticleRenderTime = 0;
+    let lastFrameTime = 0;
 
     const gameLoop = (currentTime: number) => {
       const deltaTime = currentTime - lastTimeRef.current;
       lastTimeRef.current = currentTime;
 
       const particleCount = particlesRef.current.length;
-      const shouldRenderParticles = particleCount <= 500 || Math.floor(currentTime / 33) % 2 === 0;
+      const particleThreshold = 500;
+      const targetFPS = particleCount > particleThreshold ? 30 : 60;
+      const frameInterval = 1000 / targetFPS;
+
+      const shouldRenderThisFrame = currentTime - lastFrameTime >= frameInterval - 1;
 
       if (currentTime - lastCalcTime > 16) {
         const startTime = performance.now();
@@ -368,9 +374,7 @@ const Game: React.FC = () => {
           canvasSize.height
         );
         segments = result.segments;
-        result.hitCrystals.forEach(hit => {
-          checkCrystalLit(hit.crystalId, hit.color, hit.intensity, deltaTime);
-        });
+        updateCrystalStates(result.hitCrystals, deltaTime);
         const calcTime = performance.now() - startTime;
         if (calcTime > 2) {
           console.warn(`Light calculation took ${calcTime.toFixed(2)}ms, target is < 2ms`);
@@ -385,19 +389,27 @@ const Game: React.FC = () => {
       }
 
       updateTransition(deltaTime);
-      updateParticles();
 
-      drawBackground(ctx);
-      segments.forEach(s => drawLightSegment(ctx, s));
-      obstacles.forEach(o => drawObstacle(ctx, o));
-      crystals.forEach(c => drawCrystal(ctx, c, currentTime));
-      prisms.forEach(p => drawPrism(ctx, p));
-      drawLightSource(ctx);
-      drawHintPath(ctx, currentTime);
-      if (shouldRenderParticles) {
-        drawParticles(ctx);
+      const particleUpdateInterval = particleCount > particleThreshold ? 33 : 16;
+      if (currentTime - lastParticleRenderTime >= particleUpdateInterval) {
+        updateParticles();
+        lastParticleRenderTime = currentTime;
       }
-      drawTransition(ctx);
+
+      if (shouldRenderThisFrame) {
+        drawBackground(ctx);
+        segments.forEach(s => drawLightSegment(ctx, s));
+        obstacles.forEach(o => drawObstacle(ctx, o));
+        crystals.forEach(c => drawCrystal(ctx, c, currentTime));
+        prisms.forEach(p => drawPrism(ctx, p));
+        drawLightSource(ctx);
+        drawHintPath(ctx, currentTime);
+        if (particleCount <= particleThreshold || Math.floor(currentTime / 33) % 2 === 0) {
+          drawParticles(ctx);
+        }
+        drawTransition(ctx);
+        lastFrameTime = currentTime;
+      }
 
       animationRef.current = requestAnimationFrame(gameLoop);
     };
@@ -407,7 +419,7 @@ const Game: React.FC = () => {
     return () => {
       cancelAnimationFrame(animationRef.current);
     };
-  }, [prisms, obstacles, crystals, lightSource, canvasSize, showHint, hintAlpha, isTransitioning, transitionAlpha, checkCrystalLit, updateTransition, updateParticles]);
+  }, [prisms, obstacles, crystals, lightSource, canvasSize, showHint, hintAlpha, isTransitioning, transitionAlpha, updateCrystalStates, updateTransition, updateParticles]);
 
   return (
     <div style={{

@@ -16,6 +16,12 @@ export interface PlayerProgress {
   totalScore: number;
 }
 
+export interface CrystalHit {
+  crystalId: string;
+  color: string;
+  intensity: number;
+}
+
 export interface GameState {
   currentLevel: number;
   score: number;
@@ -26,11 +32,13 @@ export interface GameState {
   isVictory: boolean;
   isTransitioning: boolean;
   transitionAlpha: number;
+  transitionPhase: 'idle' | 'fade-out' | 'loading' | 'fade-in';
+  _pendingLevel?: { levelId: number; level: Level };
   showHint: boolean;
   playerProgress: PlayerProgress;
   levels: Level[];
   setPrismRotation: (prismId: string, rotation: number) => void;
-  checkCrystalLit: (crystalId: string, color: string, intensity: number, deltaTime: number) => void;
+  updateCrystalStates: (hits: CrystalHit[], deltaTime: number) => void;
   loadLevel: (levelId: number) => void;
   resetLevel: () => void;
   nextLevel: () => void;
@@ -58,8 +66,8 @@ export const LEVELS: Level[] = [
       { id: 'p1', position: { x: 300, y: 300 }, rotation: 0, size: 30 },
     ],
     crystals: [
-      { id: 'c1', position: { x: 600, y: 200 }, color: 'red', isLit: false, litTime: 0, requiredTime: 1000 },
-      { id: 'c2', position: { x: 600, y: 400 }, color: 'blue', isLit: false, litTime: 0, requiredTime: 1000 },
+      { id: 'c1', position: { x: 600, y: 200 }, color: 'red', isLit: false, litTime: 0, requiredTime: 1000, accumulatedTime: 0 },
+      { id: 'c2', position: { x: 600, y: 400 }, color: 'blue', isLit: false, litTime: 0, requiredTime: 1000, accumulatedTime: 0 },
     ],
     obstacles: [],
   },
@@ -71,9 +79,9 @@ export const LEVELS: Level[] = [
       { id: 'p1', position: { x: 250, y: 250 }, rotation: Math.PI / 6, size: 30 },
     ],
     crystals: [
-      { id: 'c1', position: { x: 500, y: 150 }, color: 'red', isLit: false, litTime: 0, requiredTime: 1000 },
-      { id: 'c2', position: { x: 550, y: 300 }, color: 'green', isLit: false, litTime: 0, requiredTime: 1000 },
-      { id: 'c3', position: { x: 500, y: 450 }, color: 'blue', isLit: false, litTime: 0, requiredTime: 1000 },
+      { id: 'c1', position: { x: 500, y: 150 }, color: 'red', isLit: false, litTime: 0, requiredTime: 1000, accumulatedTime: 0 },
+      { id: 'c2', position: { x: 550, y: 300 }, color: 'green', isLit: false, litTime: 0, requiredTime: 1000, accumulatedTime: 0 },
+      { id: 'c3', position: { x: 500, y: 450 }, color: 'blue', isLit: false, litTime: 0, requiredTime: 1000, accumulatedTime: 0 },
     ],
     obstacles: [
       { id: 'o1', position: { x: 400, y: 400 }, width: 100, height: 20, rotation: 0 },
@@ -87,10 +95,10 @@ export const LEVELS: Level[] = [
       { id: 'p1', position: { x: 200, y: 300 }, rotation: 0, size: 30 },
     ],
     crystals: [
-      { id: 'c1', position: { x: 700, y: 100 }, color: 'red', isLit: false, litTime: 0, requiredTime: 1000 },
-      { id: 'c2', position: { x: 750, y: 250 }, color: 'green', isLit: false, litTime: 0, requiredTime: 1000 },
-      { id: 'c3', position: { x: 700, y: 400 }, color: 'blue', isLit: false, litTime: 0, requiredTime: 1000 },
-      { id: 'c4', position: { x: 650, y: 500 }, color: 'red', isLit: false, litTime: 0, requiredTime: 1000 },
+      { id: 'c1', position: { x: 700, y: 100 }, color: 'red', isLit: false, litTime: 0, requiredTime: 1000, accumulatedTime: 0 },
+      { id: 'c2', position: { x: 750, y: 250 }, color: 'green', isLit: false, litTime: 0, requiredTime: 1000, accumulatedTime: 0 },
+      { id: 'c3', position: { x: 700, y: 400 }, color: 'blue', isLit: false, litTime: 0, requiredTime: 1000, accumulatedTime: 0 },
+      { id: 'c4', position: { x: 650, y: 500 }, color: 'red', isLit: false, litTime: 0, requiredTime: 1000, accumulatedTime: 0 },
     ],
     obstacles: [
       { id: 'o1', position: { x: 350, y: 200 }, width: 100, height: 20, rotation: Math.PI / 4 },
@@ -108,11 +116,11 @@ export const LEVELS: Level[] = [
       { id: 'p2', position: { x: 500, y: 400 }, rotation: 0, size: 30 },
     ],
     crystals: [
-      { id: 'c1', position: { x: 750, y: 100 }, color: 'red', isLit: false, litTime: 0, requiredTime: 1000 },
-      { id: 'c2', position: { x: 800, y: 250 }, color: 'green', isLit: false, litTime: 0, requiredTime: 1000 },
-      { id: 'c3', position: { x: 750, y: 400 }, color: 'blue', isLit: false, litTime: 0, requiredTime: 1000 },
-      { id: 'c4', position: { x: 700, y: 500 }, color: 'red', isLit: false, litTime: 0, requiredTime: 1000 },
-      { id: 'c5', position: { x: 650, y: 200 }, color: 'green', isLit: false, litTime: 0, requiredTime: 1000 },
+      { id: 'c1', position: { x: 750, y: 100 }, color: 'red', isLit: false, litTime: 0, requiredTime: 1000, accumulatedTime: 0 },
+      { id: 'c2', position: { x: 800, y: 250 }, color: 'green', isLit: false, litTime: 0, requiredTime: 1000, accumulatedTime: 0 },
+      { id: 'c3', position: { x: 750, y: 400 }, color: 'blue', isLit: false, litTime: 0, requiredTime: 1000, accumulatedTime: 0 },
+      { id: 'c4', position: { x: 700, y: 500 }, color: 'red', isLit: false, litTime: 0, requiredTime: 1000, accumulatedTime: 0 },
+      { id: 'c5', position: { x: 650, y: 200 }, color: 'green', isLit: false, litTime: 0, requiredTime: 1000, accumulatedTime: 0 },
     ],
     obstacles: [
       { id: 'o1', position: { x: 380, y: 100 }, width: 100, height: 20, rotation: 0 },
@@ -131,12 +139,12 @@ export const LEVELS: Level[] = [
       { id: 'p2', position: { x: 450, y: 450 }, rotation: 0, size: 30 },
     ],
     crystals: [
-      { id: 'c1', position: { x: 700, y: 80 }, color: 'red', isLit: false, litTime: 0, requiredTime: 1000 },
-      { id: 'c2', position: { x: 780, y: 180 }, color: 'green', isLit: false, litTime: 0, requiredTime: 1000 },
-      { id: 'c3', position: { x: 750, y: 300 }, color: 'blue', isLit: false, litTime: 0, requiredTime: 1000 },
-      { id: 'c4', position: { x: 780, y: 420 }, color: 'red', isLit: false, litTime: 0, requiredTime: 1000 },
-      { id: 'c5', position: { x: 700, y: 520 }, color: 'green', isLit: false, litTime: 0, requiredTime: 1000 },
-      { id: 'c6', position: { x: 620, y: 300 }, color: 'blue', isLit: false, litTime: 0, requiredTime: 1000 },
+      { id: 'c1', position: { x: 700, y: 80 }, color: 'red', isLit: false, litTime: 0, requiredTime: 1000, accumulatedTime: 0 },
+      { id: 'c2', position: { x: 780, y: 180 }, color: 'green', isLit: false, litTime: 0, requiredTime: 1000, accumulatedTime: 0 },
+      { id: 'c3', position: { x: 750, y: 300 }, color: 'blue', isLit: false, litTime: 0, requiredTime: 1000, accumulatedTime: 0 },
+      { id: 'c4', position: { x: 780, y: 420 }, color: 'red', isLit: false, litTime: 0, requiredTime: 1000, accumulatedTime: 0 },
+      { id: 'c5', position: { x: 700, y: 520 }, color: 'green', isLit: false, litTime: 0, requiredTime: 1000, accumulatedTime: 0 },
+      { id: 'c6', position: { x: 620, y: 300 }, color: 'blue', isLit: false, litTime: 0, requiredTime: 1000, accumulatedTime: 0 },
     ],
     obstacles: [
       { id: 'o1', position: { x: 320, y: 150 }, width: 100, height: 20, rotation: Math.PI / 4 },
@@ -176,7 +184,7 @@ function saveProgress(progress: PlayerProgress): void {
 function cloneLevel(level: Level): { prisms: Prism[]; crystals: Crystal[]; obstacles: Obstacle[]; lightSource: LightSource } {
   return {
     prisms: level.prisms.map(p => ({ ...p, position: { ...p.position } })),
-    crystals: level.crystals.map(c => ({ ...c, position: { ...c.position }, isLit: false, litTime: 0 })),
+    crystals: level.crystals.map(c => ({ ...c, position: { ...c.position }, isLit: false, litTime: 0, accumulatedTime: 0 })),
     obstacles: level.obstacles.map(o => ({ ...o, position: { ...o.position } })),
     lightSource: { ...level.lightSource, position: { ...level.lightSource.position } },
   };
@@ -196,6 +204,8 @@ export const useGameStore = create<GameState>((set, get) => {
     isVictory: false,
     isTransitioning: false,
     transitionAlpha: 0,
+    transitionPhase: 'idle',
+    _pendingLevel: undefined,
     showHint: false,
     playerProgress: loadProgress(),
     levels: LEVELS,
@@ -211,85 +221,85 @@ export const useGameStore = create<GameState>((set, get) => {
       }));
     },
 
-    checkCrystalLit: (crystalId: string, color: string, intensity: number, deltaTime: number) => {
+    updateCrystalStates: (hits: CrystalHit[], deltaTime: number) => {
       const state = get();
-      const crystal = state.crystals.find(c => c.id === crystalId);
-      if (!crystal || crystal.isLit) return;
+      const hitMap = new Map<string, CrystalHit>();
+      hits.forEach(hit => hitMap.set(hit.crystalId, hit));
 
-      const crystalColor = COLOR_MAP[color] || crystal.color;
-      if (crystalColor !== crystal.color) return;
+      let newScore = state.score;
+      let newlyLitIds: string[] = [];
 
-      const requiredTime = intensity < 0.5 ? 2000 : crystal.requiredTime;
-      const newLitTime = crystal.litTime + deltaTime;
+      const newCrystals = state.crystals.map(crystal => {
+        if (crystal.isLit) return crystal;
 
-      if (newLitTime >= requiredTime) {
-        const newCrystals = state.crystals.map(c =>
-          c.id === crystalId ? { ...c, isLit: true, litTime: requiredTime } : c
+        const hit = hitMap.get(crystal.id);
+        if (!hit) {
+          return { ...crystal, accumulatedTime: 0, litTime: 0 };
+        }
+
+        const crystalColor = COLOR_MAP[hit.color] || crystal.color;
+        if (crystalColor !== crystal.color) {
+          return { ...crystal, accumulatedTime: 0, litTime: 0 };
+        }
+
+        const requiredTime = hit.intensity < 0.5 ? 2000 : crystal.requiredTime;
+        const newAccumulatedTime = crystal.accumulatedTime + deltaTime;
+
+        if (newAccumulatedTime >= requiredTime) {
+          newlyLitIds.push(crystal.id);
+          newScore += 100;
+          return { ...crystal, isLit: true, accumulatedTime: requiredTime, litTime: requiredTime };
+        }
+
+        return { ...crystal, accumulatedTime: newAccumulatedTime, litTime: newAccumulatedTime };
+      });
+
+      const allLit = newCrystals.every(c => c.isLit);
+
+      let newProgress = state.playerProgress;
+      if (newlyLitIds.length > 0 && allLit) {
+        const levelScore = Math.max(
+          state.playerProgress.bestScores[state.currentLevel] || 0,
+          newScore
         );
-        const allLit = newCrystals.every(c => c.isLit);
-        const newScore = state.score + 100;
-
-        let newProgress = state.playerProgress;
-        if (allLit) {
-          const levelScore = Math.max(
-            state.playerProgress.bestScores[state.currentLevel] || 0,
-            newScore
-          );
-          newProgress = {
-            ...state.playerProgress,
-            bestScores: {
-              ...state.playerProgress.bestScores,
-              [state.currentLevel]: levelScore,
-            },
-            totalScore: state.playerProgress.totalScore + 100,
-            unlockedLevels: state.playerProgress.unlockedLevels.includes(state.currentLevel + 1)
-              ? state.playerProgress.unlockedLevels
-              : [...state.playerProgress.unlockedLevels, state.currentLevel + 1],
-          };
-          saveProgress(newProgress);
-        }
-
-        if (state.onCrystalLit) {
-          state.onCrystalLit(crystalId);
-        }
-
-        set({
-          crystals: newCrystals,
-          score: newScore,
-          isVictory: allLit,
-          playerProgress: newProgress,
-        });
-      } else {
-        set(state => ({
-          crystals: state.crystals.map(c =>
-            c.id === crystalId ? { ...c, litTime: newLitTime } : c
-          ),
-        }));
+        newProgress = {
+          ...state.playerProgress,
+          bestScores: {
+            ...state.playerProgress.bestScores,
+            [state.currentLevel]: levelScore,
+          },
+          totalScore: state.playerProgress.totalScore + newlyLitIds.length * 100,
+          unlockedLevels: state.playerProgress.unlockedLevels.includes(state.currentLevel + 1)
+            ? state.playerProgress.unlockedLevels
+            : [...state.playerProgress.unlockedLevels, state.currentLevel + 1],
+        };
+        saveProgress(newProgress);
       }
+
+      newlyLitIds.forEach(id => {
+        if (state.onCrystalLit) {
+          state.onCrystalLit(id);
+        }
+      });
+
+      set({
+        crystals: newCrystals,
+        score: newScore,
+        isVictory: allLit,
+        playerProgress: newProgress,
+      });
     },
 
     loadLevel: (levelId: number) => {
       const level = LEVELS.find(l => l.id === levelId);
       if (!level) return;
 
-      set({ isTransitioning: true, transitionAlpha: 0 });
-
-      setTimeout(() => {
-        const state = cloneLevel(level);
-        set({
-          currentLevel: levelId,
-          score: 0,
-          prisms: state.prisms,
-          crystals: state.crystals,
-          obstacles: state.obstacles,
-          lightSource: state.lightSource,
-          isVictory: false,
-          showHint: false,
-        });
-        setTimeout(() => {
-          set({ isTransitioning: false });
-        }, 300);
-      }, 300);
+      set({
+        isTransitioning: true,
+        transitionPhase: 'fade-out',
+        transitionAlpha: 0,
+        _pendingLevel: { levelId, level },
+      });
     },
 
     resetLevel: () => {
@@ -313,14 +323,46 @@ export const useGameStore = create<GameState>((set, get) => {
       const state = get();
       if (!state.isTransitioning) return;
 
-      const targetAlpha = state.transitionAlpha < 1 ? 1 : 0;
-      const speed = 1 / 300;
-      const newAlpha = state.transitionAlpha + (targetAlpha - state.transitionAlpha) * speed * deltaTime;
+      const transitionDuration = 300;
+      const speed = 1 / transitionDuration;
 
-      if (Math.abs(newAlpha - targetAlpha) < 0.01) {
-        set({ transitionAlpha: targetAlpha });
-      } else {
-        set({ transitionAlpha: newAlpha });
+      if (state.transitionPhase === 'fade-out') {
+        const newAlpha = state.transitionAlpha + speed * deltaTime;
+        if (newAlpha >= 1) {
+          const pending = state._pendingLevel;
+          if (pending) {
+            const cloned = cloneLevel(pending.level);
+            set({
+              transitionAlpha: 1,
+              transitionPhase: 'loading',
+              currentLevel: pending.levelId,
+              score: 0,
+              prisms: cloned.prisms,
+              crystals: cloned.crystals,
+              obstacles: cloned.obstacles,
+              lightSource: cloned.lightSource,
+              isVictory: false,
+              showHint: false,
+            });
+            setTimeout(() => {
+              set({ transitionPhase: 'fade-in' });
+            }, 50);
+          }
+        } else {
+          set({ transitionAlpha: newAlpha });
+        }
+      } else if (state.transitionPhase === 'fade-in') {
+        const newAlpha = state.transitionAlpha - speed * deltaTime;
+        if (newAlpha <= 0) {
+          set({
+            transitionAlpha: 0,
+            transitionPhase: 'idle',
+            isTransitioning: false,
+            _pendingLevel: undefined,
+          });
+        } else {
+          set({ transitionAlpha: newAlpha });
+        }
       }
     },
   };

@@ -17,6 +17,7 @@ export interface Crystal {
   isLit: boolean;
   litTime: number;
   requiredTime: number;
+  accumulatedTime: number;
 }
 
 export interface Obstacle {
@@ -71,6 +72,32 @@ function distance(p1: Point, p2: Point): number {
   return Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
 }
 
+function dot(a: Point, b: Point): number {
+  return a.x * b.x + a.y * b.y;
+}
+
+function subtract(a: Point, b: Point): Point {
+  return { x: a.x - b.x, y: a.y - b.y };
+}
+
+function add(a: Point, b: Point): Point {
+  return { x: a.x + b.x, y: a.y + b.y };
+}
+
+function scale(v: Point, s: number): Point {
+  return { x: v.x * s, y: v.y * s };
+}
+
+function length(v: Point): number {
+  return Math.sqrt(v.x * v.x + v.y * v.y);
+}
+
+function normalize(v: Point): Point {
+  const len = length(v);
+  if (len < 0.0001) return { x: 0, y: 0 };
+  return { x: v.x / len, y: v.y / len };
+}
+
 function getTriangleVertices(prism: Prism): Point[] {
   const { position, rotation, size } = prism;
   const vertices: Point[] = [];
@@ -113,68 +140,186 @@ function getObstacleEdges(obstacle: Obstacle): Point[] {
   }));
 }
 
-function lineIntersection(
-  p1: Point, p2: Point, p3: Point, p4: Point
+function getEdgeNormal(v1: Point, v2: Point, center: Point): Point {
+  const edge = subtract(v2, v1);
+  const mid = { x: (v1.x + v2.x) / 2, y: (v1.y + v2.y) / 2 };
+  let normal = { x: -edge.y, y: edge.x };
+  normal = normalize(normal);
+  const toCenter = subtract(center, mid);
+  if (dot(normal, toCenter) > 0) {
+    normal = scale(normal, -1);
+  }
+  return normal;
+}
+
+function raySegmentIntersection(
+  origin: Point, dir: Point, v1: Point, v2: Point
 ): { point: Point; t: number } | null {
-  const denom = (p4.y - p3.y) * (p2.x - p1.x) - (p4.x - p3.x) * (p2.y - p1.y);
+  const v1v2 = subtract(v2, v1);
+  const denom = dir.x * v1v2.y - dir.y * v1v2.x;
   if (Math.abs(denom) < 0.0001) return null;
-  const ua = ((p4.x - p3.x) * (p1.y - p3.y) - (p4.y - p3.y) * (p1.x - p3.x)) / denom;
-  const ub = ((p2.x - p1.x) * (p1.y - p3.y) - (p2.y - p1.y) * (p1.x - p3.x)) / denom;
-  if (ua < 0 || ua > 1 || ub < 0 || ub > 1) return null;
-  return {
-    point: { x: p1.x + ua * (p2.x - p1.x), y: p1.y + ua * (p2.y - p1.y) },
-    t: ua,
-  };
+  const diff = subtract(v1, origin);
+  const t = (diff.x * v1v2.y - diff.y * v1v2.x) / denom;
+  const u = (diff.x * dir.y - diff.y * dir.x) / denom;
+  if (t > 0.001 && u >= 0 && u <= 1) {
+    return {
+      point: add(origin, scale(dir, t)),
+      t
+    };
+  }
+  return null;
 }
 
 function rayPolygonIntersection(
   start: Point, direction: number, vertices: Point[], maxDist: number
 ): { point: Point; normal: Point; t: number } | null {
-  const end = {
-    x: start.x + Math.cos(direction) * maxDist, y: start.y + Math.sin(direction) * maxDist };
+  const dir = { x: Math.cos(direction), y: Math.sin(direction) };
   let closest: { point: Point; normal: Point; t: number } | null = null;
+  const center = {
+    x: vertices.reduce((sum, v) => sum + v.x, 0) / vertices.length,
+    y: vertices.reduce((sum, v) => sum + v.y, 0) / vertices.length
+  };
   for (let i = 0; i < vertices.length; i++) {
     const v1 = vertices[i];
     const v2 = vertices[(i + 1) % vertices.length];
-    const result = lineIntersection(start, end, v1, v2);
-    if (result && (!closest || result.t < closest.t)) {
-      const edge = { x: v2.x - v1.x, y: v2.y - v1.y };
-      const len = Math.sqrt(edge.x ** 2 + edge.y ** 2);
-      const normal = { x: -edge.y / len, y: edge.x / len };
-      closest = { point: result.point, normal, t: result.t };
+    const result = raySegmentIntersection(start, dir, v1, v2);
+    if (result && result.t * length(dir) <= maxDist) {
+      if (!closest || result.t < closest.t) {
+        const normal = getEdgeNormal(v1, v2, center);
+        closest = { point: result.point, normal, t: result.t };
+      }
     }
   }
   return closest;
 }
 
-function snellRefraction(incidentAngle: number, normal: Point, n1: number, n2: number): number | null {
-  const cosTheta1 = -Math.cos(incidentAngle);
-  if (cosTheta1 < 0) return null;
-  const sinTheta1 = Math.sin(incidentAngle);
-  const sinTheta2 = (n1 / n2) * sinTheta1;
-  if (Math.abs(sinTheta2) > 1) return null;
-  const cosTheta2 = Math.sqrt(1 - sinTheta2 ** 2);
-  return Math.atan2(sinTheta2, cosTheta2);
+function snellRefract(
+  incidentDir: Point,
+  normal: Point,
+  n1: number,
+  n2: number
+): { direction: Point; reflected: boolean } {
+  let n = normal;
+  let cosTheta1 = -dot(incidentDir, n);
+  if (cosTheta1 < 0) {
+    n = scale(n, -1);
+    cosTheta1 = -cosTheta1;
+  }
+
+  const sinTheta1Sq = 1 - cosTheta1 * cosTheta1;
+  const ratio = n1 / n2;
+  const sinTheta2Sq = ratio * ratio * sinTheta1Sq;
+
+  if (sinTheta2Sq > 1) {
+    const reflectedDir = add(incidentDir, scale(n, 2 * cosTheta1));
+    return { direction: normalize(reflectedDir), reflected: true };
+  }
+
+  const cosTheta2 = Math.sqrt(1 - sinTheta2Sq);
+  const term1 = scale(incidentDir, ratio);
+  const term2 = scale(n, ratio * cosTheta1 - cosTheta2);
+  const refractedDir = add(term1, term2);
+
+  return { direction: normalize(refractedDir), reflected: false };
 }
 
-function reflect(direction: number, normal: Point): number {
-  const dot = Math.cos(direction) * normal.x + Math.sin(direction) * normal.y;
-  return direction - 2 * Math.acos(dot);
+interface PrismTraceResult {
+  entryPoint: Point;
+  exitPoint: Point;
+  exitDir: Point;
+  internalSegments: { start: Point; end: Point }[];
 }
 
-function diffuseReflect(normal: Point): number {
-  const baseAngle = Math.atan2(normal.y, normal.x);
-  const randomOffset = (Math.random() - 0.5) * Math.PI * 0.8;
-  return baseAngle + randomOffset;
+function traceRayThroughPrism(
+  rayStart: Point,
+  rayDir: Point,
+  prism: Prism,
+  refractiveIndex: number
+): PrismTraceResult | null {
+  const vertices = getTriangleVertices(prism);
+  const internalSegments: { start: Point; end: Point }[] = [];
+
+  let entryHit: { point: Point; normal: Point; edgeIndex: number } | null = null;
+  let minT = Infinity;
+
+  for (let i = 0; i < 3; i++) {
+    const v1 = vertices[i];
+    const v2 = vertices[(i + 1) % 3];
+    const hit = raySegmentIntersection(rayStart, rayDir, v1, v2);
+    if (hit && hit.t < minT) {
+      minT = hit.t;
+      const normal = getEdgeNormal(v1, v2, prism.position);
+      entryHit = { point: hit.point, normal, edgeIndex: i };
+    }
+  }
+
+  if (!entryHit) return null;
+
+  internalSegments.push({ start: rayStart, end: entryHit.point });
+
+  const refractResult = snellRefract(
+    rayDir, entryHit.normal, REFRACTIVE_INDEX_AIR, refractiveIndex
+  );
+
+  if (refractResult.reflected) {
+    return null;
+  }
+
+  const internalDir = refractResult.direction;
+
+  let exitHit: { point: Point; normal: Point } | null = null;
+  minT = Infinity;
+
+  for (let i = 0; i < 3; i++) {
+    if (i === entryHit.edgeIndex) continue;
+    const v1 = vertices[i];
+    const v2 = vertices[(i + 1) % 3];
+    const hit = raySegmentIntersection(entryHit.point, internalDir, v1, v2);
+    if (hit && hit.t > 0.001 && hit.t < minT) {
+      minT = hit.t;
+      const normal = getEdgeNormal(v1, v2, prism.position);
+      exitHit = { point: hit.point, normal };
+    }
+  }
+
+  if (!exitHit) return null;
+
+  internalSegments.push({ start: entryHit.point, end: exitHit.point });
+
+  const exitResult = snellRefract(
+    internalDir,
+    exitHit.normal,
+    refractiveIndex,
+    REFRACTIVE_INDEX_AIR
+  );
+
+  return {
+    entryPoint: entryHit.point,
+    exitPoint: exitHit.point,
+    exitDir: exitResult.direction,
+    internalSegments
+  };
+}
+
+function diffuseReflect(incidentDir: Point, normal: Point): Point {
+  let n = normal;
+  if (dot(incidentDir, n) > 0) {
+    n = scale(n, -1);
+  }
+  const randomAngle = (Math.random() - 0.5) * Math.PI * 0.8;
+  const baseAngle = Math.atan2(n.y, n.x);
+  const finalAngle = baseAngle + randomAngle;
+  return { x: Math.cos(finalAngle), y: Math.sin(finalAngle) };
 }
 
 interface RayState {
   position: Point;
-  direction: number;
+  direction: Point;
   color: string;
   intensity: number;
   remainingBounces: number;
   rayId: string;
+  hasPassedPrism: boolean;
 }
 
 export function calcRefraction(
@@ -190,15 +335,21 @@ export function calcRefraction(
   const maxDist = Math.sqrt(canvasWidth ** 2 + canvasHeight ** 2);
   const maxBounces = 3;
   const crystalSize = 12;
-  const litCrystals = new Set<string>();
+  const processedCrystalIds = new Set<string>();
+
+  const initialDir = {
+    x: Math.cos(lightSource.direction),
+    y: Math.sin(lightSource.direction)
+  };
 
   const initialRays: RayState[] = [{
     position: { ...lightSource.position },
-    direction: lightSource.direction,
+    direction: initialDir,
     color: COLOR_WHITE,
     intensity: 1.0,
     remainingBounces: maxBounces,
     rayId: 'main-0',
+    hasPassedPrism: false
   }];
 
   const queue: RayState[] = [...initialRays];
@@ -210,59 +361,97 @@ export function calcRefraction(
     let closestHit: {
       type: 'prism' | 'obstacle' | 'crystal' | 'boundary';
       point: Point;
-      normal: Point;
       distance: number;
       prism?: Prism;
       obstacle?: Obstacle;
       crystal?: Crystal;
-      enterPrism?: boolean;
+      normal?: Point;
     } | null = null;
 
-    for (const prism of prisms) {
-      const vertices = getTriangleVertices(prism);
-      const hit = rayPolygonIntersection(ray.position, ray.direction, vertices, maxDist);
-      if (hit) {
-        const dist = distance(ray.position, hit.point);
-        if (dist > 0.1 && (!closestHit || dist < closestHit.distance)) {
-          const centerDist = distance(hit.point, prism.position);
-          const isEntering = centerDist < prism.size;
-          closestHit = {
-            type: 'prism', point: hit.point, normal: hit.normal, distance: dist, prism, enterPrism: isEntering };
+    const rayAngle = Math.atan2(ray.direction.y, ray.direction.x);
+
+    if (!ray.hasPassedPrism) {
+      for (const prism of prisms) {
+        const traceResult = traceRayThroughPrism(
+          ray.position,
+          ray.direction,
+          prism,
+          REFRACTIVE_INDEX_GREEN
+        );
+        if (traceResult) {
+          const dist = distance(ray.position, traceResult.entryPoint);
+          if (dist > 0.1 && (!closestHit || dist < closestHit.distance)) {
+            closestHit = {
+              type: 'prism',
+              point: traceResult.entryPoint,
+              distance: dist,
+              prism
+            };
+          }
         }
       }
-    }
+    } else {
+        for (const prism of prisms) {
+          const vertices = getTriangleVertices(prism);
+          const hit = rayPolygonIntersection(ray.position, rayAngle, vertices, maxDist);
+          if (hit) {
+            const dist = distance(ray.position, hit.point);
+            if (dist > 0.1 && (!closestHit || dist < closestHit.distance)) {
+              closestHit = {
+                type: 'prism',
+                point: hit.point,
+                distance: dist,
+                prism,
+                normal: hit.normal
+              };
+            }
+          }
+        }
+      }
 
     for (const obstacle of obstacles) {
       const vertices = getObstacleEdges(obstacle);
-      const hit = rayPolygonIntersection(ray.position, ray.direction, vertices, maxDist);
+      const hit = rayPolygonIntersection(ray.position, rayAngle, vertices, maxDist);
       if (hit) {
         const dist = distance(ray.position, hit.point);
         if (dist > 0.1 && (!closestHit || dist < closestHit.distance)) {
-          closestHit = { type: 'obstacle', point: hit.point, normal: hit.normal, distance: dist, obstacle };
+          closestHit = {
+            type: 'obstacle',
+            point: hit.point,
+            distance: dist,
+            obstacle,
+            normal: hit.normal
+          };
         }
       }
     }
 
     for (const crystal of crystals) {
       const vertices = getHexagonVertices(crystal, crystalSize);
-      const hit = rayPolygonIntersection(ray.position, ray.direction, vertices, maxDist);
+      const hit = rayPolygonIntersection(ray.position, rayAngle, vertices, maxDist);
       if (hit) {
         const dist = distance(ray.position, hit.point);
         if (dist > 0.1 && (!closestHit || dist < closestHit.distance)) {
-          closestHit = { type: 'crystal', point: hit.point, normal: hit.normal, distance: dist, crystal };
+          closestHit = {
+            type: 'crystal',
+            point: hit.point,
+            distance: dist,
+            crystal
+          };
         }
       }
     }
 
     const boundaryPoints = [
       { x: 0, y: 0 }, { x: canvasWidth, y: 0 },
-      { x: canvasWidth, y: canvasHeight }, { x: 0, y: canvasHeight },
+      { x: canvasWidth, y: canvasHeight }, { x: 0, y: canvasHeight }
     ];
-    const boundaryHit = rayPolygonIntersection(ray.position, ray.direction, boundaryPoints, maxDist);
+    const boundaryHit = rayPolygonIntersection(ray.position, rayAngle, boundaryPoints, maxDist);
     if (boundaryHit) {
       const dist = distance(ray.position, boundaryHit.point);
       if (!closestHit || dist < closestHit.distance) {
-        closestHit = { type: 'boundary', point: boundaryHit.point, normal: boundaryHit.normal, distance: dist };
+        closestHit = {
+          type: 'boundary', point: boundaryHit.point, distance: dist };
       }
     }
 
@@ -270,74 +459,107 @@ export function calcRefraction(
       segments.push({
         start: { ...ray.position },
         end: {
-          x: ray.position.x + Math.cos(ray.direction) * maxDist,
-          y: ray.position.y + Math.sin(ray.direction) * maxDist,
+          x: ray.position.x + ray.direction.x * maxDist,
+          y: ray.position.y + ray.direction.y * maxDist
         },
         color: ray.color,
         intensity: ray.intensity,
-        rayId: ray.rayId,
+        rayId: ray.rayId
       });
       continue;
     }
 
-    segments.push({
-      start: { ...ray.position },
-      end: { ...closestHit.point },
-      color: ray.color,
-      intensity: ray.intensity,
-      rayId: ray.rayId,
-    });
-
-    if (closestHit.type === 'crystal' && closestHit.crystal) {
-      if (!litCrystals.has(closestHit.crystal.id)) {
-        hitCrystals.push({
-          crystalId: closestHit.crystal.id,
-          color: ray.color,
-          intensity: ray.intensity,
-        });
-        litCrystals.add(closestHit.crystal.id);
-      }
-    } else if (closestHit.type === 'prism' && closestHit.prism) {
-      const n1 = closestHit.enterPrism ? REFRACTIVE_INDEX_AIR : REFRACTIVE_INDEX_GREEN;
+    if (closestHit.type === 'prism' && closestHit.prism && !ray.hasPassedPrism) {
+      const prism = closestHit.prism;
       const colors = [
         { color: COLOR_RED, n: REFRACTIVE_INDEX_RED },
         { color: COLOR_GREEN, n: REFRACTIVE_INDEX_GREEN },
-        { color: COLOR_BLUE, n: REFRACTIVE_INDEX_BLUE },
+        { color: COLOR_BLUE, n: REFRACTIVE_INDEX_BLUE }
       ];
+
       for (let i = 0; i < colors.length; i++) {
         const { color, n } = colors[i];
-        const n2 = closestHit.enterPrism ? n : REFRACTIVE_INDEX_AIR;
-        const refracted = snellRefraction(ray.direction, closestHit.normal, n1, n2);
-        if (refracted !== null) {
+        const traceResult = traceRayThroughPrism(ray.position, ray.direction, prism, n);
+        if (traceResult) {
+          for (let j = 0; j < traceResult.internalSegments.length; j++) {
+            segments.push({
+              start: traceResult.internalSegments[j].start,
+              end: traceResult.internalSegments[j].end,
+              color: j === 0 ? ray.color : color,
+              intensity: ray.intensity * 0.95,
+              rayId: `${ray.rayId}-${i}`
+            });
+          }
           queue.push({
-            position: { ...closestHit.point },
-            direction: refracted,
-            color: color,
-            intensity: ray.intensity * 0.95,
-            remainingBounces: ray.remainingBounces,
-            rayId: `${ray.rayId}-${i}`,
-          });
-        } else {
-          const reflected = reflect(ray.direction, closestHit.normal);
-          queue.push({
-            position: { ...closestHit.point },
-            direction: reflected,
+            position: traceResult.exitPoint,
+            direction: traceResult.exitDir,
             color: color,
             intensity: ray.intensity * 0.9,
-            remainingBounces: ray.remainingBounces - 1,
-            rayId: `${ray.rayId}-${i}-r`,
+            remainingBounces: ray.remainingBounces,
+            rayId: `${ray.rayId}-${i}`,
+            hasPassedPrism: true
           });
         }
       }
-    } else if (closestHit.type === 'obstacle') {
-      const reflected = diffuseReflect(closestHit.normal);
+    } else if (closestHit.type === 'crystal' && closestHit.crystal) {
+      segments.push({
+        start: { ...ray.position },
+        end: { ...closestHit.point },
+        color: ray.color,
+        intensity: ray.intensity,
+        rayId: ray.rayId
+      });
+      if (!processedCrystalIds.has(closestHit.crystal.id)) {
+        hitCrystals.push({
+          crystalId: closestHit.crystal.id,
+          color: ray.color,
+          intensity: ray.intensity
+        });
+        processedCrystalIds.add(closestHit.crystal.id);
+      }
+    } else if (closestHit.type === 'obstacle' && closestHit.obstacle && closestHit.normal) {
+      segments.push({
+        start: { ...ray.position },
+        end: { ...closestHit.point },
+        color: ray.color,
+        intensity: ray.intensity,
+        rayId: ray.rayId
+      });
+      const reflectedDir = diffuseReflect(ray.direction, closestHit.normal);
       queue.push({
         position: { ...closestHit.point },
-        direction: reflected,
+        direction: reflectedDir,
         color: ray.color,
         intensity: ray.intensity * 0.5,
         remainingBounces: ray.remainingBounces - 1,
         rayId: `${ray.rayId}-d`,
+        hasPassedPrism: ray.hasPassedPrism
+      });
+    } else if (closestHit.type === 'prism' && closestHit.prism && closestHit.normal && ray.hasPassedPrism) {
+      segments.push({
+        start: { ...ray.position },
+        end: { ...closestHit.point },
+        color: ray.color,
+        intensity: ray.intensity,
+        rayId: ray.rayId
+      });
+      const reflectedDir = add(ray.direction, scale(closestHit.normal, -2 * dot(ray.direction, closestHit.normal)));
+      queue.push({
+        position: { ...closestHit.point },
+        direction: normalize(reflectedDir),
+        color: ray.color,
+        intensity: ray.intensity * 0.9,
+        remainingBounces: ray.remainingBounces - 1,
+        rayId: `${ray.rayId}-r`,
+        hasPassedPrism: true
+      });
+    } else {
+      segments.push({
+        start: { ...ray.position },
+        end: { ...closestHit.point },
+        color: ray.color,
+        intensity: ray.intensity,
+        rayId: ray.rayId
       });
     }
   }
