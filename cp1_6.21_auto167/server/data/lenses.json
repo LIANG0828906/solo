@@ -1,0 +1,98 @@
+[
+  {
+    "id": "1",
+    "name": "SC-001 主角走进酒吧",
+    "type": "video",
+    "status": "approved",
+    "uploadTime": "2026-06-20 10:32:15",
+    "thumbnail": "",
+    "format": "MP4",
+    "dimensions": "1920x1080",
+    "duration": "00:00:23",
+    "reviewNotes": "构图很棒，光线充足，可以直接使用。"
+  },
+  {
+    "id": "2",
+    "name": "SC-002 吧台特写",
+    "type": "video",
+    "status": "pending",
+    "uploadTime": "2026-06-20 11:05:42",
+    "thumbnail": "",
+    "format": "MP4",
+    "dimensions": "1920x1080",
+    "duration": "00:00:08",
+    "reviewNotes": ""
+  },
+  {
+    "id": "3",
+    "name": "SC-003 男女主对话",
+    "type": "video",
+    "status": "reshoot",
+    "uploadTime": "2026-06-20 14:18:30",
+    "thumbnail": "",
+    "format": "MOV",
+    "dimensions": "3840x2160",
+    "duration": "00:01:15",
+    "reviewNotes": "录音有杂音，需要补录，演员表情也不够自然。"
+  },
+  {
+    "id": "4",
+    "name": "SC-004 窗外城市空镜",
+    "type": "image",
+    "status": "approved",
+    "uploadTime": "2026-06-20 15:22:08",
+    "thumbnail": "",
+    "format": "PNG",
+    "dimensions": "4096x2730",
+    "duration": "—",
+    "reviewNotes": "色调很好，用作转场。"
+  },
+  {
+    "id": "5",
+    "name": "SC-005 酒杯推镜",
+    "type": "video",
+    "status": "pending",
+    "uploadTime": "2026-06-21 09:11:55",
+    "thumbnail": "",
+    "format": "MP4",
+    "dimensions": "1920x1080",
+    "duration": "00:00:12",
+    "reviewNotes": ""
+  },
+  {
+    "id": "6",
+    "name": "SC-006 反派登场",
+    "type": "video",
+    "status": "approved",
+    "uploadTime": "2026-06-21 09:45:20",
+    "thumbnail": "",
+    "format": "MOV",
+    "dimensions": "3840x2160",
+    "duration": "00:00:45",
+    "reviewNotes": "气场到位，完美。"
+  },
+  {
+    "id": "7",
+    "name": "SC-007 街道远景",
+    "type": "image",
+    "status": "pending",
+    "uploadTime": "2026-06-21 10:20:33",
+    "thumbnail": "",
+    "format": "JPG",
+    "dimensions": "6000x4000",
+    "duration": "—",
+    "reviewNotes": ""
+  },
+  {
+    "id": "8",
+    "name": "SC-008 打斗场面",
+    "type": "video",
+    "status": "reshoot",
+    "uploadTime": "2026-06-21 11:55:01",
+    "thumbnail": "",
+    "format": "MP4",
+    "dimensions": "1920x1080",
+    "duration": "00:02:30",
+    "reviewNotes": "动作衔接不流畅，需要重拍。"
+  }
+]
