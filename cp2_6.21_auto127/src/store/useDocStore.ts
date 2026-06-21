@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { DocState, User, Annotation, Snapshot, Document } from '../types'
+import { isValidColor, DEFAULT_COLOR, sanitizeAnnotationColor } from '../types'
 
 const getInitialToken = (): string | null => {
   if (typeof window !== 'undefined') {
@@ -20,6 +21,13 @@ const getInitialUser = (): User | null => {
     }
   }
   return null
+}
+
+function validateAnnotation(annotation: Annotation): Annotation {
+  return {
+    ...annotation,
+    color: sanitizeAnnotationColor(annotation.color),
+  }
 }
 
 export const useDocStore = create<DocState>((set) => ({
@@ -55,13 +63,15 @@ export const useDocStore = create<DocState>((set) => ({
   },
 
   addAnnotation: (annotation: Annotation) => {
+    const validated = validateAnnotation(annotation)
     set((state) => ({
-      annotations: [...state.annotations, annotation],
+      annotations: [...state.annotations, validated],
     }))
   },
 
   updateAnnotations: (annotations: Annotation[]) => {
-    set({ annotations })
+    const validated = annotations.map(validateAnnotation)
+    set({ annotations: validated })
   },
 
   deleteAnnotation: (annotationId: string) => {
@@ -74,6 +84,10 @@ export const useDocStore = create<DocState>((set) => ({
     set((state) => ({
       annotations: state.annotations.filter((a) => a.paragraphIndex !== paragraphIndex),
     }))
+  },
+
+  restoreAnnotations: (annotations: Annotation[]) => {
+    set({ annotations })
   },
 
   setSnapshots: (snapshots: Snapshot[]) => {
@@ -91,3 +105,5 @@ export const useDocStore = create<DocState>((set) => ({
     set({ isFading: fading })
   },
 }))
+
+export { isValidColor, DEFAULT_COLOR, sanitizeAnnotationColor }
