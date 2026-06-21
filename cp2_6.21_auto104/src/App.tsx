@@ -156,7 +156,13 @@ const App: React.FC = () => {
             position: 'relative',
           }}
         >
-          <TerrainRenderer heightMap={terrainState.heightMap} landform={terrainState.landform} />
+          <TerrainRenderer
+            heightMap={terrainState.heightMap}
+            landform={terrainState.landform}
+            erosionParams={erosionParams}
+            isPlaying={isPlaying}
+            iteration={terrainState.iteration}
+          />
         </div>
       </div>
     </TerrainContext.Provider>
