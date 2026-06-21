@@ -13,6 +13,74 @@ import {
 
 const GAP = 20;
 
+function getDominantColorFromImage(
+  image: HTMLImageElement,
+  pieceX: number,
+  pieceY: number,
+  pieceWidth: number,
+  pieceHeight: number
+): string {
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return '#ffd700';
+  
+  canvas.width = 1;
+  canvas.height = 1;
+  
+  const centerX = pieceX + pieceWidth / 2;
+  const centerY = pieceY + pieceHeight / 2;
+  
+  ctx.drawImage(image, centerX, centerY, 1, 1, 0, 0, 1, 1);
+  
+  const pixel = ctx.getImageData(0, 0, 1, 1).data;
+  return `rgb(${pixel[0]}, ${pixel[1]}, ${pixel[2]})`;
+}
+
+function generateParticles(
+  pieces: PuzzlePiece[],
+  image: HTMLImageElement,
+  containerOffsetX: number,
+  containerOffsetY: number
+): Array<{ id: number; x: number; y: number; dx: number; dy: number; color: string; size: number }> {
+  const newParticles: Array<{ id: number; x: number; y: number; dx: number; dy: number; color: string; size: number }> = [];
+  let particleId = 0;
+  
+  pieces.forEach((piece) => {
+    const pieceCenterX = piece.currentX + piece.width / 2 + containerOffsetX;
+    const pieceCenterY = piece.currentY + piece.height / 2 + containerOffsetY;
+    
+    const imgWidth = image.naturalWidth || image.width;
+    const imgHeight = image.naturalHeight || image.height;
+    const gridSize = pieces.length === 16 ? 4 : 6;
+    const srcPieceWidth = imgWidth / gridSize;
+    const srcPieceHeight = imgHeight / gridSize;
+    const srcX = piece.col * srcPieceWidth;
+    const srcY = piece.row * srcPieceHeight;
+    
+    const color = getDominantColorFromImage(image, srcX, srcY, srcPieceWidth, srcPieceHeight);
+    
+    const particlesPerPiece = 8;
+    for (let i = 0; i < particlesPerPiece; i++) {
+      const angle = (Math.PI * 2 * i) / particlesPerPiece + Math.random() * 0.5;
+      const distance = 100 + Math.random() * 200;
+      const dx = Math.cos(angle) * distance;
+      const dy = Math.sin(angle) * distance;
+      
+      newParticles.push({
+        id: particleId++,
+        x: pieceCenterX,
+        y: pieceCenterY,
+        dx,
+        dy,
+        color,
+        size: 4 + Math.random() * 6,
+      });
+    }
+  });
+  
+  return newParticles;
+}
+
 function App() {
   const [image, setImage] = useState<HTMLImageElement | null>(null);
   const [imageUrl, setImageUrl] = useState<string | null>(null);
@@ -35,7 +103,11 @@ function App() {
   const boardPositionRef = useRef({ x: 0, y: 0 });
   const trayPositionRef = useRef({ x: 0, y: 0 });
   const snapAnimationRef = useRef<Set<number>>(new Set());
+  const dragStartTimeRef = useRef<number>(0);
+  const animationFrameRef = useRef<number | null>(null);
+  const particlesRef = useRef<HTMLDivElement | null>(null);
   const [, forceUpdate] = useState(0);
+  const [particles, setParticles] = useState<Array<{ id: number; x: number; y: number; dx: number; dy: number; color: string; size: number }>>([]);
 
   const gridSize = getGridSize(difficulty);
 
@@ -188,11 +260,12 @@ function App() {
         hasMoved: false,
       };
 
+      dragStartTimeRef.current = performance.now();
       bringToFront(piece.id);
 
       const el = piecesRef.current.get(piece.id);
       if (el) {
-        el.classList.add('dragging');
+        el.classList.add('dragging', 'breathing');
       }
     },
     [bringToFront]
@@ -224,9 +297,13 @@ function App() {
       piece.currentX = newX;
       piece.currentY = newY;
 
+      const elapsed = performance.now() - dragStartTimeRef.current;
+      const breathingPhase = (elapsed % 1500) / 1500;
+      const breathingScale = 1.0 + 0.05 * (0.5 - 0.5 * Math.cos(breathingPhase * Math.PI * 2));
+
       const el = piecesRef.current.get(piece.id);
       if (el) {
-        el.style.transform = `translate(${newX}px, ${newY}px) rotate(${piece.rotation}deg) scale(1.05)`;
+        el.style.transform = `translate(${newX}px, ${newY}px) rotate(${piece.rotation}deg) scale(${breathingScale})`;
         el.style.transition = 'none';
       }
     };
@@ -240,7 +317,7 @@ function App() {
 
       const el = piecesRef.current.get(piece.id);
       if (el) {
-        el.classList.remove('dragging');
+        el.classList.remove('dragging', 'breathing');
         el.style.transition = '';
       }
 
@@ -276,9 +353,9 @@ function App() {
 
           if (el) {
             el.style.transform = `translate(${snappedX}px, ${snappedY}px) rotate(0deg)`;
-            el.classList.add('snap-animation');
+            el.classList.add('snap-animation', 'glow-effect');
             setTimeout(() => {
-              el?.classList.remove('snap-animation');
+              el?.classList.remove('snap-animation', 'glow-effect');
             }, 300);
           }
 
@@ -286,10 +363,25 @@ function App() {
           snapAnimationRef.current.add(piece.id);
 
           const placedCount = piecesStateRef.current.filter((p) => p.isPlaced).length;
-          if (placedCount === piecesStateRef.current.length) {
+          if (placedCount === piecesStateRef.current.length && image) {
+            const containerRect = containerRef.current?.getBoundingClientRect();
+            const offsetX = containerRect?.left || 0;
+            const offsetY = containerRect?.top || 0;
+            
+            const particleData = generateParticles(
+              piecesStateRef.current,
+              image,
+              offsetX,
+              offsetY
+            );
+            setParticles(particleData);
             setIsComplete(true);
             setIsTimerRunning(false);
             playCompleteSound();
+            
+            setTimeout(() => {
+              setParticles([]);
+            }, 2500);
           }
         } else {
           if (el) {
@@ -535,6 +627,27 @@ function App() {
       {showPreview && imageUrl && (
         <div className="preview-overlay" onClick={() => setShowPreview(false)}>
           <img src={imageUrl} alt="预览" className="preview-image" />
+        </div>
+      )}
+
+      {particles.length > 0 && (
+        <div className="particles-container" ref={particlesRef}>
+          {particles.map((particle) => (
+            <div
+              key={particle.id}
+              className="particle"
+              style={{
+                left: particle.x,
+                top: particle.y,
+                width: particle.size,
+                height: particle.size,
+                backgroundColor: particle.color,
+                boxShadow: `0 0 ${particle.size * 2}px ${particle.color}`,
+                '--dx': `${particle.dx}px`,
+                '--dy': `${particle.dy}px`,
+              } as React.CSSProperties}
+            />
+          ))}
         </div>
       )}
 
