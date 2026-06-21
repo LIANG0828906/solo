@@ -92,17 +92,17 @@ const ToolPanel: React.FC<ToolPanelProps> = ({
 }) => {
   const brushWidthDisplay = brushWidth.toFixed(1);
 
-  const sliderInkValue = Math.round(Math.sqrt((inkDepth - 0.1) / 0.9) * 100);
+  const safeInkDepth = Math.max(0.1, Math.min(1.0, inkDepth));
+  const sliderInkValue = Math.round(Math.sqrt((safeInkDepth - 0.1) / 0.9) * 100);
 
   const handleInkSliderChange = (value: number) => {
-    const t = value / 100;
+    const t = Math.max(0, Math.min(1, value / 100));
     const mappedDepth = 0.1 + 0.9 * t * t;
     onInkDepthChange(mappedDepth);
   };
 
   const handleBrushWidthChange = (value: number) => {
-    const rounded = Math.round(value * 2) / 2;
-    onBrushWidthChange(rounded);
+    onBrushWidthChange(value);
   };
 
   return (

@@ -5,7 +5,8 @@ import {
   renderProcessedStroke,
   PAPER_PRESETS,
   type ProcessedStroke,
-  type PaperTexture
+  type PaperTexture,
+  type PaperConfig
 } from '../modules/styleTransfer';
 
 export interface DrawingCanvasHandle {
@@ -211,7 +212,12 @@ const DrawingCanvas = forwardRef<DrawingCanvasHandle, DrawingCanvasProps>((
     }
   }, [paperConfig, inkDepth, showCompare, comparePosition]);
 
-  const drawPaperTexture = (ctx: CanvasRenderingContext2D, config: typeof PAPER_PRESETS.rice) => {
+  const drawPaperTexture = (ctx: CanvasRenderingContext2D, config: PaperConfig) => {
+    ctx.save();
+    ctx.fillStyle = config.backgroundColor;
+    ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.restore();
+
     if (config.noiseOpacity <= 0 && !config.goldSpots) return;
 
     const imageData = ctx.createImageData(CANVAS_WIDTH, CANVAS_HEIGHT);
