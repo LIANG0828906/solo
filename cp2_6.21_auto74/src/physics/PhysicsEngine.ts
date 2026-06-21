@@ -5,6 +5,7 @@ interface CollisionParticle {
   velocity: { x: number; y: number; z: number };
   life: number;
   maxLife: number;
+  color: string;
 }
 
 export class PhysicsEngine {
@@ -286,7 +287,7 @@ export class PhysicsEngine {
     return '#ff4444';
   }
 
-  private createCollisionParticles(position: { x: number; y: number; z: number }): void {
+  private createCollisionParticles(position: { x: number; y: number; z: number }, color: string): void {
     for (let i = 0; i < 100; i++) {
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
@@ -300,6 +301,7 @@ export class PhysicsEngine {
         },
         life: 0.5,
         maxLife: 0.5,
+        color,
       });
     }
   }

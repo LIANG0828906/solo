@@ -29,4 +29,5 @@ export interface Particle {
   velocity: { x: number; y: number; z: number };
   life: number;
   maxLife: number;
+  color: string;
 }
