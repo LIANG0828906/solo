@@ -55,13 +55,19 @@ def init_db():
             y REAL NOT NULL DEFAULT 0,
             width REAL NOT NULL DEFAULT 200,
             height REAL NOT NULL DEFAULT 80,
-            group_id TEXT,
+            group_id TEXT DEFAULT NULL,
             created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (room_id) REFERENCES rooms(id),
             FOREIGN KEY (group_id) REFERENCES semantic_groups(id)
         )
     ''')
+
+    try:
+        cursor.execute("SELECT group_id FROM nodes LIMIT 1")
+    except sqlite3.OperationalError:
+        cursor.execute("ALTER TABLE nodes ADD COLUMN group_id TEXT DEFAULT NULL")
+        cursor.execute("CREATE INDEX IF NOT EXISTS idx_nodes_group_id ON nodes(group_id)")
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS connections (

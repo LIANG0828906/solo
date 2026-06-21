@@ -1,6 +1,6 @@
 import re
 import math
-from typing import List, Dict, Any, Optional, Set, Tuple
+from typing import List, Dict, Any, Optional, Set, Tuple, TypedDict
 from collections import Counter, defaultdict
 
 try:
@@ -8,6 +8,17 @@ try:
     JIEBA_AVAILABLE = True
 except ImportError:
     JIEBA_AVAILABLE = False
+
+
+class NodeItem(TypedDict):
+    id: str
+    title: str
+
+
+class GroupResult(TypedDict):
+    groupId: str
+    keyword: str
+    nodeIds: List[str]
 
 
 class SemanticService:
@@ -55,7 +66,9 @@ class SemanticService:
         r'[，。！？、；：""''（）《》【】…—\-\.\,\!\?\;\:\"\'\(\)\[\]\<\>\/\\\|\@\#\$\%\^\&\*\+\=\_\~\`\s]'
     )
 
-    def __init__(self, similarity_threshold: float = 0.3):
+    DEFAULT_THRESHOLD = 0.3
+
+    def __init__(self, similarity_threshold: float = DEFAULT_THRESHOLD):
         self.similarity_threshold = similarity_threshold
         if JIEBA_AVAILABLE:
             jieba.setLogLevel(60)
@@ -73,16 +86,32 @@ class SemanticService:
         text_clean = self.PUNCTUATION_PATTERN.sub(' ', text).strip()
 
         if JIEBA_AVAILABLE:
-            tokens = list(jieba.cut(text_clean))
+            tokens = list(jieba.cut_for_search(text_clean))
         else:
             tokens = re.findall(r'[\u4e00-\u9fff]+|[a-zA-Z]+|\d+', text_clean)
 
-        tokens = [
-            self._normalize_word(t) for t in tokens
-            if t.strip() and t.strip() not in self.STOPWORDS and len(t.strip()) >= 1
-        ]
+        result: List[str] = []
+        seen = set()
+        for t in tokens:
+            t_clean = t.strip()
+            if not t_clean or t_clean in self.STOPWORDS or len(t_clean) < 1:
+                continue
+            normalized = self._normalize_word(t_clean)
+            if normalized not in seen:
+                result.append(normalized)
+                seen.add(normalized)
 
-        return tokens
+            if len(t_clean) > 1 and re.match(r'^[\u4e00-\u9fff]+$', t_clean):
+                for i in range(len(t_clean)):
+                    for j in range(i + 1, len(t_clean) + 1):
+                        sub = t_clean[i:j]
+                        if len(sub) >= 1 and sub in self.SYNONYMS:
+                            sub_normalized = self._normalize_word(sub)
+                            if sub_normalized not in seen:
+                                result.append(sub_normalized)
+                                seen.add(sub_normalized)
+
+        return result
 
     def _build_tfidf_vectors(
         self, all_documents: List[List[str]]
@@ -134,11 +163,17 @@ class SemanticService:
         if not text1 or not text2:
             return 0.0
 
-        if text1.strip() == text2.strip():
+        text1_stripped = text1.strip()
+        text2_stripped = text2.strip()
+
+        if not text1_stripped or not text2_stripped:
+            return 0.0
+
+        if text1_stripped == text2_stripped:
             return 1.0
 
-        tokens1 = self._tokenize(text1)
-        tokens2 = self._tokenize(text2)
+        tokens1 = self._tokenize(text1_stripped)
+        tokens2 = self._tokenize(text2_stripped)
 
         if not tokens1 or not tokens2:
             return 0.0
@@ -173,7 +208,7 @@ class SemanticService:
         return list(groups.values())
 
     def _get_group_keyword(
-        self, group_indices: List[int], items: List[Dict[str, Any]]
+        self, group_indices: List[int], items: List[NodeItem]
     ) -> str:
         all_tokens: List[str] = []
         for idx in group_indices:
@@ -189,34 +224,45 @@ class SemanticService:
         return most_common[0][0] if most_common else '未命名组'
 
     def group_items(
-        self, items: List[Dict[str, Any]]
-    ) -> List[Dict[str, Any]]:
+        self,
+        items: List[NodeItem],
+        threshold: Optional[float] = None,
+    ) -> List[GroupResult]:
         if not items:
             return []
+
+        if threshold is None:
+            threshold = self.similarity_threshold
 
         n = len(items)
         if n == 1:
             return [{
                 'groupId': 'group_0',
                 'keyword': self._get_group_keyword([0], items),
-                'nodeIds': [items[0].get('id')],
+                'nodeIds': [items[0].get('id', '')],
             }]
 
         connected_pairs: List[Tuple[int, int]] = []
         for i in range(n):
             for j in range(i + 1, n):
+                if i == j:
+                    continue
                 title_i = items[i].get('title', '')
                 title_j = items[j].get('title', '')
                 sim = self.calculate_similarity(title_i, title_j)
-                if sim >= self.similarity_threshold:
+                if sim >= threshold:
                     connected_pairs.append((i, j))
 
         components = self._find_connected_components(connected_pairs, n)
 
-        result: List[Dict[str, Any]] = []
+        result: List[GroupResult] = []
         for g_idx, component in enumerate(components):
             keyword = self._get_group_keyword(component, items)
-            node_ids = [items[idx].get('id') for idx in component if items[idx].get('id')]
+            node_ids = [
+                items[idx].get('id', '')
+                for idx in component
+                if items[idx].get('id')
+            ]
             result.append({
                 'groupId': f'group_{g_idx}',
                 'keyword': keyword,

@@ -71,6 +71,7 @@ class DeleteItemInput(BaseModel):
 
 class SemanticGroupInput(BaseModel):
     nodes: List[Dict[str, Any]]
+    threshold: Optional[float] = Field(default=None, ge=0.0, le=1.0)
 
 
 class GroupUpdateInput(BaseModel):
@@ -310,7 +311,7 @@ async def import_room(room_id: str, file: UploadFile = File(...)):
 @app.post("/api/semantic/group")
 async def semantic_group(req: SemanticGroupInput):
     try:
-        groups = semantic_service.group_items(req.nodes)
+        groups = semantic_service.group_items(req.nodes, threshold=req.threshold)
         return {'groups': groups}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
