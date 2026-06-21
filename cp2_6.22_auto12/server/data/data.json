@@ -1,0 +1,294 @@
+{
+  "trips": [
+    {
+      "id": "trip_001",
+      "destination": "东京",
+      "startDate": "2024-07-01",
+      "endDate": "2024-07-07",
+      "coverImage": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Tokyo%20cityscape%20with%20Tokyo%20Tower%20at%20sunset%20vibrant%20colors&image_size=landscape_16_9",
+      "activities": [
+        {
+          "id": "act_001",
+          "dayIndex": 0,
+          "time": "09:00",
+          "location": "浅草寺",
+          "description": "参观东京最古老的寺庙，感受传统日本文化",
+          "notes": "记得穿舒适的鞋子，周边有很多小吃店",
+          "locationId": "loc_001"
+        },
+        {
+          "id": "act_002",
+          "dayIndex": 0,
+          "time": "12:00",
+          "location": "秋叶原",
+          "description": "动漫和电子产品天堂，逛逛大型电器店",
+          "notes": "可以体验扭蛋机和动漫咖啡厅",
+          "locationId": "loc_002"
+        },
+        {
+          "id": "act_003",
+          "dayIndex": 1,
+          "time": "10:00",
+          "location": "明治神宫",
+          "description": "漫步在原宿的森林神社，远离城市喧嚣",
+          "notes": "周日上午有神社仪式表演",
+          "locationId": "loc_003"
+        },
+        {
+          "id": "act_004",
+          "dayIndex": 1,
+          "time": "14:00",
+          "location": "涩谷十字路口",
+          "description": "世界最繁忙的十字路口，感受东京的节奏",
+          "notes": "在星巴克二楼可以拍到最佳视角",
+          "locationId": "loc_004"
+        },
+        {
+          "id": "act_005",
+          "dayIndex": 2,
+          "time": "09:30",
+          "location": "迪士尼乐园",
+          "description": "一整天的欢乐时光，体验各种游乐设施",
+          "notes": "提前下载官方APP查看排队时间",
+          "locationId": "loc_005"
+        }
+      ],
+      "locations": [
+        {
+          "id": "loc_001",
+          "name": "浅草寺",
+          "lat": 35.7148,
+          "lng": 139.7967,
+          "dayIndex": 0,
+          "activityId": "act_001"
+        },
+        {
+          "id": "loc_002",
+          "name": "秋叶原",
+          "lat": 35.7022,
+          "lng": 139.7741,
+          "dayIndex": 0,
+          "activityId": "act_002"
+        },
+        {
+          "id": "loc_003",
+          "name": "明治神宫",
+          "lat": 35.6764,
+          "lng": 139.6993,
+          "dayIndex": 1,
+          "activityId": "act_003"
+        },
+        {
+          "id": "loc_004",
+          "name": "涩谷十字路口",
+          "lat": 35.6595,
+          "lng": 139.7004,
+          "dayIndex": 1,
+          "activityId": "act_004"
+        },
+        {
+          "id": "loc_005",
+          "name": "东京迪士尼乐园",
+          "lat": 35.6329,
+          "lng": 139.8804,
+          "dayIndex": 2,
+          "activityId": "act_005"
+        }
+      ],
+      "createdAt": "2024-06-01T10:00:00Z",
+      "updatedAt": "2024-06-01T10:00:00Z"
+    },
+    {
+      "id": "trip_002",
+      "destination": "京都",
+      "startDate": "2024-08-15",
+      "endDate": "2024-08-18",
+      "coverImage": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Fushimi%20Inari%20shrine%20with%20red%20torii%20gates%20in%20Kyoto%20Japan&image_size=landscape_16_9",
+      "activities": [
+        {
+          "id": "act_006",
+          "dayIndex": 0,
+          "time": "08:00",
+          "location": "伏见稻荷大社",
+          "description": "千本鸟居徒步，感受清晨的宁静",
+          "notes": "建议早上去避开人潮",
+          "locationId": "loc_006"
+        },
+        {
+          "id": "act_007",
+          "dayIndex": 1,
+          "time": "10:00",
+          "location": "金阁寺",
+          "description": "参观金碧辉煌的金色楼阁",
+          "notes": "傍晚时分阳光照射最美",
+          "locationId": "loc_007"
+        },
+        {
+          "id": "act_008",
+          "dayIndex": 2,
+          "time": "09:00",
+          "location": "祗园",
+          "description": "漫步花见小路，寻找艺伎",
+          "notes": "请尊重艺伎的隐私，不要强行拍照",
+          "locationId": "loc_008"
+        }
+      ],
+      "locations": [
+        {
+          "id": "loc_006",
+          "name": "伏见稻荷大社",
+          "lat": 34.9671,
+          "lng": 135.7727,
+          "dayIndex": 0,
+          "activityId": "act_006"
+        },
+        {
+          "id": "loc_007",
+          "name": "金阁寺",
+          "lat": 35.0394,
+          "lng": 135.7292,
+          "dayIndex": 1,
+          "activityId": "act_007"
+        },
+        {
+          "id": "loc_008",
+          "name": "祗园花见小路",
+          "lat": 35.0036,
+          "lng": 135.7756,
+          "dayIndex": 2,
+          "activityId": "act_008"
+        }
+      ],
+      "createdAt": "2024-06-15T14:30:00Z",
+      "updatedAt": "2024-06-15T14:30:00Z"
+    },
+    {
+      "id": "trip_003",
+      "destination": "北海道",
+      "startDate": "2024-09-20",
+      "endDate": "2024-09-27",
+      "coverImage": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Hokkaido%20lavender%20fields%20with%20mountain%20backdrop%20summer&image_size=landscape_16_9",
+      "activities": [
+        {
+          "id": "act_009",
+          "dayIndex": 0,
+          "time": "13:00",
+          "location": "札幌大通公园",
+          "description": "漫步市中心公园，参观电视塔",
+          "notes": "周末有露天市集",
+          "locationId": "loc_009"
+        },
+        {
+          "id": "act_010",
+          "dayIndex": 2,
+          "time": "09:00",
+          "location": "富良野花海",
+          "description": "夏季限定薰衣草花田，美不胜收",
+          "notes": "最佳观赏期是7月中旬到8月上旬",
+          "locationId": "loc_010"
+        },
+        {
+          "id": "act_011",
+          "dayIndex": 4,
+          "time": "08:30",
+          "location": "小樽运河",
+          "description": "浪漫的运河散步，参观玻璃工坊",
+          "notes": "傍晚点灯后更加浪漫",
+          "locationId": "loc_011"
+        }
+      ],
+      "locations": [
+        {
+          "id": "loc_009",
+          "name": "札幌大通公园",
+          "lat": 43.0621,
+          "lng": 141.3544,
+          "dayIndex": 0,
+          "activityId": "act_009"
+        },
+        {
+          "id": "loc_010",
+          "name": "富良野薰衣草花田",
+          "lat": 43.3462,
+          "lng": 142.3739,
+          "dayIndex": 2,
+          "activityId": "act_010"
+        },
+        {
+          "id": "loc_011",
+          "name": "小樽运河",
+          "lat": 43.1907,
+          "lng": 140.9945,
+          "dayIndex": 4,
+          "activityId": "act_011"
+        }
+      ],
+      "createdAt": "2024-06-20T09:00:00Z",
+      "updatedAt": "2024-06-20T09:00:00Z"
+    },
+    {
+      "id": "trip_004",
+      "destination": "大阪",
+      "startDate": "2024-10-05",
+      "endDate": "2024-10-08",
+      "coverImage": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=Osaka%20Castle%20at%20golden%20hour%20with%20cherry%20blossoms&image_size=landscape_16_9",
+      "activities": [
+        {
+          "id": "act_012",
+          "dayIndex": 0,
+          "time": "11:00",
+          "location": "大阪城",
+          "description": "参观战国时代的名城，了解日本历史",
+          "notes": "城内有博物馆展示文物",
+          "locationId": "loc_012"
+        },
+        {
+          "id": "act_013",
+          "dayIndex": 0,
+          "time": "18:00",
+          "location": "道顿堀",
+          "description": "美食一条街，品尝大阪特色小吃",
+          "notes": "推荐章鱼烧、大阪烧、炸串",
+          "locationId": "loc_013"
+        },
+        {
+          "id": "act_014",
+          "dayIndex": 1,
+          "time": "10:00",
+          "location": "USJ环球影城",
+          "description": "超级任天堂世界和哈利波特园区",
+          "notes": "提前购买快速通票节省排队时间",
+          "locationId": "loc_014"
+        }
+      ],
+      "locations": [
+        {
+          "id": "loc_012",
+          "name": "大阪城",
+          "lat": 34.6873,
+          "lng": 135.5262,
+          "dayIndex": 0,
+          "activityId": "act_012"
+        },
+        {
+          "id": "loc_013",
+          "name": "道顿堀",
+          "lat": 34.6687,
+          "lng": 135.5014,
+          "dayIndex": 0,
+          "activityId": "act_013"
+        },
+        {
+          "id": "loc_014",
+          "name": "日本环球影城",
+          "lat": 34.6655,
+          "lng": 135.4323,
+          "dayIndex": 1,
+          "activityId": "act_014"
+        }
+      ],
+      "createdAt": "2024-06-25T16:45:00Z",
+      "updatedAt": "2024-06-25T16:45:00Z"
+    }
+  ]
+}
