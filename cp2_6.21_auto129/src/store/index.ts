@@ -8,6 +8,15 @@ export interface Note {
   createdAt: number;
 }
 
+export interface PulseCell {
+  id: string;
+  trackId: string;
+  row: number;
+  col: number;
+  clickedAt: number;
+  isAdding: boolean;
+}
+
 export interface Track {
   id: string;
   name: string;
@@ -34,6 +43,7 @@ interface AppState {
   playhead: number;
   isPlaying: boolean;
   toasts: { id: string; message: string }[];
+  pulseCells: PulseCell[];
 
   setProjects: (projects: Project[]) => void;
   addProject: (project: Project) => void;
@@ -51,6 +61,8 @@ interface AppState {
 
   addToast: (message: string) => void;
   removeToast: (id: string) => void;
+  addPulseCell: (cell: Omit<PulseCell, 'id' | 'clickedAt'>) => void;
+  removePulseCell: (id: string) => void;
 }
 
 export const useStore = create<AppState>((set) => ({
@@ -60,6 +72,7 @@ export const useStore = create<AppState>((set) => ({
   playhead: 0,
   isPlaying: false,
   toasts: [],
+  pulseCells: [],
 
   setProjects: (projects) => set({ projects }),
   addProject: (project) =>
@@ -137,4 +150,18 @@ export const useStore = create<AppState>((set) => ({
   },
   removeToast: (id) =>
     set((state) => ({ toasts: state.toasts.filter((t) => t.id !== id) })),
+  addPulseCell: (cell) => {
+    const id = Date.now().toString() + Math.random().toString(36).slice(2);
+    const pulseCell: PulseCell = {
+      ...cell,
+      id,
+      clickedAt: Date.now(),
+    };
+    set((state) => ({ pulseCells: [...state.pulseCells, pulseCell] }));
+    setTimeout(() => {
+      set((state) => ({ pulseCells: state.pulseCells.filter((p) => p.id !== id) }));
+    }, 200);
+  },
+  removePulseCell: (id) =>
+    set((state) => ({ pulseCells: state.pulseCells.filter((p) => p.id !== id) })),
 }));
