@@ -67,7 +67,7 @@ export class SceneManager {
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controls.enableDamping = true;
     this.controls.dampingFactor = DAMPING;
-    this.controls.target.set(0, 0, 0);
+    this.controls.target.set(0, -128, 0);
     this.controls.minDistance = 100;
     this.controls.maxDistance = 800;
 
@@ -114,9 +114,7 @@ export class SceneManager {
 
     const planeGeo = new THREE.PlaneGeometry(size, size);
     const planeMat = new THREE.MeshBasicMaterial({
-      color: 0x000000,
-      transparent: true,
-      opacity: 0,
+      color: 0x1a1a1a,
       side: THREE.DoubleSide
     });
     this.groundPlane = new THREE.Mesh(planeGeo, planeMat);
@@ -285,7 +283,7 @@ export class SceneManager {
       const scale = this.easeOutBack(t);
       mesh.scale.set(scale, scale, scale);
 
-      const flashOpacity = t < 0.5 ? 0.5 * (1 - t / 0.5) : 0;
+      const flashOpacity = t < 0.4 ? 0.6 * (1 - t / 0.4) : 0;
       (flashMesh.material as THREE.MeshBasicMaterial).opacity = flashOpacity;
 
       if (t < 1) {
@@ -300,9 +298,10 @@ export class SceneManager {
   }
 
   private easeOutBack(t: number): number {
-    const c1 = 1.70158;
+    const c1 = 1.065;
     const c3 = c1 + 1;
-    return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+    const result = 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+    return result;
   }
 
   private easeOutCubic(t: number): number {
@@ -546,6 +545,7 @@ let sceneManager: SceneManager | null = null;
 
 export function initScene(container: HTMLElement): SceneManager {
   sceneManager = new SceneManager(container);
+  (window as any).__scene = sceneManager;
   return sceneManager;
 }
 
@@ -553,4 +553,4 @@ export function getScene(): SceneManager | null {
   return sceneManager;
 }
 
-export type { CameraView, SceneManager };
+export type { CameraView };

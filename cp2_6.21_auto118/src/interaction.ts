@@ -22,6 +22,7 @@ class InteractionManager {
   private isSelecting: boolean = false;
   private selectionRect: SelectionRect | null = null;
   private selectionBox: HTMLDivElement | null = null;
+  private canvas: HTMLCanvasElement | null = null;
 
   private modeChangeListeners: ((mode: ToolMode) => void)[] = [];
 
@@ -30,14 +31,18 @@ class InteractionManager {
 
   init(container: HTMLElement): void {
     this.scene = getScene();
-    if (!this.scene) return;
+    if (!this.scene) {
+      console.error('Scene is null, interaction init failed!');
+      return;
+    }
 
-    const canvas = this.scene.getRendererDomElement();
+    this.canvas = this.scene.getRendererDomElement();
 
-    canvas.addEventListener('mousemove', this.handleMouseMove);
-    canvas.addEventListener('mousedown', this.handleMouseDown);
-    canvas.addEventListener('mouseup', this.handleMouseUp);
-    canvas.addEventListener('mouseleave', this.handleMouseLeave);
+    this.canvas.addEventListener('mousemove', this.handleMouseMove, true);
+    this.canvas.addEventListener('mousedown', this.handleMouseDown, true);
+    this.canvas.addEventListener('mouseup', this.handleMouseUp, true);
+    this.canvas.addEventListener('mouseleave', this.handleMouseLeave, true);
+    this.canvas.addEventListener('click', this.handleClickEvent, true);
     window.addEventListener('keydown', this.handleKeyDown);
 
     this.createSelectionBox(container);
@@ -125,10 +130,6 @@ class InteractionManager {
       const face = intersect.face;
       if (!face) return;
 
-      let placeX: number, placeY: number, placeZ: number;
-      let faceCenter: THREE.Vector3;
-      let normal: THREE.Vector3;
-
       if (intersect.object === groundPlane) {
         const point = intersect.point;
         const gx = Math.floor(point.x / GRID.CELL_SIZE);
@@ -137,31 +138,31 @@ class InteractionManager {
 
         if (grid.isInBounds(gx, gy, gz) && !grid.hasVoxel(gx, gy, gz)) {
           const half = GRID.CELL_SIZE / 2;
-          faceCenter = new THREE.Vector3(
+          const faceCenter = new THREE.Vector3(
             gx * GRID.CELL_SIZE + half,
             GRID.GRID_MIN * GRID.CELL_SIZE,
             gz * GRID.CELL_SIZE + half
           );
-          normal = new THREE.Vector3(0, 1, 0);
+          const normal = new THREE.Vector3(0, 1, 0);
           this.scene.showHighlight(faceCenter, normal);
         } else {
           this.scene.hideHighlight(0);
         }
       } else {
-        normal = face.normal.clone();
+        const normal = face.normal.clone();
         normal.transformDirection(intersect.object.matrixWorld);
 
         const vx = (intersect.object as THREE.Mesh).userData.voxelX as number;
         const vy = (intersect.object as THREE.Mesh).userData.voxelY as number;
         const vz = (intersect.object as THREE.Mesh).userData.voxelZ as number;
 
-        placeX = vx + Math.round(normal.x);
-        placeY = vy + Math.round(normal.y);
-        placeZ = vz + Math.round(normal.z);
+        const placeX = vx + Math.round(normal.x);
+        const placeY = vy + Math.round(normal.y);
+        const placeZ = vz + Math.round(normal.z);
 
         if (grid.isInBounds(placeX, placeY, placeZ) && !grid.hasVoxel(placeX, placeY, placeZ)) {
           const half = GRID.CELL_SIZE / 2;
-          faceCenter = new THREE.Vector3(
+          const faceCenter = new THREE.Vector3(
             vx * GRID.CELL_SIZE + half + normal.x * half * 0.92,
             vy * GRID.CELL_SIZE + half + normal.y * half * 0.92,
             vz * GRID.CELL_SIZE + half + normal.z * half * 0.92
@@ -183,6 +184,7 @@ class InteractionManager {
     this.dragStartPos = { x: e.clientX, y: e.clientY };
 
     if (this.mode === 'remove' && this.selectionBox) {
+      e.stopPropagation();
       this.isSelecting = true;
       this.selectionRect = {
         startX: e.clientX,
@@ -207,16 +209,27 @@ class InteractionManager {
       if (dragDist > 5 && this.mode === 'remove') {
         this.handleBoxSelection();
       } else if (dragDist <= 5) {
-        this.handleClick(e);
+        this.handleClick(e.clientX, e.clientY);
       }
       this.selectionBox.style.display = 'none';
       this.isSelecting = false;
       this.selectionRect = null;
-    } else if (dragDist < 5) {
-      this.handleClick(e);
     }
 
     this.isDragging = false;
+  };
+
+  private handleClickEvent = (e: MouseEvent): void => {
+    if (e.button !== 0) return;
+
+    const dragDist = Math.hypot(e.clientX - this.dragStartPos.x, e.clientY - this.dragStartPos.y);
+    if (dragDist >= 5) return;
+
+    if (this.isSelecting) return;
+
+    e.stopPropagation();
+    e.preventDefault();
+    this.handleClick(e.clientX, e.clientY);
   };
 
   private handleMouseLeave = (): void => {
@@ -248,17 +261,17 @@ class InteractionManager {
     this.selectionBox.style.height = height + 'px';
   }
 
-  private handleClick = (e: MouseEvent): void => {
-    if (!this.scene) return;
+  private handleClick(clientX: number, clientY: number): void {
+    if (!this.scene || !this.canvas) return;
 
-    this.scene.updateMouse(e.clientX, e.clientY);
+    this.scene.updateMouse(clientX, clientY);
 
     if (this.mode === 'place') {
       this.handlePlaceClick();
     } else {
       this.handleRemoveClick();
     }
-  };
+  }
 
   private handlePlaceClick(): void {
     if (!this.scene) return;
@@ -273,11 +286,17 @@ class InteractionManager {
     const targets = [groundPlane, ...voxelMeshes];
     const intersects = raycaster.intersectObjects(targets, false);
 
-    if (intersects.length === 0) return;
+    if (intersects.length === 0) {
+      this.scene.showError();
+      return;
+    }
 
     const intersect = intersects[0];
     const face = intersect.face;
-    if (!face) return;
+    if (!face) {
+      this.scene.showError();
+      return;
+    }
 
     let placeX: number, placeY: number, placeZ: number;
 
@@ -302,7 +321,7 @@ class InteractionManager {
     const success = grid.addVoxel(placeX, placeY, placeZ, this.currentColor);
 
     if (success) {
-      this.scene.hideHighlight(ANIMATION.HIGHLIGHT_FADE_DELAY);
+      this.scene.hideHighlight(ANIMATION.HIGHLIGHT_FADE_DELAY + ANIMATION.PLACE_DURATION);
     } else {
       this.scene.showError();
     }
@@ -329,10 +348,9 @@ class InteractionManager {
   }
 
   private handleBoxSelection(): void {
-    if (!this.scene || !this.selectionRect) return;
+    if (!this.scene || !this.selectionRect || !this.canvas) return;
 
-    const canvas = this.scene.getRendererDomElement();
-    const rect = canvas.getBoundingClientRect();
+    const rect = this.canvas.getBoundingClientRect();
 
     const minX = Math.min(this.selectionRect.startX, this.selectionRect.endX) - rect.left;
     const maxX = Math.max(this.selectionRect.startX, this.selectionRect.endX) - rect.left;
