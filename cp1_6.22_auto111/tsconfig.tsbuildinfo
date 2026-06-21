@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/api/index.ts","./src/components/doctorpanel.tsx","./src/components/patientview.tsx","./src/components/pharmacyview.tsx","./server/index.ts"],"version":"5.8.3"}
