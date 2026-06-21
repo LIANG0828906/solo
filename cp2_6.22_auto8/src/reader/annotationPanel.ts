@@ -511,6 +511,16 @@ export class AnnotationPanel extends LitElement {
   private async createHighlight() {
     if (!this.selectionData) return;
 
+    const reader = this.getBookReader();
+    let cfi = '';
+    
+    if (reader && reader.getSelectionCfi) {
+      const selectionInfo = reader.getSelectionCfi();
+      if (selectionInfo) {
+        cfi = selectionInfo.cfi;
+      }
+    }
+
     const annotation: Annotation = {
       id: generateId(),
       bookId: this.book.id,
@@ -519,25 +529,29 @@ export class AnnotationPanel extends LitElement {
       color: this.selectedColor,
       text: this.selectionData.text,
       content: '',
-      startOffset: 0,
-      endOffset: 0,
+      cfi,
       createdAt: new Date()
     };
 
     await storage.saveAnnotation(annotation);
     this.annotations.unshift(annotation);
-    this.applyHighlightToSelection();
+    this.applyHighlightToSelection(annotation.id);
     this.clearSelection();
   }
 
-  private applyHighlightToSelection() {
+  private getBookReader(): any {
+    const reader = document.querySelector('book-reader');
+    return reader;
+  }
+
+  private applyHighlightToSelection(annotationId: string) {
     const selection = window.getSelection();
     if (!selection || selection.rangeCount === 0) return;
 
     const range = selection.getRangeAt(0);
     const span = document.createElement('span');
     span.className = `highlight-${this.selectedColor}`;
-    span.dataset.annotationId = this.annotations[0]?.id;
+    span.dataset.annotationId = annotationId;
 
     try {
       range.surroundContents(span);
@@ -556,6 +570,16 @@ export class AnnotationPanel extends LitElement {
   private async saveNote() {
     if (!this.selectionData || !this.noteText.trim()) return;
 
+    const reader = this.getBookReader();
+    let cfi = '';
+    
+    if (reader && reader.getSelectionCfi) {
+      const selectionInfo = reader.getSelectionCfi();
+      if (selectionInfo) {
+        cfi = selectionInfo.cfi;
+      }
+    }
+
     const annotation: Annotation = {
       id: generateId(),
       bookId: this.book.id,
@@ -564,14 +588,13 @@ export class AnnotationPanel extends LitElement {
       color: this.selectedColor,
       text: this.selectionData.text,
       content: this.noteText.trim(),
-      startOffset: 0,
-      endOffset: 0,
+      cfi,
       createdAt: new Date()
     };
 
     await storage.saveAnnotation(annotation);
     this.annotations.unshift(annotation);
-    this.applyHighlightToSelection();
+    this.applyHighlightToSelection(annotation.id);
     this.closeNoteInput();
     this.clearSelection();
   }
@@ -593,15 +616,9 @@ export class AnnotationPanel extends LitElement {
     await storage.deleteAnnotation(annotation.id);
     this.annotations = this.annotations.filter(a => a.id !== annotation.id);
     
-    const highlightEl = document.querySelector(`[data-annotation-id="${annotation.id}"]`);
-    if (highlightEl) {
-      const parent = highlightEl.parentNode;
-      if (parent) {
-        while (highlightEl.firstChild) {
-          parent.insertBefore(highlightEl.firstChild, highlightEl);
-        }
-        parent.removeChild(highlightEl);
-      }
+    const reader = this.getBookReader();
+    if (reader && reader.removeHighlight) {
+      reader.removeHighlight(annotation.id);
     }
   }
 

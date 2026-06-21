@@ -77,12 +77,14 @@ export class ShelfGrid extends LitElement {
     .search-box input {
       width: 100%;
       padding: 12px 16px 12px 44px;
-      border: none;
       border-radius: 12px;
-      background: rgba(245, 240, 232, 0.15);
+      background: rgba(245, 240, 232, 0.12);
       color: var(--cream);
       font-size: 14px;
       transition: all 0.3s ease;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(245, 240, 232, 0.15);
     }
 
     .search-box input::placeholder {
@@ -90,8 +92,9 @@ export class ShelfGrid extends LitElement {
     }
 
     .search-box input:focus {
-      background: rgba(245, 240, 232, 0.25);
+      background: rgba(245, 240, 232, 0.2);
       box-shadow: 0 0 0 3px rgba(245, 240, 232, 0.2);
+      border-color: rgba(245, 240, 232, 0.3);
     }
 
     .search-icon {
@@ -461,11 +464,6 @@ export class ShelfGrid extends LitElement {
     this.removeEventListener('refresh', this.handleRefresh);
   }
 
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    this.removeDragAndDrop();
-  }
-
   private async loadBooks() {
     this.isLoading = true;
     try {
@@ -563,6 +561,10 @@ export class ShelfGrid extends LitElement {
   private handleFilterChange = (filterType: keyof FilterOptions, e: Event) => {
     const target = e.target as HTMLSelectElement;
     this.filters = { ...this.filters, [filterType]: target.value };
+    this.loadBooks();
+  };
+
+  private handleRefresh = () => {
     this.loadBooks();
   };
 
@@ -687,6 +689,7 @@ export class ShelfGrid extends LitElement {
               <div 
                 class="book-card" 
                 style="animation-delay: ${index * 0.05}s; transform: translateY(20px)"
+                data-book-id=${book.id}
                 @click=${() => this.handleBookClick(book)}
               >
                 <span class=${classMap({

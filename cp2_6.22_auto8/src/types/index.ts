@@ -31,8 +31,7 @@ export interface Annotation {
   color: 'yellow' | 'green' | 'blue' | 'pink';
   text: string;
   content: string;
-  startOffset: number;
-  endOffset: number;
+  cfi: string;
   createdAt: Date;
 }
 

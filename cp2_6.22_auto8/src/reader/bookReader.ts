@@ -2,8 +2,10 @@ import { LitElement, html, css, nothing } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
 import { classMap } from 'lit/directives/class-map.js';
 import { bookManager } from '../library/bookManager';
-import type { Book, Chapter, ThemeType } from '../types';
+import { storage } from '../utils/storage';
+import type { Book, Chapter, ThemeType, Annotation } from '../types';
 import { THEMES } from '../types';
+import { resolveEpubResourcePath, resourceToDataUrl, getRangeFromCfi, generateCfiFromRange } from '../utils/epubUtils';
 
 @customElement('book-reader')
 export class BookReader extends LitElement {
@@ -28,7 +30,9 @@ export class BookReader extends LitElement {
   private pdfDoc: any = null;
   private epubRendition: any = null;
   private autoSaveTimer: number | null = null;
+  private debounceTimer: number | null = null;
   private readonly AUTO_SAVE_INTERVAL = 10000;
+  private readonly DEBOUNCE_DELAY = 500;
   
   static styles = css`
     :host {
@@ -469,13 +473,16 @@ export class BookReader extends LitElement {
     await this.initReader();
     this.startAutoSave();
     document.addEventListener('keydown', this.handleKeydown);
+    document.addEventListener('visibilitychange', this.handleVisibilityChange);
   }
 
   disconnectedCallback() {
     super.disconnectedCallback();
     this.stopAutoSave();
+    this.stopDebounceSave();
     this.saveProgress();
     document.removeEventListener('keydown', this.handleKeydown);
+    document.removeEventListener('visibilitychange', this.handleVisibilityChange);
     this.cleanup();
   }
 
@@ -575,10 +582,105 @@ export class BookReader extends LitElement {
       let styles = '';
       styleElements.forEach(s => styles += s.textContent);
       
+      const images = body.querySelectorAll('img');
+      for (const img of images) {
+        const src = img.getAttribute('src');
+        if (src) {
+          const resolvedPath = resolveEpubResourcePath(chapter.href, src);
+          const dataUrl = await resourceToDataUrl(this.epubBook, resolvedPath);
+          if (dataUrl) {
+            img.setAttribute('src', dataUrl);
+          }
+        }
+      }
+      
+      const links = doc.querySelectorAll('link[rel="stylesheet"]');
+      for (const link of links) {
+        const href = link.getAttribute('href');
+        if (href) {
+          const resolvedPath = resolveEpubResourcePath(chapter.href, href);
+          const cssContent = await this.epubBook.load(resolvedPath);
+          if (cssContent) {
+            const styleEl = doc.createElement('style');
+            styleEl.textContent = cssContent;
+            link.replaceWith(styleEl);
+            styles += cssContent;
+          }
+        }
+      }
+      
       this.content = `<style>${styles}</style>${body.innerHTML}`;
+      
+      await this.updateComplete;
+      await new Promise(resolve => requestAnimationFrame(resolve));
+      this.applyHighlightsForChapter(chapterId);
     } catch (error) {
       console.error('加载EPUB章节失败:', error);
       this.content = '<p>章节加载失败</p>';
+    }
+  }
+
+  private async applyHighlightsForChapter(chapterId: string) {
+    try {
+      const annotations = await storage.getAnnotationsByBook(this.book.id);
+      const chapterAnnotations = annotations.filter(a => a.chapterId === chapterId && a.type === 'highlight');
+      
+      const contentEl = this.shadowRoot?.querySelector('.epub-content') as HTMLElement;
+      if (!contentEl) return;
+      
+      for (const annotation of chapterAnnotations) {
+        this.applyHighlight(annotation, contentEl);
+      }
+    } catch (error) {
+      console.error('应用高亮失败:', error);
+    }
+  }
+
+  private applyHighlight(annotation: Annotation, container: HTMLElement) {
+    if (!annotation.cfi) return;
+    
+    try {
+      const range = getRangeFromCfi(container, annotation.cfi);
+      if (!range) return;
+      
+      const span = document.createElement('span');
+      span.className = `highlight-${annotation.color}`;
+      span.dataset.annotationId = annotation.id;
+      
+      range.surroundContents(span);
+    } catch (e) {
+      console.warn('应用高亮失败:', e);
+    }
+  }
+
+  getSelectionCfi(): { cfi: string; text: string } | null {
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) return null;
+    
+    const range = selection.getRangeAt(0);
+    const contentEl = this.shadowRoot?.querySelector('.epub-content') as HTMLElement;
+    if (!contentEl || !contentEl.contains(range.commonAncestorContainer)) return null;
+    
+    const chapter = this.book.chapters.find(c => c.id === this.currentChapterId);
+    if (!chapter?.href) return null;
+    
+    const cfi = generateCfiFromRange(range, contentEl, chapter.href);
+    return { cfi, text: selection.toString() };
+  }
+
+  removeHighlight(annotationId: string): void {
+    const contentEl = this.shadowRoot?.querySelector('.epub-content') as HTMLElement;
+    if (!contentEl) return;
+    
+    const highlightEl = contentEl.querySelector(`[data-annotation-id="${annotationId}"]`);
+    if (highlightEl) {
+      const parent = highlightEl.parentNode;
+      if (parent) {
+        while (highlightEl.firstChild) {
+          parent.insertBefore(highlightEl.firstChild, highlightEl);
+        }
+        parent.removeChild(highlightEl);
+      }
     }
   }
 
@@ -616,6 +718,7 @@ export class BookReader extends LitElement {
       this.pdfPageNum--;
       await this.renderPdfPage();
       this.updateProgress();
+      this.debounceSave();
     }
   }
 
@@ -624,6 +727,7 @@ export class BookReader extends LitElement {
       this.pdfPageNum++;
       await this.renderPdfPage();
       this.updateProgress();
+      this.debounceSave();
     }
   }
 
@@ -663,6 +767,8 @@ export class BookReader extends LitElement {
           }));
         }
       }
+      
+      this.debounceSave();
     }
   };
 
@@ -679,6 +785,26 @@ export class BookReader extends LitElement {
       this.autoSaveTimer = null;
     }
   }
+
+  private debounceSave() {
+    this.stopDebounceSave();
+    this.debounceTimer = window.setTimeout(() => {
+      this.saveProgress();
+    }, this.DEBOUNCE_DELAY);
+  }
+
+  private stopDebounceSave() {
+    if (this.debounceTimer !== null) {
+      clearTimeout(this.debounceTimer);
+      this.debounceTimer = null;
+    }
+  }
+
+  private handleVisibilityChange = () => {
+    if (document.hidden) {
+      this.saveProgress();
+    }
+  };
 
   private async saveProgress() {
     const progress = this.calculateProgress();
