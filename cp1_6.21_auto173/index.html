@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>沙尘暴粒子系统模拟</title>
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <div id="app">
+    <canvas id="canvas"></canvas>
+    <div id="fps-counter">FPS: --</div>
+    <div id="particle-count">粒子数: 0</div>
+    <div id="control-panel">
+      <h2 class="panel-title">沙尘暴控制</h2>
+      
+      <div class="control-group">
+        <label class="control-label">
+          风暴强度
+          <span class="value-label" id="intensity-value">1.5</span>
+        </label>
+        <input type="range" id="intensity-slider" min="0.5" max="3.0" step="0.1" value="1.5" class="slider">
+      </div>
+      
+      <div class="control-group">
+        <label class="control-label">
+          风向 (度)
+          <span class="value-label" id="wind-direction-value">45</span>
+        </label>
+        <input type="range" id="wind-direction-slider" min="0" max="360" step="1" value="45" class="slider">
+      </div>
+      
+      <div class="control-group">
+        <label class="control-label">粒子颜色</label>
+        <div class="color-presets">
+          <button class="color-preset active" data-color="#C2955A" style="background-color: #C2955A;" title="沙尘黄"></button>
+          <button class="color-preset" data-color="#A0522D" style="background-color: #A0522D;" title="赤铁矿红"></button>
+          <button class="color-preset" data-color="#696969" style="background-color: #696969;" title="灰霾"></button>
+          <button class="color-preset custom" id="custom-color-btn" title="自定义">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="13.5" cy="6.5" r="2.5"/>
+              <circle cx="17.5" cy="10.5" r="2.5"/>
+              <circle cx="8.5" cy="7.5" r="2.5"/>
+              <circle cx="6.5" cy="12.5" r="2.5"/>
+              <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.4-.3-.4-.5-.9-.5-1.4 0-1.1.9-2 2-2h1.4c2.5 0 4.6-2.1 4.6-4.6C21.1 5.8 17.1 2 12 2z"/>
+            </svg>
+          </button>
+        </div>
+        <input type="color" id="color-picker" value="#C2955A" class="color-picker">
+      </div>
+    </div>
+    
+    <div id="loading-overlay">
+      <div class="loader">
+        <span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span>
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <p class="loading-text">加载中...</p>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
