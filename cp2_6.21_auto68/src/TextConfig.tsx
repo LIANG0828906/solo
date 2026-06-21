@@ -1,7 +1,10 @@
 import React from 'react';
+// ========== 类型引用：导入接口时使用别名避免与组件名冲突 ==========
 import type { TextConfig as TextConfigType } from './CanvasRenderer';
 import { FONT_OPTIONS } from './CanvasRenderer';
 
+// ========== 数据流接口定义 ==========
+// 接收 App.tsx 传入的文字配置状态和 onChange 回调
 interface TextConfigProps {
   config: TextConfigType;
   onChange: (config: TextConfigType) => void;
@@ -102,6 +105,9 @@ const ColorPicker: React.FC<{
   </div>
 );
 
+// ========== 主组件：接收props并通过回调更新状态 ==========
+// 输入: config (文字配置状态)
+// 输出: onChange回调 → App.tsx更新textConfig状态
 export const TextConfig: React.FC<TextConfigProps> = ({ config, onChange }) => {
   const updateText = (key: keyof TextConfigType, value: string | number) => {
     onChange({ ...config, [key]: value });

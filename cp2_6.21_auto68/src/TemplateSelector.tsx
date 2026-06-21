@@ -1,7 +1,8 @@
 import React, { useRef, useEffect } from 'react';
 import type { BackgroundTemplate } from './CanvasRenderer';
-import { CANVAS_WIDTH, CANVAS_HEIGHT } from './CanvasRenderer';
 
+// ========== 数据流接口定义 ==========
+// 接收 App.tsx 传入的 selected 状态和 onChange 回调
 interface TemplateSelectorProps {
   selected: BackgroundTemplate;
   onChange: (template: BackgroundTemplate) => void;
@@ -15,42 +16,42 @@ const TEMPLATES: { id: BackgroundTemplate; name: string }[] = [
   { id: 'grain', name: '颗粒纹理' },
 ];
 
-function drawTemplatePreview(ctx: CanvasRenderingContext2D, template: BackgroundTemplate, w: number, h: number) {
+function drawTemplatePreview(context: CanvasRenderingContext2D, template: BackgroundTemplate, w: number, h: number) {
   switch (template) {
     case 'gradient-linear': {
-      const g = ctx.createLinearGradient(0, 0, 0, h);
+      const g = context.createLinearGradient(0, 0, 0, h);
       g.addColorStop(0, '#667eea');
       g.addColorStop(1, '#764ba2');
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, w, h);
+      context.fillStyle = g;
+      context.fillRect(0, 0, w, h);
       break;
     }
     case 'gradient-radial': {
-      const g = ctx.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) / 2);
+      const g = context.createRadialGradient(w / 2, h / 2, 0, w / 2, h / 2, Math.max(w, h) / 2);
       g.addColorStop(0, '#ffecd2');
       g.addColorStop(1, '#fcb69f');
-      ctx.fillStyle = g;
-      ctx.fillRect(0, 0, w, h);
+      context.fillStyle = g;
+      context.fillRect(0, 0, w, h);
       break;
     }
     case 'stripes': {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, w, h);
-      ctx.save();
-      ctx.translate(w / 2, h / 2);
-      ctx.rotate(45 * Math.PI / 180);
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, w, h);
+      context.save();
+      context.translate(w / 2, h / 2);
+      context.rotate(45 * Math.PI / 180);
       const sw = 8;
       const diag = Math.sqrt(w * w + h * h);
-      ctx.fillStyle = '#f0f0f0';
+      context.fillStyle = '#f0f0f0';
       for (let i = -diag; i < diag; i += sw * 2) {
-        ctx.fillRect(i, -diag, sw, diag * 2);
+        context.fillRect(i, -diag, sw, diag * 2);
       }
-      ctx.restore();
+      context.restore();
       break;
     }
     case 'polygons': {
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, w, h);
+      context.fillStyle = '#ffffff';
+      context.fillRect(0, 0, w, h);
       const colors = ['#ff6b6b', '#4ecdc4', '#ffe66d'];
       const tris = [
         { x: 0.2, y: 0.3, s: 0.3, c: 0, r: 15 },
@@ -58,25 +59,25 @@ function drawTemplatePreview(ctx: CanvasRenderingContext2D, template: Background
         { x: 0.5, y: 0.75, s: 0.35, c: 2, r: 30 },
       ];
       tris.forEach((t) => {
-        ctx.save();
-        ctx.translate(t.x * w, t.y * h);
-        ctx.rotate((t.r * Math.PI) / 180);
-        ctx.fillStyle = colors[t.c] + '4D';
+        context.save();
+        context.translate(t.x * w, t.y * h);
+        context.rotate((t.r * Math.PI) / 180);
+        context.fillStyle = colors[t.c] + '4D';
         const sz = t.s * Math.min(w, h);
-        ctx.beginPath();
-        ctx.moveTo(0, -sz / 2);
-        ctx.lineTo(sz / 2, sz / 2);
-        ctx.lineTo(-sz / 2, sz / 2);
-        ctx.closePath();
-        ctx.fill();
-        ctx.restore();
+        context.beginPath();
+        context.moveTo(0, -sz / 2);
+        context.lineTo(sz / 2, sz / 2);
+        context.lineTo(-sz / 2, sz / 2);
+        context.closePath();
+        context.fill();
+        context.restore();
       });
       break;
     }
     case 'grain': {
-      ctx.fillStyle = '#f5f5f5';
-      ctx.fillRect(0, 0, w, h);
-      const imgData = ctx.getImageData(0, 0, w, h);
+      context.fillStyle = '#f5f5f5';
+      context.fillRect(0, 0, w, h);
+      const imgData = context.getImageData(0, 0, w, h);
       const data = imgData.data;
       for (let i = 0; i < data.length; i += 4) {
         const grain = (Math.random() - 0.5) * 30;
@@ -84,7 +85,7 @@ function drawTemplatePreview(ctx: CanvasRenderingContext2D, template: Background
         data[i + 1] = Math.max(0, Math.min(255, data[i + 1] + grain));
         data[i + 2] = Math.max(0, Math.min(255, data[i + 2] + grain));
       }
-      ctx.putImageData(imgData, 0, 0);
+      context.putImageData(imgData, 0, 0);
       break;
     }
   }
@@ -101,11 +102,11 @@ const TemplateThumb: React.FC<{
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
+    const context = canvas.getContext('2d');
+    if (!context) return;
     const w = canvas.width;
     const h = canvas.height;
-    drawTemplatePreview(ctx, template, w, h);
+    drawTemplatePreview(context, template, w, h);
   }, [template]);
 
   return (
@@ -154,6 +155,9 @@ const TemplateThumb: React.FC<{
   );
 };
 
+// ========== 主组件：接收props并回调更新状态 ==========
+// 输入: selected (当前选中模板)
+// 输出: onChange回调 → App.tsx更新background状态
 export const TemplateSelector: React.FC<TemplateSelectorProps> = ({ selected, onChange }) => {
   return (
     <div>

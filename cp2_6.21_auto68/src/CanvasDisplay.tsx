@@ -7,12 +7,14 @@ import {
   type DecorElement,
 } from './CanvasRenderer';
 
+// ========== 数据流接口定义 ==========
+// 接收 App.tsx 传入的完整配置，以及装饰元素选择/更新回调
 interface CanvasDisplayProps {
-  config: PosterConfig;
-  selectedDecorId: string | null;
-  onSelectDecor: (id: string | null) => void;
-  onUpdateDecor: (id: string, updates: Partial<DecorElement>) => void;
-  isBgTransitioning: boolean;
+  config: PosterConfig;                       // 完整海报配置
+  selectedDecorId: string | null;             // 当前选中的装饰元素ID
+  onSelectDecor: (id: string | null) => void; // 选中装饰元素回调
+  onUpdateDecor: (id: string, updates: Partial<DecorElement>) => void;  // 更新装饰元素回调
+  isBgTransitioning: boolean;                 // 背景切换过渡状态
 }
 
 export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({

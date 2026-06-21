@@ -198,12 +198,12 @@ function drawDecorShape(context: CanvasRenderingContext2D, shape: DecorShape, si
 }
 
 function drawDecorations(context: CanvasRenderingContext2D, decorations: DecorElement[], width: number, height: number): void {
-  decorations.forEach((decor) => {
+  decorations.forEach((item) => {
     context.save();
-    context.translate((decor.x / 100) * width, (decor.y / 100) * height);
-    context.rotate((decor.rotation * Math.PI) / 180);
-    context.fillStyle = decor.color;
-    drawDecorShape(context, decor.shape, decor.size);
+    context.translate((item.x / 100) * width, (item.y / 100) * height);
+    context.rotate((item.rotation * Math.PI) / 180);
+    context.fillStyle = item.color;
+    drawDecorShape(context, item.shape, item.size);
     context.restore();
   });
 }
@@ -262,10 +262,8 @@ export function renderPoster(
 export function exportToPNG(config: PosterConfig): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const exportCanvas = document.createElement('canvas');
-    const exportWidth = CANVAS_WIDTH * EXPORT_SCALE;
-    const exportHeight = CANVAS_HEIGHT * EXPORT_SCALE;
-    exportCanvas.width = exportWidth;
-    exportCanvas.height = exportHeight;
+    exportCanvas.width = 2560;
+    exportCanvas.height = 1920;
 
     const context = exportCanvas.getContext('2d');
     if (!context) {
@@ -277,8 +275,8 @@ export function exportToPNG(config: PosterConfig): Promise<Blob> {
     context.imageSmoothingQuality = 'high';
 
     context.save();
-    context.scale(EXPORT_SCALE, EXPORT_SCALE);
-    renderPoster(context, config, CANVAS_WIDTH, CANVAS_HEIGHT);
+    context.scale(2, 2);
+    renderPoster(context, config, CANVAS_WIDTH * EXPORT_SCALE, CANVAS_HEIGHT * EXPORT_SCALE);
     context.restore();
 
     exportCanvas.toBlob(

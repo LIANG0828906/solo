@@ -1,14 +1,16 @@
 import React from 'react';
 import type { DecorElement, DecorShape } from './CanvasRenderer';
 
+// ========== 数据流接口定义 ==========
+// 接收 App.tsx 传入的 decorations 状态数组和各种操作回调
 interface DecorConfigProps {
-  decorations: DecorElement[];
-  selectedId: string | null;
-  onSelect: (id: string | null) => void;
-  onAdd: (shape: DecorShape) => void;
-  onUpdate: (id: string, updates: Partial<DecorElement>) => void;
-  onRemove: (id: string) => void;
-  maxCount: number;
+  decorations: DecorElement[];    // 装饰元素列表
+  selectedId: string | null;      // 当前选中的装饰元素ID
+  onSelect: (id: string | null) => void;              // 选中元素回调
+  onAdd: (shape: DecorShape) => void;                 // 添加元素回调
+  onUpdate: (id: string, updates: Partial<DecorElement>) => void;  // 更新元素回调
+  onRemove: (id: string) => void;                     // 删除元素回调
+  maxCount: number;               // 最大允许元素数
 }
 
 const SectionTitle: React.FC<{ title: string }> = ({ title }) => (
@@ -115,6 +117,9 @@ const SHAPES: { value: DecorShape; label: string }[] = [
 
 const PRESET_COLORS = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#74b9ff', '#a29bfe', '#fd79a8'];
 
+// ========== 主组件：接收props并通过回调更新状态 ==========
+// 输入: decorations (装饰元素列表), selectedId (选中ID)
+// 输出: onAdd/onUpdate/onRemove/onSelect回调 → App.tsx更新装饰元素状态
 export const DecorConfig: React.FC<DecorConfigProps> = ({
   decorations,
   selectedId,
