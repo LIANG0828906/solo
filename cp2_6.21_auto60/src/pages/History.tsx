@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useFoodStore } from '@/store/foodStore';
 import LineChart from '@/components/LineChart';
-import { RECOMMENDED_INTAKE, generateWeeklyReportText } from '@/utils/nutritionCalc';
+import { RECOMMENDED_INTAKE, generateWeeklyReportText, formatDate } from '@/utils/nutritionCalc';
+import { measureRenderTime, logPerformance } from '@/utils/performance';
 import jsPDF from 'jspdf';
+import type { DailySummary } from '@/types';
 
 export default function History() {
   const historyData = useFoodStore((state) => state.historyData);
@@ -10,9 +12,11 @@ export default function History() {
   const isLoading = useFoodStore((state) => state.isLoading);
 
   const [generating, setGenerating] = useState(false);
+  const [currentYear, setCurrentYear] = useState(new Date().getFullYear());
+  const [currentMonth, setCurrentMonth] = useState(new Date().getMonth());
 
   useEffect(() => {
-    fetchHistory(30);
+    fetchHistory(365);
   }, [fetchHistory]);
 
   const handleGenerateReport = () => {
@@ -60,26 +64,63 @@ export default function History() {
     }, 800);
   };
 
-  const totalDays = historyData.length;
-  const daysWithData = historyData.filter((d) => d.totalCalories > 0).length;
+  const handlePrevMonth = () => {
+    const start = performance.now();
+    measureRenderTime('Month Switch (Previous)', () => {
+      if (currentMonth === 0) {
+        setCurrentMonth(11);
+        setCurrentYear((y) => y - 1);
+      } else {
+        setCurrentMonth((m) => m - 1);
+      }
+    });
+    const duration = performance.now() - start;
+    logPerformance('Calendar Month Switch (Prev)', duration, 200);
+  };
+
+  const handleNextMonth = () => {
+    const start = performance.now();
+    measureRenderTime('Month Switch (Next)', () => {
+      if (currentMonth === 11) {
+        setCurrentMonth(0);
+        setCurrentYear((y) => y + 1);
+      } else {
+        setCurrentMonth((m) => m + 1);
+      }
+    });
+    const duration = performance.now() - start;
+    logPerformance('Calendar Month Switch (Next)', duration, 200);
+  };
+
+  const monthData = useMemo(() => {
+    const monthStart = new Date(currentYear, currentMonth, 1);
+    const monthEnd = new Date(currentYear, currentMonth + 1, 0);
+    const startStr = formatDate(monthStart);
+    const endStr = formatDate(monthEnd);
+
+    return historyData.filter((d) => d.date >= startStr && d.date <= endStr);
+  }, [historyData, currentYear, currentMonth]);
+
+  const totalDays = monthData.length;
+  const daysWithData = monthData.filter((d) => d.totalCalories > 0).length;
   const avgCalories =
     daysWithData > 0
       ? Math.round(
-          historyData.reduce((sum, d) => sum + d.totalCalories, 0) / daysWithData
+          monthData.reduce((sum, d) => sum + d.totalCalories, 0) / daysWithData
         )
       : 0;
 
   const recommendedMin = RECOMMENDED_INTAKE.calories * 0.85;
   const recommendedMax = RECOMMENDED_INTAKE.calories * 1.15;
 
-  const inRangeDays = historyData.filter(
+  const inRangeDays = monthData.filter(
     (d) => d.totalCalories >= recommendedMin && d.totalCalories <= recommendedMax && d.totalCalories > 0
   ).length;
 
-  const today = new Date();
-  const startDate = new Date(today);
-  startDate.setDate(today.getDate() - 29);
-  const dateRangeStr = `${startDate.getMonth() + 1}月${startDate.getDate()}日 - ${today.getMonth() + 1}月${today.getDate()}日`;
+  const monthStr = `${currentYear}年${currentMonth + 1}月`;
+  const firstDay = new Date(currentYear, currentMonth, 1);
+  const lastDay = new Date(currentYear, currentMonth + 1, 0);
+  const dateRangeStr = `${firstDay.getMonth() + 1}月${firstDay.getDate()}日 - ${lastDay.getMonth() + 1}月${lastDay.getDate()}日`;
 
   return (
     <div className="animate-fade-up">
@@ -101,22 +142,55 @@ export default function History() {
             {dateRangeStr} · 共 {totalDays} 天
           </p>
         </div>
-        <button
-          onClick={handleGenerateReport}
-          disabled={generating}
-          className="btn-primary"
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            padding: '10px 20px',
-            opacity: generating ? 0.7 : 1,
-            cursor: generating ? 'not-allowed' : 'pointer',
-          }}
-        >
-          <span>{generating ? '⏳' : '📄'}</span>
-          <span>{generating ? '生成中...' : '生成周报'}</span>
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <button
+            onClick={handlePrevMonth}
+            style={{
+              padding: '8px 14px',
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-sm)',
+              cursor: 'pointer',
+              fontSize: '14px',
+              color: 'var(--text-primary)',
+            }}
+          >
+            ← 上月
+          </button>
+          <span style={{ fontSize: '16px', fontWeight: 600, color: 'var(--text-primary)', minWidth: '100px', textAlign: 'center' }}>
+            {monthStr}
+          </span>
+          <button
+            onClick={handleNextMonth}
+            style={{
+              padding: '8px 14px',
+              background: 'var(--bg-secondary)',
+              border: '1px solid var(--border-color)',
+              borderRadius: 'var(--radius-sm)',
+              cursor: 'pointer',
+              fontSize: '14px',
+              color: 'var(--text-primary)',
+            }}
+          >
+            下月 →
+          </button>
+          <button
+            onClick={handleGenerateReport}
+            disabled={generating}
+            className="btn-primary"
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '10px 20px',
+              opacity: generating ? 0.7 : 1,
+              cursor: generating ? 'not-allowed' : 'pointer',
+            }}
+          >
+            <span>{generating ? '⏳' : '📄'}</span>
+            <span>{generating ? '生成中...' : '生成周报'}</span>
+          </button>
+        </div>
       </div>
 
       <div
@@ -166,7 +240,7 @@ export default function History() {
 
       <div className="card" style={{ minHeight: '400px', marginBottom: '20px' }}>
         <LineChart
-          data={historyData}
+          data={monthData}
           recommendedMin={recommendedMin}
           recommendedMax={recommendedMax}
         />
@@ -188,7 +262,7 @@ export default function History() {
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {[...historyData].reverse().map((day) => (
+              {[...monthData].reverse().map((day: DailySummary) => (
                 <div
                   key={day.date}
                   style={{

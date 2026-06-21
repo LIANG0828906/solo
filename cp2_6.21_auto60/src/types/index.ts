@@ -80,3 +80,11 @@ export interface RecommendedIntake {
   fiber: number;
   sodium: number;
 }
+
+export interface UserProfile {
+  weight: number;
+  height: number;
+  age: number;
+  gender: 'male' | 'female';
+  activityLevel: 'sedentary' | 'light' | 'moderate' | 'active' | 'very_active';
+}

@@ -7,6 +7,7 @@ import {
   AnalysisResponse,
   DiagnosisAdvice,
   FoodItem,
+  UserProfile,
 } from '@/types';
 
 export const RECOMMENDED_INTAKE: RecommendedIntake = {
@@ -326,4 +327,45 @@ export function getDateRange(days: number): string[] {
     result.push(formatDate(d));
   }
   return result;
+}
+
+const ACTIVITY_FACTORS: Record<UserProfile['activityLevel'], number> = {
+  sedentary: 1.2,
+  light: 1.375,
+  moderate: 1.55,
+  active: 1.725,
+  very_active: 1.9,
+};
+
+export function calculateRecommendedIntake(profile: UserProfile): RecommendedIntake {
+  const { weight, height, age, gender, activityLevel } = profile;
+
+  const bmr =
+    gender === 'male'
+      ? 10 * weight + 6.25 * height - 5 * age + 5
+      : 10 * weight + 6.25 * height - 5 * age - 161;
+
+  const activityFactor = ACTIVITY_FACTORS[activityLevel];
+  const tdee = bmr * activityFactor;
+
+  const protein = 1.4 * weight;
+
+  const fatCalories = tdee * 0.25;
+  const fat = fatCalories / 9;
+
+  const proteinCalories = protein * 4;
+  const remainingCalories = tdee - proteinCalories - fatCalories;
+  const carbs = remainingCalories / 4;
+
+  const fiber = 27.5;
+  const sodium = 2000;
+
+  return {
+    calories: Math.round(tdee),
+    protein: parseFloat(protein.toFixed(1)),
+    fat: parseFloat(fat.toFixed(1)),
+    carbs: parseFloat(carbs.toFixed(1)),
+    fiber: parseFloat(fiber.toFixed(1)),
+    sodium: Math.round(sodium),
+  };
 }
