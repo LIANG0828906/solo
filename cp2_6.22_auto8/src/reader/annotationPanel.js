@@ -169,15 +169,9 @@ let AnnotationPanel = class AnnotationPanel extends LitElement {
             return;
         await storage.deleteAnnotation(annotation.id);
         this.annotations = this.annotations.filter(a => a.id !== annotation.id);
-        const highlightEl = document.querySelector(`[data-annotation-id="${annotation.id}"]`);
-        if (highlightEl) {
-            const parent = highlightEl.parentNode;
-            if (parent) {
-                while (highlightEl.firstChild) {
-                    parent.insertBefore(highlightEl.firstChild, highlightEl);
-                }
-                parent.removeChild(highlightEl);
-            }
+        const reader = this.getBookReader();
+        if (reader && reader.removeHighlight) {
+            reader.removeHighlight(annotation.id);
         }
     }
     getChapterTitle(chapterId) {

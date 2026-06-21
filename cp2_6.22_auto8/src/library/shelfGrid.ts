@@ -71,30 +71,36 @@ export class ShelfGrid extends LitElement {
     .search-box {
       flex: 1;
       position: relative;
+      overflow: hidden;
       max-width: 400px;
+      border-radius: 12px;
     }
 
     .search-box input {
       width: 100%;
       padding: 12px 16px 12px 44px;
       border-radius: 12px;
-      background: rgba(245, 240, 232, 0.12);
+      background: rgba(245, 240, 232, 0.15);
       color: var(--cream);
       font-size: 14px;
       transition: all 0.3s ease;
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
-      border: 1px solid rgba(245, 240, 232, 0.15);
+      backdrop-filter: blur(20px) saturate(180%);
+      -webkit-backdrop-filter: blur(20px) saturate(180%);
+      border: 1px solid rgba(245, 240, 232, 0.25);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     }
 
     .search-box input::placeholder {
-      color: rgba(245, 240, 232, 0.6);
+      color: rgba(245, 240, 232, 0.7);
     }
 
     .search-box input:focus {
-      background: rgba(245, 240, 232, 0.2);
-      box-shadow: 0 0 0 3px rgba(245, 240, 232, 0.2);
-      border-color: rgba(245, 240, 232, 0.3);
+      background: rgba(245, 240, 232, 0.25);
+      backdrop-filter: blur(25px) saturate(200%);
+      -webkit-backdrop-filter: blur(25px) saturate(200%);
+      box-shadow: 0 0 0 3px rgba(245, 240, 232, 0.3), 0 4px 20px rgba(0, 0, 0, 0.15);
+      border-color: rgba(245, 240, 232, 0.4);
+      transform: translateY(-1px);
     }
 
     .search-icon {
@@ -570,7 +576,7 @@ export class ShelfGrid extends LitElement {
 
   private handleBookClick(book: Book) {
     const event = new CustomEvent('book-select', {
-      detail: { book },
+      detail: { bookId: book.id },
       bubbles: true,
       composed: true
     });

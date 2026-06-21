@@ -229,6 +229,7 @@ let BookReader = class BookReader extends LitElement {
             }
             this.content = `<style>${styles}</style>${body.innerHTML}`;
             await this.updateComplete;
+            await new Promise(resolve => requestAnimationFrame(resolve));
             this.applyHighlightsForChapter(chapterId);
         }
         catch (error) {
@@ -278,8 +279,23 @@ let BookReader = class BookReader extends LitElement {
         const chapter = this.book.chapters.find(c => c.id === this.currentChapterId);
         if (!chapter?.href)
             return null;
-        const cfi = generateCfiFromRange(range, chapter.href);
+        const cfi = generateCfiFromRange(range, contentEl, chapter.href);
         return { cfi, text: selection.toString() };
+    }
+    removeHighlight(annotationId) {
+        const contentEl = this.shadowRoot?.querySelector('.epub-content');
+        if (!contentEl)
+            return;
+        const highlightEl = contentEl.querySelector(`[data-annotation-id="${annotationId}"]`);
+        if (highlightEl) {
+            const parent = highlightEl.parentNode;
+            if (parent) {
+                while (highlightEl.firstChild) {
+                    parent.insertBefore(highlightEl.firstChild, highlightEl);
+                }
+                parent.removeChild(highlightEl);
+            }
+        }
     }
     async loadPdfChapter(chapterId) {
         const chapter = this.book.chapters.find(c => c.id === chapterId);

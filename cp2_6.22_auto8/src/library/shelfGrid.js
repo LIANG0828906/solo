@@ -125,7 +125,7 @@ let ShelfGrid = class ShelfGrid extends LitElement {
     }
     handleBookClick(book) {
         const event = new CustomEvent('book-select', {
-            detail: { bookId: book.id, book },
+            detail: { bookId: book.id },
             bubbles: true,
             composed: true
         });

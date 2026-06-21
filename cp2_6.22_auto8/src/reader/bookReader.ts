@@ -468,8 +468,16 @@ export class BookReader extends LitElement {
 
   async connectedCallback() {
     super.connectedCallback();
-    this.currentChapterId = this.book.currentChapter || this.book.chapters[0]?.id || '';
-    this.scrollPosition = this.book.scrollPosition || 0;
+    
+    const savedProgress = await storage.getProgress(this.book.id);
+    if (savedProgress) {
+      this.currentChapterId = savedProgress.currentChapter || this.book.chapters[0]?.id || '';
+      this.scrollPosition = savedProgress.scrollPosition || 0;
+    } else {
+      this.currentChapterId = this.book.currentChapter || this.book.chapters[0]?.id || '';
+      this.scrollPosition = this.book.scrollPosition || 0;
+    }
+    
     await this.initReader();
     this.startAutoSave();
     document.addEventListener('keydown', this.handleKeydown);
@@ -594,6 +602,34 @@ export class BookReader extends LitElement {
         }
       }
       
+      const sources = body.querySelectorAll('picture source');
+      for (const source of sources) {
+        const srcset = source.getAttribute('srcset');
+        if (srcset) {
+          const newSrcset = await this.processSrcset(srcset, chapter.href);
+          source.setAttribute('srcset', newSrcset);
+        }
+        const src = source.getAttribute('src');
+        if (src) {
+          const resolvedPath = resolveEpubResourcePath(chapter.href, src);
+          const dataUrl = await resourceToDataUrl(this.epubBook, resolvedPath);
+          if (dataUrl) {
+            source.setAttribute('src', dataUrl);
+          }
+        }
+      }
+      
+      const allElements = body.querySelectorAll('*');
+      for (const el of allElements) {
+        const style = el.getAttribute('style');
+        if (style && style.includes('url(')) {
+          const newStyle = await this.processStyleUrls(style, chapter.href);
+          if (newStyle !== style) {
+            el.setAttribute('style', newStyle);
+          }
+        }
+      }
+      
       const links = doc.querySelectorAll('link[rel="stylesheet"]');
       for (const link of links) {
         const href = link.getAttribute('href');
@@ -618,6 +654,65 @@ export class BookReader extends LitElement {
       console.error('加载EPUB章节失败:', error);
       this.content = '<p>章节加载失败</p>';
     }
+  }
+
+  private async processSrcset(srcset: string, chapterHref: string | undefined): Promise<string> {
+    if (!this.epubBook || !chapterHref) return srcset;
+    
+    const entries = srcset.split(',').map(s => s.trim());
+    const processed: string[] = [];
+    
+    for (const entry of entries) {
+      const parts = entry.split(/\s+/);
+      if (parts.length === 0) continue;
+      
+      const url = parts[0];
+      const descriptor = parts.slice(1).join(' ');
+      
+      const resolvedPath = resolveEpubResourcePath(chapterHref, url);
+      const dataUrl = await resourceToDataUrl(this.epubBook, resolvedPath);
+      
+      if (dataUrl) {
+        processed.push(descriptor ? `${dataUrl} ${descriptor}` : dataUrl);
+      } else {
+        processed.push(entry);
+      }
+    }
+    
+    return processed.join(', ');
+  }
+
+  private async processStyleUrls(style: string, chapterHref: string | undefined): Promise<string> {
+    if (!this.epubBook || !chapterHref) return style;
+    
+    const urlRegex = /url\(['"]?([^'")\s]+)['"]?\)/g;
+    let result = style;
+    let match;
+    
+    const replacements: Array<{ old: string; new: string }> = [];
+    
+    while ((match = urlRegex.exec(style)) !== null) {
+      const fullMatch = match[0];
+      const url = match[1];
+      
+      if (!url.startsWith('data:') && !url.startsWith('http') && !url.startsWith('#')) {
+        const resolvedPath = resolveEpubResourcePath(chapterHref, url);
+        const dataUrl = await resourceToDataUrl(this.epubBook, resolvedPath);
+        
+        if (dataUrl) {
+          replacements.push({
+            old: fullMatch,
+            new: `url('${dataUrl}')`
+          });
+        }
+      }
+    }
+    
+    for (const rep of replacements) {
+      result = result.replace(rep.old, rep.new);
+    }
+    
+    return result;
   }
 
   private async applyHighlightsForChapter(chapterId: string) {
