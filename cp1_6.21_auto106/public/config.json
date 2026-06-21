@@ -1,0 +1,25 @@
+{
+  "themes": [
+    {
+      "name": "极光青紫",
+      "colors": ["#00BCD4", "#E91E63", "#9C27B0"]
+    },
+    {
+      "name": "落日橙粉",
+      "colors": ["#FF6B35", "#FF8CC8", "#FFB347"]
+    },
+    {
+      "name": "海洋蓝绿",
+      "colors": ["#006994", "#20B2AA", "#40E0D0"]
+    },
+    {
+      "name": "霓虹红绿",
+      "colors": ["#FF1744", "#00E676", "#FFEA00"]
+    }
+  ],
+  "defaults": {
+    "particleCount": 5000,
+    "speedMultiplier": 1.0,
+    "defaultThemeIndex": 0
+  }
+}
