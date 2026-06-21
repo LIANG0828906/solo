@@ -1,0 +1,116 @@
+.template-card-link {
+  text-decoration: none;
+  color: inherit;
+  display: block;
+}
+
+.template-card {
+  padding: 20px;
+  transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+  cursor: pointer;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.template-card:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(16, 185, 129, 0.2);
+}
+
+.template-card__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.template-card__title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  margin: 0;
+  line-height: 1.4;
+}
+
+.template-card__delete {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.3);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color 0.2s ease-out;
+}
+
+.template-card__delete:hover {
+  color: #ef4444;
+}
+
+.template-card__dimensions {
+  margin-bottom: 12px;
+}
+
+.dim-count {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.template-card__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+  flex: 1;
+}
+
+.dim-tag {
+  font-size: 11px;
+  padding: 4px 10px;
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border-radius: 12px;
+  border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.dim-tag--more {
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 255, 255, 0.5);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+
+.template-card__footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.template-date {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.template-arrow {
+  font-size: 16px;
+  color: #10b981;
+  transition: transform 0.2s ease-out;
+}
+
+.template-card:hover .template-arrow {
+  transform: translateX(4px);
+}
+
+@media (max-width: 768px) {
+  .template-card {
+    padding: 16px;
+  }
+
+  .template-card__title {
+    font-size: 14px;
+  }
+}
