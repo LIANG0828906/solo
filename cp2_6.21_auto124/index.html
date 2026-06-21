@@ -33,9 +33,11 @@
       flex-direction: column;
       gap: 12px;
       padding: 16px;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.35);
+      -webkit-backdrop-filter: blur(10px);
       backdrop-filter: blur(10px);
       border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     .weather-btn {
@@ -50,7 +52,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: transform 0.1s ease, background 0.2s ease;
+      transition: background 0.2s ease, box-shadow 0.2s ease;
     }
 
     .weather-btn:hover {
@@ -58,8 +60,14 @@
       background: #455a64;
     }
 
-    .weather-btn:active {
-      transform: scale(0.95);
+    .weather-btn.click-animation {
+      animation: btn-click-bounce 0.1s ease-out;
+    }
+
+    @keyframes btn-click-bounce {
+      0% { transform: scale(1); }
+      50% { transform: scale(0.95); }
+      100% { transform: scale(1); }
     }
 
     .weather-btn.active {
@@ -89,10 +97,14 @@
       font-size: 28px;
       font-weight: bold;
       color: #fff;
-      text-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+      text-shadow: 0 0 10px rgba(255, 255, 255, 0.8),
+                   0 0 20px rgba(255, 200, 100, 0.5),
+                   0 0 30px rgba(255, 150, 50, 0.3);
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.1s ease;
+      z-index: 999;
+      transition: opacity 0.015s linear;
+      white-space: nowrap;
     }
 
     .lightning-text.show {
@@ -101,12 +113,14 @@
 
     .control-panel {
       width: 250px;
-      background: rgba(0, 0, 0, 0.5);
+      background: rgba(0, 0, 0, 0.35);
+      -webkit-backdrop-filter: blur(10px);
       backdrop-filter: blur(10px);
       border-radius: 8px;
       padding: 20px;
       color: #fff;
       font-size: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
     }
 
     .panel-title {

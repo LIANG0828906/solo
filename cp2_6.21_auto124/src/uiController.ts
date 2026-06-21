@@ -44,7 +44,7 @@ export class UIController {
   private onTimeChange: ((minutes: number) => void) | null = null;
 
   private currentWeather: WeatherType = 'sunny';
-  private thunderTimeout: number | null = null;
+  private thunderTimeouts: number[] = [];
 
   constructor() {
     this.weatherButtons = document.querySelectorAll('.weather-btn');
@@ -73,6 +73,7 @@ export class UIController {
   private bindEvents(): void {
     this.weatherButtons.forEach(btn => {
       btn.addEventListener('click', () => {
+        this.triggerButtonClickAnimation(btn);
         const weather = btn.dataset.weather as WeatherType;
         if (weather && weather !== this.currentWeather) {
           this.setActiveWeather(weather);
@@ -114,16 +115,22 @@ export class UIController {
     this.weatherButtons.forEach(btn => {
       if (btn.dataset.weather === weather) {
         btn.classList.add('active');
-        btn.style.transform = 'scale(0.95)';
-        setTimeout(() => {
-          btn.style.transform = 'scale(1.0)';
-        }, 100);
       } else {
         btn.classList.remove('active');
       }
     });
 
     this.updateParamVisibility(weather);
+  }
+
+  private triggerButtonClickAnimation(btn: HTMLElement): void {
+    btn.classList.remove('click-animation');
+    void btn.offsetWidth;
+    btn.classList.add('click-animation');
+
+    window.setTimeout(() => {
+      btn.classList.remove('click-animation');
+    }, 110);
   }
 
   private updateParamVisibility(weather: WeatherType): void {
@@ -163,16 +170,51 @@ export class UIController {
   }
 
   showThunderText(): void {
-    this.lightningText.classList.add('show');
+    this.clearThunderTimeouts();
 
-    if (this.thunderTimeout) {
-      clearTimeout(this.thunderTimeout);
+    const flickerSequence = [
+      { time: 0, show: true },
+      { time: 120, show: false },
+      { time: 180, show: true },
+      { time: 250, show: false },
+      { time: 320, show: true },
+      { time: 450, show: false },
+      { time: 500, show: true },
+      { time: 620, show: false },
+      { time: 680, show: true },
+      { time: 820, show: false },
+      { time: 880, show: true },
+      { time: 1000, show: false }
+    ];
+
+    void this.lightningText.offsetWidth;
+
+    for (const step of flickerSequence) {
+      if (step.time === 0) {
+        if (step.show) {
+          this.lightningText.classList.add('show');
+        } else {
+          this.lightningText.classList.remove('show');
+        }
+      } else {
+        const timeout = window.setTimeout(() => {
+          if (step.show) {
+            this.lightningText.classList.add('show');
+          } else {
+            this.lightningText.classList.remove('show');
+          }
+        }, step.time);
+        this.thunderTimeouts.push(timeout);
+      }
     }
+  }
 
-    this.thunderTimeout = window.setTimeout(() => {
-      this.lightningText.classList.remove('show');
-      this.thunderTimeout = null;
-    }, 1000);
+  private clearThunderTimeouts(): void {
+    for (const t of this.thunderTimeouts) {
+      clearTimeout(t);
+    }
+    this.thunderTimeouts = [];
+    this.lightningText.classList.remove('show');
   }
 
   getParam(key: string): string | number {

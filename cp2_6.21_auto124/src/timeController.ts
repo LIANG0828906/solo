@@ -65,26 +65,14 @@ export class TimeController {
   getCurrentColorTone(): ColorTone {
     const hours = this.currentTime / 60;
 
-    let dayProgress: number;
-
-    if (hours >= 7 && hours <= 17) {
-      dayProgress = 1;
-    } else if (hours >= 5 && hours < 7) {
-      dayProgress = (hours - 5) / 2;
-    } else if (hours > 17 && hours <= 19) {
-      dayProgress = 1 - (hours - 17) / 2;
-    } else {
-      dayProgress = 0;
-    }
-
-    dayProgress = Math.max(0, Math.min(1, dayProgress));
+    const dayProgress: number = (hours >= 6 && hours <= 18) ? 1 : 0;
 
     const nightFactor = 1 - dayProgress;
 
     const skyTopDay = [135, 206, 235];
     const skyBottomDay = [176, 224, 230];
-    const skyTopNight = [10, 15, 50];
-    const skyBottomNight = [20, 25, 60];
+    const skyTopNight = [5, 10, 30];
+    const skyBottomNight = [15, 20, 50];
 
     const skyTop = this.lerpColor(skyTopNight, skyTopDay, dayProgress);
     const skyBottom = this.lerpColor(skyBottomNight, skyBottomDay, dayProgress);
