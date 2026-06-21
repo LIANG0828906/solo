@@ -124,6 +124,7 @@ function MoleculeScene() {
   const { camera } = useThree();
   const [opacity, setOpacity] = useState(1);
   const [scale, setScale] = useState(1);
+  const [rotationY, setRotationY] = useState(0);
   const prevMoleculeRef = useRef(currentMolecule);
   const animRef = useRef<number | null>(null);
 
@@ -137,6 +138,7 @@ function MoleculeScene() {
     if (animRef.current) cancelAnimationFrame(animRef.current);
     setScale(0.6);
     setOpacity(0);
+    setRotationY(Math.PI);
 
     const start = performance.now();
     const duration = 500;
@@ -146,6 +148,7 @@ function MoleculeScene() {
       const eased = t < 0.5 ? 2 * t * t : -1 + (4 - 2 * t) * t;
       setOpacity(t);
       setScale(0.6 + 0.4 * eased);
+      setRotationY(Math.PI * (1 - eased));
       if (t < 1) {
         animRef.current = requestAnimationFrame(animate);
       }
@@ -281,18 +284,43 @@ function MoleculeScene() {
       <Grid
         args={[30, 30]}
         cellSize={1}
-        cellThickness={0.5}
-        cellColor="#3a4560"
+        cellThickness={0.3}
+        cellColor="#6a7594"
         sectionSize={5}
-        sectionThickness={1}
-        sectionColor="#5a6888"
+        sectionThickness={0.8}
+        sectionColor="#8893b0"
         fadeDistance={25}
         fadeStrength={1}
         infiniteGrid
         position={[0, -2.5, 0]}
       />
 
-      <group ref={groupRef} onClick={handleMissedClick} scale={[scale, scale, scale]}>
+      <group position={[-5, -2.2, -5]}>
+        <axesHelper args={[1.2]} />
+        <Html
+          position={[1.3, 0, 0]}
+          center
+          style={{ color: '#ff6b6b', fontSize: '10px', fontWeight: 700, pointerEvents: 'none', textShadow: '0 0 4px rgba(0,0,0,0.8)' }}
+        >
+          X
+        </Html>
+        <Html
+          position={[0, 1.3, 0]}
+          center
+          style={{ color: '#6bd46b', fontSize: '10px', fontWeight: 700, pointerEvents: 'none', textShadow: '0 0 4px rgba(0,0,0,0.8)' }}
+        >
+          Y
+        </Html>
+        <Html
+          position={[0, 0, 1.3]}
+          center
+          style={{ color: '#6b9fff', fontSize: '10px', fontWeight: 700, pointerEvents: 'none', textShadow: '0 0 4px rgba(0,0,0,0.8)' }}
+        >
+          Z
+        </Html>
+      </group>
+
+      <group ref={groupRef} onClick={handleMissedClick} scale={[scale, scale, scale]} rotation={[0, rotationY, 0]}>
         {atomMeshes.map((mesh, i) => {
           const atom = moleculeData.atoms[i];
           if (!atom) return null;
