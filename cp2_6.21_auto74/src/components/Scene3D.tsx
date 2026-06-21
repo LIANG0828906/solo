@@ -12,10 +12,26 @@ interface BodyProps {
   onClick: () => void;
 }
 
+function hexToRgb(hex: string): { r: number; g: number; b: number } {
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? {
+        r: parseInt(result[1], 16) / 255,
+        g: parseInt(result[2], 16) / 255,
+        b: parseInt(result[3], 16) / 255,
+      }
+    : { r: 1, g: 1, b: 1 };
+}
+
 function StellarBody({ body, isSelected, onClick }: BodyProps) {
   const meshRef = useRef<THREE.Mesh>(null);
+  const groupRef = useRef<THREE.Group>(null);
   const [hovered, setHovered] = useState(false);
   const { camera } = useThree();
+
+  const rotationSpeed = useMemo(() => {
+    return 0.5 / Math.max(1, body.mass * 0.1);
+  }, [body.mass]);
 
   const texture = useMemo(() => {
     const canvas = document.createElement('canvas');
@@ -71,36 +87,28 @@ function StellarBody({ body, isSelected, onClick }: BodyProps) {
     return texture;
   }, []);
 
-  const trajectoryGeometry = useMemo(() => {
-    const geometry = new THREE.BufferGeometry();
+  const trajectoryData = useMemo(() => {
+    const trajectoryGeometry = new THREE.BufferGeometry();
     const positions = new Float32Array(body.trajectory.length * 3);
     for (let i = 0; i < body.trajectory.length; i++) {
       positions[i * 3] = body.trajectory[i].x;
       positions[i * 3 + 1] = body.trajectory[i].y;
       positions[i * 3 + 2] = body.trajectory[i].z;
     }
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    return geometry;
+    trajectoryGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+    return trajectoryGeometry;
   }, [body.trajectory]);
 
   useEffect(() => {
-    const positions = trajectoryGeometry.attributes.position.array as Float32Array;
+    const positions = trajectoryData.attributes.position.array as Float32Array;
     for (let i = 0; i < body.trajectory.length; i++) {
       positions[i * 3] = body.trajectory[i].x;
       positions[i * 3 + 1] = body.trajectory[i].y;
       positions[i * 3 + 2] = body.trajectory[i].z;
     }
-    trajectoryGeometry.attributes.position.needsUpdate = true;
-    trajectoryGeometry.setDrawRange(0, body.trajectory.length);
-  }, [body.trajectory, trajectoryGeometry]);
-
-  const billboardPosition = useMemo(() => {
-    return new THREE.Vector3(
-      body.position.x,
-      body.position.y + body.radius + 0.5,
-      body.position.z
-    );
-  }, [body.position, body.radius]);
+    trajectoryData.attributes.position.needsUpdate = true;
+    trajectoryData.setDrawRange(0, body.trajectory.length);
+  }, [body.trajectory, trajectoryData]);
 
   useEffect(() => {
     if (hovered) {
@@ -118,45 +126,225 @@ function StellarBody({ body, isSelected, onClick }: BodyProps) {
     return Math.max(0.5, Math.min(2, dist / 30));
   }, [camera.position, body.position]);
 
+  const directionIndicator = useMemo(() => {
+    if (body.trajectory.length < 2) return null;
+    const lastIdx = body.trajectory.length - 1;
+    const prev = body.trajectory[lastIdx - 1];
+    const curr = body.trajectory[lastIdx];
+    const dir = {
+      x: curr.x - prev.x,
+      y: curr.y - prev.y,
+      z: curr.z - prev.z,
+    };
+    const len = Math.sqrt(dir.x * dir.x + dir.y * dir.y + dir.z * dir.z);
+    if (len < 0.0001) return null;
+    const scale = body.radius * 0.8;
+    return {
+      position: curr,
+      direction: {
+        x: (dir.x / len) * scale,
+        y: (dir.y / len) * scale,
+        z: (dir.z / len) * scale,
+      },
+    };
+  }, [body.trajectory, body.radius]);
+
+  useFrame((_, delta) => {
+    if (meshRef.current && groupRef.current) {
+      groupRef.current.rotation.y += rotationSpeed * delta;
+    }
+  });
+
+  const trajectoryOpacity = isSelected ? 0.8 : 0.5;
+  const trajectoryLinewidth = isSelected ? 2 : 1;
+
+  const trajectoryPositions = useMemo(() => {
+    if (body.trajectory.length < 2) return new Float32Array(0);
+    const lines: number[] = [];
+    for (let i = 0; i < body.trajectory.length - 1; i++) {
+      lines.push(body.trajectory[i].x);
+      lines.push(body.trajectory[i].y);
+      lines.push(body.trajectory[i].z);
+      lines.push(body.trajectory[i + 1].x);
+      lines.push(body.trajectory[i + 1].y);
+      lines.push(body.trajectory[i + 1].z);
+    }
+    return new Float32Array(lines);
+  }, [body.trajectory]);
+
+  const glowTexture = useMemo(() => {
+    const canvas = document.createElement('canvas');
+    canvas.width = 128;
+    canvas.height = 128;
+    const ctx = canvas.getContext('2d')!;
+    const rgb = hexToRgb(body.color);
+    const gradient = ctx.createRadialGradient(64, 64, 0, 64, 64, 64);
+    gradient.addColorStop(0, `rgba(${rgb.r * 255}, ${rgb.g * 255}, ${rgb.b * 255}, 0.6)`);
+    gradient.addColorStop(0.4, `rgba(${rgb.r * 255}, ${rgb.g * 255}, ${rgb.b * 255}, 0.25)`);
+    gradient.addColorStop(1, `rgba(${rgb.r * 255}, ${rgb.g * 255}, ${rgb.b * 255}, 0)`);
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, 128, 128);
+    const tex = new THREE.CanvasTexture(canvas);
+    return tex;
+  }, [body.color]);
+
   return (
-    <group>
-      <mesh
-        ref={meshRef}
-        position={[body.position.x, body.position.y, body.position.z]}
-        onClick={(e) => {
-          e.stopPropagation();
-          onClick();
-        }}
-        onPointerOver={() => setHovered(true)}
-        onPointerOut={() => setHovered(false)}
-      >
-        <sphereGeometry args={[body.radius, 64, 64]} />
-        <meshStandardMaterial
-          map={texture}
-          normalMap={normalMap}
-          normalScale={new THREE.Vector2(0.3, 0.3)}
-          emissive={body.color}
-          emissiveIntensity={isSelected ? 0.5 : 0.2}
-          roughness={0.7}
-          metalness={0.1}
+    <group position={[body.position.x, body.position.y, body.position.z]}>
+      <mesh>
+        <sphereGeometry args={[body.radius * 1.5, 32, 32]} />
+        <meshBasicMaterial
+          map={glowTexture}
+          transparent
+          opacity={isSelected ? 0.5 : 0.25}
+          depthWrite={false}
+          side={THREE.BackSide}
+          blending={THREE.AdditiveBlending}
+        />
+      </mesh>
+
+      <group ref={groupRef}>
+        <mesh
+          ref={meshRef}
+          onClick={(e) => {
+            e.stopPropagation();
+            onClick();
+          }}
+          onPointerOver={() => setHovered(true)}
+          onPointerOut={() => setHovered(false)}
+        >
+          <sphereGeometry args={[body.radius, 64, 64]} />
+          <meshStandardMaterial
+            map={texture}
+            normalMap={normalMap}
+            normalScale={new THREE.Vector2(0.3, 0.3)}
+            emissive={body.color}
+            emissiveIntensity={isSelected ? 0.6 : 0.3}
+            roughness={0.7}
+            metalness={0.1}
+          />
+        </mesh>
+      </group>
+
+      <mesh rotation={[Math.PI / 2, 0, 0]}>
+        <ringGeometry args={[body.radius * 1.05, body.radius * 1.2, 96]} />
+        <meshBasicMaterial
+          color={body.color}
+          transparent
+          opacity={isSelected ? 0.4 : 0.2}
+          side={THREE.DoubleSide}
+          depthWrite={false}
         />
       </mesh>
 
       {isSelected && (
-        <mesh position={[body.position.x, body.position.y, body.position.z]}>
+        <mesh>
           <sphereGeometry args={[body.radius * 1.3, 64, 64]} />
           <meshBasicMaterial color={body.color} transparent opacity={0.2} side={THREE.BackSide} />
         </mesh>
       )}
 
-      {body.trajectory.length > 1 && (
-        <lineSegments geometry={trajectoryGeometry}>
-          <lineBasicMaterial color={body.color} transparent opacity={0.5} />
-        </lineSegments>
+      {trajectoryPositions.length > 0 && (
+        <group>
+          <lineSegments>
+            <bufferGeometry>
+              <bufferAttribute
+                attach="attributes-position"
+                count={trajectoryPositions.length / 3}
+                array={trajectoryPositions}
+                itemSize={3}
+              />
+            </bufferGeometry>
+            <lineBasicMaterial
+              color={body.color}
+              transparent
+              opacity={trajectoryOpacity}
+              linewidth={trajectoryLinewidth}
+            />
+          </lineSegments>
+
+          <lineSegments>
+            <bufferGeometry>
+              <bufferAttribute
+                attach="attributes-position"
+                count={trajectoryPositions.length / 3}
+                array={trajectoryPositions}
+                itemSize={3}
+              />
+            </bufferGeometry>
+            <lineBasicMaterial
+              color={body.color}
+              transparent
+              opacity={trajectoryOpacity * 0.4}
+              linewidth={trajectoryLinewidth * 3}
+              depthWrite={false}
+              blending={THREE.AdditiveBlending}
+            />
+          </lineSegments>
+        </group>
+      )}
+
+      {directionIndicator && (
+        <group>
+          <mesh
+            position={[
+              directionIndicator.position.x,
+              directionIndicator.position.y,
+              directionIndicator.position.z,
+            ]}
+          >
+            <sphereGeometry args={[body.radius * 0.3, 16, 16]} />
+            <meshBasicMaterial color={body.color} transparent opacity={0.9} />
+          </mesh>
+          {(() => {
+            const dx = directionIndicator.direction.x;
+            const dy = directionIndicator.direction.y;
+            const dz = directionIndicator.direction.z;
+            const dirLen = Math.sqrt(dx * dx + dy * dy + dz * dz);
+            if (dirLen < 0.0001) return null;
+            const ux = dx / dirLen;
+            const uy = dy / dirLen;
+            const uz = dz / dirLen;
+            const endX = directionIndicator.position.x + ux * body.radius;
+            const endY = directionIndicator.position.y + uy * body.radius;
+            const endZ = directionIndicator.position.z + uz * body.radius;
+            const linePositions = new Float32Array([
+              directionIndicator.position.x,
+              directionIndicator.position.y,
+              directionIndicator.position.z,
+              endX,
+              endY,
+              endZ,
+            ]);
+            return (
+              <>
+                <lineSegments>
+                  <bufferGeometry>
+                    <bufferAttribute
+                      attach="attributes-position"
+                      count={2}
+                      array={linePositions}
+                      itemSize={3}
+                    />
+                  </bufferGeometry>
+                  <lineBasicMaterial
+                    color={body.color}
+                    transparent
+                    opacity={0.8}
+                    linewidth={2}
+                  />
+                </lineSegments>
+                <mesh position={[endX, endY, endZ]}>
+                  <sphereGeometry args={[body.radius * 0.15, 12, 12]} />
+                  <meshBasicMaterial color={body.color} transparent opacity={1.0} />
+                </mesh>
+              </>
+            );
+          })()}
+        </group>
       )}
 
       {(hovered || isSelected) && (
-        <group position={billboardPosition} scale={[labelScale, labelScale, labelScale]}>
+        <group position={[0, body.radius + 0.5, 0]} scale={[labelScale, labelScale, labelScale]}>
           <Html center>
             <div
               style={{
@@ -186,30 +374,59 @@ function CollisionParticles() {
   const particles = useSimulationStore((state) => state.collisionParticles);
   const pointsRef = useRef<THREE.Points>(null);
 
-  const { positions, opacities } = useMemo(() => {
+  const { positions, colors } = useMemo(() => {
     const positions = new Float32Array(particles.length * 3);
-    const opacities = new Float32Array(particles.length);
+    const colors = new Float32Array(particles.length * 3);
 
     for (let i = 0; i < particles.length; i++) {
       positions[i * 3] = particles[i].position.x;
       positions[i * 3 + 1] = particles[i].position.y;
       positions[i * 3 + 2] = particles[i].position.z;
-      opacities[i] = particles[i].life / particles[i].maxLife;
+
+      const rgb = hexToRgb(particles[i].color || '#ffffff');
+      colors[i * 3] = rgb.r;
+      colors[i * 3 + 1] = rgb.g;
+      colors[i * 3 + 2] = rgb.b;
     }
 
-    return { positions, opacities };
+    return { positions, colors };
   }, [particles]);
 
   if (particles.length === 0) return null;
 
   return (
-    <points ref={pointsRef}>
-      <bufferGeometry>
-        <bufferAttribute attach="attributes-position" count={positions.length / 3} array={positions} itemSize={3} />
-        <bufferAttribute attach="attributes-opacity" count={opacities.length} array={opacities} itemSize={1} />
-      </bufferGeometry>
-      <pointsMaterial size={0.15} color="#ffffff" transparent opacity={0.8} sizeAttenuation />
-    </points>
+    <group>
+      <points ref={pointsRef}>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" count={positions.length / 3} array={positions} itemSize={3} />
+          <bufferAttribute attach="attributes-color" count={colors.length / 3} array={colors} itemSize={3} />
+        </bufferGeometry>
+        <pointsMaterial
+          size={0.2}
+          vertexColors
+          transparent
+          opacity={0.9}
+          sizeAttenuation
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </points>
+      <points>
+        <bufferGeometry>
+          <bufferAttribute attach="attributes-position" count={positions.length / 3} array={positions} itemSize={3} />
+          <bufferAttribute attach="attributes-color" count={colors.length / 3} array={colors} itemSize={3} />
+        </bufferGeometry>
+        <pointsMaterial
+          size={0.5}
+          vertexColors
+          transparent
+          opacity={0.3}
+          sizeAttenuation
+          depthWrite={false}
+          blending={THREE.AdditiveBlending}
+        />
+      </points>
+    </group>
   );
 }
 
@@ -291,7 +508,7 @@ function SceneContent() {
           luminanceThreshold={0.2}
           luminanceSmoothing={0.9}
           height={300}
-          intensity={1.5}
+          intensity={1.8}
         />
       </EffectComposer>
     </>

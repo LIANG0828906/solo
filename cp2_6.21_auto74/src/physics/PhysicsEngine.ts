@@ -90,7 +90,7 @@ export class PhysicsEngine {
       };
     }
     for (let i = 0; i < bodyArray.length; i++) {
-      k2v[i] = this.computeAccelerationWithTemp(i, bodyArray, tempPositions, tempVelocities);
+      k2v[i] = this.computeAccelerationWithTemp(i, bodyArray, tempPositions);
       k2p[i] = { x: tempVelocities[i].x, y: tempVelocities[i].y, z: tempVelocities[i].z };
     }
 
@@ -107,7 +107,7 @@ export class PhysicsEngine {
       };
     }
     for (let i = 0; i < bodyArray.length; i++) {
-      k3v[i] = this.computeAccelerationWithTemp(i, bodyArray, tempPositions, tempVelocities);
+      k3v[i] = this.computeAccelerationWithTemp(i, bodyArray, tempPositions);
       k3p[i] = { x: tempVelocities[i].x, y: tempVelocities[i].y, z: tempVelocities[i].z };
     }
 
@@ -124,7 +124,7 @@ export class PhysicsEngine {
       };
     }
     for (let i = 0; i < bodyArray.length; i++) {
-      k4v[i] = this.computeAccelerationWithTemp(i, bodyArray, tempPositions, tempVelocities);
+      k4v[i] = this.computeAccelerationWithTemp(i, bodyArray, tempPositions);
       k4p[i] = { x: tempVelocities[i].x, y: tempVelocities[i].y, z: tempVelocities[i].z };
     }
 
@@ -167,7 +167,7 @@ export class PhysicsEngine {
             mergedId: mergedBody.id,
             position: { ...mergedBody.position },
           });
-          this.createCollisionParticles(mergedBody.position);
+          this.createCollisionParticles(mergedBody.position, mergedBody.color);
 
           bodyArray[i] = mergedBody;
           merged.add(j);

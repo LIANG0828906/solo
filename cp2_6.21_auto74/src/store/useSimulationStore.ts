@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { IStellarBody, SimulationParams, ISnapshot, PresetType } from '@/utils/types';
+import type { IStellarBody, SimulationParams, ISnapshot, PresetType, Particle } from '@/utils/types';
 
 interface SimulationState {
   bodies: IStellarBody[];
@@ -9,12 +9,7 @@ interface SimulationState {
   trajectoryLength: number;
   history: ISnapshot[];
   currentPreset: PresetType;
-  collisionParticles: Array<{
-    position: { x: number; y: number; z: number };
-    velocity: { x: number; y: number; z: number };
-    life: number;
-    maxLife: number;
-  }>;
+  collisionParticles: Particle[];
   worker: Worker | null;
   isAddMode: boolean;
 
