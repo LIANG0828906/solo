@@ -1,80 +1,111 @@
 import React, { useRef, useState } from 'react';
 import { FaUpload, FaFilePdf } from 'react-icons/fa';
 import { useAppStore } from '../store';
+import { parseResume } from '../modules/parser/ParserModule';
+import { ResumeData as ParserResumeData } from '../modules/parser/ParserModule';
+import { ResumeData } from '../types';
 
-const SAMPLE_RESUME = {
-  name: '张三',
-  email: 'zhangsan@example.com',
-  phone: '138-0000-0000',
-  skills: ['React', 'TypeScript', 'JavaScript', 'HTML5', 'CSS3', 'Node.js', 'Webpack'],
-  experience: [
-    {
-      company: 'XX科技有限公司',
-      position: '高级前端工程师',
-      duration: '5年',
-      description: '负责公司核心产品的前端架构设计与开发，使用React技术栈，带领团队完成多个大型互联网项目。',
-    },
-    {
-      company: 'YY互联网公司',
-      position: '前端开发工程师',
-      duration: '2年',
-      description: '参与电商平台前端开发，负责商品详情页、购物车等核心模块，优化页面加载性能。',
-    },
-  ],
-  education: [
-    {
-      school: '清华大学',
-      degree: '硕士',
-      major: '计算机科学与技术',
-      duration: '2016-2019',
-    },
-    {
-      school: '北京大学',
-      degree: '本科',
-      major: '软件工程',
-      duration: '2012-2016',
-    },
-  ],
-  softSkills: ['沟通协作', '团队领导', '学习能力强', '问题解决', '创新思维'],
-  industryKnowledge: ['互联网行业', '电商平台', 'SaaS产品', '移动端开发'],
-  summary: '7年前端开发经验，精通React生态，具备良好的团队协作和沟通能力，曾主导多个大型互联网项目从0到1的建设。',
+const STAGE_LABELS: Record<string, string> = {
+  '读取PDF文件': '加载PDF文件',
+  '提取文本内容': '提取文本内容',
+  '结构化解析': '智能结构化解析',
+  '解析完成': '解析完成',
 };
+
+function mapParserToStoreData(parser: ParserResumeData): ResumeData {
+  const skills = parser.skills.map(s => s.name);
+  const softSkills: string[] = [];
+  const industryKnowledge: string[] = [];
+
+  const summary = parser.basicInfo.selfIntroduction || '';
+  const descText = parser.experiences.map(e => e.description).join(' ');
+
+  for (const sk of parser.skills) {
+    const n = sk.name;
+    if (['沟通', '协作', '团队合作', '领导', '管理', '学习', '创新', '责任心', '执行力'].some(k => n.includes(k))) {
+      softSkills.push(n);
+    }
+  }
+  if (softSkills.length === 0 && (summary.includes('沟通') || descText.includes('协作'))) {
+    softSkills.push('沟通协作');
+  }
+  if (summary.includes('领导') || descText.includes('带领')) {
+    softSkills.push('领导力');
+  }
+
+  const industryKeywords = ['互联网', '电商', '金融', '教育', '医疗', '游戏', 'SaaS', '大数据', '云计算', '人工智能'];
+  for (const ik of industryKeywords) {
+    if (summary.includes(ik) || descText.includes(ik)) {
+      industryKnowledge.push(ik);
+    }
+  }
+
+  return {
+    name: parser.basicInfo.name,
+    email: parser.basicInfo.email,
+    phone: parser.basicInfo.phone,
+    skills,
+    experience: parser.experiences.map(e => ({
+      company: e.company,
+      position: e.position,
+      duration: e.duration,
+      description: e.description,
+    })),
+    education: parser.education.map(e => ({
+      school: e.school,
+      degree: e.degree,
+      major: e.major,
+      duration: `${e.startDate}-${e.endDate}`,
+    })),
+    softSkills,
+    industryKnowledge,
+    summary: parser.basicInfo.selfIntroduction,
+  };
+}
 
 const ResumeUploader: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [stageLabel, setStageLabel] = useState('');
   const { isParsing, parseProgress, setIsParsing, setParseProgress, setResumeData } = useAppStore();
 
-  const simulateParsing = () => {
+  const handleFile = async (file: File) => {
+    if (!file.name.toLowerCase().endsWith('.pdf')) {
+      alert('请上传PDF格式文件');
+      return;
+    }
+
     setIsParsing(true);
     setParseProgress(0);
-    let progress = 0;
-    const interval = setInterval(() => {
-      progress += Math.random() * 15 + 5;
-      if (progress >= 100) {
-        progress = 100;
-        setParseProgress(100);
-        clearInterval(interval);
-        setTimeout(() => {
-          setResumeData(SAMPLE_RESUME);
-          setIsParsing(false);
-        }, 300);
-      } else {
-        setParseProgress(progress);
-      }
-    }, 300);
+    setStageLabel('准备解析...');
+
+    try {
+      const parserData = await parseResume(file, (p) => {
+        setParseProgress(p.percent);
+        setStageLabel(STAGE_LABELS[p.stage] || p.stage);
+      });
+
+      const storeData = mapParserToStoreData(parserData);
+      setResumeData(storeData);
+    } catch (err) {
+      console.error('简历解析失败:', err);
+      alert('简历解析失败，请重试');
+    } finally {
+      setIsParsing(false);
+      setStageLabel('');
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) simulateParsing();
+    if (file) handleFile(file);
   };
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     const file = e.dataTransfer.files?.[0];
-    if (file) simulateParsing();
+    if (file) handleFile(file);
   };
 
   const handleClick = () => {
@@ -110,7 +141,7 @@ const ResumeUploader: React.FC = () => {
       </div>
       {isParsing && (
         <div className="progress-container">
-          <div className="progress-label">解析中...</div>
+          <div className="progress-label">{stageLabel || '解析中...'}</div>
           <div className="progress-bar">
             <div
               className="progress-fill"

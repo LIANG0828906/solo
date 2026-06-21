@@ -21,12 +21,36 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const items = document.querySelectorAll('.stagger-item');
-    items.forEach((item, index) => {
-      setTimeout(() => {
-        item.classList.add('stagger-visible');
-      }, index * 100);
+    if (items.length === 0) return;
+
+    const observer = new MutationObserver(() => {
+      observeStaggerItems();
     });
-  }, []);
+
+    const observeStaggerItems = () => {
+      const currentItems = document.querySelectorAll('.stagger-item:not(.stagger-visible)');
+      currentItems.forEach((item, index) => {
+        const el = item as HTMLElement;
+        el.style.transitionDelay = `${index * 0.1}s`;
+      });
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          currentItems.forEach((item) => {
+            item.classList.add('stagger-visible');
+          });
+        });
+      });
+    };
+
+    observeStaggerItems();
+
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+    });
+
+    return () => observer.disconnect();
+  }, [resumeData, selectedJobId]);
 
   const handleJobClick = (jobId: string) => {
     setSelectedJobId(jobId);

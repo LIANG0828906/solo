@@ -8,16 +8,43 @@ interface JobCardProps {
   onClick: () => void;
 }
 
+function getScoreGradientStops(score: number): string {
+  if (score <= 0) return '#f44336';
+  if (score <= 30) {
+    const t = score / 30;
+    const r = 244;
+    const g = Math.round(67 + t * (152 - 67));
+    const b = Math.round(54 + t * (0 - 54));
+    return `rgb(${r},${g},${b})`;
+  }
+  if (score <= 70) {
+    const t = (score - 30) / 40;
+    const r = Math.round(255 - t * (255 - 76));
+    const g = Math.round(152 + t * (175 - 152));
+    const b = Math.round(0 + t * (80 - 0));
+    return `rgb(${r},${g},${b})`;
+  }
+  const t = (score - 70) / 30;
+  const r = Math.round(76 - t * 28);
+  const g = Math.round(175 - t * 4);
+  const b = Math.round(80 - t * 0);
+  return `rgb(${r},${g},${b})`;
+}
+
+function getRingGradientId(jobId: string): string {
+  return `ring-grad-${jobId}`;
+}
+
 const JobCard: React.FC<JobCardProps> = ({ job, onClick }) => {
   const { resumeData, matchResults, selectedJobId } = useAppStore();
   const matchResult: MatchResult | undefined = matchResults[job.id];
   const isSelected = selectedJobId === job.id;
 
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return '#4caf50';
-    if (score >= 60) return '#ff9800';
-    return '#f44336';
-  };
+  const score = matchResult?.overallScore ?? 0;
+  const gradientId = getRingGradientId(job.id);
+  const startColor = getScoreGradientStops(Math.max(score - 20, 0));
+  const endColor = getScoreGradientStops(score);
+  const textColor = getScoreGradientStops(score);
 
   const renderSkillTags = () => {
     if (!resumeData || !matchResult) {
@@ -40,14 +67,19 @@ const JobCard: React.FC<JobCardProps> = ({ job, onClick }) => {
   };
 
   const renderRingProgress = () => {
-    const score = matchResult?.overallScore ?? 0;
     const radius = 30;
     const circumference = 2 * Math.PI * radius;
     const offset = circumference - (score / 100) * circumference;
-    const color = getScoreColor(score);
+
     return (
       <div className="ring-progress">
         <svg width="72" height="72" viewBox="0 0 72 72">
+          <defs>
+            <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor={startColor} />
+              <stop offset="100%" stopColor={endColor} />
+            </linearGradient>
+          </defs>
           <circle
             cx="36"
             cy="36"
@@ -61,7 +93,7 @@ const JobCard: React.FC<JobCardProps> = ({ job, onClick }) => {
             cy="36"
             r={radius}
             fill="none"
-            stroke={color}
+            stroke={`url(#${gradientId})`}
             strokeWidth="8"
             strokeLinecap="round"
             strokeDasharray={circumference}
@@ -70,7 +102,7 @@ const JobCard: React.FC<JobCardProps> = ({ job, onClick }) => {
             style={{ transition: 'stroke-dashoffset 0.5s ease' }}
           />
         </svg>
-        <div className="ring-score" style={{ color }}>
+        <div className="ring-score" style={{ color: textColor }}>
           {matchResult ? `${score}%` : '--'}
         </div>
       </div>
