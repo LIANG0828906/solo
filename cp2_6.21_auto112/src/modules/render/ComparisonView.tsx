@@ -3,12 +3,14 @@ import FontFaceObserver from 'fontfaceobserver';
 import {
   ColumnConfig,
   FONT_OPTIONS,
+  getDiffPercent,
   useControls,
 } from '../panel/useControls';
 
 interface ColumnProps {
   index: 0 | 1 | 2;
   config: ColumnConfig;
+  baseConfig: ColumnConfig | null;
   text: string;
   selected: boolean;
   locked: boolean;
@@ -19,6 +21,7 @@ interface ColumnProps {
 const SingleColumn: React.FC<ColumnProps> = ({
   index,
   config,
+  baseConfig,
   text,
   selected,
   locked,
@@ -54,6 +57,17 @@ const SingleColumn: React.FC<ColumnProps> = ({
     color: config.color,
   };
 
+  const diffPercent = baseConfig
+    ? getDiffPercent(config.fontSize, baseConfig.fontSize)
+    : null;
+  const diffClass = diffPercent
+    ? diffPercent.startsWith('+')
+      ? 'diff-tag positive'
+      : diffPercent.startsWith('-')
+      ? 'diff-tag negative'
+      : 'diff-tag'
+    : '';
+
   return (
     <div
       ref={wrapRef}
@@ -62,18 +76,27 @@ const SingleColumn: React.FC<ColumnProps> = ({
     >
       <div className="column-header">
         <span className="column-font-label">{fontFamilyLabel}</span>
-        <span className={`column-badge ${locked ? 'locked' : ''}`}>
-          {locked ? '基准 🔒' : `栏 ${index + 1}`}
-        </span>
+        <div className="column-header-right">
+          {!locked && diffPercent && (
+            <span className={diffClass}>{diffPercent}</span>
+          )}
+          <span className={`column-badge ${locked ? 'locked' : ''}`}>
+            {locked ? '基准 🔒' : `栏 ${index + 1}`}
+          </span>
+        </div>
       </div>
       {fontLoaded ? (
-        <div ref={contentRef} className="column-content" style={contentStyle}>
-          {text}
+        <div className="column-content-box">
+          <div ref={contentRef} className="column-content" style={contentStyle}>
+            {text}
+          </div>
         </div>
       ) : (
-        <div className="loading-state">
-          <div className="loading-spinner" />
-          <span>加载字体中...</span>
+        <div className="column-content-box">
+          <div className="loading-state">
+            <div className="loading-spinner" />
+            <span>加载字体中...</span>
+          </div>
         </div>
       )}
     </div>
@@ -88,7 +111,7 @@ interface ComparisonViewProps {}
 
 export const ComparisonView = forwardRef<ComparisonViewHandle, ComparisonViewProps>(
   function ComparisonView(_props, ref) {
-    const { text, columns, selectedColumn, setSelectedColumn } = useControls();
+    const { text, columns, selectedColumn, lockedColumn, setSelectedColumn } = useControls();
 
     const col0Ref = useRef<HTMLDivElement>(null);
     const col1Ref = useRef<HTMLDivElement>(null);
@@ -104,7 +127,7 @@ export const ComparisonView = forwardRef<ComparisonViewHandle, ComparisonViewPro
     }));
 
     const colRefs = [col0Ref, col1Ref, col2Ref];
-    const lockedColumn = useControls.getState().lockedColumn;
+    const baseConfig = lockedColumn !== null ? columns[lockedColumn] : null;
 
     return (
       <div className="comparison-view">
@@ -115,6 +138,7 @@ export const ComparisonView = forwardRef<ComparisonViewHandle, ComparisonViewPro
               <SingleColumn
                 index={idx}
                 config={config}
+                baseConfig={lockedColumn === idx ? null : baseConfig}
                 text={text}
                 selected={selectedColumn === idx}
                 locked={lockedColumn === idx}
