@@ -302,13 +302,30 @@ input, textarea, select {
 .panel-item {
   position: absolute;
   background: var(--color-panel);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  transition: box-shadow var(--transition);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border: 2px solid transparent;
+  transition:
+    box-shadow var(--transition),
+    opacity var(--transition),
+    border-color var(--transition),
+    background-color var(--transition);
   overflow: visible;
+  box-sizing: border-box;
 }
 
 .panel-item.selected {
-  box-shadow: 0 0 0 2px var(--color-primary), 0 4px 16px rgba(74, 144, 217, 0.25);
+  border-color: #4a90d9;
+  box-shadow: 0 4px 16px rgba(74, 144, 217, 0.25);
+}
+
+.panel-item.dragging {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  opacity: 0.9;
+  cursor: grabbing;
+}
+
+.panel-item.dragging.selected {
+  box-shadow: 0 0 0 2px #4a90d9, 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
 .panel-content {

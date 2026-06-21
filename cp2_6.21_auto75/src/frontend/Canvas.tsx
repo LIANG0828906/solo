@@ -385,25 +385,39 @@ export const Canvas: React.FC = () => {
           <div className="snap-line snap-line-v" style={{ left: snapLines.vertical }} />
         )}
 
-        {panels.map((panel) => (
-          <div
-            key={panel.id}
-            className={`panel-item ${selectedPanelIds.includes(panel.id) ? 'selected' : ''} ${
-              dropTargetPanelId === panel.id ? 'drop-target-active' : ''
-            }`}
-            style={{
-              left: panel.x,
-              top: panel.y,
-              width: panel.width,
-              height: panel.height,
-              borderRadius: panel.borderRadius,
-              backgroundColor:
-                panel.backgroundColor === 'transparent' ? 'transparent' : panel.backgroundColor,
-              transition:
-                isDraggingPanel === panel.id || isResizingPanel === panel.id
+        {panels.map((panel) => {
+          const isSelected = selectedPanelIds.includes(panel.id);
+          const isPanelBeingDragged =
+            isDraggingPanel === panel.id ||
+            (isDraggingPanel !== null &&
+              selectedPanelIds.includes(panel.id) &&
+              selectedPanelIds.includes(isDraggingPanel));
+          const isPanelBeingResized =
+            isResizingPanel === panel.id ||
+            (isResizingPanel !== null &&
+              selectedPanelIds.length > 1 &&
+              selectedPanelIds.includes(panel.id) &&
+              selectedPanelIds.includes(isResizingPanel));
+          const shouldSkipTransition = isPanelBeingDragged || isPanelBeingResized;
+
+          return (
+            <div
+              key={panel.id}
+              className={`panel-item ${isSelected ? 'selected' : ''} ${
+                isPanelBeingDragged ? 'dragging' : ''
+              } ${dropTargetPanelId === panel.id ? 'drop-target-active' : ''}`}
+              style={{
+                left: panel.x,
+                top: panel.y,
+                width: panel.width,
+                height: panel.height,
+                borderRadius: panel.borderRadius,
+                backgroundColor:
+                  panel.backgroundColor === 'transparent' ? 'transparent' : panel.backgroundColor,
+                transition: shouldSkipTransition
                   ? 'none'
-                  : 'box-shadow var(--transition)',
-            }}
+                  : 'left var(--transition), top var(--transition), width var(--transition), height var(--transition), box-shadow var(--transition), opacity var(--transition), border-color var(--transition)',
+              }}
             onMouseDown={(e) => handlePanelMouseDown(e, panel)}
             onDrop={(e) => handleDropOnPanel(e, panel.id)}
             onDragOver={(e) => handleDragOverPanel(e, panel.id)}
@@ -489,7 +503,8 @@ export const Canvas: React.FC = () => {
 
             {panel.cameraNote && <div className="panel-camera-note">{panel.cameraNote}</div>}
           </div>
-        ))}
+        );
+      })}
       </div>
 
       {selectedLayer && selectedLayer.style && selectedLayer.type === 'text' && (
