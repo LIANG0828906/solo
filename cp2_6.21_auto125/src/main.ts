@@ -12,6 +12,14 @@ class App {
   private controlPanel: ControlPanel;
   private clock: THREE.Clock;
   private animationId: number;
+  private lastUserInteraction: number = 0;
+  private autoRotateEnabled: boolean = false;
+  private readonly AUTO_ROTATE_SPEED: number = (Math.PI * 2) / 10;
+  private readonly IDLE_DELAY: number = 5000;
+  private readonly ROTATION_TARGET = new THREE.Vector3(0, 0, 0);
+  private autoRotateAngle: number = 0;
+  private autoRotateRadius: number = 0;
+  private autoRotateHeight: number = 0;
 
   constructor() {
     this.scene = new THREE.Scene();
@@ -34,6 +42,7 @@ class App {
     this.controls.dampingFactor = 0.05;
     this.controls.minDistance = 2;
     this.controls.maxDistance = 30;
+    this.setupUserInteractionListeners();
     this.setupLights();
     this.clock = new THREE.Clock();
     const guiContainer = document.getElementById('gui-container')!;
@@ -82,7 +91,24 @@ class App {
     }
   }
 
+  private setupUserInteractionListeners(): void {
+    const canvas = this.renderer.domElement;
+    const onInteract = () => {
+      this.lastUserInteraction = performance.now();
+      this.autoRotateEnabled = false;
+    };
+    canvas.addEventListener('pointerdown', onInteract);
+    canvas.addEventListener('pointermove', onInteract);
+    canvas.addEventListener('wheel', onInteract);
+    canvas.addEventListener('touchstart', onInteract);
+    canvas.addEventListener('touchmove', onInteract);
+    this.controls.addEventListener('start', onInteract);
+    this.controls.addEventListener('change', onInteract);
+  }
+
   private onKeyDown(e: KeyboardEvent): void {
+    this.lastUserInteraction = performance.now();
+    this.autoRotateEnabled = false;
     if (e.code === 'Space') {
       e.preventDefault();
       const paused = this.crystal.togglePause();
@@ -135,9 +161,49 @@ class App {
     const deltaMs = delta * 1000;
     this.controlPanel.update(deltaMs);
     this.crystal.update(deltaMs);
-    this.controls.update();
+    this.updateAutoRotate(delta);
+    if (!this.autoRotateEnabled) {
+      this.controls.update();
+    }
     this.crystal.group.rotation.y += delta * 0.05;
     this.renderer.render(this.scene, this.camera);
+  }
+
+  private shouldAutoRotate(): boolean {
+    const isGrowthComplete = this.crystal.getProgress() >= 1;
+    const isPaused = this.crystal.getPaused();
+    const now = performance.now();
+    const idleTime = now - this.lastUserInteraction;
+    const isIdle = idleTime >= this.IDLE_DELAY;
+    return (isGrowthComplete || isPaused) && isIdle;
+  }
+
+  private updateAutoRotate(delta: number): void {
+    const shouldRotate = this.shouldAutoRotate();
+    if (!this.autoRotateEnabled && shouldRotate) {
+      this.autoRotateEnabled = true;
+      this.initAutoRotateParams();
+    } else if (this.autoRotateEnabled && !shouldRotate) {
+      this.autoRotateEnabled = false;
+      return;
+    }
+    if (this.autoRotateEnabled) {
+      this.autoRotateAngle += this.AUTO_ROTATE_SPEED * delta;
+      const x = Math.cos(this.autoRotateAngle) * this.autoRotateRadius;
+      const z = Math.sin(this.autoRotateAngle) * this.autoRotateRadius;
+      const y = this.autoRotateHeight;
+      this.camera.position.set(x, y, z);
+      this.camera.lookAt(this.ROTATION_TARGET);
+    }
+  }
+
+  private initAutoRotateParams(): void {
+    const direction = new THREE.Vector3();
+    this.camera.getWorldDirection(direction);
+    const offset = this.camera.position.clone().sub(this.ROTATION_TARGET);
+    this.autoRotateRadius = Math.sqrt(offset.x * offset.x + offset.z * offset.z);
+    this.autoRotateHeight = offset.y;
+    this.autoRotateAngle = Math.atan2(offset.z, offset.x);
   }
 
   public dispose(): void {
