@@ -1,22 +1,26 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { useGameStore, LEVELS } from './data';
 import {
-  generateVirtualImages,
-  getEquipotentialRadii,
+  getEquipotentialSurfaces,
   interpolateColor,
   checkLevelMatch,
   CANVAS_SIZE,
   type Star,
   type Lens,
-  type VirtualImage
+  type VirtualImage,
+  type EquipotentialSurface
 } from './core';
 import type { LevelConfig } from './data';
+import LensWorker from './lens-worker?worker';
 
 function GravitationalLensCanvas() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animRef = useRef<number>(0);
   const virtualImagesRef = useRef<VirtualImage[]>([]);
   const lastComputeRef = useRef<number>(0);
+  const workerRef = useRef<InstanceType<typeof LensWorker> | null>(null);
+  const workerReqIdRef = useRef<number>(0);
+  const workerBusyRef = useRef<boolean>(false);
   const draggingRef = useRef<boolean>(false);
   const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
@@ -32,9 +36,10 @@ function GravitationalLensCanvas() {
   const completeLevel = useGameStore((s) => s.completeLevel);
   const completedLevels = useGameStore((s) => s.completedLevels);
 
-  const level: LevelConfig | undefined = currentLevel !== null
-    ? LEVELS.find((l) => l.id === currentLevel)
-    : undefined;
+  const level: LevelConfig | undefined =
+    currentLevel !== null
+      ? LEVELS.find((l) => l.id === currentLevel)
+      : undefined;
 
   const screenToCanvas = useCallback(
     (clientX: number, clientY: number) => {
@@ -55,7 +60,7 @@ function GravitationalLensCanvas() {
       const { x, y } = screenToCanvas(e.clientX, e.clientY);
       const dx = x - lens.x;
       const dy = y - lens.y;
-      if (Math.sqrt(dx * dx + dy * dy) < lens.radius + 20) {
+      if (Math.sqrt(dx * dx + dy * dy) < lens.radius + 40) {
         draggingRef.current = true;
         dragOffsetRef.current = { x: dx, y: dy };
       }
@@ -90,16 +95,44 @@ function GravitationalLensCanvas() {
   );
 
   useEffect(() => {
+    workerRef.current = new LensWorker();
+    workerRef.current.onmessage = (e: MessageEvent<{
+      id: number;
+      virtualImages: VirtualImage[];
+      timestamp: number;
+    }>) => {
+      if (e.data.id === workerReqIdRef.current || e.data.id > workerReqIdRef.current - 2) {
+        virtualImagesRef.current = e.data.virtualImages;
+      }
+      workerBusyRef.current = false;
+    };
+
+    return () => {
+      workerRef.current?.terminate();
+      workerRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    let frameCount = 0;
+    const requestWorkerCompute = () => {
+      if (workerBusyRef.current || !workerRef.current) return;
+      workerBusyRef.current = true;
+      workerReqIdRef.current++;
+      workerRef.current.postMessage({
+        id: workerReqIdRef.current,
+        stars,
+        lens
+      });
+    };
 
     const drawStars = (starsArr: Star[]) => {
+      ctx.fillStyle = '#ffffff';
       for (const star of starsArr) {
-        ctx.fillStyle = '#ffffff';
         ctx.globalAlpha = star.brightness;
         ctx.beginPath();
         ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
@@ -109,11 +142,11 @@ function GravitationalLensCanvas() {
     };
 
     const drawReferenceStars = (starsArr: Star[]) => {
+      ctx.fillStyle = '#ffffff';
       for (const star of starsArr) {
-        ctx.fillStyle = '#ffffff';
-        ctx.globalAlpha = 0.2;
+        ctx.globalAlpha = 0.15;
         ctx.beginPath();
-        ctx.arc(star.x, star.y, star.size * 1.2, 0, Math.PI * 2);
+        ctx.arc(star.x, star.y, star.size * 1.3, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
@@ -121,50 +154,73 @@ function GravitationalLensCanvas() {
 
     const drawVirtualImages = (images: VirtualImage[]) => {
       for (const img of images) {
+        ctx.globalAlpha = Math.min(img.brightness * 0.85, 1);
+
+        let glowColor = '#00ffff';
+        if (img.imageType === 'secondary') glowColor = '#ff00ff';
+        else if (img.imageType === 'tangential') glowColor = '#ffcc00';
+        else if (img.imageType === 'radial') glowColor = '#ff6600';
+
+        ctx.shadowColor = glowColor;
+        ctx.shadowBlur = Math.min(8, 3 * Math.max(1, img.magnification * 0.3));
         ctx.fillStyle = '#ffffff';
-        ctx.globalAlpha = img.brightness * 0.9;
-        ctx.shadowColor = '#00ffff';
-        ctx.shadowBlur = 4 * img.brightness;
         ctx.beginPath();
-        ctx.arc(img.x, img.y, 1.5, 0, Math.PI * 2);
+        const size = Math.min(3.5, 1.2 + img.magnification * 0.1);
+        ctx.arc(img.x, img.y, size, 0, Math.PI * 2);
         ctx.fill();
       }
       ctx.globalAlpha = 1;
       ctx.shadowBlur = 0;
     };
 
-    const drawEquipotentialRings = (lensObj: Lens) => {
-      const radii = getEquipotentialRadii(lensObj.strength);
+    const drawEquipotentialRings = (
+      lensObj: Lens,
+      surfaces: EquipotentialSurface[]
+    ) => {
       ctx.lineWidth = 1;
       ctx.setLineDash([3, 3]);
 
       const ex = 1 - lensObj.ellipticity;
       const ey = 1 + lensObj.ellipticity;
 
-      radii.forEach((r, i) => {
-        const t = i / Math.max(radii.length - 1, 1);
+      if (surfaces.length === 0) return;
+
+      const maxGradient = Math.max(...surfaces.map((s) => s.gradient), 0.001);
+
+      surfaces.forEach((surface, i) => {
+        const t = i / Math.max(surfaces.length - 1, 1);
+        const gradientT = Math.min(1, surface.gradient / maxGradient);
+        const alpha = 0.4 + gradientT * 0.4;
+
+        const dashes = Math.max(1, Math.floor(3 + (1 - gradientT) * 5));
+        ctx.setLineDash([dashes, dashes]);
+
         ctx.strokeStyle = interpolateColor(t);
-        ctx.globalAlpha = 0.6 - t * 0.3;
+        ctx.globalAlpha = alpha;
+        ctx.lineWidth = Math.max(0.5, 0.5 + gradientT * 0.8);
+
         ctx.beginPath();
         ctx.save();
         ctx.translate(lensObj.x, lensObj.y);
         ctx.rotate(lensObj.rotation);
         ctx.scale(ex, ey);
-        ctx.arc(0, 0, r, 0, Math.PI * 2);
+        ctx.arc(0, 0, surface.radius, 0, Math.PI * 2);
         ctx.restore();
         ctx.stroke();
       });
 
       ctx.setLineDash([]);
       ctx.globalAlpha = 1;
+      ctx.lineWidth = 1;
     };
 
     const drawLensTrail = (trail: { x: number; y: number }[]) => {
       for (let i = 0; i < trail.length; i++) {
-        const alpha = (i / trail.length) * 0.6;
+        const alpha = (i / trail.length) * 0.55;
         ctx.fillStyle = `rgba(68, 136, 255, ${alpha})`;
         ctx.beginPath();
-        ctx.arc(trail[i].x, trail[i].y, lens.radius * (0.3 + (i / trail.length) * 0.7), 0, Math.PI * 2);
+        const r = lens.radius * (0.3 + (i / trail.length) * 0.7);
+        ctx.arc(trail[i].x, trail[i].y, r, 0, Math.PI * 2);
         ctx.fill();
       }
     };
@@ -179,11 +235,12 @@ function GravitationalLensCanvas() {
         0,
         lensObj.x,
         lensObj.y,
-        lensObj.radius
+        lensObj.radius * 1.5
       );
-      gradient.addColorStop(0, 'rgba(68, 136, 255, 0.5)');
-      gradient.addColorStop(0.5, 'rgba(68, 136, 255, 0.3)');
-      gradient.addColorStop(1, 'rgba(68, 136, 255, 0.1)');
+      gradient.addColorStop(0, 'rgba(68, 136, 255, 0.55)');
+      gradient.addColorStop(0.4, 'rgba(68, 136, 255, 0.3)');
+      gradient.addColorStop(0.8, 'rgba(68, 136, 255, 0.1)');
+      gradient.addColorStop(1, 'rgba(68, 136, 255, 0.0)');
 
       ctx.save();
       ctx.translate(lensObj.x, lensObj.y);
@@ -191,27 +248,38 @@ function GravitationalLensCanvas() {
       ctx.scale(ex, ey);
       ctx.fillStyle = gradient;
       ctx.beginPath();
-      ctx.arc(0, 0, lensObj.radius, 0, Math.PI * 2);
+      ctx.arc(0, 0, lensObj.radius * 1.5, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.strokeStyle = 'rgba(0, 255, 255, 0.6)';
+      ctx.strokeStyle = 'rgba(0, 255, 255, 0.7)';
       ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(0, 0, lensObj.radius, 0, Math.PI * 2);
       ctx.stroke();
       ctx.restore();
     };
+
+    let surfacesCache = getEquipotentialSurfaces(lens);
+    let lastLensParams = `${lens.strength}_${lens.radius}_${lens.ellipticity}`;
 
     const render = () => {
       const now = performance.now();
 
       if (now - lastComputeRef.current >= 33) {
-        virtualImagesRef.current = generateVirtualImages(stars, lens);
         lastComputeRef.current = now;
+        requestWorkerCompute();
 
         if (level && !completedLevels.includes(level.id)) {
           if (checkLevelMatch(lens, level.targetLens, level.tolerance)) {
             completeLevel(level.id);
           }
         }
+      }
+
+      const lensKey = `${lens.strength.toFixed(1)}_${lens.radius.toFixed(0)}_${lens.ellipticity.toFixed(2)}`;
+      if (lensKey !== lastLensParams) {
+        surfacesCache = getEquipotentialSurfaces(lens);
+        lastLensParams = lensKey;
       }
 
       ctx.fillStyle = '#0b0c10';
@@ -225,20 +293,27 @@ function GravitationalLensCanvas() {
       drawStars(stars);
       drawReferenceStars(stars);
       drawVirtualImages(virtualImagesRef.current);
-      drawEquipotentialRings(lens);
+      drawEquipotentialRings(lens, surfacesCache);
       drawLensTrail(lensTrail);
       drawLens(lens);
 
       ctx.restore();
 
-      frameCount++;
       animRef.current = requestAnimationFrame(render);
     };
 
     animRef.current = requestAnimationFrame(render);
 
     return () => cancelAnimationFrame(animRef.current);
-  }, [stars, lens, zoom, lensTrail, level, completeLevel, completedLevels]);
+  }, [
+    stars,
+    lens,
+    zoom,
+    lensTrail,
+    level,
+    completeLevel,
+    completedLevels
+  ]);
 
   return (
     <canvas
@@ -253,7 +328,7 @@ function GravitationalLensCanvas() {
       style={{
         width: '100%',
         height: '100%',
-        cursor: draggingRef.current ? 'grabbing' : 'grab',
+        cursor: 'grab',
         display: 'block',
         borderRadius: '12px',
         boxShadow: '0 0 60px rgba(0, 255, 255, 0.1)'
@@ -270,7 +345,8 @@ function ControlPanel() {
   const resetLevel = useGameStore((s) => s.resetLevel);
   const setShowLevelSelect = useGameStore((s) => s.setShowLevelSelect);
   const currentLevel = useGameStore((s) => s.currentLevel);
-  const level = currentLevel !== null ? LEVELS.find((l) => l.id === currentLevel) : null;
+  const level =
+    currentLevel !== null ? LEVELS.find((l) => l.id === currentLevel) : null;
 
   return (
     <div
@@ -279,12 +355,19 @@ function ControlPanel() {
         position: 'absolute',
         top: 24,
         right: 24,
-        width: 280,
+        width: 290,
         padding: 20,
         zIndex: 10
       }}
     >
-      <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16, color: '#00ffff' }}>
+      <h2
+        style={{
+          fontSize: 18,
+          fontWeight: 700,
+          marginBottom: 16,
+          color: '#00ffff'
+        }}
+      >
         控制面板
       </h2>
 
@@ -298,17 +381,40 @@ function ControlPanel() {
             border: '1px solid rgba(68, 136, 255, 0.3)'
           }}
         >
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#fff', marginBottom: 4 }}>
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 600,
+              color: '#fff',
+              marginBottom: 4
+            }}
+          >
             关卡 {level.id}: {level.name}
           </div>
-          <div style={{ fontSize: 11, color: '#aab', lineHeight: 1.4 }}>{level.description}</div>
+          <div
+            style={{ fontSize: 11, color: '#aab', lineHeight: 1.4 }}
+          >
+            {level.description}
+          </div>
+          <div
+            style={{
+              fontSize: 10,
+              color: '#667',
+              marginTop: 8,
+              fontStyle: 'italic'
+            }}
+          >
+            匹配精度: 位置 / 强度 / 椭圆率 偏差均 &lt; 5%
+          </div>
         </div>
       )}
 
       <div className="slider-container" style={{ marginBottom: 16 }}>
         <div className="slider-label">
-          <span>引力强度</span>
-          <span className="slider-value">{lens.strength.toFixed(1)}</span>
+          <span>引力强度 (θ = 4GM/c²b)</span>
+          <span className="slider-value">
+            {lens.strength.toFixed(1)}
+          </span>
         </div>
         <input
           type="range"
@@ -323,7 +429,9 @@ function ControlPanel() {
       <div className="slider-container" style={{ marginBottom: 16 }}>
         <div className="slider-label">
           <span>椭圆率</span>
-          <span className="slider-value">{lens.ellipticity.toFixed(2)}</span>
+          <span className="slider-value">
+            {lens.ellipticity.toFixed(2)}
+          </span>
         </div>
         <input
           type="range"
@@ -331,14 +439,18 @@ function ControlPanel() {
           max="0.8"
           step="0.01"
           value={lens.ellipticity}
-          onChange={(e) => setLensEllipticity(parseFloat(e.target.value))}
+          onChange={(e) =>
+            setLensEllipticity(parseFloat(e.target.value))
+          }
         />
       </div>
 
       <div className="slider-container" style={{ marginBottom: 20 }}>
         <div className="slider-label">
           <span>旋转角度</span>
-          <span className="slider-value">{Math.round((lens.rotation * 180) / Math.PI)}°</span>
+          <span className="slider-value">
+            {Math.round((lens.rotation * 180) / Math.PI)}°
+          </span>
         </div>
         <input
           type="range"
@@ -351,10 +463,18 @@ function ControlPanel() {
       </div>
 
       <div style={{ display: 'flex', gap: 8 }}>
-        <button className="btn" style={{ flex: 1 }} onClick={resetLevel}>
+        <button
+          className="btn"
+          style={{ flex: 1 }}
+          onClick={resetLevel}
+        >
           重置
         </button>
-        <button className="btn" style={{ flex: 1 }} onClick={() => setShowLevelSelect(true)}>
+        <button
+          className="btn"
+          style={{ flex: 1 }}
+          onClick={() => setShowLevelSelect(true)}
+        >
           关卡
         </button>
       </div>
@@ -369,9 +489,14 @@ function ControlPanel() {
           lineHeight: 1.6
         }}
       >
-        <div style={{ marginBottom: 4 }}>• 拖拽透镜移动位置</div>
-        <div style={{ marginBottom: 4 }}>• 滚轮缩放场景 (0.5x - 3x)</div>
-        <div>• 滑块调节引力参数</div>
+        <div style={{ marginBottom: 4 }}>• 拖拽蓝色透镜调整位置</div>
+        <div style={{ marginBottom: 4 }}>
+          • 滚轮缩放 (0.5x - 3x)
+        </div>
+        <div style={{ marginBottom: 4 }}>
+          • 滑块调节质量与形状
+        </div>
+        <div>• 虚像数取决于源与透镜相对位置</div>
       </div>
     </div>
   );
@@ -382,9 +507,9 @@ function LevelSelectPanel() {
   const setShowLevelSelect = useGameStore((s) => s.setShowLevelSelect);
   const selectLevel = useGameStore((s) => s.selectLevel);
   const completedLevels = useGameStore((s) => s.completedLevels);
-  const [animState, setAnimState] = useState<'hidden' | 'entering' | 'visible' | 'exiting'>(
-    showLevelSelect ? 'entering' : 'hidden'
-  );
+  const [animState, setAnimState] = useState<
+    'hidden' | 'entering' | 'visible' | 'exiting'
+  >(showLevelSelect ? 'entering' : 'hidden');
 
   useEffect(() => {
     if (showLevelSelect) {
@@ -400,7 +525,8 @@ function LevelSelectPanel() {
 
   if (animState === 'hidden') return null;
 
-  const opacity = animState === 'entering' || animState === 'exiting' ? 0 : 1;
+  const opacity =
+    animState === 'entering' || animState === 'exiting' ? 0 : 1;
   const scale = animState === 'visible' ? 1 : 0.95;
 
   const isLevelUnlocked = (id: number) => {
@@ -436,8 +562,23 @@ function LevelSelectPanel() {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
-          <h2 style={{ fontSize: 24, fontWeight: 700, color: '#00ffff' }}>选择关卡</h2>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            marginBottom: 24
+          }}
+        >
+          <h2
+            style={{
+              fontSize: 24,
+              fontWeight: 700,
+              color: '#00ffff'
+            }}
+          >
+            选择关卡
+          </h2>
           <button
             className="btn"
             onClick={() => setShowLevelSelect(false)}
@@ -450,7 +591,8 @@ function LevelSelectPanel() {
         <div
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+            gridTemplateColumns:
+              'repeat(auto-fill, minmax(200px, 1fr))',
             gap: 16
           }}
         >
@@ -528,10 +670,25 @@ function LevelSelectPanel() {
                     </div>
                   )}
                 </div>
-                <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: '#fff' }}>
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 600,
+                    marginBottom: 4,
+                    color: '#fff'
+                  }}
+                >
                   {lvl.id}. {lvl.name}
                 </div>
-                <div style={{ fontSize: 11, color: '#888', lineHeight: 1.4 }}>{lvl.description}</div>
+                <div
+                  style={{
+                    fontSize: 11,
+                    color: '#888',
+                    lineHeight: 1.4
+                  }}
+                >
+                  {lvl.description}
+                </div>
               </div>
             );
           })}
@@ -557,7 +714,14 @@ function SuccessEffect() {
   const showSuccess = useGameStore((s) => s.showSuccess);
   const setShowSuccess = useGameStore((s) => s.setShowSuccess);
   const particlesRef = useRef<
-    { x: number; y: number; vx: number; vy: number; size: number; life: number }[]
+    {
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      size: number;
+      life: number;
+    }[]
   >([]);
   const animRef = useRef<number>(0);
   const [visible, setVisible] = useState(false);
@@ -568,7 +732,7 @@ function SuccessEffect() {
       particlesRef.current = [];
       for (let i = 0; i < 200; i++) {
         const angle = Math.random() * Math.PI * 2;
-        const speed = 1 + Math.random() * 5;
+        const speed = 1 + Math.random() * 6;
         particlesRef.current.push({
           x: window.innerWidth / 2,
           y: window.innerHeight / 2,
@@ -597,7 +761,9 @@ function SuccessEffect() {
           p.life = 1 - progress;
         });
 
-        const overlay = document.getElementById('success-particles') as HTMLCanvasElement | null;
+        const overlay = document.getElementById(
+          'success-particles'
+        ) as HTMLCanvasElement | null;
         if (overlay) {
           const ctx = overlay.getContext('2d');
           if (ctx) {
@@ -637,4 +803,9 @@ function SuccessEffect() {
   );
 }
 
-export { GravitationalLensCanvas, ControlPanel, LevelSelectPanel, SuccessEffect };
+export {
+  GravitationalLensCanvas,
+  ControlPanel,
+  LevelSelectPanel,
+  SuccessEffect
+};
