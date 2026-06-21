@@ -11,6 +11,8 @@ import {
   Template,
   TEMPLATES,
   MODULE_TYPES,
+  PaperSize,
+  PAPER_SIZES,
 } from '@/types/resume';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
@@ -18,12 +20,15 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 interface ResumeState {
   resumeData: ResumeData;
   zoom: number;
+  paperSize: PaperSize;
   exportProgress: number;
   isExporting: boolean;
   activeModuleId: string | null;
 
   setTemplate: (templateId: string) => void;
   getCurrentTemplate: () => Template | undefined;
+
+  setPaperSize: (paperSizeId: string) => void;
 
   addModule: (moduleType: string, index?: number) => void;
   removeModule: (moduleId: string) => void;
@@ -140,6 +145,7 @@ const defaultResumeData: ResumeData = {
 export const useResumeStore = create<ResumeState>((set, get) => ({
   resumeData: defaultResumeData,
   zoom: 1,
+  paperSize: PAPER_SIZES[0],
   exportProgress: 0,
   isExporting: false,
   activeModuleId: null,
@@ -153,6 +159,12 @@ export const useResumeStore = create<ResumeState>((set, get) => ({
     const { resumeData } = get();
     return TEMPLATES.find((t) => t.id === resumeData.templateId);
   },
+
+  setPaperSize: (paperSizeId: string) =>
+    set(() => {
+      const size = PAPER_SIZES.find((p) => p.id === paperSizeId) || PAPER_SIZES[0];
+      return { paperSize: size };
+    }),
 
   addModule: (moduleType: string, index?: number) =>
     set((state) => {

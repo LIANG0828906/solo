@@ -171,3 +171,18 @@ export const TEMPLATES: Template[] = [
     },
   },
 ];
+
+export interface PaperSize {
+  id: string;
+  name: string;
+  width: number;
+  height: number;
+  unit: string;
+}
+
+export const PAPER_SIZES: PaperSize[] = [
+  { id: 'a4', name: 'A4', width: 794, height: 1123, unit: 'px' },
+  { id: 'a3', name: 'A3', width: 1123, height: 1587, unit: 'px' },
+  { id: 'letter', name: 'Letter', width: 816, height: 1056, unit: 'px' },
+  { id: 'b5', name: 'B5', width: 720, height: 1018, unit: 'px' },
+];

@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { useResumeStore } from '@/store/useResumeStore';
-import { TEMPLATES } from '@/types/resume';
+import { TEMPLATES, PAPER_SIZES } from '@/types/resume';
 import PersonalSection from './sections/PersonalSection';
 import EducationSection from './sections/EducationSection';
 import WorkSection from './sections/WorkSection';
@@ -8,9 +8,6 @@ import SkillsSection from './sections/SkillsSection';
 import ProjectsSection from './sections/ProjectsSection';
 import CustomSection from './sections/CustomSection';
 import './ResumeCanvas.css';
-
-const CANVAS_WIDTH = 794;
-const CANVAS_HEIGHT = 1123;
 
 const ZOOM_PRESETS = [
   { label: '50%', value: 0.5 },
@@ -21,15 +18,23 @@ const ZOOM_PRESETS = [
 
 const MIN_ZOOM = 0.5;
 const MAX_ZOOM = 2;
+const ZOOM_STEP = 0.05;
+
+const roundToStep = (value: number, step: number): number => {
+  return Number((Math.round(value / step) * step).toFixed(2));
+};
 
 const ResumeCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLDivElement>(null);
-  const { resumeData, zoom, setZoom, activeModuleId } = useResumeStore();
+  const { resumeData, zoom, setZoom, activeModuleId, paperSize, setPaperSize } = useResumeStore();
   const [renderKey, setRenderKey] = useState(0);
 
   const template = useMemo(() => {
     return TEMPLATES.find((t) => t.id === resumeData.templateId) || TEMPLATES[0];
   }, [resumeData.templateId]);
+
+  const CANVAS_WIDTH = paperSize.width;
+  const CANVAS_HEIGHT = paperSize.height;
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -60,18 +65,19 @@ const ResumeCanvas: React.FC = () => {
   };
 
   const handleZoomIn = useCallback(() => {
-    const newZoom = Math.min(zoom + 0.1, MAX_ZOOM);
-    setZoom(Number(newZoom.toFixed(2)));
+    const newZoom = roundToStep(Math.min(zoom + ZOOM_STEP, MAX_ZOOM), ZOOM_STEP);
+    setZoom(newZoom);
   }, [zoom, setZoom]);
 
   const handleZoomOut = useCallback(() => {
-    const newZoom = Math.max(zoom - 0.1, MIN_ZOOM);
-    setZoom(Number(newZoom.toFixed(2)));
+    const newZoom = roundToStep(Math.max(zoom - ZOOM_STEP, MIN_ZOOM), ZOOM_STEP);
+    setZoom(newZoom);
   }, [zoom, setZoom]);
 
   const handleSliderChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      setZoom(Number(e.target.value));
+      const newZoom = roundToStep(Number(e.target.value), ZOOM_STEP);
+      setZoom(newZoom);
     },
     [setZoom]
   );
@@ -81,6 +87,13 @@ const ResumeCanvas: React.FC = () => {
       setZoom(value);
     },
     [setZoom]
+  );
+
+  const isPresetActive = useCallback(
+    (presetValue: number): boolean => {
+      return Math.abs(zoom - presetValue) < ZOOM_STEP / 2;
+    },
+    [zoom]
   );
 
   const canvasStyle = {
@@ -111,7 +124,7 @@ const ResumeCanvas: React.FC = () => {
               type="range"
               min={MIN_ZOOM}
               max={MAX_ZOOM}
-              step="0.05"
+              step={ZOOM_STEP}
               value={zoom}
               onChange={handleSliderChange}
               className="zoom-slider"
@@ -125,7 +138,11 @@ const ResumeCanvas: React.FC = () => {
           >
             +
           </button>
-          <div className="zoom-display" title="点击重置为100%" onClick={() => handlePresetClick(1)}>
+          <div
+            className="zoom-display"
+            title="点击重置为100%"
+            onClick={() => handlePresetClick(1)}
+          >
             {Math.round(zoom * 100)}%
           </div>
         </div>
@@ -135,7 +152,7 @@ const ResumeCanvas: React.FC = () => {
             <button
               key={preset.value}
               className={`zoom-preset-btn ${
-                Math.abs(zoom - preset.value) < 0.01 ? 'active' : ''
+                isPresetActive(preset.value) ? 'active' : ''
               }`}
               onClick={() => handlePresetClick(preset.value)}
             >
@@ -143,47 +160,54 @@ const ResumeCanvas: React.FC = () => {
             </button>
           ))}
         </div>
+
+        <div className="paper-size-selector">
+          <select
+            className="paper-size-select"
+            value={paperSize.id}
+            onChange={(e) => setPaperSize(e.target.value)}
+            title="选择纸张尺寸"
+          >
+            {PAPER_SIZES.map((size) => (
+              <option key={size.id} value={size.id}>
+                {size.name} ({size.width}×{size.height})
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <div className="canvas-wrapper">
         <div
           className="canvas-scale-wrapper"
           style={{
-            width: scaledWidth,
-            height: scaledHeight,
+            transform: `scale(${zoom})`,
+            transformOrigin: 'center top',
+            width: CANVAS_WIDTH,
+            height: CANVAS_HEIGHT,
           }}
         >
           <div
-            className="canvas-inner"
-            style={{
-              transform: `scale(${zoom})`,
-              transformOrigin: 'top left',
-              width: CANVAS_WIDTH,
-              height: CANVAS_HEIGHT,
-            }}
+            ref={canvasRef}
+            id="resume-canvas"
+            className="resume-canvas"
+            style={canvasStyle}
+            key={renderKey}
           >
-            <div
-              ref={canvasRef}
-              id="resume-canvas"
-              className="resume-canvas"
-              style={canvasStyle}
-              key={renderKey}
-            >
-              <div className="canvas-content">
-                {visibleModules.map((module) => (
-                  <div
-                    key={module.id}
-                    className={`canvas-module ${
-                      activeModuleId === module.id ? 'active-highlight' : ''
-                    }`}
-                    style={{
-                      '--module-accent': template.colors.accent,
-                    } as React.CSSProperties}
-                  >
-                    {renderModule(module.id, module.type)}
-                  </div>
-                ))}
-              </div>
+            <div className="canvas-content">
+              {visibleModules.map((module) => (
+                <div
+                  key={module.id}
+                  className={`canvas-module ${
+                    activeModuleId === module.id ? 'active-highlight' : ''
+                  }`}
+                  style={{
+                    '--module-accent': template.colors.accent,
+                  } as React.CSSProperties}
+                >
+                  {renderModule(module.id, module.type)}
+                </div>
+              ))}
             </div>
           </div>
         </div>
@@ -192,10 +216,10 @@ const ResumeCanvas: React.FC = () => {
       <div className="canvas-bottom-toolbar">
         <div className="zoom-info">
           <span className="canvas-size-info">
-            画布尺寸: {CANVAS_WIDTH} × {CANVAS_HEIGHT} px (A4)
+            画布尺寸: {paperSize.name} · {CANVAS_WIDTH} × {CANVAS_HEIGHT} {paperSize.unit}
           </span>
           <span className="canvas-scale-info">
-            显示尺寸: {Math.round(scaledWidth)} × {Math.round(scaledHeight)} px
+            显示尺寸: {Math.round(scaledWidth)} × {Math.round(scaledHeight)} {paperSize.unit}
           </span>
         </div>
       </div>
