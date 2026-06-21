@@ -180,60 +180,116 @@ body {
 
 .slider-container {
   position: relative;
-  padding: 4px 0;
+  padding: 8px 0 4px 0;
 }
 
-.slider-value {
-  font-size: 24px;
+.form-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.slider-label-value {
+  font-size: 14px;
   font-weight: 700;
+  transition: color 0.15s ease;
+}
+
+.slider-value-intensity,
+.slider-value-energy {
+  font-size: 28px;
+  font-weight: 800;
   text-align: center;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
+  transition: color 0.15s ease;
+  text-shadow: 0 1px 2px #00000008;
 }
 
-.slider-value.intensity {
-  background: linear-gradient(135deg, #ff6b6b, #6bcf7f);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-}
-
-.slider-value.energy {
-  color: #4fc3f7;
+.slider-scale {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 4px;
+  padding: 0 2px;
+  font-size: 10px;
+  color: #bba9cc;
+  font-weight: 500;
 }
 
 input[type="range"] {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
-  height: 8px;
-  border-radius: 4px;
+  height: 10px;
+  border-radius: 5px;
   outline: none;
-  transition: background 0.2s;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease;
+}
+
+input[type="range"]:hover {
+  box-shadow: 0 2px 8px #00000015;
 }
 
 input[type="range"].intensity-slider {
-  background: linear-gradient(to right, #ff6b6b, #6bcf7f);
+  background: linear-gradient(to right, #ff6b6b, #ff9966, #ffcc66, #a5d6a7, #6bcf7f);
 }
 
 input[type="range"].energy-slider {
-  background: linear-gradient(to right, #81d4fa, #4fc3f7);
+  background: linear-gradient(to right, #b3e5fc, #4fc3f7, #1976d2, #1565c0);
 }
 
-input[type="range"]::-webkit-slider-thumb {
+input[type="range"].intensity-slider::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 22px;
-  height: 22px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   background: #fff;
-  border: 3px solid #8e24aa;
+  border: 3px solid #ff6b6b;
   cursor: pointer;
-  box-shadow: 0 2px 6px #00000020;
-  transition: transform 0.2s;
+  box-shadow: 0 3px 8px #00000020;
+  transition: transform 0.15s ease, border-color 0.15s ease;
 }
 
-input[type="range"]::-webkit-slider-thumb:hover {
+input[type="range"].intensity-slider::-webkit-slider-thumb:hover {
   transform: scale(1.15);
+}
+
+input[type="range"].energy-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid #4fc3f7;
+  cursor: pointer;
+  box-shadow: 0 3px 8px #00000020;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+input[type="range"].energy-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+}
+
+input[type="range"].intensity-slider::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid #ff6b6b;
+  cursor: pointer;
+  box-shadow: 0 3px 8px #00000020;
+}
+
+input[type="range"].energy-slider::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  border: 3px solid #4fc3f7;
+  cursor: pointer;
+  box-shadow: 0 3px 8px #00000020;
 }
 
 .emotion-categories {
