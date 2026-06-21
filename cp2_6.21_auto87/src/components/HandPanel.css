@@ -10,9 +10,9 @@
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  gap: -20px;
-  min-height: 170px;
-  perspective: 1000px;
+  min-height: 200px;
+  perspective: 1200px;
+  position: relative;
 }
 
 .hand-cards .game-card {

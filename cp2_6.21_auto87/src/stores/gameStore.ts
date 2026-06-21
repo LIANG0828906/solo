@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { GameState, Card, Unit, LogEntry, PlayerSide, Position } from '../types/game';
+import type { GameState, Card, Unit, LogEntry, PlayerSide, Position, ActionLog, ReplayData } from '../types/game';
 import { GameEngine } from '../game/GameEngine';
 
 interface GameStore extends GameState {
@@ -21,6 +21,8 @@ interface GameStore extends GameState {
   getMyUnits: () => Unit[];
   getEnemyUnits: () => Unit[];
   isMyTurn: () => boolean;
+  exportGameLog: () => ActionLog[];
+  getReplayData: () => ReplayData | null;
 }
 
 export const useGameStore = create<GameStore>((set, get) => ({
@@ -39,8 +41,10 @@ export const useGameStore = create<GameStore>((set, get) => ({
   selectedTargetId: null,
   winner: null,
   logs: [],
+  actionLogs: [],
   playerSide: 'player',
   roomId: '',
+  stateVersion: 0,
   gameEngine: null,
   isOnline: false,
   isConnected: false,
@@ -156,5 +160,19 @@ export const useGameStore = create<GameStore>((set, get) => ({
   isMyTurn: () => {
     const { currentTurn, playerSide, phase } = get();
     return phase === 'playing' && currentTurn === playerSide;
+  },
+
+  exportGameLog: () => {
+    const { gameEngine, actionLogs } = get();
+    if (gameEngine) {
+      return gameEngine.exportGameLog();
+    }
+    return [...actionLogs];
+  },
+
+  getReplayData: () => {
+    const { gameEngine } = get();
+    if (!gameEngine) return null;
+    return gameEngine.getReplayData();
   },
 }));

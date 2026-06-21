@@ -5,6 +5,9 @@ import type {
   LogEntry,
   PlayerSide,
   Position,
+  ActionLog,
+  ActionType,
+  ReplayData,
 } from '../types/game';
 import { CardEngine } from './CardEngine';
 import { createInitialDeck } from '../data/cards';
@@ -19,6 +22,8 @@ export const INITIAL_ENERGY = 1;
 export class GameEngine {
   private cardEngine: CardEngine;
   private state: GameState;
+  private initialState: GameState | null = null;
+  private actionLogCounter: number = 0;
 
   constructor(initialState?: Partial<GameState>) {
     this.cardEngine = new CardEngine();
@@ -42,8 +47,10 @@ export class GameEngine {
       selectedTargetId: null,
       winner: null,
       logs: [],
+      actionLogs: [],
       playerSide: 'player',
       roomId: '',
+      stateVersion: 0,
     };
 
     return { ...defaultState, ...override };
@@ -75,6 +82,12 @@ export class GameEngine {
       type: 'system',
     };
 
+    const gameStartAction: ActionLog = this.createActionLog(
+      'game_start',
+      'player',
+      { message: '游戏开始' },
+    );
+
     this.state = {
       ...this.state,
       phase: 'playing',
@@ -92,8 +105,12 @@ export class GameEngine {
       selectedTargetId: null,
       winner: null,
       logs: [initialLog],
+      actionLogs: [gameStartAction],
       playerSide,
+      stateVersion: 0,
     };
+
+    this.initialState = { ...this.state };
 
     return { ...this.state };
   }
@@ -107,6 +124,9 @@ export class GameEngine {
   }
 
   selectCard(cardId: string): Card | null {
+    if (this.state.phase !== 'playing') return null;
+    if (this.state.currentTurn !== this.state.playerSide) return null;
+
     const card = this.state.playerHand.find((c) => c.id === cardId);
     if (card && card.cost <= this.state.playerEnergy) {
       this.state.selectedCard = card;
@@ -181,6 +201,25 @@ export class GameEngine {
 
     this.state.logs = [...logs, ...this.state.logs];
 
+    const playCardAction = this.createActionLog(
+      'play_card',
+      this.state.playerSide,
+      {
+        cardId: card.id,
+        cardName: card.name,
+        cardType: card.type,
+        cost: card.cost,
+        targetIds,
+        effect: card.effect,
+      },
+      card.id,
+      targetIds[0],
+      card.effect.damage,
+      card.effect.heal,
+    );
+
+    this.state.actionLogs = [...this.state.actionLogs, playCardAction];
+
     this.state.selectedCard = null;
     this.state.selectedTargetId = null;
 
@@ -217,9 +256,10 @@ export class GameEngine {
   endTurn(): GameState {
     if (this.state.phase !== 'playing') return this.getState();
 
+    const currentTurnSide = this.state.currentTurn;
+
     const { updatedUnits, logs: endTurnLogs } = this.cardEngine.processEndOfTurnEffects(
       this.state.units,
-      this.state.currentTurn,
     );
 
     this.state.units = updatedUnits;
@@ -238,12 +278,14 @@ export class GameEngine {
       this.state.maxEnergy,
     );
 
+    let drawnCard: Card | null = null;
+
     if (nextTurn === 'player') {
       this.state.playerEnergy = newEnergy;
-      this.drawCard('player');
+      drawnCard = this.drawCard('player');
     } else {
       this.state.opponentEnergy = newEnergy;
-      this.drawCard('opponent');
+      drawnCard = this.drawCard('opponent');
     }
 
     const turnLog: LogEntry = {
@@ -254,12 +296,38 @@ export class GameEngine {
     };
     this.state.logs = [turnLog, ...this.state.logs];
 
+    const endTurnAction = this.createActionLog(
+      'end_turn',
+      currentTurnSide,
+      {
+        turnNumber: this.state.turnNumber,
+        nextTurn,
+        newEnergy,
+        drawnCard: drawnCard ? { id: drawnCard.id, name: drawnCard.name } : null,
+      },
+    );
+
+    this.state.actionLogs = [...this.state.actionLogs, endTurnAction];
+
+    if (drawnCard) {
+      const drawCardAction = this.createActionLog(
+        'draw_card',
+        nextTurn,
+        {
+          cardId: drawnCard.id,
+          cardName: drawnCard.name,
+        },
+        drawnCard.id,
+      );
+      this.state.actionLogs = [...this.state.actionLogs, drawCardAction];
+    }
+
     this.checkWinCondition();
 
     return this.getState();
   }
 
-  private drawCard(side: PlayerSide) {
+  private drawCard(side: PlayerSide): Card | null {
     const deck = side === 'player' ? this.state.playerDeck : this.state.opponentDeck;
     const hand = side === 'player' ? this.state.playerHand : this.state.opponentHand;
 
@@ -270,7 +338,9 @@ export class GameEngine {
       } else {
         this.state.opponentHand = [...this.state.opponentHand, card];
       }
+      return card;
     }
+    return null;
   }
 
   private checkWinCondition() {
@@ -299,6 +369,8 @@ export class GameEngine {
   }
 
   deployUnit(unitId: string, position: Position): boolean {
+    if (this.state.phase !== 'playing') return false;
+
     const unit = this.state.units.find((u) => u.id === unitId);
     if (!unit) return false;
 
@@ -311,6 +383,20 @@ export class GameEngine {
     if (occupied) return false;
 
     unit.position = position;
+
+    const deployAction = this.createActionLog(
+      'deploy',
+      unit.owner,
+      {
+        unitId: unit.id,
+        unitName: unit.name,
+        position: { ...position },
+      },
+      undefined,
+      unit.id,
+    );
+    this.state.actionLogs = [...this.state.actionLogs, deployAction];
+
     return true;
   }
 
@@ -348,5 +434,55 @@ export class GameEngine {
       : this.state.opponentEnergy;
 
     return card.cost <= currentEnergy;
+  }
+
+  private createActionLog(
+    type: ActionType,
+    playerId: PlayerSide,
+    details: Record<string, unknown>,
+    cardId?: string,
+    targetId?: string,
+    damage?: number,
+    heal?: number,
+  ): ActionLog {
+    this.actionLogCounter++;
+    return {
+      id: `action_${Date.now()}_${this.actionLogCounter}`,
+      timestamp: Date.now(),
+      type,
+      playerId,
+      cardId,
+      targetId,
+      damage,
+      heal,
+      details,
+    };
+  }
+
+  addActionLog(
+    type: ActionType,
+    playerId: PlayerSide,
+    details: Record<string, unknown> = {},
+    cardId?: string,
+    targetId?: string,
+    damage?: number,
+    heal?: number,
+  ): void {
+    if (this.state.phase === 'ended') return;
+    const action = this.createActionLog(type, playerId, details, cardId, targetId, damage, heal);
+    this.state.actionLogs = [...this.state.actionLogs, action];
+  }
+
+  exportGameLog(): ActionLog[] {
+    return [...this.state.actionLogs];
+  }
+
+  getReplayData(): ReplayData {
+    return {
+      initialState: this.initialState ? { ...this.initialState } : this.createInitialState(),
+      actions: [...this.state.actionLogs],
+      finalState: { ...this.state },
+      winner: this.state.winner,
+    };
   }
 }

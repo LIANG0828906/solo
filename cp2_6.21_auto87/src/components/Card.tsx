@@ -38,20 +38,28 @@ export const Card: React.FC<CardProps> = ({
 
   const typeColor = getCardTypeColor();
 
-  const fanStyle = total > 1
-    ? {
-        transform: `rotate(${(index - (total - 1) / 2) * 4}deg) translateY(${Math.abs(index - (total - 1) / 2) * 3}px)`,
-      }
-    : {};
+  const offset = index - (total - 1) / 2;
+  const totalAngle = total > 1 ? total * 10 : 0;
+  const stepAngle = total > 1 ? totalAngle / (total - 1) : 0;
+  const rotate = offset * stepAngle;
+  const yOffset = Math.abs(offset) * 6;
+  const translateY = -10 + yOffset;
+  const zIndex = total - Math.abs(Math.round(offset));
+
+  const fanVars = {
+    '--fan-rotate': `${rotate}deg`,
+    '--fan-translate-y': `${translateY}px`,
+    '--fan-z-index': `${zIndex}`,
+    '--card-type-color': typeColor,
+  } as React.CSSProperties & { [key: string]: string };
 
   return (
     <div
       className={`game-card ${isSelected ? 'selected' : ''} ${!isPlayable ? 'unplayable' : ''}`}
       style={{
-        ...fanStyle,
+        ...fanVars,
         borderColor: isSelected ? '#5b8def' : typeColor,
-        ['--card-type-color' as string]: typeColor,
-      } as React.CSSProperties & { [key: string]: string | undefined }}
+      } as React.CSSProperties & { [key: string]: string }}
       onClick={isPlayable ? onClick : undefined}
     >
       <div className="card-cost">

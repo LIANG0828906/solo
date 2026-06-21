@@ -1,4 +1,4 @@
-import type { Unit, Card, StatusEffect, LogEntry, PlayerSide } from '../types/game';
+import type { Unit, Card, StatusEffect, LogEntry, PlayerSide, EffectType } from '../types/game';
 
 export class CardEngine {
   private logIdCounter = 0;
@@ -48,41 +48,72 @@ export class CardEngine {
     return currentEnergy;
   }
 
-  processEndOfTurnEffects(units: Unit[], side: PlayerSide): { updatedUnits: Unit[]; logs: LogEntry[] } {
+  processEndOfTurnEffects(units: Unit[]): { updatedUnits: Unit[]; logs: LogEntry[] } {
     const updatedUnits = units.map((u) => ({ ...u, effects: [...u.effects] }));
     const logs: LogEntry[] = [];
 
     for (const unit of updatedUnits) {
-      if (unit.owner !== side) continue;
+      if (unit.hp <= 0) continue;
 
       const newEffects: StatusEffect[] = [];
+      const expiredEffects: StatusEffect[] = [];
 
       for (const effect of unit.effects) {
         const remainingTurns = effect.remainingTurns - 1;
 
         if (remainingTurns <= 0) {
-          if (effect.type === 'weakness') {
-            unit.attack = unit.baseAttack;
-            logs.push(this.createLog(
-              `${unit.name}的虚弱效果已消散`,
-              'system',
-            ));
-          } else if (effect.type === 'shield') {
-            unit.shield = Math.max(0, unit.shield - effect.value);
-            logs.push(this.createLog(
-              `${unit.name}的护盾效果已消散`,
-              'system',
-            ));
-          }
+          expiredEffects.push(effect);
+          logs.push(this.createLog(
+            `${unit.name}的${this.getEffectName(effect.type)}效果已消散`,
+            'effect',
+          ));
         } else {
           newEffects.push({ ...effect, remainingTurns });
+          logs.push(this.createLog(
+            `${unit.name}的${this.getEffectName(effect.type)}效果剩余${remainingTurns}回合`,
+            'effect',
+          ));
         }
       }
 
       unit.effects = newEffects;
+
+      if (expiredEffects.length > 0) {
+        this.recalculateAttack(unit);
+        this.recalculateShield(unit, expiredEffects);
+      }
     }
 
     return { updatedUnits, logs };
+  }
+
+  private getEffectName(type: string): string {
+    const names: Record<string, string> = {
+      shield: '护盾',
+      weakness: '虚弱',
+      attack_buff: '攻击强化',
+    };
+    return names[type] || type;
+  }
+
+  private recalculateAttack(unit: Unit) {
+    let attack = unit.baseAttack;
+    for (const effect of unit.effects) {
+      if (effect.type === 'weakness') {
+        attack -= effect.value;
+      } else if (effect.type === 'attack_buff') {
+        attack += effect.value;
+      }
+    }
+    unit.attack = Math.max(0, attack);
+  }
+
+  private recalculateShield(unit: Unit, expiredEffects: StatusEffect[]) {
+    for (const effect of expiredEffects) {
+      if (effect.type === 'shield') {
+        unit.shield = Math.max(0, unit.shield - effect.value);
+      }
+    }
   }
 
   private applyDamage(target: Unit, damage: number, ignoreShield: boolean, logs: LogEntry[], card: Card) {
@@ -123,8 +154,16 @@ export class CardEngine {
     const existingShield = target.effects.find((e) => e.type === 'shield');
 
     if (existingShield) {
+      const oldValue = existingShield.value;
+      const oldDuration = existingShield.remainingTurns;
       existingShield.value = Math.max(existingShield.value, shield);
       existingShield.remainingTurns = Math.max(existingShield.remainingTurns, duration);
+      target.shield = Math.max(target.shield, shield);
+
+      logs.push(this.createLog(
+        `${target.name}的护盾效果刷新：${oldValue}/${oldDuration}回合 → ${existingShield.value}/${existingShield.remainingTurns}回合`,
+        'effect',
+      ));
     } else {
       target.effects.push({
         id: `shield_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
@@ -132,9 +171,13 @@ export class CardEngine {
         value: shield,
         remainingTurns: duration,
       });
-    }
+      target.shield = Math.max(target.shield, shield);
 
-    target.shield = Math.max(target.shield, shield);
+      logs.push(this.createLog(
+        `${target.name}获得护盾效果：${shield}点，持续${duration}回合`,
+        'effect',
+      ));
+    }
 
     logs.push(this.createLog(
       `${card.name}为${target.name}增加${shield}点护盾，持续${duration}回合`,
@@ -149,25 +192,42 @@ export class CardEngine {
     logs: LogEntry[],
     card: Card,
   ) {
-    target.attack = Math.max(0, target.attack + modifier);
+    const effectType: EffectType = modifier >= 0 ? 'attack_buff' : 'weakness';
+    const absValue = Math.abs(modifier);
+    const effectName = this.getEffectName(effectType);
+    const logType = modifier >= 0 ? 'utility' : 'debuff';
 
-    const existingEffect = target.effects.find((e) => e.type === 'weakness');
+    const existingEffect = target.effects.find((e) => e.type === effectType);
 
     if (existingEffect) {
-      existingEffect.value = Math.min(existingEffect.value, Math.abs(modifier));
+      const oldValue = existingEffect.value;
+      const oldDuration = existingEffect.remainingTurns;
+      existingEffect.value = Math.max(existingEffect.value, absValue);
       existingEffect.remainingTurns = Math.max(existingEffect.remainingTurns, duration);
+
+      logs.push(this.createLog(
+        `${target.name}的${effectName}效果刷新：${oldValue}/${oldDuration}回合 → ${existingEffect.value}/${existingEffect.remainingTurns}回合`,
+        'effect',
+      ));
     } else {
       target.effects.push({
-        id: `weakness_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
-        type: 'weakness',
-        value: Math.abs(modifier),
+        id: `${effectType}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
+        type: effectType,
+        value: absValue,
         remainingTurns: duration,
       });
+
+      logs.push(this.createLog(
+        `${target.name}获得${effectName}效果：${absValue}点，持续${duration}回合`,
+        'effect',
+      ));
     }
+
+    this.recalculateAttack(target);
 
     logs.push(this.createLog(
       `${card.name}使${target.name}攻击力${modifier > 0 ? '+' : ''}${modifier}，持续${duration}回合`,
-      'debuff',
+      logType,
     ));
   }
 
