@@ -1,0 +1,338 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: #F0F2F5;
+  color: #374151;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app {
+  min-height: 100vh;
+  padding: 20px;
+}
+
+.app-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.app-title {
+  font-size: 28px;
+  color: #1E3A5F;
+  margin-bottom: 16px;
+}
+
+.search-container {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  align-items: center;
+}
+
+.search-input {
+  height: 42px;
+  width: 60%;
+  max-width: 500px;
+  border-radius: 10px;
+  background: #F9FAFB;
+  border: 1px solid #D1D5DB;
+  padding: 0 16px;
+  font-size: 16px;
+  color: #374151;
+  outline: none;
+  transition: border-color 0.3s;
+}
+
+.search-input:focus {
+  border-color: #3B82F6;
+}
+
+.search-button {
+  height: 32px;
+  padding: 0 20px;
+  border-radius: 6px;
+  background: #3B82F6;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.3s;
+}
+
+.search-button:hover {
+  background: #2563EB;
+}
+
+.main-content {
+  display: flex;
+  gap: 16px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.settings-panel {
+  width: 220px;
+  background: #F3F4F6;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  flex-shrink: 0;
+}
+
+.settings-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1E3A5F;
+  margin-bottom: 16px;
+}
+
+.setting-item {
+  margin-bottom: 16px;
+}
+
+.setting-label {
+  display: block;
+  font-size: 14px;
+  color: #374151;
+  margin-bottom: 6px;
+}
+
+.color-input {
+  width: 100%;
+  height: 32px;
+  border: 1px solid #D1D5DB;
+  border-radius: 6px;
+  cursor: pointer;
+  background: white;
+  padding: 2px;
+}
+
+.range-input {
+  width: 100%;
+  cursor: pointer;
+}
+
+.checkbox-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox-input {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.canvas-area {
+  flex: 1;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 16px;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.canvas-wrapper {
+  position: relative;
+}
+
+.weather-canvas {
+  display: block;
+  border-radius: 8px;
+}
+
+.weather-panel {
+  position: absolute;
+  left: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.8);
+  border-radius: 12px;
+  padding: 16px;
+  color: #374151;
+  opacity: 1;
+  transition: opacity 0.5s ease-in-out;
+}
+
+.weather-panel.fading {
+  opacity: 0;
+}
+
+.temperature {
+  font-size: 24px;
+  font-weight: bold;
+  margin-bottom: 8px;
+}
+
+.humidity, .wind-speed {
+  font-size: 16px;
+  margin-bottom: 4px;
+}
+
+.loading-spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid #E5E7EB;
+  border-top-color: #3B82F6;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.history-section {
+  max-width: 1200px;
+  margin: 24px auto 0;
+}
+
+.history-title {
+  font-size: 18px;
+  color: #1E3A5F;
+  margin-bottom: 12px;
+}
+
+.history-list {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.history-card {
+  width: 150px;
+  height: 200px;
+  background: white;
+  border-radius: 10px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 12px;
+  cursor: pointer;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.history-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.history-city {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1E3A5F;
+  margin-bottom: 4px;
+}
+
+.history-temp {
+  font-size: 14px;
+  color: #374151;
+  margin-bottom: 8px;
+}
+
+.history-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  margin-bottom: 8px;
+}
+
+.history-time {
+  font-size: 12px;
+  color: #9CA3AF;
+  text-align: center;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    flex-direction: column;
+  }
+
+  .settings-panel {
+    width: 100%;
+    order: -1;
+  }
+
+  .canvas-area {
+    width: 100%;
+  }
+
+  .weather-canvas {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .weather-panel {
+    position: static;
+    transform: none;
+    margin-top: 12px;
+    left: auto;
+    top: auto;
+  }
+
+  .history-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+    overflow-x: visible;
+  }
+
+  .history-card {
+    width: 100%;
+    height: auto;
+  }
+
+  .app-title {
+    font-size: calc(28px * 0.85);
+  }
+
+  .settings-title {
+    font-size: calc(16px * 0.85);
+  }
+
+  .setting-label {
+    font-size: calc(14px * 0.85);
+  }
+
+  .temperature {
+    font-size: calc(24px * 0.85);
+  }
+
+  .humidity, .wind-speed {
+    font-size: calc(16px * 0.85);
+  }
+
+  .history-title {
+    font-size: calc(18px * 0.85);
+  }
+
+  .history-city {
+    font-size: calc(16px * 0.85);
+  }
+
+  .history-temp {
+    font-size: calc(14px * 0.85);
+  }
+
+  .history-time {
+    font-size: calc(12px * 0.85);
+  }
+}
