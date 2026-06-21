@@ -17,6 +17,23 @@ const initialState: TripStoreState = {
   error: null,
 };
 
+function isFullAttraction(data: AttractionCreateData | Attraction): data is Attraction {
+  return (
+    typeof data === 'object' &&
+    data !== null &&
+    'id' in data &&
+    typeof (data as Attraction).id === 'string' &&
+    'comments' in data &&
+    Array.isArray((data as Attraction).comments) &&
+    'createdAt' in data &&
+    typeof (data as Attraction).createdAt === 'string' &&
+    'updatedAt' in data &&
+    typeof (data as Attraction).updatedAt === 'string' &&
+    'order' in data &&
+    typeof (data as Attraction).order === 'number'
+  );
+}
+
 export const useTripStore = create<TripStore>((set, get) => ({
   ...initialState,
 
@@ -57,12 +74,16 @@ export const useTripStore = create<TripStore>((set, get) => ({
 
     saveToUndoStack();
 
-    const isFullAttraction = 'id' in attractionData && 'comments' in attractionData && 'createdAt' in attractionData;
-
-    const fullAttraction: Attraction = isFullAttraction
-      ? (attractionData as Attraction)
+    const fullAttraction: Attraction = isFullAttraction(attractionData)
+      ? attractionData
       : {
-          ...attractionData,
+          name: attractionData.name,
+          lat: attractionData.lat,
+          lng: attractionData.lng,
+          description: attractionData.description,
+          duration: attractionData.duration,
+          notes: attractionData.notes,
+          transportMode: attractionData.transportMode,
           id: `attr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
           order: 0,
           comments: [],
@@ -72,7 +93,7 @@ export const useTripStore = create<TripStore>((set, get) => ({
 
     const newDays = trip.days.map((day) => {
       if (day.id === dayId) {
-        if (!isFullAttraction) {
+        if (!isFullAttraction(attractionData)) {
           fullAttraction.order = day.attractions.length;
         }
         const newAttractions = [...day.attractions, fullAttraction];

@@ -1,12 +1,15 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
-import type { Popup as LeafletPopup } from 'leaflet';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents, useMap } from 'react-leaflet';
+import type { Popup as LeafletPopup, Map as LeafletMap, Marker as LeafletMarker } from 'leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapPin, Clock, Plus, X } from 'lucide-react';
-import type { AttractionCreateData } from '@/types';
+import { MapPin, Clock, Plus, X, Navigation } from 'lucide-react';
+import type { Attraction, AttractionCreateData } from '@/types';
 import useTripStore from '@/stores/tripStore';
 import RouteLayer from './RouteLayer';
+
+type ReactLeafletMarker = any;
+type ReactLeafletPopup = any;
 
 const defaultIcon = L.divIcon({
   className: 'custom-marker',
@@ -18,10 +21,10 @@ const defaultIcon = L.divIcon({
 
 const selectedIcon = L.divIcon({
   className: 'custom-marker selected',
-  html: '<div style="background: #34a853; width: 32px; height: 32px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 3px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.3);"></div>',
-  iconSize: [32, 32],
-  iconAnchor: [16, 32],
-  popupAnchor: [0, -32],
+  html: '<div style="background: #34a853; width: 36px; height: 36px; border-radius: 50% 50% 50% 0; transform: rotate(-45deg); border: 3px solid white; box-shadow: 0 2px 12px rgba(52,168,83,0.5);"></div>',
+  iconSize: [36, 36],
+  iconAnchor: [18, 36],
+  popupAnchor: [0, -36],
 });
 
 interface MapEventsHandlerProps {
@@ -37,10 +40,32 @@ function MapEventsHandler({ onMapClick }: MapEventsHandlerProps) {
   return null;
 }
 
+interface MapControllerProps {
+  selectedPosition: [number, number] | null;
+}
+
+function MapController({ selectedPosition }: MapControllerProps) {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (selectedPosition) {
+      map.flyTo(selectedPosition, map.getZoom(), {
+        duration: 0.5,
+        easeLinearity: 0.25,
+      });
+    }
+  }, [selectedPosition, map]);
+
+  return null;
+}
+
 interface AttractionMarkerProps {
-  attraction: Attraction;
+  attraction: Attraction & { dayId: string };
   isSelected: boolean;
+  shouldOpenPopup: boolean;
   onSelect: (id: string) => void;
+  onPopupOpen: (id: string) => void;
+  onPopupClose: (id: string) => void;
   onDragEnd: (id: string, lat: number, lng: number) => void;
   dayId: string;
 }
@@ -48,11 +73,17 @@ interface AttractionMarkerProps {
 function AttractionMarker({
   attraction,
   isSelected,
+  shouldOpenPopup,
   onSelect,
+  onPopupOpen,
+  onPopupClose,
   onDragEnd,
   dayId,
 }: AttractionMarkerProps) {
   const { updateAttraction } = useTripStore();
+  const markerRef = useRef<ReactLeafletMarker | null>(null);
+  const popupRef = useRef<ReactLeafletPopup | null>(null);
+  const mapRef = useRef<LeafletMap | null>(null);
   const [name, setName] = useState(attraction.name);
   const [notes, setNotes] = useState(attraction.notes || '');
   const [duration, setDuration] = useState(attraction.duration?.toString() || '');
@@ -74,8 +105,27 @@ function AttractionMarker({
     [attraction.id, onDragEnd]
   );
 
+  useEffect(() => {
+    if (shouldOpenPopup && popupRef.current && markerRef.current) {
+      const leafletPopup = popupRef.current.getLeafletElement();
+      const leafletMarker = markerRef.current.getLeafletElement();
+      const map = leafletMarker.getMap();
+      mapRef.current = map;
+      if (map && leafletPopup) {
+        setTimeout(() => {
+          leafletPopup.openOn(map);
+        }, 100);
+      }
+    }
+  }, [shouldOpenPopup]);
+
   return (
     <Marker
+      ref={(ref) => {
+        if (ref) {
+          markerRef.current = ref;
+        }
+      }}
       position={[attraction.lat, attraction.lng]}
       icon={isSelected ? selectedIcon : defaultIcon}
       draggable
@@ -83,9 +133,22 @@ function AttractionMarker({
         click: () => onSelect(attraction.id),
         dragend: handleDragEnd,
       }}
+      zIndexOffset={isSelected ? 1000 : 0}
     >
-      <Popup>
-        <div style={{ minWidth: '200px', padding: '8px 0' }}>
+      <Popup
+        ref={(ref) => {
+          if (ref) {
+            popupRef.current = ref;
+          }
+        }}
+        eventHandlers={{
+          popupopen: () => onPopupOpen(attraction.id),
+          popupclose: () => onPopupClose(attraction.id),
+        }}
+        autoPan={true}
+        autoPanPadding={[20, 20]}
+      >
+        <div style={{ minWidth: '220px', padding: '8px 0' }}>
           <div
             style={{
               display: 'flex',
@@ -96,8 +159,10 @@ function AttractionMarker({
               borderBottom: '1px solid #e5e7eb',
             }}
           >
-            <MapPin size={18} style={{ color: '#1a73e8' }} />
-            <span style={{ fontWeight: 600, fontSize: '14px' }}>编辑景点</span>
+            <MapPin size={18} style={{ color: isSelected ? '#34a853' : '#1a73e8' }} />
+            <span style={{ fontWeight: 600, fontSize: '14px', color: '#1f2937' }}>
+              编辑景点
+            </span>
           </div>
           <div style={{ marginBottom: '10px' }}>
             <label style={{ display: 'block', fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>
@@ -115,6 +180,7 @@ function AttractionMarker({
                 borderRadius: '6px',
                 fontSize: '13px',
                 outline: 'none',
+                boxSizing: 'border-box',
               }}
               placeholder="输入景点名称"
             />
@@ -136,6 +202,7 @@ function AttractionMarker({
                 fontSize: '13px',
                 outline: 'none',
                 resize: 'vertical',
+                boxSizing: 'border-box',
               }}
               placeholder="添加备注..."
             />
@@ -157,9 +224,16 @@ function AttractionMarker({
                 borderRadius: '6px',
                 fontSize: '13px',
                 outline: 'none',
+                boxSizing: 'border-box',
               }}
               placeholder="60"
             />
+          </div>
+          <div style={{ marginTop: '10px', paddingTop: '8px', borderTop: '1px solid #e5e7eb' }}>
+            <div style={{ fontSize: '11px', color: '#9ca3af', display: 'flex', alignItems: 'center', gap: '4px' }}>
+              <Navigation size={12} />
+              坐标: {attraction.lat.toFixed(4)}, {attraction.lng.toFixed(4)}
+            </div>
           </div>
         </div>
       </Popup>
@@ -183,7 +257,9 @@ export function MapView() {
   const [newName, setNewName] = useState('');
   const [newNotes, setNewNotes] = useState('');
   const [newDuration, setNewDuration] = useState('');
-  const addPopupRef = useRef<LeafletPopup | null>(null);
+  const [openPopupId, setOpenPopupId] = useState<string | null>(null);
+  const addPopupRef = useRef<ReactLeafletPopup | null>(null);
+  const addMarkerRef = useRef<ReactLeafletMarker | null>(null);
 
   const allAttractions = useMemo(() => {
     if (!trip) return [];
@@ -198,6 +274,12 @@ export function MapView() {
     return day?.attractions || [];
   }, [trip, selectedDayId]);
 
+  const selectedPosition = useMemo(() => {
+    if (!selectedAttractionId) return null;
+    const attraction = allAttractions.find((a) => a.id === selectedAttractionId);
+    return attraction ? [attraction.lat, attraction.lng] as [number, number] : null;
+  }, [selectedAttractionId, allAttractions]);
+
   const handleMapClick = useCallback(
     (lat: number, lng: number) => {
       if (!selectedDayId) {
@@ -208,6 +290,7 @@ export function MapView() {
       setNewName('');
       setNewNotes('');
       setNewDuration('');
+      setOpenPopupId(null);
     },
     [selectedDayId]
   );
@@ -236,6 +319,7 @@ export function MapView() {
   const handleSelectAttraction = useCallback(
     (id: string) => {
       setSelectedAttraction(id);
+      setOpenPopupId(id);
       const attraction = allAttractions.find((a) => a.id === id);
       if (attraction) {
         setSelectedDay(attraction.dayId);
@@ -243,6 +327,17 @@ export function MapView() {
     },
     [allAttractions, setSelectedAttraction, setSelectedDay]
   );
+
+  const handlePopupOpen = useCallback((id: string) => {
+    setOpenPopupId(id);
+    setSelectedAttraction(id);
+  }, [setSelectedAttraction]);
+
+  const handlePopupClose = useCallback((id: string) => {
+    if (openPopupId === id) {
+      setOpenPopupId(null);
+    }
+  }, [openPopupId]);
 
   const handleDragEnd = useCallback(
     (id: string, lat: number, lng: number) => {
@@ -255,12 +350,23 @@ export function MapView() {
   );
 
   useEffect(() => {
-    if (showAddPopup && addPopupRef.current) {
-      setTimeout(() => {
-        addPopupRef.current?.openOn(addPopupRef.current.getMap());
-      }, 50);
+    if (showAddPopup && addPopupRef.current && addMarkerRef.current) {
+      const leafletPopup = addPopupRef.current.getLeafletElement();
+      const leafletMarker = addMarkerRef.current.getLeafletElement();
+      const map = leafletMarker.getMap();
+      if (map && leafletPopup) {
+        setTimeout(() => {
+          leafletPopup.openOn(map);
+        }, 100);
+      }
     }
   }, [showAddPopup, newPoint]);
+
+  useEffect(() => {
+    if (selectedAttractionId) {
+      setOpenPopupId(selectedAttractionId);
+    }
+  }, [selectedAttractionId]);
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -269,33 +375,44 @@ export function MapView() {
         zoom={4}
         style={{ height: '100%', width: '100%' }}
         zoomControl={true}
+        preferCanvas={false}
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
         />
         <MapEventsHandler onMapClick={handleMapClick} />
+        <MapController selectedPosition={selectedPosition} />
         <RouteLayer attractions={currentDayAttractions} />
         {allAttractions.map((attraction) => (
           <AttractionMarker
             key={attraction.id}
             attraction={attraction}
             isSelected={selectedAttractionId === attraction.id}
+            shouldOpenPopup={openPopupId === attraction.id}
             onSelect={handleSelectAttraction}
+            onPopupOpen={handlePopupOpen}
+            onPopupClose={handlePopupClose}
             onDragEnd={handleDragEnd}
             dayId={attraction.dayId}
           />
         ))}
         {newPoint && showAddPopup && (
           <Marker
+            ref={(ref) => {
+              if (ref) {
+                addMarkerRef.current = ref;
+              }
+            }}
             position={[newPoint.lat, newPoint.lng]}
-            icon={defaultIcon}
+            icon={selectedIcon}
             eventHandlers={{
               popupclose: () => {
                 setShowAddPopup(false);
                 setNewPoint(null);
               },
             }}
+            zIndexOffset={2000}
           >
             <Popup
               ref={(ref) => {
@@ -303,8 +420,16 @@ export function MapView() {
                   addPopupRef.current = ref;
                 }
               }}
+              eventHandlers={{
+                popupclose: () => {
+                  setShowAddPopup(false);
+                  setNewPoint(null);
+                },
+              }}
+              autoPan={true}
+              closeOnClick={false}
             >
-              <div style={{ minWidth: '220px', padding: '8px 0' }}>
+              <div style={{ minWidth: '240px', padding: '8px 0' }}>
                 <div
                   style={{
                     display: 'flex',
@@ -316,7 +441,9 @@ export function MapView() {
                   }}
                 >
                   <Plus size={18} style={{ color: '#34a853' }} />
-                  <span style={{ fontWeight: 600, fontSize: '14px' }}>添加景点</span>
+                  <span style={{ fontWeight: 600, fontSize: '14px', color: '#1f2937' }}>
+                    添加景点
+                  </span>
                   <button
                     onClick={handleCancelAdd}
                     style={{
@@ -326,6 +453,9 @@ export function MapView() {
                       cursor: 'pointer',
                       color: '#9ca3af',
                       padding: '4px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                     }}
                   >
                     <X size={16} />
@@ -426,12 +556,12 @@ export function MapView() {
                     fontSize: '13px',
                     fontWeight: 500,
                     cursor: 'pointer',
-                    transition: 'opacity 0.2s',
+                    transition: 'background-color 0.2s, opacity 0.2s',
                   }}
-                  onMouseOver={(e) => (e.currentTarget.style.opacity = '0.9')}
-                  onMouseOut={(e) => (e.currentTarget.style.opacity = '1')}
+                  onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#1557b0')}
+                  onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#1a73e8')}
                 >
-                  添加
+                  添加景点
                 </button>
               </div>
             </Popup>

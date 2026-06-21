@@ -1,10 +1,15 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
-import { Menu, X, Undo2, Redo2, Users, Wifi, WifiOff } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { Menu, X, Undo2, Redo2, Users, Wifi, WifiOff, Calendar } from 'lucide-react';
+import { FixedSizeList as List, VariableSizeList } from 'react-window';
 import MapView from '@/modules/map/MapView';
 import DayCard from './DayCard';
 import useTripStore from '@/stores/tripStore';
 import useWebSocket from '@/hooks/useWebSocket';
-import type { Trip, Attraction, Comment } from '@/types';
+import type { Trip, Attraction, Comment, DayPlan } from '@/types';
+
+const DAY_CARD_EXPANDED_HEIGHT = 500;
+const DAY_CARD_COLLAPSED_HEIGHT = 80;
+const VIRTUAL_SCROLL_DAY_THRESHOLD = 30;
 
 interface TripPlannerProps {
   tripId?: string;
@@ -37,6 +42,8 @@ export function TripPlanner({ tripId, wsUrl = '/ws/trip' }: TripPlannerProps) {
   } | null>(null);
   const [dropDayId, setDropDayId] = useState<string | null>(null);
   const sidebarRef = useRef<HTMLDivElement>(null);
+  const virtualListRef = useRef<List | VariableSizeList>(null);
+  const [isMobile, setIsMobile] = useState(false);
 
   const { isConnected, send, on } = useWebSocket({
     url: wsUrl,
@@ -163,7 +170,9 @@ export function TripPlanner({ tripId, wsUrl = '/ws/trip' }: TripPlannerProps) {
 
   useEffect(() => {
     const handleResize = () => {
-      if (window.innerWidth < 768) {
+      const mobile = window.innerWidth < 768;
+      setIsMobile(mobile);
+      if (mobile) {
         setSidebarOpen(false);
       }
     };
@@ -172,6 +181,101 @@ export function TripPlanner({ tripId, wsUrl = '/ws/trip' }: TripPlannerProps) {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  const useDayVirtualScroll = trip ? trip.days.length >= VIRTUAL_SCROLL_DAY_THRESHOLD : false;
+
+  const getDayHeight = useCallback(
+    (index: number) => {
+      if (!trip) return DAY_CARD_COLLAPSED_HEIGHT;
+      const day = trip.days[index];
+      return selectedDayId === day.id ? DAY_CARD_EXPANDED_HEIGHT : DAY_CARD_COLLAPSED_HEIGHT;
+    },
+    [trip, selectedDayId]
+  );
+
+  const DayRowRenderer = useCallback(
+    ({ index, style }: { index: number; style: React.CSSProperties }) => {
+      if (!trip) return null;
+      const day = trip.days[index];
+      return (
+        <div style={{ ...style, padding: '0 0 16px 0' }}>
+          <div
+            key={day.id}
+            onDragOver={(e) => handleDragOver(e, day.id)}
+            onDrop={(e) => handleDrop(e, day.id)}
+            onDragLeave={() => setDropDayId(null)}
+            onClick={() => setSelectedDay(day.id)}
+            style={{
+              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+              transform: dropDayId === day.id ? 'scale(1.02)' : 'scale(1)',
+              outline: dropDayId === day.id ? '2px dashed #1a73e8' : 'none',
+              outlineOffset: '2px',
+              borderRadius: '12px',
+            }}
+          >
+            <DayCard
+              dayPlan={day}
+              isExpanded={selectedDayId === day.id}
+              onToggle={() => setSelectedDay(selectedDayId === day.id ? null : day.id)}
+            />
+          </div>
+        </div>
+      );
+    },
+    [trip, selectedDayId, dropDayId, handleDragOver, handleDrop, setSelectedDay]
+  );
+
+  const dayListContent = useMemo(() => {
+    if (!trip) return null;
+
+    if (useDayVirtualScroll) {
+      const totalHeight = trip.days.reduce((sum, day, index) => {
+        return sum + (selectedDayId === day.id ? DAY_CARD_EXPANDED_HEIGHT : DAY_CARD_COLLAPSED_HEIGHT) + 16;
+      }, 0);
+      
+      return (
+        <List
+          ref={virtualListRef as React.RefObject<List>}
+          height={Math.min(totalHeight, 600)}
+          itemCount={trip.days.length}
+          itemSize={DAY_CARD_COLLAPSED_HEIGHT + 16}
+          width="100%"
+          overscanCount={5}
+          itemData={trip.days}
+        >
+          {DayRowRenderer}
+        </List>
+      );
+    }
+
+    return (
+      <div>
+        {trip.days.map((day) => (
+          <div
+            key={day.id}
+            onDragOver={(e) => handleDragOver(e, day.id)}
+            onDrop={(e) => handleDrop(e, day.id)}
+            onDragLeave={() => setDropDayId(null)}
+            onClick={() => setSelectedDay(day.id)}
+            style={{
+              transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+              transform: dropDayId === day.id ? 'scale(1.02)' : 'scale(1)',
+              outline: dropDayId === day.id ? '2px dashed #1a73e8' : 'none',
+              outlineOffset: '2px',
+              borderRadius: '12px',
+              marginBottom: '16px',
+            }}
+          >
+            <DayCard
+              dayPlan={day}
+              isExpanded={selectedDayId === day.id}
+              onToggle={() => setSelectedDay(selectedDayId === day.id ? null : day.id)}
+            />
+          </div>
+        ))}
+      </div>
+    );
+  }, [trip, selectedDayId, dropDayId, useDayVirtualScroll, handleDragOver, handleDrop, setSelectedDay, DayRowRenderer]);
 
   if (isLoading) {
     return (
@@ -398,12 +502,12 @@ export function TripPlanner({ tripId, wsUrl = '/ws/trip' }: TripPlannerProps) {
             flexShrink: 0,
             transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
             transition: 'transform 0.3s ease',
-            position: window.innerWidth < 768 ? 'absolute' : 'relative',
+            position: isMobile ? 'absolute' : 'relative',
             left: 0,
             top: 0,
             height: '100%',
             zIndex: 50,
-            boxShadow: sidebarOpen && window.innerWidth < 768 ? '2px 0 12px rgba(0,0,0,0.1)' : 'none',
+            boxShadow: sidebarOpen && isMobile ? '2px 0 12px rgba(0,0,0,0.1)' : 'none',
           }}
           onDragOver={(e) => {
             if (draggedAttraction) {
@@ -440,32 +544,11 @@ export function TripPlanner({ tripId, wsUrl = '/ws/trip' }: TripPlannerProps) {
               padding: '16px',
             }}
           >
-            {trip?.days.map((day) => (
-              <div
-                key={day.id}
-                onDragOver={(e) => handleDragOver(e, day.id)}
-                onDrop={(e) => handleDrop(e, day.id)}
-                onDragLeave={() => setDropDayId(null)}
-                onClick={() => setSelectedDay(day.id)}
-                style={{
-                  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
-                  transform: dropDayId === day.id ? 'scale(1.02)' : 'scale(1)',
-                  outline: dropDayId === day.id ? '2px dashed #1a73e8' : 'none',
-                  outlineOffset: '2px',
-                  borderRadius: '12px',
-                }}
-              >
-                <DayCard
-                  dayPlan={day}
-                  isExpanded={selectedDayId === day.id}
-                  onToggle={() => setSelectedDay(selectedDayId === day.id ? null : day.id)}
-                />
-              </div>
-            ))}
+            {dayListContent}
           </div>
         </aside>
 
-        {sidebarOpen && window.innerWidth < 768 && (
+        {sidebarOpen && isMobile && (
           <div
             style={{
               position: 'absolute',
@@ -520,7 +603,7 @@ export function TripPlanner({ tripId, wsUrl = '/ws/trip' }: TripPlannerProps) {
           )}
         </main>
 
-        {window.innerWidth < 768 && (
+        {isMobile && (
           <button
             onClick={toggleSidebar}
             style={{
