@@ -1,0 +1,52 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Courier New', monospace;
+  background-color: #f5e6ca;
+  color: #333;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+@keyframes seed-sprout {
+  0% { transform: scale(0); opacity: 0; }
+  50% { transform: scale(1.2); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+@keyframes coin-float {
+  0% { transform: translateY(0) scale(1); opacity: 1; }
+  100% { transform: translateY(-40px) scale(0.5); opacity: 0; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+@keyframes lightning-flash {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 0.3; }
+}
+
+@keyframes bug-crawl {
+  0%, 100% { transform: translateX(0) rotate(0deg); }
+  25% { transform: translateX(3px) rotate(5deg); }
+  75% { transform: translateX(-3px) rotate(-5deg); }
+}
