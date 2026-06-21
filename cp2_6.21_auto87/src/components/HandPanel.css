@@ -1,0 +1,31 @@
+.hand-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 0;
+}
+
+.hand-cards {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  gap: -20px;
+  min-height: 170px;
+  perspective: 1000px;
+}
+
+.hand-cards .game-card {
+  margin: 0 -10px;
+}
+
+.hand-info {
+  display: flex;
+  gap: 16px;
+  color: rgba(255, 255, 255, 0.6);
+  font-size: 12px;
+}
+
+.hand-count {
+  font-weight: 600;
+}
