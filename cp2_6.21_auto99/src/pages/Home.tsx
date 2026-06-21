@@ -20,20 +20,29 @@ const Home: React.FC = () => {
     ctx.fillStyle = '#fff';
     ctx.fillRect(0, 0, 800, 200);
 
-    const swatchWidth = Math.floor(800 / primaryColors.length);
+    const swatchCount = primaryColors.length;
+    const swatchWidth = Math.floor(800 / swatchCount);
+    const swatchHeight = 140;
+    const labelGap = 12;
+
     primaryColors.forEach((c, i) => {
+      const x = i * swatchWidth;
+      const cx = x + swatchWidth / 2;
+
       ctx.fillStyle = c.hex;
-      ctx.fillRect(i * swatchWidth, 0, swatchWidth, 140);
+      ctx.fillRect(x, 0, swatchWidth, swatchHeight);
 
       const brightness = c.rgb[0] * 0.299 + c.rgb[1] * 0.587 + c.rgb[2] * 0.114;
       ctx.fillStyle = brightness > 128 ? '#333' : '#fff';
       ctx.font = 'bold 12px sans-serif';
       ctx.textAlign = 'center';
-      ctx.fillText(c.hex, i * swatchWidth + swatchWidth / 2, 70);
+      const hexY = swatchHeight / 2 - 6;
+      ctx.fillText(c.hex, cx, hexY);
 
       ctx.fillStyle = '#333';
       ctx.font = '12px sans-serif';
-      ctx.fillText(c.name, i * swatchWidth + swatchWidth / 2, 160);
+      const nameY = swatchHeight + labelGap + 6;
+      ctx.fillText(c.name, cx, nameY);
     });
 
     const link = document.createElement('a');

@@ -1,9 +1,19 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { useStore, ColorPosition } from '../store';
 
 const HarmonyChart: React.FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const harmonyResult = useStore((s) => s.harmonyResult);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  const canvasSize = isMobile ? 140 : 180;
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -11,22 +21,27 @@ const HarmonyChart: React.FC = () => {
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    ctx.clearRect(0, 0, 180, 180);
+    const size = canvasSize;
+    const cx = size / 2;
+    const cy = size / 2;
+    const outerR = size * 0.44;
+    const innerR = size * 0.3;
+    const dotR = size * 0.033;
+    const markR = size * 0.38;
+    const fontSize = Math.max(6, Math.floor(size * 0.044));
 
-    const cx = 90;
-    const cy = 90;
-    const outerR = 80;
-    const innerR = 55;
+    ctx.clearRect(0, 0, size, size);
 
     for (let i = 0; i < 12; i++) {
-      const startAngle = (i * 30) * (Math.PI / 180);
-      const endAngle = ((i + 1) * 30) * (Math.PI / 180);
+      const hue = i * 30;
+      const startAngle = (-hue) * (Math.PI / 180);
+      const endAngle = (-(hue + 30)) * (Math.PI / 180);
 
       ctx.beginPath();
       ctx.arc(cx, cy, outerR, startAngle, endAngle);
       ctx.arc(cx, cy, innerR, endAngle, startAngle, true);
       ctx.closePath();
-      ctx.fillStyle = `hsl(${i * 30}, 80%, 50%)`;
+      ctx.fillStyle = `hsl(${hue}, 80%, 50%)`;
       ctx.fill();
     }
 
@@ -35,11 +50,11 @@ const HarmonyChart: React.FC = () => {
     colorPositions.forEach((pos) => {
       const angle = pos.angle;
       const rad = (angle * Math.PI) / 180;
-      const x = cx + 68 * Math.cos(rad);
-      const y = cy + 68 * Math.sin(rad);
+      const x = cx + markR * Math.cos(rad);
+      const y = cy - markR * Math.sin(rad);
 
       ctx.beginPath();
-      ctx.arc(x, y, 6, 0, Math.PI * 2);
+      ctx.arc(x, y, dotR, 0, Math.PI * 2);
       ctx.fillStyle = pos.hex;
       ctx.fill();
       ctx.strokeStyle = '#fff';
@@ -48,14 +63,14 @@ const HarmonyChart: React.FC = () => {
 
       ctx.save();
       ctx.fillStyle = '#f0f0f0';
-      ctx.font = '8px sans-serif';
+      ctx.font = `${fontSize}px sans-serif`;
       ctx.textAlign = 'center';
       ctx.shadowColor = 'rgba(0,0,0,0.8)';
       ctx.shadowBlur = 3;
-      ctx.fillText(pos.name, x, y - 10);
+      ctx.fillText(pos.name, x, y - dotR - 2);
       ctx.restore();
     });
-  }, [harmonyResult]);
+  }, [harmonyResult, canvasSize]);
 
   if (!harmonyResult) {
     return (
@@ -79,8 +94,8 @@ const HarmonyChart: React.FC = () => {
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
         <canvas
           ref={canvasRef}
-          width={180}
-          height={180}
+          width={canvasSize}
+          height={canvasSize}
           className="harmony-canvas"
         />
         <div className="score-display">

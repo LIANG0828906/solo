@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore, ColorInfo } from '../store';
 
 const ColorPalette: React.FC = () => {
@@ -6,6 +6,17 @@ const ColorPalette: React.FC = () => {
   const secondaryColors = useStore((s) => s.secondaryColors);
   const [enlargedIndex, setEnlargedIndex] = useState<number | null>(null);
   const [enlargedSection, setEnlargedSection] = useState<'primary' | 'secondary' | null>(null);
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
+  }, []);
+
+  const swatchSize = isMobile ? 44 : 64;
+  const borderRadius = isMobile ? 6 : 8;
 
   const renderSwatch = (color: ColorInfo, index: number, section: 'primary' | 'secondary') => {
     const isEnlarged = enlargedIndex === index && enlargedSection === section;
@@ -23,12 +34,20 @@ const ColorPalette: React.FC = () => {
               setEnlargedSection(section);
             }
           }}
+          style={{ width: swatchSize }}
         >
           <div
             className="swatch-block"
-            style={{ backgroundColor: color.hex }}
+            style={{
+              width: swatchSize,
+              height: swatchSize,
+              borderRadius,
+              backgroundColor: color.hex,
+            }}
           />
-          <span className="swatch-hex">{color.hex}</span>
+          <span className="swatch-hex" style={{ fontSize: isMobile ? 10 : 12 }}>
+            {color.hex}
+          </span>
         </div>
         {isEnlarged && (
           <div
@@ -52,7 +71,7 @@ const ColorPalette: React.FC = () => {
             <div
               style={{
                 background: '#3a3a3a',
-                padding: 24,
+                padding: isMobile ? 16 : 24,
                 borderRadius: 12,
                 boxShadow: '0 4px 24px rgba(0,0,0,0.4)',
                 textAlign: 'center',
@@ -61,8 +80,8 @@ const ColorPalette: React.FC = () => {
             >
               <div
                 style={{
-                  width: 120,
-                  height: 120,
+                  width: isMobile ? 96 : 120,
+                  height: isMobile ? 96 : 120,
                   borderRadius: 8,
                   backgroundColor: color.hex,
                   margin: '0 auto 12px',
