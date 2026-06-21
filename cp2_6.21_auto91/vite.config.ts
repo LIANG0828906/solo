@@ -7,7 +7,7 @@ export default defineConfig({
     target: 'es2020',
   },
   server: {
-    port: 5173,
+    port: 5180,
     host: true,
   },
 })

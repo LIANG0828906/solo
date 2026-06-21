@@ -160,8 +160,8 @@ export class AudioEngine {
   private updateSpectrum(): void {
     if (!this.analyser || !this.frequencyData || !this.timeData || !this.spectrumCallback) return
 
-    this.analyser.getByteFrequencyData(this.frequencyData as Uint8Array)
-    this.analyser.getByteTimeDomainData(this.timeData as Uint8Array)
+    this.analyser.getByteFrequencyData(this.frequencyData as unknown as Uint8Array<ArrayBuffer>)
+    this.analyser.getByteTimeDomainData(this.timeData as unknown as Uint8Array<ArrayBuffer>)
 
     const frequencies = this.computeBars()
     const waveform = this.computeWaveform()

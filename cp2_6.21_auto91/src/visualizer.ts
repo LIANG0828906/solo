@@ -7,11 +7,13 @@ interface Particle {
   vx: number
   vy: number
   size: number
+  baseColor: string
   color: string
   life: number
   maxLife: number
   baseX: number
   baseY: number
+  frequencyIndex: number
 }
 
 interface SpectrumData {
@@ -100,18 +102,21 @@ export class Visualizer {
 
     for (let i = 0; i < this.particleCount; i++) {
       const pos = positions[i % positions.length]
-      const color = this.theme.particleColors[i % this.theme.particleColors.length]
+      const baseColor = this.theme.particleColors[i % this.theme.particleColors.length]
+      const frequencyIndex = Math.floor(Math.random() * this.barCount)
       this.particles.push({
         x: pos.x,
         y: pos.y,
         vx: 0,
         vy: 0,
         size: 3 + Math.random() * 5,
-        color,
+        baseColor,
+        color: baseColor,
         life: Math.random() * 100 + 100,
         maxLife: 200,
         baseX: pos.x,
         baseY: pos.y,
+        frequencyIndex,
       })
     }
   }
@@ -169,7 +174,9 @@ export class Visualizer {
 
   private updateParticleColors(): void {
     for (let i = 0; i < this.particles.length; i++) {
-      this.particles[i].color = this.theme.particleColors[i % this.theme.particleColors.length]
+      const baseColor = this.theme.particleColors[i % this.theme.particleColors.length]
+      this.particles[i].baseColor = baseColor
+      this.particles[i].color = baseColor
     }
   }
 
@@ -239,11 +246,13 @@ export class Visualizer {
 
       ctx.save()
       ctx.shadowColor = color
-      ctx.shadowBlur = 15 * value + 5
+      ctx.shadowBlur = 30 * value + 15
+      ctx.shadowOffsetY = -5
 
       const gradient = ctx.createLinearGradient(x, barBottom, x, y)
       gradient.addColorStop(0, color + '80')
-      gradient.addColorStop(1, color)
+      gradient.addColorStop(0.5, color)
+      gradient.addColorStop(1, this.brightenColor(color, 0.3))
 
       ctx.fillStyle = gradient
       this.drawRoundedRect(ctx, x, y, barWidth, barHeight, 3)
@@ -284,7 +293,8 @@ export class Visualizer {
 
     ctx.save()
     ctx.shadowColor = this.theme.glowColor
-    ctx.shadowBlur = 30
+    ctx.shadowBlur = 60
+    ctx.shadowOffsetY = 8
 
     ctx.beginPath()
     ctx.moveTo(0, waveY)
@@ -305,20 +315,41 @@ export class Visualizer {
     ctx.lineTo(w, waveY)
 
     ctx.strokeStyle = this.theme.waveformColor
-    ctx.lineWidth = 2
+    ctx.lineWidth = 2.5
     ctx.stroke()
+    ctx.restore()
 
-    const gradient = ctx.createLinearGradient(0, waveY - waveAmplitude, 0, waveY + waveAmplitude)
-    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.08)')
-    gradient.addColorStop(0.5, 'rgba(255, 255, 255, 0.02)')
-    gradient.addColorStop(1, 'rgba(255, 255, 255, 0.08)')
+    ctx.save()
+    ctx.globalAlpha = 0.4
+    ctx.shadowColor = this.theme.glowColor
+    ctx.shadowBlur = 90
+    ctx.shadowOffsetY = 15
 
-    ctx.lineTo(w, waveY + waveAmplitude * 0.5)
-    ctx.lineTo(0, waveY + waveAmplitude * 0.5)
+    const gradient = ctx.createLinearGradient(0, waveY - waveAmplitude, 0, waveY + waveAmplitude * 1.5)
+    gradient.addColorStop(0, 'rgba(255, 255, 255, 0.12)')
+    gradient.addColorStop(0.4, 'rgba(255, 255, 255, 0.04)')
+    gradient.addColorStop(0.7, 'rgba(255, 255, 255, 0.08)')
+    gradient.addColorStop(1, 'rgba(255, 255, 255, 0.02)')
+
+    ctx.beginPath()
+    ctx.moveTo(0, waveY)
+    for (let i = 0; i < samples; i++) {
+      const x = (i / (samples - 1)) * w
+      const y = waveY + waveform[i] * waveAmplitude
+      if (i === 0) {
+        ctx.moveTo(x, y)
+      } else {
+        const prevX = ((i - 1) / (samples - 1)) * w
+        const prevY = waveY + waveform[i - 1] * waveAmplitude
+        const cpX = (prevX + x) / 2
+        ctx.quadraticCurveTo(prevX, prevY, cpX, (prevY + y) / 2)
+      }
+    }
+    ctx.lineTo(w, waveY + waveAmplitude)
+    ctx.lineTo(0, waveY + waveAmplitude)
     ctx.closePath()
     ctx.fillStyle = gradient
     ctx.fill()
-
     ctx.restore()
   }
 
@@ -326,6 +357,7 @@ export class Visualizer {
     const beat = this.data.beatIntensity
     const centerX = w / 2
     const centerY = h * 0.45
+    const frequencies = this.data.frequencies
 
     for (const p of this.particles) {
       if (beat > 0.3) {
@@ -349,15 +381,19 @@ export class Visualizer {
       p.x = Math.max(10, Math.min(w - 10, p.x))
       p.y = Math.max(10, Math.min(h - 120, p.y))
 
-      const alpha = 0.5 + beat * 0.5
+      const freqValue = frequencies[p.frequencyIndex] || 0
+      const brightness = 0.5 + freqValue * 0.7
+      p.color = this.adjustColorBrightness(p.baseColor, brightness)
+
+      const alpha = 0.5 + beat * 0.3 + freqValue * 0.2
 
       ctx.save()
-      ctx.globalAlpha = alpha
+      ctx.globalAlpha = Math.min(1, alpha)
       ctx.shadowColor = p.color
-      ctx.shadowBlur = 8 + beat * 15
+      ctx.shadowBlur = 12 + beat * 20 + freqValue * 10
 
       ctx.beginPath()
-      ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
+      ctx.arc(p.x, p.y, p.size + freqValue * 2, 0, Math.PI * 2)
       ctx.fillStyle = p.color
       ctx.fill()
       ctx.restore()
@@ -378,5 +414,29 @@ export class Visualizer {
     const b = Math.round(b1 + (b2 - b1) * t)
 
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
+  }
+
+  private brightenColor(hex: string, amount: number): string {
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+
+    const nr = Math.min(255, Math.round(r + (255 - r) * amount))
+    const ng = Math.min(255, Math.round(g + (255 - g) * amount))
+    const nb = Math.min(255, Math.round(b + (255 - b) * amount))
+
+    return `#${nr.toString(16).padStart(2, '0')}${ng.toString(16).padStart(2, '0')}${nb.toString(16).padStart(2, '0')}`
+  }
+
+  private adjustColorBrightness(hex: string, brightness: number): string {
+    const r = parseInt(hex.slice(1, 3), 16)
+    const g = parseInt(hex.slice(3, 5), 16)
+    const b = parseInt(hex.slice(5, 7), 16)
+
+    const nr = Math.min(255, Math.max(0, Math.round(r * brightness)))
+    const ng = Math.min(255, Math.max(0, Math.round(g * brightness)))
+    const nb = Math.min(255, Math.max(0, Math.round(b * brightness)))
+
+    return `#${nr.toString(16).padStart(2, '0')}${ng.toString(16).padStart(2, '0')}${nb.toString(16).padStart(2, '0')}`
   }
 }
