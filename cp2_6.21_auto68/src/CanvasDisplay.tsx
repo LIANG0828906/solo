@@ -29,44 +29,44 @@ export const CanvasDisplay: React.FC<CanvasDisplayProps> = ({
   const rafRef = useRef<number | null>(null);
   const pendingConfigRef = useRef<PosterConfig>(config);
 
-  const draw = useCallback((ctx: CanvasRenderingContext2D, cfg: PosterConfig) => {
-    renderPoster(ctx, cfg, CANVAS_WIDTH, CANVAS_HEIGHT);
-    
+  const draw = useCallback((context: CanvasRenderingContext2D, cfg: PosterConfig) => {
+    renderPoster(context, cfg, CANVAS_WIDTH, CANVAS_HEIGHT);
+
     if (selectedDecorId) {
       const decor = cfg.decorations.find((d) => d.id === selectedDecorId);
       if (decor) {
         const px = (decor.x / 100) * CANVAS_WIDTH;
         const py = (decor.y / 100) * CANVAS_HEIGHT;
         const halfSize = decor.size / 2 + 8;
-        
-        ctx.save();
-        ctx.strokeStyle = 'rgba(116, 185, 255, 0.4)';
-        ctx.lineWidth = 2;
-        ctx.setLineDash([4, 4]);
-        ctx.strokeRect(
+
+        context.save();
+        context.strokeStyle = 'rgba(116, 185, 255, 0.4)';
+        context.lineWidth = 2;
+        context.setLineDash([4, 4]);
+        context.strokeRect(
           px - halfSize,
           py - halfSize,
           halfSize * 2,
           halfSize * 2
         );
-        ctx.restore();
+        context.restore();
       }
     }
   }, [selectedDecorId]);
 
   useEffect(() => {
     pendingConfigRef.current = config;
-    
+
     if (rafRef.current) {
       cancelAnimationFrame(rafRef.current);
     }
-    
+
     rafRef.current = requestAnimationFrame(() => {
       const canvas = canvasRef.current;
       if (!canvas) return;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-      draw(ctx, pendingConfigRef.current);
+      const context = canvas.getContext('2d');
+      if (!context) return;
+      draw(context, pendingConfigRef.current);
       rafRef.current = null;
     });
 

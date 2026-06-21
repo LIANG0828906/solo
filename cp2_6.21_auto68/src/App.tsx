@@ -166,6 +166,8 @@ export const App: React.FC = () => {
           </button>
         </div>
 
+        {/* ========== 数据流：background状态 → props传入 → TemplateSelector ==========
+            ← onChange回调 → setBackground更新背景状态 → 触发重绘 */}
         <div style={{ marginBottom: '20px' }}>
           <TemplateSelector
             selected={background}
@@ -188,6 +190,8 @@ export const App: React.FC = () => {
             }}
             className="canvas-section"
           >
+            {/* ========== 数据流：posterConfig(聚合所有状态) → CanvasDisplay
+                ← onSelectDecor/onUpdateDecor回调 → 更新装饰元素状态 */}
             <CanvasDisplay
               config={posterConfig}
               selectedDecorId={selectedDecorId}
@@ -222,6 +226,8 @@ export const App: React.FC = () => {
                 padding: '16px',
               }}
             >
+              {/* ========== 数据流：textConfig状态 → props传入 → TextConfig
+                  ← onChange回调 → setTextConfig更新文字配置状态 */}
               <TextConfig config={textConfig} onChange={setTextConfig} />
             </div>
 
@@ -234,6 +240,8 @@ export const App: React.FC = () => {
                 marginTop: '16px',
               }}
             >
+              {/* ========== 数据流：decorations状态 → props传入 → DecorConfig
+                  ← onAdd/onUpdate/onRemove/onSelect回调 → 更新装饰元素状态 */}
               <DecorConfig
                 decorations={decorations}
                 selectedId={selectedDecorId}
