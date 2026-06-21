@@ -24,7 +24,7 @@ interface ControlPanelProps {
 }
 
 const containerStyle: React.CSSProperties = {
-  width: '360px',
+  width: '100%',
   padding: '20px',
   backgroundColor: '#1a1a2e',
   color: '#e0e0e0',
@@ -33,7 +33,6 @@ const containerStyle: React.CSSProperties = {
   gap: '16px',
   height: '100%',
   boxSizing: 'border-box',
-  overflowY: 'auto',
 };
 
 const cardStyle: React.CSSProperties = {

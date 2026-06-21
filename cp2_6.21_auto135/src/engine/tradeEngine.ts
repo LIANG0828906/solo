@@ -6,6 +6,7 @@ import {
   NegotiationStrategy,
   TradeRecord,
   EngineState,
+  ThreeWayTradeRecord,
   INITIAL_RESOURCES,
   TARGET_BASE,
   CIVILIZATION_NAMES,
@@ -39,6 +40,34 @@ class EventBus {
     }
   }
 }
+
+interface StrategyConfig {
+  buyPriceMultiplier: number;
+  sellPriceMultiplier: number;
+  maxTradeRatio: number;
+  urgencyFactor: number;
+}
+
+const STRATEGY_CONFIGS: Record<NegotiationStrategy, StrategyConfig> = {
+  aggressive: {
+    buyPriceMultiplier: 1.25,
+    sellPriceMultiplier: 0.85,
+    maxTradeRatio: 0.4,
+    urgencyFactor: 1.5,
+  },
+  balanced: {
+    buyPriceMultiplier: 1.0,
+    sellPriceMultiplier: 1.0,
+    maxTradeRatio: 0.25,
+    urgencyFactor: 1.0,
+  },
+  conservative: {
+    buyPriceMultiplier: 0.8,
+    sellPriceMultiplier: 1.3,
+    maxTradeRatio: 0.15,
+    urgencyFactor: 0.6,
+  },
+};
 
 export class TradeEngine {
   private eventBus: EventBus;
@@ -83,6 +112,7 @@ export class TradeEngine {
     return {
       civilizations,
       tradeHistory: [],
+      threeWayTradeHistory: [],
       resourceHistory: [
         {
           round: 0,
@@ -173,6 +203,7 @@ export class TradeEngine {
       },
     ];
     this.state.tradeHistory = [];
+    this.state.threeWayTradeHistory = [];
     this.state.currentRound = 0;
     this.eventBus.emit('stateUpdate', this.getState());
   }
@@ -182,6 +213,7 @@ export class TradeEngine {
     if (this.state.currentRound >= this.state.totalRounds) {
       this.state.currentRound = 0;
       this.state.tradeHistory = [];
+      this.state.threeWayTradeHistory = [];
       this.state.resourceHistory = this.state.resourceHistory.slice(0, 1);
     }
     this.state.isRunning = true;
@@ -225,201 +257,347 @@ export class TradeEngine {
     this.animationFrameId = requestAnimationFrame(this.runLoop);
   };
 
-  private runRound(): void {
-    this.state.currentRound++;
-    const roundTrades: TradeRecord[] = [];
-    const civIds: CivilizationType[] = ['elf', 'dwarf', 'human'];
+  private getSurplusesAndDeficits(civ: Civilization): {
+    surpluses: Map<ResourceType, number>;
+    deficits: Map<ResourceType, number>;
+  } {
     const resourceTypes: ResourceType[] = ['wood', 'ore', 'food', 'gold'];
+    const surpluses = new Map<ResourceType, number>();
+    const deficits = new Map<ResourceType, number>();
 
-    type Proposal = {
-      from: CivilizationType;
-      giveResource: ResourceType;
-      giveAmount: number;
-      wantResource: ResourceType;
-      wantAmount: number;
-    };
-
-    const allProposals: Proposal[] = [];
-
-    civIds.forEach((civId) => {
-      const civ = this.state.civilizations[civId];
-      const surpluses: { resource: ResourceType; amount: number }[] = [];
-      const deficits: { resource: ResourceType; amount: number }[] = [];
-
-      resourceTypes.forEach((res) => {
-        const diff = civ.resources[res] - civ.targetBase[res];
-        if (diff > 5) {
-          surpluses.push({ resource: res, amount: diff });
-        } else if (diff < -5) {
-          deficits.push({ resource: res, amount: Math.abs(diff) });
-        }
-      });
-
-      const strategy = civ.strategy;
-      let exchangeRateMultiplier: number;
-      if (strategy === 'aggressive') {
-        exchangeRateMultiplier = 1.3;
-      } else if (strategy === 'conservative') {
-        exchangeRateMultiplier = 0.7;
-      } else {
-        exchangeRateMultiplier = 1.0;
+    resourceTypes.forEach((res) => {
+      const diff = civ.resources[res] - civ.targetBase[res];
+      if (diff > 3) {
+        surpluses.set(res, diff);
+      } else if (diff < -3) {
+        deficits.set(res, Math.abs(diff));
       }
-
-      surpluses.forEach((surplus) => {
-        deficits.forEach((deficit) => {
-          const giveAmount = Math.min(surplus.amount, 15);
-          const giveValue = giveAmount * RESOURCE_PRICES[surplus.resource];
-          const wantAmount = Math.floor(
-            (giveValue * exchangeRateMultiplier) / RESOURCE_PRICES[deficit.resource]
-          );
-
-          if (giveAmount > 0 && wantAmount > 0 && wantAmount <= deficit.amount + 10) {
-            allProposals.push({
-              from: civId,
-              giveResource: surplus.resource,
-              giveAmount: Math.floor(giveAmount),
-              wantResource: deficit.resource,
-              wantAmount: Math.min(wantAmount, deficit.amount + 5),
-            });
-          }
-        });
-      });
     });
 
-    const matchedPairs: Set<string> = new Set();
-    const tradesThisRound: TradeRecord[] = [];
+    return { surpluses, deficits };
+  }
 
-    allProposals.sort((a, b) => {
-      const aScore = a.giveAmount * RESOURCE_PRICES[a.giveResource];
-      const bScore = b.giveAmount * RESOURCE_PRICES[b.giveResource];
-      return bScore - aScore;
-    });
+  private calculateBuyValue(
+    civ: Civilization,
+    resource: ResourceType,
+    amount: number
+  ): number {
+    const config = STRATEGY_CONFIGS[civ.strategy];
+    const baseValue = amount * RESOURCE_PRICES[resource];
+    return baseValue * config.buyPriceMultiplier;
+  }
 
-    for (const proposal of allProposals) {
-      const matchingProposals = allProposals.filter(
-        (p) =>
-          p.from !== proposal.from &&
-          p.giveResource === proposal.wantResource &&
-          p.wantResource === proposal.giveResource &&
-          !matchedPairs.has(`${proposal.from}-${p.from}`) &&
-          !matchedPairs.has(`${p.from}-${proposal.from}`)
-      );
+  private calculateSellValue(
+    civ: Civilization,
+    resource: ResourceType,
+    amount: number
+  ): number {
+    const config = STRATEGY_CONFIGS[civ.strategy];
+    const baseValue = amount * RESOURCE_PRICES[resource];
+    return baseValue * config.sellPriceMultiplier;
+  }
 
-      if (matchingProposals.length > 0) {
-        const bestMatch = matchingProposals[0];
-        const civA = this.state.civilizations[proposal.from];
-        const civB = this.state.civilizations[bestMatch.from];
+  private calculateAmountFromValue(
+    civ: Civilization,
+    resource: ResourceType,
+    value: number,
+    isBuying: boolean
+  ): number {
+    const config = STRATEGY_CONFIGS[civ.strategy];
+    const multiplier = isBuying ? config.buyPriceMultiplier : config.sellPriceMultiplier;
+    return Math.floor(value / (RESOURCE_PRICES[resource] * multiplier));
+  }
 
-        const tradeAmountA = Math.min(
-          proposal.giveAmount,
-          bestMatch.wantAmount,
-          civA.resources[proposal.giveResource]
-        );
-        const tradeAmountB = Math.min(
-          bestMatch.giveAmount,
-          proposal.wantAmount,
-          civB.resources[bestMatch.giveResource]
-        );
+  private findTwoWayMatches(
+    civIds: CivilizationType[]
+  ): TradeRecord[] {
+    const trades: TradeRecord[] = [];
+    const usedCivs = new Set<CivilizationType>();
 
-        const actualA = Math.floor(tradeAmountA * 0.8);
-        const actualB = Math.floor(tradeAmountB * 0.8);
-
-        if (actualA > 0 && actualB > 0) {
-          civA.resources[proposal.giveResource] -= actualA;
-          civA.resources[proposal.wantResource] += actualB;
-          civB.resources[bestMatch.giveResource] -= actualB;
-          civB.resources[bestMatch.wantResource] += actualA;
-
-          const trade: TradeRecord = {
-            round: this.state.currentRound,
-            civilizationA: proposal.from,
-            civilizationB: bestMatch.from,
-            resourceA: proposal.giveResource,
-            amountA: actualA,
-            resourceB: proposal.wantResource,
-            amountB: actualB,
-            resourcesAfter: {
-              elf: { ...this.state.civilizations.elf.resources },
-              dwarf: { ...this.state.civilizations.dwarf.resources },
-              human: { ...this.state.civilizations.human.resources },
-            },
-          };
-
-          tradesThisRound.push(trade);
-          roundTrades.push(trade);
-          matchedPairs.add(`${proposal.from}-${bestMatch.from}`);
-          matchedPairs.add(`${bestMatch.from}-${proposal.from}`);
-        }
+    const pairs: [CivilizationType, CivilizationType][] = [];
+    for (let i = 0; i < civIds.length; i++) {
+      for (let j = i + 1; j < civIds.length; j++) {
+        pairs.push([civIds[i], civIds[j]]);
       }
     }
 
-    if (tradesThisRound.length === 0) {
-      civIds.forEach((civId, idx) => {
-        const nextCivId = civIds[(idx + 1) % 3];
-        const civA = this.state.civilizations[civId];
-        const civB = this.state.civilizations[nextCivId];
+    const pairScores: {
+      pair: [CivilizationType, CivilizationType];
+      score: number;
+      trade: TradeRecord | null;
+    }[] = [];
 
-        const surplusesA: { resource: ResourceType; amount: number }[] = [];
-        const deficitsA: { resource: ResourceType; amount: number }[] = [];
-        const surplusesB: { resource: ResourceType; amount: number }[] = [];
-        const deficitsB: { resource: ResourceType; amount: number }[] = [];
+    for (const pair of pairs) {
+      const [civAId, civBId] = pair;
+      const civA = this.state.civilizations[civAId];
+      const civB = this.state.civilizations[civBId];
 
-        resourceTypes.forEach((res) => {
-          const diffA = civA.resources[res] - civA.targetBase[res];
-          const diffB = civB.resources[res] - civB.targetBase[res];
-          if (diffA > 3) surplusesA.push({ resource: res, amount: diffA });
-          if (diffA < -3) deficitsA.push({ resource: res, amount: Math.abs(diffA) });
-          if (diffB > 3) surplusesB.push({ resource: res, amount: diffB });
-          if (diffB < -3) deficitsB.push({ resource: res, amount: Math.abs(diffB) });
-        });
+      const { surpluses: surplusesA, deficits: deficitsA } =
+        this.getSurplusesAndDeficits(civA);
+      const { surpluses: surplusesB, deficits: deficitsB } =
+        this.getSurplusesAndDeficits(civB);
 
-        for (const surplusA of surplusesA) {
-          for (const deficitA of deficitsA) {
-            const matchingSurplus = surplusesB.find((s) => s.resource === deficitA.resource);
-            const matchingDeficit = deficitsB.find((d) => d.resource === surplusA.resource);
-            if (matchingSurplus && matchingDeficit) {
-              const amountA = Math.min(
-                Math.floor(surplusA.amount * 0.3),
-                matchingDeficit.amount,
-                8
-              );
-              const amountB = Math.min(
-                Math.floor(matchingSurplus.amount * 0.3),
-                deficitA.amount,
-                8
-              );
+      let bestTrade: TradeRecord | null = null;
+      let bestScore = -Infinity;
 
-              if (amountA > 0 && amountB > 0) {
-                civA.resources[surplusA.resource] -= amountA;
-                civA.resources[deficitA.resource] += amountB;
-                civB.resources[deficitA.resource] -= amountB;
-                civB.resources[surplusA.resource] += amountA;
+      for (const [resA, surplusA] of surplusesA) {
+        for (const [resB, surplusB] of surplusesB) {
+          if (resA === resB) continue;
 
-                const trade: TradeRecord = {
-                  round: this.state.currentRound,
-                  civilizationA: civId,
-                  civilizationB: nextCivId,
-                  resourceA: surplusA.resource,
-                  amountA: amountA,
-                  resourceB: deficitA.resource,
-                  amountB: amountB,
-                  resourcesAfter: {
-                    elf: { ...this.state.civilizations.elf.resources },
-                    dwarf: { ...this.state.civilizations.dwarf.resources },
-                    human: { ...this.state.civilizations.human.resources },
-                  },
-                };
+          const deficitAForB = deficitsA.get(resB) || 0;
+          const deficitBForA = deficitsB.get(resA) || 0;
 
-                roundTrades.push(trade);
-              }
-              break;
+          if (deficitAForB <= 0 || deficitBForA <= 0) continue;
+
+          const configA = STRATEGY_CONFIGS[civA.strategy];
+          const configB = STRATEGY_CONFIGS[civB.strategy];
+
+          const maxGiveA = Math.min(
+            Math.floor(surplusA * configA.maxTradeRatio),
+            deficitBForA
+          );
+          const maxGiveB = Math.min(
+            Math.floor(surplusB * configB.maxTradeRatio),
+            deficitAForB
+          );
+
+          if (maxGiveA <= 0 || maxGiveB <= 0) continue;
+
+          const valueA = this.calculateSellValue(civA, resA, maxGiveA);
+          const valueB = this.calculateSellValue(civB, resB, maxGiveB);
+
+          const tradeValue = Math.min(valueA, valueB);
+
+          const amountA = this.calculateAmountFromValue(civA, resA, tradeValue, false);
+          const amountB = this.calculateAmountFromValue(civB, resB, tradeValue, false);
+
+          if (amountA <= 0 || amountB <= 0) continue;
+
+          const urgency =
+            (deficitAForB + deficitBForA) *
+            ((configA.urgencyFactor + configB.urgencyFactor) / 2);
+          const score = tradeValue + urgency;
+
+          if (score > bestScore) {
+            bestScore = score;
+            bestTrade = {
+              round: this.state.currentRound,
+              civilizationA: civAId,
+              civilizationB: civBId,
+              resourceA: resA,
+              amountA: amountA,
+              resourceB: resB,
+              amountB: amountB,
+              resourcesAfter: {
+                elf: { ...this.state.civilizations.elf.resources },
+                dwarf: { ...this.state.civilizations.dwarf.resources },
+                human: { ...this.state.civilizations.human.resources },
+              },
+            };
+          }
+        }
+      }
+
+      pairScores.push({ pair, score: bestScore, trade: bestTrade });
+    }
+
+    pairScores.sort((a, b) => b.score - a.score);
+
+    for (const { pair, trade } of pairScores) {
+      const [a, b] = pair;
+      if (usedCivs.has(a) || usedCivs.has(b)) continue;
+      if (!trade) continue;
+
+      const civA = this.state.civilizations[a];
+      const civB = this.state.civilizations[b];
+
+      civA.resources[trade.resourceA] -= trade.amountA;
+      civA.resources[trade.resourceB] += trade.amountB;
+      civB.resources[trade.resourceB] -= trade.amountB;
+      civB.resources[trade.resourceA] += trade.amountA;
+
+      trade.resourcesAfter = {
+        elf: { ...this.state.civilizations.elf.resources },
+        dwarf: { ...this.state.civilizations.dwarf.resources },
+        human: { ...this.state.civilizations.human.resources },
+      };
+
+      trades.push(trade);
+      usedCivs.add(a);
+      usedCivs.add(b);
+    }
+
+    return trades;
+  }
+
+  private findThreeWayMatches(
+    civIds: CivilizationType[]
+  ): ThreeWayTradeRecord[] {
+    const trades: ThreeWayTradeRecord[] = [];
+    if (civIds.length !== 3) return trades;
+
+    const civPermutations: [CivilizationType, CivilizationType, CivilizationType][] = [
+      ['elf', 'dwarf', 'human'],
+      ['elf', 'human', 'dwarf'],
+      ['dwarf', 'elf', 'human'],
+      ['dwarf', 'human', 'elf'],
+      ['human', 'elf', 'dwarf'],
+      ['human', 'dwarf', 'elf'],
+    ];
+
+    const resourceTypes: ResourceType[] = ['wood', 'ore', 'food', 'gold'];
+
+    let bestTrade: ThreeWayTradeRecord | null = null;
+    let bestScore = -Infinity;
+
+    for (const perm of civPermutations) {
+      const [civ1Id, civ2Id, civ3Id] = perm;
+      const civ1 = this.state.civilizations[civ1Id];
+      const civ2 = this.state.civilizations[civ2Id];
+      const civ3 = this.state.civilizations[civ3Id];
+
+      const { surpluses: surpluses1, deficits: deficits1 } =
+        this.getSurplusesAndDeficits(civ1);
+      const { surpluses: surpluses2, deficits: deficits2 } =
+        this.getSurplusesAndDeficits(civ2);
+      const { surpluses: surpluses3, deficits: deficits3 } =
+        this.getSurplusesAndDeficits(civ3);
+
+      for (const res1 of resourceTypes) {
+        if (!surpluses1.has(res1)) continue;
+
+        for (const res2 of resourceTypes) {
+          if (res1 === res2) continue;
+          if (!surpluses2.has(res2)) continue;
+          if (!deficits2.has(res1)) continue;
+
+          for (const res3 of resourceTypes) {
+            if (res3 === res1 || res3 === res2) continue;
+            if (!surpluses3.has(res3)) continue;
+            if (!deficits3.has(res2)) continue;
+            if (!deficits1.has(res3)) continue;
+
+            const config1 = STRATEGY_CONFIGS[civ1.strategy];
+            const config2 = STRATEGY_CONFIGS[civ2.strategy];
+            const config3 = STRATEGY_CONFIGS[civ3.strategy];
+
+            const surplus1 = surpluses1.get(res1)!;
+            const deficit2of1 = deficits2.get(res1)!;
+            const surplus2 = surpluses2.get(res2)!;
+            const deficit3of2 = deficits3.get(res2)!;
+            const surplus3 = surpluses3.get(res3)!;
+            const deficit1of3 = deficits1.get(res3)!;
+
+            const max1to2 = Math.min(
+              Math.floor(surplus1 * config1.maxTradeRatio),
+              deficit2of1
+            );
+            if (max1to2 <= 0) continue;
+
+            const value1to2 = this.calculateSellValue(civ1, res1, max1to2);
+
+            const max2to3 = Math.min(
+              this.calculateAmountFromValue(civ2, res2, value1to2, false),
+              Math.floor(surplus2 * config2.maxTradeRatio),
+              deficit3of2
+            );
+            if (max2to3 <= 0) continue;
+
+            const value2to3 = this.calculateSellValue(civ2, res2, max2to3);
+
+            const max3to1 = Math.min(
+              this.calculateAmountFromValue(civ3, res3, value2to3, false),
+              Math.floor(surplus3 * config3.maxTradeRatio),
+              deficit1of3
+            );
+            if (max3to1 <= 0) continue;
+
+            const value3to1 = this.calculateSellValue(civ3, res3, max3to1);
+
+            const final1to2 = Math.min(
+              max1to2,
+              this.calculateAmountFromValue(civ1, res1, value3to1, true)
+            );
+            if (final1to2 <= 0) continue;
+
+            const finalValue = this.calculateSellValue(civ1, res1, final1to2);
+
+            const urgencyScore =
+              (deficit2of1 + deficit3of2 + deficit1of3) *
+              ((config1.urgencyFactor +
+                config2.urgencyFactor +
+                config3.urgencyFactor) /
+                3);
+
+            const score = finalValue * 3 + urgencyScore;
+
+            if (score > bestScore) {
+              bestScore = score;
+              bestTrade = {
+                round: this.state.currentRound,
+                civ1: civ1Id,
+                civ2: civ2Id,
+                civ3: civ3Id,
+                resource1to2: res1,
+                amount1to2: final1to2,
+                resource2to3: res2,
+                amount2to3: max2to3,
+                resource3to1: res3,
+                amount3to1: max3to1,
+                resourcesAfter: {
+                  elf: { ...this.state.civilizations.elf.resources },
+                  dwarf: { ...this.state.civilizations.dwarf.resources },
+                  human: { ...this.state.civilizations.human.resources },
+                },
+              };
             }
           }
         }
-      });
+      }
     }
 
-    this.state.tradeHistory.push(...roundTrades);
+    if (bestTrade) {
+      const t = bestTrade;
+      const civ1 = this.state.civilizations[t.civ1];
+      const civ2 = this.state.civilizations[t.civ2];
+      const civ3 = this.state.civilizations[t.civ3];
+
+      civ1.resources[t.resource1to2] -= t.amount1to2;
+      civ1.resources[t.resource3to1] += t.amount3to1;
+
+      civ2.resources[t.resource2to3] -= t.amount2to3;
+      civ2.resources[t.resource1to2] += t.amount1to2;
+
+      civ3.resources[t.resource3to1] -= t.amount3to1;
+      civ3.resources[t.resource2to3] += t.amount2to3;
+
+      bestTrade.resourcesAfter = {
+        elf: { ...this.state.civilizations.elf.resources },
+        dwarf: { ...this.state.civilizations.dwarf.resources },
+        human: { ...this.state.civilizations.human.resources },
+      };
+
+      trades.push(bestTrade);
+    }
+
+    return trades;
+  }
+
+  private runRound(): void {
+    this.state.currentRound++;
+    const civIds: CivilizationType[] = ['elf', 'dwarf', 'human'];
+
+    const twoWayTrades = this.findTwoWayMatches(civIds);
+    const threeWayTrades: ThreeWayTradeRecord[] = [];
+
+    if (twoWayTrades.length === 0) {
+      const found = this.findThreeWayMatches(civIds);
+      threeWayTrades.push(...found);
+    }
+
+    this.state.tradeHistory.push(...twoWayTrades);
+    this.state.threeWayTradeHistory.push(...threeWayTrades);
+
     this.state.resourceHistory.push({
       round: this.state.currentRound,
       resources: {
@@ -431,7 +609,8 @@ export class TradeEngine {
 
     this.eventBus.emit('roundComplete', {
       round: this.state.currentRound,
-      trades: roundTrades,
+      trades: twoWayTrades,
+      threeWayTrades: threeWayTrades,
       state: this.getState(),
     });
     this.eventBus.emit('stateUpdate', this.getState());

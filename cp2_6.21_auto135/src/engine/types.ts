@@ -40,6 +40,20 @@ export interface TradeRecord {
   resourcesAfter: Record<CivilizationType, Resources>;
 }
 
+export interface ThreeWayTradeRecord {
+  round: number;
+  civ1: CivilizationType;
+  civ2: CivilizationType;
+  civ3: CivilizationType;
+  resource1to2: ResourceType;
+  amount1to2: number;
+  resource2to3: ResourceType;
+  amount2to3: number;
+  resource3to1: ResourceType;
+  amount3to1: number;
+  resourcesAfter: Record<CivilizationType, Resources>;
+}
+
 export interface RoundResult {
   round: number;
   trades: TradeRecord[];
@@ -49,6 +63,7 @@ export interface RoundResult {
 export interface EngineState {
   civilizations: Record<CivilizationType, Civilization>;
   tradeHistory: TradeRecord[];
+  threeWayTradeHistory: ThreeWayTradeRecord[];
   resourceHistory: { round: number; resources: Record<CivilizationType, Resources> }[];
   currentRound: number;
   isRunning: boolean;
