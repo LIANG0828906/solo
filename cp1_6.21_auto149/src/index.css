@@ -1,0 +1,31 @@
+@media (max-width: 1023px) {
+  .app-main {
+    flex-direction: column !important;
+  }
+  .app-main > div:first-child {
+    width: 100% !important;
+    min-width: 100% !important;
+  }
+  .app-main > div:last-child {
+    width: 100% !important;
+  }
+  .app-main > div:last-child > div:last-child {
+    grid-template-columns: repeat(2, 160px) !important;
+  }
+}
+
+@media (max-width: 639px) {
+  .app-main {
+    padding: 8px !important;
+  }
+  .app-main > div:last-child > div:last-child {
+    grid-template-columns: 1fr !important;
+  }
+  .app-main > div:last-child > div:last-child > div {
+    width: 100% !important;
+  }
+  .app-main > div:first-child {
+    width: 100% !important;
+    min-width: 100% !important;
+  }
+}
