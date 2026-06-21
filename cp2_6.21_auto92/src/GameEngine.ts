@@ -70,6 +70,7 @@ export class GameEngine {
       missIndicator: null,
       isPausedForMiss: false,
       screenFlash: null,
+      wrongKeyPress: null,
     };
   }
 
@@ -135,6 +136,7 @@ export class GameEngine {
     this.state.missIndicator = null;
     this.state.isPausedForMiss = false;
     this.state.screenFlash = null;
+    this.state.wrongKeyPress = null;
   }
 
   start(startTime: number = 0): void {
@@ -307,7 +309,8 @@ export class GameEngine {
     const now = performance.now();
     const rippleLifetime = 600;
     const comboBurstLifetime = 800;
-    const flashLifetime = 400;
+    const flashLifetime = 500;
+    const wrongKeyLifetime = 300;
 
     this.state.rippleEffects = this.state.rippleEffects.filter(
       (r) => now - r.startTime < rippleLifetime
@@ -320,6 +323,10 @@ export class GameEngine {
     if (this.state.screenFlash && now - this.state.screenFlash.startTime >= flashLifetime) {
       this.state.screenFlash = null;
     }
+
+    if (this.state.wrongKeyPress && now - this.state.wrongKeyPress.time >= wrongKeyLifetime) {
+      this.state.wrongKeyPress = null;
+    }
   }
 
   handleTrackPress(track: TrackIndex): void {
@@ -329,11 +336,22 @@ export class GameEngine {
       if (this.state.missIndicator.track === track) {
         this.state.missIndicator = null;
         this.state.isPausedForMiss = false;
+        this.state.wrongKeyPress = null;
         if (this.missPauseTimer !== null) {
           clearTimeout(this.missPauseTimer);
           this.missPauseTimer = null;
         }
         this.resume();
+        return;
+      } else {
+        this.state.wrongKeyPress = {
+          track,
+          time: performance.now(),
+        };
+        if (this.audioManager) {
+          this.audioManager.playHitSound('miss');
+        }
+        this.pushUpdate();
         return;
       }
     }

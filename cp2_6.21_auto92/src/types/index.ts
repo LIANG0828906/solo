@@ -58,6 +58,11 @@ export interface MissIndicator {
   time: number;
 }
 
+export interface WrongKeyPress {
+  track: TrackIndex;
+  time: number;
+}
+
 export interface GameStateData {
   mode: GameMode;
   isPlaying: boolean;
@@ -81,6 +86,7 @@ export interface GameStateData {
   missIndicator: MissIndicator | null;
   isPausedForMiss: boolean;
   screenFlash: { level: 10 | 30 | 50 | 100; startTime: number } | null;
+  wrongKeyPress: WrongKeyPress | null;
 }
 
 export interface GameEngineCallbacks {

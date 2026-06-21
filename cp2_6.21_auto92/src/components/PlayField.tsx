@@ -9,10 +9,8 @@ interface PlayFieldProps {
   onExit: () => void;
 }
 
-const TRACK_WIDTH = 120;
 const NOTE_WIDTH = 80;
 const NOTE_HEIGHT = 30;
-const HOLD_NOTE_HEIGHT = 30;
 
 const JUDGMENT_COLORS: Record<Judgment, string> = {
   perfect: '#ffd700',
@@ -58,6 +56,8 @@ export const PlayField: React.FC<PlayFieldProps> = ({
   const score = gameState.score ?? 0;
   const isPausedForMiss = gameState.isPausedForMiss ?? false;
   const missIndicator = gameState.missIndicator ?? null;
+  const wrongKeyPress = gameState.wrongKeyPress ?? null;
+  const screenFlash = gameState.screenFlash ?? null;
 
   const calcNoteY = (noteTime: number): number => {
     const timeDiff = noteTime - currentTime;
@@ -157,8 +157,7 @@ export const PlayField: React.FC<PlayFieldProps> = ({
     );
   };
 
-  const renderRipple = (ripple: typeof gameState.rippleEffects extends (infer T)[] | undefined ? T : never) => {
-    if (!ripple) return null;
+  const renderRipple = (ripple: Exclude<GameStateData['rippleEffects'], undefined>[number]) => {
     const x = trackPositionX(ripple.track);
     const y = judgeLineY;
     const color = JUDGMENT_COLORS[ripple.judgment];
@@ -181,111 +180,129 @@ export const PlayField: React.FC<PlayFieldProps> = ({
     );
   };
 
-  const renderComboBurst = (burst: ComboBurstEffect) => {
-    const now = performance.now();
-    const elapsed = now - burst.startTime;
-    if (elapsed > 800) return null;
+  const particleCount = useMemo(() => {
+    const baseCount = Math.round(dimensions.width / 80);
+    return Math.max(12, Math.min(32, baseCount));
+  }, [dimensions.width]);
 
+  const renderComboBurst = (burst: ComboBurstEffect) => {
     const centerX = dimensions.width / 2;
     const centerY = dimensions.height / 2;
 
     let textClass = '';
     let color = 'white';
     let fontSize = 72;
-    let showRing = false;
-    let showParticles = false;
+    let ringCount = 0;
+    let particleNum = 0;
 
     switch (burst.level) {
       case 10:
         textClass = 'comboBurst10';
         color = '#ffffff';
         fontSize = 64;
+        ringCount = 0;
+        particleNum = 0;
         break;
       case 30:
         textClass = 'comboBurst30';
         color = '#ffd700';
         fontSize = 80;
-        showParticles = true;
+        ringCount = 0;
+        particleNum = particleCount;
         break;
       case 50:
         textClass = 'comboBurst50';
         color = '#ff8c00';
         fontSize = 96;
-        showRing = true;
-        showParticles = true;
+        ringCount = 2;
+        particleNum = particleCount + 8;
         break;
       case 100:
         textClass = 'comboBurst100';
         color = '#ff1744';
         fontSize = 120;
-        showRing = true;
-        showParticles = true;
+        ringCount = 3;
+        particleNum = particleCount + 16;
         break;
     }
 
     const displayText = burst.level === 100 ? `COMBO x${burst.combo}` : `${burst.combo} COMBO!`;
 
+    const particles = [];
+    for (let i = 0; i < particleNum; i++) {
+      const angle = (i / particleNum) * Math.PI * 2;
+      const dist = 180 + (i % 3) * 60 + Math.random() * 40;
+      const dx = Math.cos(angle) * dist;
+      const dy = Math.sin(angle) * dist;
+      const angleDeg = (angle * 180) / Math.PI;
+      particles.push(
+        <div
+          key={`p-${i}`}
+          className="golden-particle"
+          style={{
+            ['--dx' as string]: `${dx}px`,
+            ['--dy' as string]: `${dy}px`,
+            ['--angle' as string]: `${angleDeg}deg`,
+            ['--color' as string]: color,
+            position: 'fixed',
+            left: centerX,
+            top: centerY,
+            width: 16,
+            height: 6,
+            borderRadius: 3,
+            background: `linear-gradient(90deg, ${color}00, ${color}cc, ${color})`,
+            boxShadow: `0 0 8px ${color}aa`,
+            pointerEvents: 'none',
+            zIndex: 95,
+          } as React.CSSProperties}
+        />
+      );
+      if (i % 2 === 0) {
+        particles.push(
+          <div
+            key={`h-${i}`}
+            className="particle-head"
+            style={{
+              ['--dx' as string]: `${dx}px`,
+              ['--dy' as string]: `${dy}px`,
+              ['--color' as string]: color,
+              position: 'fixed',
+              left: centerX,
+              top: centerY,
+              width: 8,
+              height: 8,
+              borderRadius: '50%',
+              background: color,
+              pointerEvents: 'none',
+              zIndex: 96,
+            } as React.CSSProperties}
+          />
+        );
+      }
+    }
+
     return (
       <React.Fragment key={burst.id}>
-        {showRing && (
-          <>
-            <div
-              className="combo-ring"
-              style={{
-                position: 'fixed',
-                left: centerX,
-                top: centerY,
-                width: 300,
-                height: 300,
-                borderRadius: '50%',
-                border: `4px solid ${color}`,
-                pointerEvents: 'none',
-              }}
-            />
-            <div
-              className="combo-ring"
-              style={{
-                position: 'fixed',
-                left: centerX,
-                top: centerY,
-                width: 300,
-                height: 300,
-                borderRadius: '50%',
-                border: `2px solid ${color}80`,
-                animationDelay: '0.08s',
-                pointerEvents: 'none',
-              }}
-            />
-          </>
-        )}
+        {Array.from({ length: ringCount }).map((_, i) => (
+          <div
+            key={`ring-${i}`}
+            className="combo-ring"
+            style={{
+              position: 'fixed',
+              left: centerX,
+              top: centerY,
+              width: 300 + i * 80,
+              height: 300 + i * 80,
+              borderRadius: '50%',
+              border: `${4 - i}px solid ${color}${Math.max(40, 100 - i * 30).toString(16).padStart(2, '0')}`,
+              animationDelay: `${i * 0.08}s`,
+              pointerEvents: 'none',
+              zIndex: 90,
+            }}
+          />
+        ))}
 
-        {showParticles && (
-          Array.from({ length: burst.level >= 50 ? 20 : 12 }).map((_, i) => {
-            const angle = (i / (burst.level >= 50 ? 20 : 12)) * Math.PI * 2;
-            const dist = 150 + Math.random() * 100;
-            const dx = Math.cos(angle) * dist;
-            const dy = Math.sin(angle) * dist;
-            return (
-              <div
-                key={i}
-                className="golden-particle"
-                style={{
-                  ['--dx' as string]: `${dx}px`,
-                  ['--dy' as string]: `${dy}px`,
-                  position: 'fixed',
-                  left: centerX,
-                  top: centerY,
-                  width: 8,
-                  height: 8,
-                  borderRadius: '50%',
-                  background: color,
-                  boxShadow: `0 0 10px ${color}`,
-                  pointerEvents: 'none',
-                } as React.CSSProperties}
-              />
-            );
-          })
-        )}
+        {particles}
 
         <div
           className={textClass}
@@ -298,7 +315,7 @@ export const PlayField: React.FC<PlayFieldProps> = ({
             fontWeight: 900,
             fontSize,
             color,
-            textShadow: `0 0 20px ${color}90, 0 0 40px ${color}60, 0 4px 8px rgba(0,0,0,0.5)`,
+            textShadow: `0 0 30px ${color}aa, 0 0 60px ${color}66, 0 4px 16px rgba(0,0,0,0.6)`,
             whiteSpace: 'nowrap',
             pointerEvents: 'none',
             zIndex: 100,
@@ -310,7 +327,6 @@ export const PlayField: React.FC<PlayFieldProps> = ({
     );
   };
 
-  const screenFlash = gameState.screenFlash;
   const edgeFlashLevel = useMemo(() => {
     if (combo >= 100) return 100;
     if (combo >= 50) return 50;
@@ -339,17 +355,33 @@ export const PlayField: React.FC<PlayFieldProps> = ({
         zIndex: 50,
       }}
     >
-      {screenFlash && (
-        <div
-          className="screen-flash"
-          style={{
-            position: 'absolute',
-            inset: 0,
-            background: `radial-gradient(ellipse at center, ${screenFlash.level >= 100 ? 'rgba(255,23,68,0.5)' : 'rgba(255,140,0,0.4)'} 0%, transparent 70%)`,
-            pointerEvents: 'none',
-            zIndex: 200,
-          }}
-        />
+      {screenFlash && screenFlash.level >= 50 && (
+        <>
+          {screenFlash.level >= 100 && (
+            <div
+              className="screen-flash"
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: 'white',
+                pointerEvents: 'none',
+                zIndex: 250,
+              }}
+            />
+          )}
+          <div
+            className="screen-flash-color"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              background: `radial-gradient(ellipse at center, ${
+                screenFlash.level >= 100 ? 'rgba(255,23,68,0.5)' : 'rgba(255,140,0,0.4)'
+              } 0%, transparent 70%)`,
+              pointerEvents: 'none',
+              zIndex: 200,
+            }}
+          />
+        </>
       )}
 
       {showEdgeFlash && (
@@ -362,7 +394,15 @@ export const PlayField: React.FC<PlayFieldProps> = ({
               left: 0,
               right: 0,
               height: 120,
-              background: `linear-gradient(to bottom, ${edgeFlashLevel >= 100 ? 'rgba(255,23,68,0.6)' : edgeFlashLevel >= 50 ? 'rgba(255,140,0,0.5)' : edgeFlashLevel >= 30 ? 'rgba(255,215,0,0.4)' : 'rgba(233,69,96,0.4)'}, transparent)`,
+              background: `linear-gradient(to bottom, ${
+                edgeFlashLevel >= 100
+                  ? 'rgba(255,23,68,0.6)'
+                  : edgeFlashLevel >= 50
+                  ? 'rgba(255,140,0,0.5)'
+                  : edgeFlashLevel >= 30
+                  ? 'rgba(255,215,0,0.4)'
+                  : 'rgba(233,69,96,0.4)'
+              }, transparent)`,
               pointerEvents: 'none',
               zIndex: 150,
             }}
@@ -375,7 +415,15 @@ export const PlayField: React.FC<PlayFieldProps> = ({
               left: 0,
               right: 0,
               height: 120,
-              background: `linear-gradient(to top, ${edgeFlashLevel >= 100 ? 'rgba(255,23,68,0.6)' : edgeFlashLevel >= 50 ? 'rgba(255,140,0,0.5)' : edgeFlashLevel >= 30 ? 'rgba(255,215,0,0.4)' : 'rgba(233,69,96,0.4)'}, transparent)`,
+              background: `linear-gradient(to top, ${
+                edgeFlashLevel >= 100
+                  ? 'rgba(255,23,68,0.6)'
+                  : edgeFlashLevel >= 50
+                  ? 'rgba(255,140,0,0.5)'
+                  : edgeFlashLevel >= 30
+                  ? 'rgba(255,215,0,0.4)'
+                  : 'rgba(233,69,96,0.4)'
+              }, transparent)`,
               pointerEvents: 'none',
               zIndex: 150,
             }}
@@ -386,6 +434,7 @@ export const PlayField: React.FC<PlayFieldProps> = ({
       <div className="tracks-horizontal" style={{ position: 'absolute', inset: 0, display: 'flex', justifyContent: 'center' }}>
         {([0, 1, 2, 3] as TrackIndex[]).map((track) => {
           const pressed = isTrackPressed(track);
+          const isWrongKey = wrongKeyPress?.track === track;
           const trackX = fieldStartX + track * trackGap;
           return (
             <div
@@ -396,11 +445,25 @@ export const PlayField: React.FC<PlayFieldProps> = ({
                 top: 0,
                 width: trackGap,
                 height: '100%',
-                background: pressed
+                background: isWrongKey
+                  ? `linear-gradient(to bottom, rgba(239,68,68,0.1), rgba(239,68,68,0.25), rgba(239,68,68,0.1))`
+                  : pressed
                   ? `linear-gradient(to bottom, rgba(255,255,255,0.02), ${TRACK_COLORS[track]}15, ${TRACK_COLORS[track]}30)`
                   : `linear-gradient(to bottom, rgba(255,255,255,0.02), rgba(255,255,255,0.05), rgba(255,255,255,0.02))`,
-                borderLeft: `1px solid ${pressed ? TRACK_COLORS[track] + '60' : 'rgba(255,255,255,0.05)'}`,
-                borderRight: `1px solid ${pressed ? TRACK_COLORS[track] + '60' : 'rgba(255,255,255,0.05)'}`,
+                borderLeft: `1px solid ${
+                  isWrongKey
+                    ? 'rgba(239,68,68,0.6)'
+                    : pressed
+                    ? TRACK_COLORS[track] + '60'
+                    : 'rgba(255,255,255,0.05)'
+                }`,
+                borderRight: `1px solid ${
+                  isWrongKey
+                    ? 'rgba(239,68,68,0.6)'
+                    : pressed
+                    ? TRACK_COLORS[track] + '60'
+                    : 'rgba(255,255,255,0.05)'
+                }`,
                 transition: 'all 0.08s ease',
               }}
             >
@@ -413,11 +476,25 @@ export const PlayField: React.FC<PlayFieldProps> = ({
                   fontFamily: 'Orbitron, sans-serif',
                   fontSize: 14,
                   fontWeight: 700,
-                  color: pressed ? TRACK_COLORS[track] : 'rgba(255,255,255,0.3)',
+                  color: isWrongKey
+                    ? '#ef4444'
+                    : pressed
+                    ? TRACK_COLORS[track]
+                    : 'rgba(255,255,255,0.3)',
                   padding: '4px 10px',
                   borderRadius: 6,
-                  border: `1px solid ${pressed ? TRACK_COLORS[track] : 'rgba(255,255,255,0.1)'}`,
-                  background: pressed ? `${TRACK_COLORS[track]}20` : 'rgba(0,0,0,0.3)',
+                  border: `1px solid ${
+                    isWrongKey
+                      ? 'rgba(239,68,68,0.6)'
+                      : pressed
+                      ? TRACK_COLORS[track]
+                      : 'rgba(255,255,255,0.1)'
+                  }`,
+                  background: isWrongKey
+                    ? 'rgba(239,68,68,0.2)'
+                    : pressed
+                    ? `${TRACK_COLORS[track]}20`
+                    : 'rgba(0,0,0,0.3)',
                   transition: 'all 0.08s ease',
                 }}
               >
@@ -452,7 +529,7 @@ export const PlayField: React.FC<PlayFieldProps> = ({
           style={{
             position: 'absolute',
             left: trackPositionX(missIndicator.track),
-            top: judgeLineY + 10 + NOTE_HEIGHT,
+            top: judgeLineY + 10,
             transform: 'translateX(-50%)',
             width: 0,
             height: 0,
@@ -521,7 +598,15 @@ export const PlayField: React.FC<PlayFieldProps> = ({
           style={{
             fontSize: combo >= 50 ? 64 : combo >= 30 ? 56 : combo >= 10 ? 48 : 40,
             fontWeight: 900,
-            color: combo >= 100 ? '#ff1744' : combo >= 50 ? '#ff8c00' : combo >= 30 ? '#ffd700' : combo >= 10 ? '#e94560' : '#ffffff',
+            color: combo >= 100
+              ? '#ff1744'
+              : combo >= 50
+              ? '#ff8c00'
+              : combo >= 30
+              ? '#ffd700'
+              : combo >= 10
+              ? '#e94560'
+              : '#ffffff',
             textShadow: combo >= 10 ? `0 0 20px currentColor, 0 0 40px currentColor60` : '0 2px 4px rgba(0,0,0,0.5)',
             lineHeight: 1,
           }}
@@ -561,18 +646,44 @@ export const PlayField: React.FC<PlayFieldProps> = ({
             left: dimensions.width / 2,
             top: 80,
             transform: 'translateX(-50%)',
-            padding: '8px 20px',
-            borderRadius: 8,
-            background: 'rgba(239, 68, 68, 0.2)',
-            border: '1px solid rgba(239, 68, 68, 0.5)',
-            fontFamily: 'Noto Sans SC, sans-serif',
-            fontSize: 14,
-            color: '#fca5a5',
-            fontWeight: 500,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: 6,
             pointerEvents: 'none',
+            zIndex: 60,
           }}
         >
-          MISS - 按下正确按键继续
+          <div
+            style={{
+              padding: '8px 20px',
+              borderRadius: 8,
+              background: 'rgba(239, 68, 68, 0.2)',
+              border: '1px solid rgba(239, 68, 68, 0.5)',
+              fontFamily: 'Noto Sans SC, sans-serif',
+              fontSize: 14,
+              color: '#fca5a5',
+              fontWeight: 500,
+            }}
+          >
+            MISS - 按下正确按键继续
+          </div>
+          {wrongKeyPress && (
+            <div
+              style={{
+                padding: '6px 14px',
+                borderRadius: 6,
+                background: 'rgba(239, 68, 68, 0.15)',
+                border: '1px solid rgba(239, 68, 68, 0.4)',
+                fontFamily: 'Noto Sans SC, sans-serif',
+                fontSize: 12,
+                color: '#fca5a5',
+                animation: 'wrongKeyShake 0.3s ease',
+              }}
+            >
+              按错了！再试一次
+            </div>
+          )}
         </div>
       )}
 
@@ -612,6 +723,14 @@ export const PlayField: React.FC<PlayFieldProps> = ({
         <span>M: {gameState.missCount ?? 0}</span>
         <span>MAX: {gameState.maxCombo ?? 0}</span>
       </div>
+
+      <style>{`
+        @keyframes wrongKeyShake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-4px); }
+          75% { transform: translateX(4px); }
+        }
+      `}</style>
     </div>
   );
 };
