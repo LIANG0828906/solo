@@ -10,25 +10,33 @@ const INSTRUMENTS: { type: InstrumentType; label: string; color: string }[] = [
   { type: 'effects', label: '✨ 效果器', color: '#f9ca24' },
 ];
 
-const playClickSound = () => {
-  const ctx = audioEngine.getAudioContext();
+const playClickSound = async () => {
+  let ctx = audioEngine.getAudioContext();
+  if (!ctx) {
+    await audioEngine.init();
+    ctx = audioEngine.getAudioContext();
+  }
   if (!ctx) return;
+  
+  if (ctx.state === 'suspended') {
+    await ctx.resume();
+  }
   
   const osc = ctx.createOscillator();
   const gain = ctx.createGain();
   
   osc.type = 'sine';
-  osc.frequency.value = 800;
+  osc.frequency.value = 1200;
   
   gain.gain.setValueAtTime(0, ctx.currentTime);
-  gain.gain.linearRampToValueAtTime(0.2, ctx.currentTime + 0.005);
-  gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.05);
+  gain.gain.linearRampToValueAtTime(0.15, ctx.currentTime + 0.003);
+  gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.08);
   
   osc.connect(gain);
   gain.connect(ctx.destination);
   
   osc.start(ctx.currentTime);
-  osc.stop(ctx.currentTime + 0.06);
+  osc.stop(ctx.currentTime + 0.1);
 };
 
 export const Grid = () => {
@@ -95,12 +103,8 @@ export const Grid = () => {
 
   return (
     <div 
-      className="grid-container" 
+      className={`grid-container ${isLoadingPreset ? 'preset-loading' : ''}`} 
       ref={containerRef}
-      style={{
-        transform: isLoadingPreset ? 'scale(0.98)' : 'scale(1)',
-        opacity: isLoadingPreset ? 0.8 : 1,
-      }}
     >
       <div className="grid-header">
         <div className="grid-instrument-header">

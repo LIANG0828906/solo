@@ -157,11 +157,7 @@ export const ControlPanel = () => {
 
   return (
     <div 
-      className="control-panel"
-      style={{
-        transform: isLoadingPreset ? 'scale(0.98)' : 'scale(1)',
-        opacity: isLoadingPreset ? 0.8 : 1,
-      }}
+      className={`control-panel ${isLoadingPreset ? 'preset-loading' : ''}`}
     >
       <div className="control-section">
         <div className="control-title">播放控制</div>

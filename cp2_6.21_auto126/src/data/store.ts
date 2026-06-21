@@ -123,8 +123,6 @@ export const useStore = create<StoreState>((set, get) => ({
     set({ isLoadingPreset: true });
 
     setTimeout(() => {
-      const state = get();
-      
       audioEngine.setBPM(preset.bpm);
       audioEngine.setMasterVolume(preset.masterVolume);
       beatScheduler.setBPM(preset.bpm);
@@ -143,9 +141,12 @@ export const useStore = create<StoreState>((set, get) => ({
           synth: { ...preset.tracks.synth, beats: preset.tracks.synth.beats.map(row => [...row]) },
           effects: { ...preset.tracks.effects, beats: preset.tracks.effects.beats.map(row => [...row]) },
         },
-        isLoadingPreset: false,
       });
-    }, 50);
+
+      setTimeout(() => {
+        set({ isLoadingPreset: false });
+      }, 150);
+    }, 250);
   },
 
   startRecording: () => {
