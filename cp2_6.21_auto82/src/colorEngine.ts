@@ -480,6 +480,126 @@ export function getEmotionTags(hue: number): string[] {
   return ['现代', '简约', '平衡'];
 }
 
+export interface ColorEmotion {
+  tags: string[];
+  intensity: 'strong' | 'medium' | 'weak';
+}
+
+export function analyzeColorEmotion(hex: string): ColorEmotion {
+  const hsl = hexToHsl(hex);
+  const hueTags = getEmotionTags(hsl.h);
+
+  let intensity: 'strong' | 'medium' | 'weak' = 'medium';
+  if (hsl.s >= 70 && hsl.l >= 35 && hsl.l <= 65) {
+    intensity = 'strong';
+  } else if (hsl.s <= 30 || hsl.l <= 20 || hsl.l >= 80) {
+    intensity = 'weak';
+  }
+
+  let tags = [...hueTags];
+
+  if (hsl.s < 20) {
+    tags = ['简约', '素雅', '克制'];
+  } else if (hsl.s < 40) {
+    tags = ['柔和', '内敛', '精致'];
+  }
+
+  if (hsl.l < 25) {
+    tags = ['深沉', '厚重', '稳重'];
+  } else if (hsl.l > 80) {
+    tags = ['明亮', '轻盈', '通透'];
+  }
+
+  if (intensity === 'weak' && hsl.s < 15 && hsl.l > 75) {
+    tags = ['纯净', '空灵', '极简'];
+  }
+
+  return { tags: tags.slice(0, 3), intensity };
+}
+
+export type ColorBlindnessAccessibility = 'good' | 'fair' | 'poor';
+
+export interface ColorBlindnessInfo {
+  simulated: string;
+  distanceToOriginal: number;
+  accessibility: ColorBlindnessAccessibility;
+  accessibilityLabel: string;
+}
+
+export function analyzeColorBlindness(
+  hex: string,
+  type: ColorBlindnessType
+): ColorBlindnessInfo {
+  const simulated = simulateColorBlindness(hex, type);
+  const distance = hslDistance(hex, simulated);
+
+  let accessibility: ColorBlindnessAccessibility;
+  let label: string;
+
+  if (distance < 15) {
+    accessibility = 'poor';
+    label = '较差';
+  } else if (distance < 35) {
+    accessibility = 'fair';
+    label = '一般';
+  } else {
+    accessibility = 'good';
+    label = '良好';
+  }
+
+  return {
+    simulated,
+    distanceToOriginal: distance,
+    accessibility,
+    accessibilityLabel: label,
+  };
+}
+
+export interface FullColorBlindnessAnalysis {
+  protanopia: ColorBlindnessInfo;
+  deuteranopia: ColorBlindnessInfo;
+  tritanopia: ColorBlindnessInfo;
+  overall: ColorBlindnessAccessibility;
+  overallLabel: string;
+}
+
+export function analyzeFullColorBlindness(hex: string): FullColorBlindnessAnalysis {
+  const p = analyzeColorBlindness(hex, 'protanopia');
+  const d = analyzeColorBlindness(hex, 'deuteranopia');
+  const t = analyzeColorBlindness(hex, 'tritanopia');
+
+  const scoreMap: Record<ColorBlindnessAccessibility, number> = { good: 3, fair: 2, poor: 1 };
+  const avg = (scoreMap[p.accessibility] + scoreMap[d.accessibility] + scoreMap[t.accessibility]) / 3;
+
+  let overall: ColorBlindnessAccessibility;
+  let overallLabel: string;
+
+  if (avg >= 2.5) {
+    overall = 'good';
+    overallLabel = '色盲友好';
+  } else if (avg >= 1.7) {
+    overall = 'fair';
+    overallLabel = '一般';
+  } else {
+    overall = 'poor';
+    overallLabel = '需优化';
+  }
+
+  return {
+    protanopia: p,
+    deuteranopia: d,
+    tritanopia: t,
+    overall,
+    overallLabel,
+  };
+}
+
+export function analyzePaletteColorBlindness(
+  hexColors: string[]
+): FullColorBlindnessAnalysis[] {
+  return hexColors.filter((c) => c && c !== '').map((c) => analyzeFullColorBlindness(c));
+}
+
 export function findDominantColor(hexColors: string[]): string | null {
   const valid = hexColors.filter((c) => c && c !== '');
   if (valid.length === 0) return null;

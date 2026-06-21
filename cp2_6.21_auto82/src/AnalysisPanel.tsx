@@ -1,11 +1,14 @@
 import React, { useMemo } from 'react';
-import { BarChart3, Eye, AlertTriangle } from 'lucide-react';
+import { BarChart3, Eye, AlertTriangle, Heart, Sparkles } from 'lucide-react';
 import {
+  ColorBlindnessAccessibility,
   ColorBlindnessType,
   ColorPairDistance,
+  FullColorBlindnessAnalysis,
   PaletteColor,
+  analyzeColorEmotion,
+  analyzePaletteColorBlindness,
   calculatePaletteDistances,
-  simulatePaletteColorBlindness,
   wcagContrast,
   wcagLevel,
 } from './colorEngine';
@@ -16,9 +19,9 @@ export interface AnalysisPanelProps {
 }
 
 const CB_TYPES: { key: ColorBlindnessType; label: string; short: string }[] = [
-  { key: 'protanopia', label: '红色盲 Protanopia', short: '红' },
-  { key: 'deuteranopia', label: '绿色盲 Deuteranopia', short: '绿' },
-  { key: 'tritanopia', label: '蓝色盲 Tritanopia', short: '蓝' },
+  { key: 'protanopia', label: '红色盲', short: '红' },
+  { key: 'deuteranopia', label: '绿色盲', short: '绿' },
+  { key: 'tritanopia', label: '蓝色盲', short: '蓝' },
 ];
 
 const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ colors, selectedHex }) => {
@@ -54,25 +57,35 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ colors, selectedHex }) =>
     [filledColors]
   );
 
-  const cbPalettes = useMemo(() => {
-    const result: Record<ColorBlindnessType, string[]> = {
-      protanopia: [],
-      deuteranopia: [],
-      tritanopia: [],
-    };
-    if (filledColors.length === 0) return result;
-    for (const t of CB_TYPES) {
-      result[t.key] = simulatePaletteColorBlindness(filledColors, t.key);
-    }
-    return result;
-  }, [filledColors]);
+  const cbAnalysis = useMemo<FullColorBlindnessAnalysis[]>(
+    () => analyzePaletteColorBlindness(filledColors),
+    [filledColors]
+  );
+
+  const emotionAnalysis = useMemo(
+    () => filledColors.map((hex) => ({ hex, emotion: analyzeColorEmotion(hex) })),
+    [filledColors]
+  );
 
   const warnCount = distances.filter((d) => d.warning).length;
+  const poorCbCount = cbAnalysis.filter((a) => a.overall === 'poor').length;
 
   const getLevelClass = (level: string) => {
     if (level === 'AAA') return 'badge-pass';
     if (level === 'AA') return 'badge-warn';
     return 'badge-fail';
+  };
+
+  const getAccessibilityClass = (acc: ColorBlindnessAccessibility): string => {
+    if (acc === 'good') return 'cb-badge-good';
+    if (acc === 'fair') return 'cb-badge-fair';
+    return 'cb-badge-poor';
+  };
+
+  const getDetailBadgeClass = (acc: ColorBlindnessAccessibility): string => {
+    if (acc === 'good') return 'cb-badge-good';
+    if (acc === 'fair') return 'cb-badge-fair';
+    return 'cb-badge-poor';
   };
 
   return (
@@ -181,52 +194,87 @@ const AnalysisPanel: React.FC<AnalysisPanelProps> = ({ colors, selectedHex }) =>
       )}
 
       {filledColors.length > 0 && (
-        <div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '6px',
-              fontSize: '13px',
-              fontWeight: 600,
-              color: 'var(--text-secondary)',
-              marginBottom: '12px',
-            }}
-          >
-            <Eye size={16} className="panel-title-icon" />
-            色盲模拟视图
+        <div className="cb-accessibility-section">
+          <div className="analysis-section-title">
+            <Eye className="analysis-section-icon" size={16} />
+            色盲友好度评估
+            {poorCbCount > 0 && (
+              <span style={{ color: 'var(--accent-yellow)', fontSize: '11px', marginLeft: '4px' }}>
+                · {poorCbCount}个需优化
+              </span>
+            )}
           </div>
-          <div className="cb-simulations">
-            {CB_TYPES.map((t) => (
-              <div key={t.key} className="cb-card">
-                <div className="cb-card-title">
-                  <span
-                    style={{
-                      display: 'inline-flex',
-                      width: '18px',
-                      height: '18px',
-                      borderRadius: '50%',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      fontSize: '10px',
-                      background: 'rgba(255,255,255,0.08)',
-                      fontWeight: 700,
-                    }}
-                  >
-                    {t.short}
-                  </span>
-                  {t.label}
-                </div>
-                <div className="cb-palette">
-                  {cbPalettes[t.key].length > 0 ? (
-                    cbPalettes[t.key].map((c, i) => (
-                      <div key={i} className="cb-swatch" style={{ backgroundColor: c }} />
-                    ))
-                  ) : (
-                    <div style={{ gridColumn: '1/-1', padding: '20px', textAlign: 'center', fontSize: '11px', color: 'var(--text-muted)' }}>
-                      暂无颜色
+          <div className="cb-accessibility-grid">
+            {filledColors.map((hex, i) => {
+              const analysis = cbAnalysis[i];
+              if (!analysis) return null;
+              return (
+                <div key={i} className="cb-accessibility-row">
+                  <div
+                    className="cb-accessibility-original"
+                    style={{ backgroundColor: hex }}
+                    data-hex={hex}
+                  />
+                  <div className="cb-accessibility-simulated">
+                    <div className="cb-accessibility-types">
+                      {CB_TYPES.map((t) => (
+                        <div key={t.key} className="cb-accessibility-type">
+                          <div
+                            className="cb-accessibility-swatch"
+                            style={{ backgroundColor: analysis[t.key].simulated }}
+                          />
+                          <div className="cb-accessibility-label">
+                            {t.short} · {analysis[t.key].distanceToOriginal}%
+                          </div>
+                        </div>
+                      ))}
                     </div>
-                  )}
+                    <div className="cb-accessibility-detail">
+                      {CB_TYPES.map((t) => (
+                        <span
+                          key={t.key}
+                          className={`cb-detail-badge ${getDetailBadgeClass(analysis[t.key].accessibility)}`}
+                          style={{ padding: '2px 5px', fontSize: '9px' }}
+                        >
+                          {t.short}:{analysis[t.key].accessibilityLabel}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                  <span className={`cb-accessibility-badge ${getAccessibilityClass(analysis.overall)}`}>
+                    {analysis.overallLabel}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {filledColors.length > 0 && (
+        <div className="emotion-section">
+          <div className="analysis-section-title">
+            <Heart className="analysis-section-icon" size={16} />
+            情感标签推荐
+          </div>
+          <div className="emotion-grid">
+            {emotionAnalysis.map((item, i) => (
+              <div key={i} className="emotion-card">
+                <div
+                  className="emotion-card-swatch"
+                  style={{ backgroundColor: item.hex }}
+                  data-hex={item.hex}
+                />
+                <div className="emotion-card-tags" style={{ marginTop: '14px' }}>
+                  {item.emotion.tags.map((tag, j) => (
+                    <span
+                      key={j}
+                      className={`emotion-tag-item ${item.emotion.intensity}`}
+                    >
+                      <Sparkles size={9} style={{ marginRight: '2px' }} />
+                      {tag}
+                    </span>
+                  ))}
                 </div>
               </div>
             ))}
