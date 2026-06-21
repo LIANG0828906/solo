@@ -23,6 +23,12 @@ function GravitationalLensCanvas() {
   const workerBusyRef = useRef<boolean>(false);
   const draggingRef = useRef<boolean>(false);
   const dragOffsetRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+  const lastPositionRef = useRef<{ x: number; y: number; time: number }>({ x: 0, y: 0, time: 0 });
+  const inertiaVRef = useRef<{ vx: number; vy: number }>({ vx: 0, vy: 0 });
+  const inertiaActiveRef = useRef<boolean>(false);
+  const ringRotationRef = useRef<number>(0);
+  const lastFrameTimeRef = useRef<number>(0);
+  const lensRef = useRef<Lens | null>(null);
 
   const stars = useGameStore((s) => s.stars);
   const lens = useGameStore((s) => s.lens);
@@ -35,6 +41,9 @@ function GravitationalLensCanvas() {
   const currentLevel = useGameStore((s) => s.currentLevel);
   const completeLevel = useGameStore((s) => s.completeLevel);
   const completedLevels = useGameStore((s) => s.completedLevels);
+  const setInertiaActive = useGameStore((s) => s.setInertiaActive);
+
+  lensRef.current = lens;
 
   const level: LevelConfig | undefined =
     currentLevel !== null
@@ -62,10 +71,18 @@ function GravitationalLensCanvas() {
       const dy = y - lens.y;
       if (Math.sqrt(dx * dx + dy * dy) < lens.radius + 40) {
         draggingRef.current = true;
+        inertiaActiveRef.current = false;
+        setInertiaActive(false);
         dragOffsetRef.current = { x: dx, y: dy };
+        lastPositionRef.current = {
+          x: lens.x,
+          y: lens.y,
+          time: performance.now()
+        };
+        inertiaVRef.current = { vx: 0, vy: 0 };
       }
     },
-    [lens.x, lens.y, lens.radius, screenToCanvas]
+    [lens.x, lens.y, lens.radius, screenToCanvas, setInertiaActive]
   );
 
   const handleMouseMove = useCallback(
@@ -74,6 +91,20 @@ function GravitationalLensCanvas() {
       const { x, y } = screenToCanvas(e.clientX, e.clientY);
       const newX = Math.max(0, Math.min(CANVAS_SIZE, x - dragOffsetRef.current.x));
       const newY = Math.max(0, Math.min(CANVAS_SIZE, y - dragOffsetRef.current.y));
+      const now = performance.now();
+
+      const dt = now - lastPositionRef.current.time;
+      if (dt > 0) {
+        const rawVx = (newX - lastPositionRef.current.x) / dt;
+        const rawVy = (newY - lastPositionRef.current.y) / dt;
+        const smoothing = 0.3;
+        inertiaVRef.current.vx =
+          inertiaVRef.current.vx * (1 - smoothing) + rawVx * smoothing;
+        inertiaVRef.current.vy =
+          inertiaVRef.current.vy * (1 - smoothing) + rawVy * smoothing;
+      }
+
+      lastPositionRef.current = { x: newX, y: newY, time: now };
       moveLens(newX, newY);
       pushTrail(newX, newY);
     },
@@ -81,9 +112,20 @@ function GravitationalLensCanvas() {
   );
 
   const handleMouseUp = useCallback(() => {
-    draggingRef.current = false;
-    setTimeout(() => clearTrail(), 500);
-  }, [clearTrail]);
+    if (draggingRef.current) {
+      draggingRef.current = false;
+      const speed = Math.sqrt(
+        inertiaVRef.current.vx * inertiaVRef.current.vx +
+          inertiaVRef.current.vy * inertiaVRef.current.vy
+      );
+      if (speed > 0.05) {
+        inertiaActiveRef.current = true;
+        setInertiaActive(true);
+      } else {
+        setTimeout(() => clearTrail(), 500);
+      }
+    }
+  }, [clearTrail, setInertiaActive]);
 
   const handleWheel = useCallback(
     (e: React.WheelEvent<HTMLCanvasElement>) => {
@@ -175,11 +217,9 @@ function GravitationalLensCanvas() {
 
     const drawEquipotentialRings = (
       lensObj: Lens,
-      surfaces: EquipotentialSurface[]
+      surfaces: EquipotentialSurface[],
+      animRotation: number
     ) => {
-      ctx.lineWidth = 1;
-      ctx.setLineDash([3, 3]);
-
       const ex = 1 - lensObj.ellipticity;
       const ey = 1 + lensObj.ellipticity;
 
@@ -193,7 +233,9 @@ function GravitationalLensCanvas() {
         const alpha = 0.4 + gradientT * 0.4;
 
         const dashes = Math.max(1, Math.floor(3 + (1 - gradientT) * 5));
+        const dashOffset = (i * 2 + animRotation * surface.radius) % (dashes * 2);
         ctx.setLineDash([dashes, dashes]);
+        ctx.lineDashOffset = dashOffset;
 
         ctx.strokeStyle = interpolateColor(t);
         ctx.globalAlpha = alpha;
@@ -202,7 +244,7 @@ function GravitationalLensCanvas() {
         ctx.beginPath();
         ctx.save();
         ctx.translate(lensObj.x, lensObj.y);
-        ctx.rotate(lensObj.rotation);
+        ctx.rotate(lensObj.rotation + animRotation);
         ctx.scale(ex, ey);
         ctx.arc(0, 0, surface.radius, 0, Math.PI * 2);
         ctx.restore();
@@ -210,6 +252,7 @@ function GravitationalLensCanvas() {
       });
 
       ctx.setLineDash([]);
+      ctx.lineDashOffset = 0;
       ctx.globalAlpha = 1;
       ctx.lineWidth = 1;
     };
@@ -261,24 +304,78 @@ function GravitationalLensCanvas() {
 
     let surfacesCache = getEquipotentialSurfaces(lens);
     let lastLensParams = `${lens.strength}_${lens.radius}_${lens.ellipticity}`;
+    lastFrameTimeRef.current = performance.now();
+
+    const RING_ROTATION_PERIOD = 10;
+    const RING_ANGULAR_VELOCITY = (Math.PI * 2) / RING_ROTATION_PERIOD;
+    const FRICTION = 0.95;
+    const MIN_SPEED = 0.01;
 
     const render = () => {
       const now = performance.now();
+      const rawDt = (now - lastFrameTimeRef.current) / 1000;
+      const dt = Math.min(rawDt, 0.05);
+      lastFrameTimeRef.current = now;
+
+      ringRotationRef.current += RING_ANGULAR_VELOCITY * dt;
+      if (ringRotationRef.current > Math.PI * 2) {
+        ringRotationRef.current -= Math.PI * 2;
+      }
+
+      if (inertiaActiveRef.current && !draggingRef.current && lensRef.current) {
+        const speed = Math.sqrt(
+          inertiaVRef.current.vx * inertiaVRef.current.vx +
+            inertiaVRef.current.vy * inertiaVRef.current.vy
+        );
+        if (speed < MIN_SPEED) {
+          inertiaActiveRef.current = false;
+          setInertiaActive(false);
+          setTimeout(() => clearTrail(), 300);
+        } else {
+          const moveScale = 16;
+          let nextX =
+            lensRef.current.x + inertiaVRef.current.vx * dt * moveScale;
+          let nextY =
+            lensRef.current.y + inertiaVRef.current.vy * dt * moveScale;
+
+          let bounced = false;
+          if (nextX < 10 || nextX > CANVAS_SIZE - 10) {
+            inertiaVRef.current.vx *= -0.6;
+            nextX = Math.max(10, Math.min(CANVAS_SIZE - 10, nextX));
+            bounced = true;
+          }
+          if (nextY < 10 || nextY > CANVAS_SIZE - 10) {
+            inertiaVRef.current.vy *= -0.6;
+            nextY = Math.max(10, Math.min(CANVAS_SIZE - 10, nextY));
+            bounced = true;
+          }
+
+          moveLens(nextX, nextY);
+          pushTrail(nextX, nextY);
+
+          if (!bounced) {
+            inertiaVRef.current.vx *= Math.pow(FRICTION, dt * 60);
+            inertiaVRef.current.vy *= Math.pow(FRICTION, dt * 60);
+          }
+        }
+      }
 
       if (now - lastComputeRef.current >= 33) {
         lastComputeRef.current = now;
         requestWorkerCompute();
 
-        if (level && !completedLevels.includes(level.id)) {
-          if (checkLevelMatch(lens, level.targetLens, level.tolerance)) {
+        const currentLens = lensRef.current;
+        if (level && currentLens && !completedLevels.includes(level.id)) {
+          if (checkLevelMatch(currentLens, level.targetLens, level.tolerance)) {
             completeLevel(level.id);
           }
         }
       }
 
-      const lensKey = `${lens.strength.toFixed(1)}_${lens.radius.toFixed(0)}_${lens.ellipticity.toFixed(2)}`;
+      const curLens = lensRef.current || lens;
+      const lensKey = `${curLens.strength.toFixed(1)}_${curLens.radius.toFixed(0)}_${curLens.ellipticity.toFixed(2)}`;
       if (lensKey !== lastLensParams) {
-        surfacesCache = getEquipotentialSurfaces(lens);
+        surfacesCache = getEquipotentialSurfaces(curLens);
         lastLensParams = lensKey;
       }
 
@@ -293,9 +390,9 @@ function GravitationalLensCanvas() {
       drawStars(stars);
       drawReferenceStars(stars);
       drawVirtualImages(virtualImagesRef.current);
-      drawEquipotentialRings(lens, surfacesCache);
+      drawEquipotentialRings(curLens, surfacesCache, ringRotationRef.current);
       drawLensTrail(lensTrail);
-      drawLens(lens);
+      drawLens(curLens);
 
       ctx.restore();
 

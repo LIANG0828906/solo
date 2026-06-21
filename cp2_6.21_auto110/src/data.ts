@@ -57,6 +57,8 @@ export interface GameState {
   showSuccess: boolean;
   showLevelSelect: boolean;
   lensTrail: { x: number; y: number }[];
+  lensVelocity: { vx: number; vy: number };
+  isInertiaActive: boolean;
 
   setLensStrength: (strength: number) => void;
   moveLens: (x: number, y: number) => void;
@@ -70,6 +72,8 @@ export interface GameState {
   setShowLevelSelect: (show: boolean) => void;
   pushTrail: (x: number, y: number) => void;
   clearTrail: () => void;
+  setLensVelocity: (vx: number, vy: number) => void;
+  setInertiaActive: (active: boolean) => void;
 }
 
 const DEFAULT_LENS: Lens = {
@@ -90,6 +94,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   showSuccess: false,
   showLevelSelect: false,
   lensTrail: [],
+  lensVelocity: { vx: 0, vy: 0 },
+  isInertiaActive: false,
 
   setLensStrength: (strength: number) =>
     set((state) => ({ lens: { ...state.lens, strength: Math.max(1, Math.min(10, strength)) } })),
@@ -157,5 +163,11 @@ export const useGameStore = create<GameState>((set, get) => ({
       return { lensTrail: newTrail };
     }),
 
-  clearTrail: () => set({ lensTrail: [] })
+  clearTrail: () => set({ lensTrail: [] }),
+
+  setLensVelocity: (vx: number, vy: number) =>
+    set({ lensVelocity: { vx, vy } }),
+
+  setInertiaActive: (active: boolean) =>
+    set({ isInertiaActive: active })
 }));

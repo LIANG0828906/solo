@@ -247,10 +247,19 @@ export function generateVirtualImages(stars: Star[], lens: Lens): VirtualImage[]
         lens
       );
 
+      const pdx = (star.x + deflectionData.deflectionX) - lens.x;
+      const pdy = (star.y + deflectionData.deflectionY) - lens.y;
+      const primaryDist = Math.sqrt(pdx * pdx + pdy * pdy);
+      const primaryNormDist = primaryDist / Math.max(einsteinR, 1);
+      const primaryFalloff = Math.min(
+        Math.exp(-0.6 * Math.max(0, primaryNormDist - 0.3)),
+        1 / (1 + primaryNormDist * primaryNormDist * 0.5)
+      );
+
       const primary: VirtualImage = {
         x: star.x + deflectionData.deflectionX,
         y: star.y + deflectionData.deflectionY,
-        brightness: star.brightness * Math.min(deflectionData.mu * 0.8, 5),
+        brightness: star.brightness * Math.min(deflectionData.mu * 0.8, 5) * primaryFalloff,
         magnification: deflectionData.mu,
         sourceIndex: i,
         imageType: 'primary'
@@ -280,6 +289,13 @@ export function generateVirtualImages(stars: Star[], lens: Lens): VirtualImage[]
           (imgYBack - lens.y) * (imgYBack - lens.y)
       );
 
+      const normDist = distFromLens / Math.max(einsteinR, 1);
+      const distanceFalloff = Math.exp(-0.6 * Math.max(0, normDist - 0.3));
+
+      const r2Falloff = 1 / (1 + normDist * normDist * 0.5);
+
+      const baseFalloff = Math.min(distanceFalloff, r2Falloff);
+
       let brightnessFactor: number;
       if (sol.type === 'tangential' && distance < einsteinR * 0.08) {
         const causticBoost = Math.max(
@@ -288,13 +304,16 @@ export function generateVirtualImages(stars: Star[], lens: Lens): VirtualImage[]
         );
         brightnessFactor =
           star.brightness *
-          Math.min(sol.mu * (0.3 + causticBoost * 0.7), 4);
+          Math.min(sol.mu * (0.3 + causticBoost * 0.7), 4) *
+          baseFalloff;
       } else if (sol.type === 'radial') {
         brightnessFactor =
-          star.brightness * Math.min(sol.mu * 0.5, 3);
+          star.brightness * Math.min(sol.mu * 0.5, 3) *
+          baseFalloff;
       } else {
         brightnessFactor =
-          star.brightness * Math.min(sol.mu * 0.4, 6);
+          star.brightness * Math.min(sol.mu * 0.4, 6) *
+          baseFalloff;
       }
 
       if (
@@ -319,11 +338,21 @@ export function generateVirtualImages(stars: Star[], lens: Lens): VirtualImage[]
         star.y,
         lens
       );
+
+      const fdx = (star.x + deflectionData.deflectionX) - lens.x;
+      const fdy = (star.y + deflectionData.deflectionY) - lens.y;
+      const fallbackDist = Math.sqrt(fdx * fdx + fdy * fdy);
+      const fallbackNormDist = fallbackDist / Math.max(einsteinR, 1);
+      const fallbackFalloff = Math.min(
+        Math.exp(-0.6 * Math.max(0, fallbackNormDist - 0.3)),
+        1 / (1 + fallbackNormDist * fallbackNormDist * 0.5)
+      );
+
       const muFactor = 1 + deflectionData.mu * 0.1;
       images.push({
         x: star.x + deflectionData.deflectionX,
         y: star.y + deflectionData.deflectionY,
-        brightness: star.brightness * Math.min(muFactor, 2),
+        brightness: star.brightness * Math.min(muFactor, 2) * fallbackFalloff,
         magnification: deflectionData.mu,
         sourceIndex: i,
         imageType: 'primary'
