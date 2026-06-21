@@ -31,6 +31,8 @@ export function EditorCanvas({ animKey }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [canvasScale, setCanvasScale] = useState(1);
   const [animClass, setAnimClass] = useState('');
+  const [templateTransition, setTemplateTransition] = useState(false);
+  const prevTemplateIdRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (animKey > 0) {
@@ -49,6 +51,16 @@ export function EditorCanvas({ animKey }: Props) {
       }
     }
   }, [animKey, state.animation]);
+
+  useEffect(() => {
+    const currentTplId = state.currentTemplateId;
+    if (prevTemplateIdRef.current !== null && currentTplId !== null && prevTemplateIdRef.current !== currentTplId) {
+      setTemplateTransition(true);
+      const timer = setTimeout(() => setTemplateTransition(false), 500);
+      return () => clearTimeout(timer);
+    }
+    prevTemplateIdRef.current = currentTplId;
+  }, [state.currentTemplateId]);
 
   useEffect(() => {
     const updateScale = () => {
@@ -258,10 +270,17 @@ export function EditorCanvas({ animKey }: Props) {
       >
         <div
           ref={cardRef}
-          className={`paper-texture card-canvas ${animClass} ${continuousEffectStyle}`}
+          className={`paper-texture card-canvas ${animClass} ${continuousEffectStyle} ${templateTransition ? 'template-loading' : ''}`}
           style={{ width: 600, height: 800, position: 'relative', overflow: 'hidden' }}
           onClick={handleCanvasClick}
         >
+          <div className={`template-load-overlay ${templateTransition ? 'show' : ''}`} />
+          {templateTransition && (
+            <div className="template-spinner">
+              <div className="spinner-ring" />
+              <span className="spinner-text">加载中...</span>
+            </div>
+          )}
           {state.layers.map(renderLayer)}
           {state.animation.continuousEffect === 'petals' && <PetalEffect />}
           {state.animation.continuousEffect === 'stars' && <StarEffect />}
@@ -287,6 +306,82 @@ export function EditorCanvas({ animKey }: Props) {
           box-shadow: var(--shadow-lg);
           border-radius: var(--radius-sm);
           cursor: default;
+        }
+        .card-canvas.template-loading {
+          animation: templateLoadPulse 0.5s ease-out;
+        }
+        @keyframes templateLoadPulse {
+          0% {
+            opacity: 0;
+            transform: scale(0.96);
+            box-shadow: 0 0 0 0 rgba(255, 107, 107, 0);
+          }
+          40% {
+            box-shadow: 0 0 0 20px rgba(255, 107, 107, 0.15);
+          }
+          100% {
+            opacity: 1;
+            transform: scale(1);
+            box-shadow: var(--shadow-lg);
+          }
+        }
+        .template-load-overlay {
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(135deg, rgba(255,107,107,0.08), rgba(255,230,109,0.08));
+          opacity: 0;
+          pointer-events: none;
+          transition: opacity 0.5s ease;
+          border-radius: inherit;
+          z-index: 9998;
+        }
+        .template-load-overlay.show {
+          opacity: 1;
+          animation: overlaySweep 0.5s ease;
+        }
+        @keyframes overlaySweep {
+          0% {
+            background-position: -100% 0;
+          }
+          100% {
+            background-position: 200% 0;
+          }
+        }
+        .template-spinner {
+          position: absolute;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          z-index: 9999;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+          pointer-events: none;
+        }
+        .spinner-ring {
+          width: 48px;
+          height: 48px;
+          border-radius: 50%;
+          border: 4px solid rgba(255, 107, 107, 0.2);
+          border-top-color: var(--color-primary);
+          border-right-color: var(--color-secondary);
+          animation: spinRing 0.8s linear infinite;
+          box-shadow: 0 0 20px rgba(255, 107, 107, 0.2);
+        }
+        @keyframes spinRing {
+          to { transform: rotate(360deg); }
+        }
+        .spinner-text {
+          font-size: 13px;
+          font-weight: 600;
+          color: var(--color-primary);
+          letter-spacing: 2px;
+          animation: textFade 1s ease-in-out infinite;
+        }
+        @keyframes textFade {
+          0%, 100% { opacity: 0.5; }
+          50% { opacity: 1; }
         }
         .canvas-text-layer {
           user-select: none;
