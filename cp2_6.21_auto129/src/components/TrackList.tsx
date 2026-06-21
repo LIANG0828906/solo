@@ -20,12 +20,14 @@ function PanKnob({ value, onChange }: PanKnobProps) {
   const isDraggingRef = useRef(false);
   const startYRef = useRef(0);
   const startValueRef = useRef(0);
+  const [isDragging, setIsDragging] = useState(false);
 
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
       isDraggingRef.current = true;
       startYRef.current = e.clientY;
       startValueRef.current = value;
+      setIsDragging(true);
       e.preventDefault();
 
       const handleMouseMove = (ev: MouseEvent) => {
@@ -37,6 +39,7 @@ function PanKnob({ value, onChange }: PanKnobProps) {
 
       const handleMouseUp = () => {
         isDraggingRef.current = false;
+        setIsDragging(false);
         window.removeEventListener('mousemove', handleMouseMove);
         window.removeEventListener('mouseup', handleMouseUp);
       };
@@ -48,23 +51,34 @@ function PanKnob({ value, onChange }: PanKnobProps) {
   );
 
   const rotation = (value / 100) * 135;
-  const label = value === 0 ? 'C' : value < 0 ? `L${Math.abs(value)}` : `R${value}`;
+  const positionLabel = value === 0 ? 'C' : value < 0 ? 'L' : 'R';
+  const valueLabel = value === 0 ? 'CENTER' : `${Math.abs(value)}%`;
 
   return (
     <div className="pan-knob-wrapper">
       <div
         ref={knobRef}
-        className="pan-knob"
+        className={`pan-knob ${isDragging ? 'dragging' : ''}`}
         onMouseDown={handleMouseDown}
         style={{ transform: `rotate(${rotation}deg)` }}
       >
         <svg viewBox="0 0 40 40" width="36" height="36">
+          <defs>
+            <linearGradient id="knobGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#2a2a4e" />
+              <stop offset="100%" stopColor="#1a1a2e" />
+            </linearGradient>
+            <linearGradient id="activeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#0f3460" />
+              <stop offset="100%" stopColor="#e94560" />
+            </linearGradient>
+          </defs>
           <circle
             cx="20"
             cy="20"
             r="17"
             fill="none"
-            stroke="#2a2a4e"
+            stroke="url(#knobGradient)"
             strokeWidth="3"
           />
           <circle
@@ -72,11 +86,12 @@ function PanKnob({ value, onChange }: PanKnobProps) {
             cy="20"
             r="17"
             fill="none"
-            stroke="#0f3460"
+            stroke="url(#activeGradient)"
             strokeWidth="3"
             strokeDasharray="80.1 106.8"
-            strokeDashoffset="-53.4"
+            strokeDashoffset={-53.4 + ((value + 100) / 200) * 80.1}
             transform="rotate(135 20 20)"
+            strokeLinecap="round"
           />
           <circle
             cx="20"
@@ -86,18 +101,30 @@ function PanKnob({ value, onChange }: PanKnobProps) {
             stroke="#3a3a5e"
             strokeWidth="1"
           />
+          <circle
+            cx="20"
+            cy="20"
+            r="4"
+            fill={isDragging ? '#e94560' : '#3a3a5e'}
+            style={{ transition: 'fill 0.2s ease' }}
+          />
           <line
             x1="20"
             y1="12"
             x2="20"
-            y2="5"
-            stroke="#e94560"
-            strokeWidth="2"
+            y2="6"
+            stroke={isDragging ? '#ffd700' : '#e94560'}
+            strokeWidth="2.5"
             strokeLinecap="round"
           />
         </svg>
       </div>
-      <span className="pan-label">{label}</span>
+      <div className="pan-labels-row">
+        <span className="pan-label-l">L</span>
+        <span className="pan-label-c">{positionLabel}</span>
+        <span className="pan-label-r">R</span>
+      </div>
+      <span className="pan-value-display">{valueLabel}</span>
     </div>
   );
 }
@@ -213,23 +240,31 @@ export default function TrackList() {
 
             <div className="track-row track-row-mid">
               <div className="volume-control">
-                <span className="control-label">音量</span>
-                <input
-                  type="range"
-                  min="0"
-                  max="100"
-                  value={track.volume}
-                  onClick={(e) => e.stopPropagation()}
-                  onChange={(e) =>
-                    handleVolumeChange(track.id, parseInt(e.target.value))
-                  }
-                  className="volume-slider"
-                />
-                <span className="volume-value">{track.volume}</span>
+                <div className="volume-number-display">
+                  <span className="volume-current-value">{track.volume}</span>
+                  <span className="volume-unit">%</span>
+                </div>
+                <div className="volume-row">
+                  <span className="control-label">音量</span>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={track.volume}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={(e) =>
+                      handleVolumeChange(track.id, parseInt(e.target.value))
+                    }
+                    className="volume-slider"
+                    style={{ backgroundSize: `${track.volume}% 100%` }}
+                  />
+                </div>
               </div>
 
               <div className="pan-control">
-                <span className="control-label">声像</span>
+                <div className="pan-header">
+                  <span className="control-label">声像</span>
+                </div>
                 <div onClick={(e) => e.stopPropagation()}>
                   <PanKnob
                     value={track.pan}
