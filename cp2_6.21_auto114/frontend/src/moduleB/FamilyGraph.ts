@@ -201,10 +201,9 @@ export class FamilyGraph {
     const prev: Partial<NodeData> = {};
     const next: Partial<NodeData> = {};
     (Object.keys(changes) as Array<keyof typeof changes>).forEach((key) => {
-      if (key === 'id') return;
-      (prev as Record<string, unknown>)[key] = node[key];
-      (next as Record<string, unknown>)[key] = changes[key];
-      (node as Record<string, unknown>)[key] = changes[key];
+      (prev as unknown as Record<string, unknown>)[key] = node[key];
+      (next as unknown as Record<string, unknown>)[key] = changes[key];
+      (node as unknown as Record<string, unknown>)[key] = changes[key];
     });
     this.pushHistory({ type: 'UPDATE_NODE', id, prev, next });
     this.emit();
@@ -254,10 +253,9 @@ export class FamilyGraph {
     const prev: Partial<RelationData> = {};
     const next: Partial<RelationData> = {};
     (Object.keys(changes) as Array<keyof typeof changes>).forEach((key) => {
-      if (key === 'id') return;
-      (prev as Record<string, unknown>)[key] = rel[key];
-      (next as Record<string, unknown>)[key] = changes[key];
-      (rel as Record<string, unknown>)[key] = changes[key];
+      (prev as unknown as Record<string, unknown>)[key] = rel[key];
+      (next as unknown as Record<string, unknown>)[key] = changes[key];
+      (rel as unknown as Record<string, unknown>)[key] = changes[key];
     });
     this.pushHistory({ type: 'UPDATE_NODE' as any, id, prev: prev as any, next: next as any });
     this.emit();

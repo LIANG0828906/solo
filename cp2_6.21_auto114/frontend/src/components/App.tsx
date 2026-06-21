@@ -345,6 +345,23 @@ const App: React.FC = () => {
     handleGraphChange();
   };
 
+  useEffect(() => {
+    if (store.isReadonly) return;
+    const handler = (e: KeyboardEvent) => {
+      const mod = e.ctrlKey || e.metaKey;
+      if (!mod) return;
+      if (e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        handleUndo();
+      } else if ((e.key.toLowerCase() === 'z' && e.shiftKey) || e.key.toLowerCase() === 'y') {
+        e.preventDefault();
+        handleRedo();
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [store.isReadonly]);
+
   const selectedNode = store.selectedNodeId
     ? store.graph.getNode(store.selectedNodeId)
     : null;

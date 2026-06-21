@@ -83,6 +83,9 @@ class ConnectionManager:
                 "userId": user_id,
                 "username": username,
                 "color": color,
+                "cursorX": 0.0,
+                "cursorY": 0.0,
+                "timestamp": time.time(),
             },
             exclude_user=user_id,
         )
@@ -92,6 +95,8 @@ class ConnectionManager:
                 "id": c.id,
                 "username": c.username,
                 "color": c.color,
+                "cursorX": c.cursor_x,
+                "cursorY": c.cursor_y,
             }
             for c in self.collaborators[tree_id].values()
         ]
@@ -452,7 +457,13 @@ async def websocket_endpoint(
                 manager.update_cursor(tree_id, uid, x, y)
                 await manager.broadcast(
                     tree_id,
-                    {"type": "cursor_update", "userId": uid, "x": x, "y": y},
+                    {
+                        "type": "cursor_update",
+                        "userId": uid,
+                        "x": x,
+                        "y": y,
+                        "timestamp": time.time(),
+                    },
                     exclude_user=uid,
                 )
 
@@ -539,6 +550,8 @@ async def websocket_endpoint(
                         "id": c.id,
                         "username": c.username,
                         "color": c.color,
+                        "cursorX": c.cursor_x,
+                        "cursorY": c.cursor_y,
                     }
                     for c in manager.collaborators.get(tree_id, {}).values()
                 ]

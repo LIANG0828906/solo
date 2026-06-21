@@ -90,7 +90,10 @@ export class CanvasEngine {
   private dirty = true;
   private pulseTime = 0;
   private imageCache = new Map<string, HTMLCanvasElement>();
+  private nodeRenderCache = new Map<string, { canvas: HTMLCanvasElement; signature: string }>();
   private lastMouseMove = 0;
+  private _frameCounter = 0;
+  private _fpsSmoothed = 60;
 
   private onMouseMoveBound = this.handleMouseMove.bind(this);
   private onMouseDownBound = this.handleMouseDown.bind(this);
@@ -140,6 +143,7 @@ export class CanvasEngine {
     this.canvas.removeEventListener('touchmove', this.onTouchMoveBound);
     this.canvas.removeEventListener('touchend', this.onTouchEndBound);
     this.imageCache.clear();
+    this.nodeRenderCache.clear();
   }
 
   setOptions(options: Partial<CanvasEngineOptions>): void {
@@ -189,7 +193,7 @@ export class CanvasEngine {
   }
 
   requestLayout(): void {
-    const { nodes } = this.layout().layout;
+    this.dirty = true;
   }
 
   layout(): { nodes: LayoutNode[]; relations: LayoutRelation[] } {
@@ -303,11 +307,11 @@ export class CanvasEngine {
     const { x, y } = this.screenToWorld(sx, sy);
     for (let i = this.layoutNodes.length - 1; i >= 0; i--) {
       const n = this.layoutNodes[i];
-      if (!n.isCollapsed || !n.collapsedDescendantCount) continue;
+      if (!n.isCollapsed || !n.collapsedDescendantCount || !n.isVisible) continue;
       const bx = n.x + n.width + 12;
-      const by = n.y + n.height / 2 - 16;
-      const bw = 80;
-      const bh = 32;
+      const by = n.y + n.height / 2 - 18;
+      const bw = 96;
+      const bh = 36;
       if (x >= bx && x <= bx + bw && y >= by && y <= by + bh) {
         return n.id;
       }
@@ -467,7 +471,8 @@ export class CanvasEngine {
     }
 
     const node = this.hitNode(sx, sy);
-    const newHover = node ? node.id : null;
+    const collapsedId = this.hitCollapsedBox(sx, sy);
+    const newHover = node ? node.id : collapsedId ? '__collapsed:' + collapsedId : null;
     const rel = this.hitRelation(sx, sy);
     const newRelHover = rel ? rel.id : null;
     if (newHover !== this.hoveredNodeId || newRelHover !== this.hoveredRelationId) {
@@ -646,14 +651,15 @@ export class CanvasEngine {
     this.pulseTime += 0.05;
 
     let needRender = this.dirty;
+    const lerpFactor = this.isDraggingNode ? 0.45 : 0.18;
     this.layoutNodes.forEach((n) => {
       const tx = n.targetX ?? n.x;
       const ty = n.targetY ?? n.y;
       const dx = tx - n.renderX;
       const dy = ty - n.renderY;
-      if (Math.abs(dx) > 0.1 || Math.abs(dy) > 0.1) {
-        n.renderX += dx * 0.12;
-        n.renderY += dy * 0.12;
+      if (Math.abs(dx) > 0.15 || Math.abs(dy) > 0.15) {
+        n.renderX += dx * lerpFactor;
+        n.renderY += dy * lerpFactor;
         needRender = true;
       } else if (n.renderX !== tx || n.renderY !== ty) {
         n.renderX = tx;
@@ -675,7 +681,19 @@ export class CanvasEngine {
     ctx.translate(this.offsetX, this.offsetY);
     ctx.scale(this.scale, this.scale);
 
-    this.layoutRelations.forEach((r) => this.drawRelation(ctx, r));
+    this.layoutRelations.forEach((r) => {
+      if (
+        this.isInViewport(
+          Math.min(r.fromX, r.toX) - 40,
+          Math.min(r.fromY, r.toY) - 40,
+          Math.abs(r.toX - r.fromX) + 80,
+          Math.abs(r.toY - r.fromY) + 80,
+          40,
+        )
+      ) {
+        this.drawRelation(ctx, r);
+      }
+    });
 
     if (this.connectFromId !== null) {
       const from = this.layoutNodes.find((n) => n.id === this.connectFromId);
@@ -685,12 +703,18 @@ export class CanvasEngine {
     }
 
     this.layoutNodes.forEach((n) => {
-      if (n.isVisible) this.drawNode(ctx, n);
+      if (n.isVisible && this.isInViewport(n.renderX, n.renderY, n.width, n.height, 60)) {
+        this.drawNode(ctx, n);
+      }
     });
 
     this.layoutNodes.forEach((n) => {
       if (n.isCollapsed && n.collapsedDescendantCount && n.isVisible) {
-        this.drawCollapsedBox(ctx, n);
+        const bx = n.renderX + n.width + 12;
+        const by = n.renderY + n.height / 2 - 16;
+        if (this.isInViewport(bx, by, 80, 32, 30)) {
+          this.drawCollapsedBox(ctx, n);
+        }
       }
     });
 
@@ -762,7 +786,7 @@ export class CanvasEngine {
 
   private drawTempConnection(
     ctx: CanvasRenderingContext2D,
-    from: LayoutNode,
+    from: RenderNode,
     toX: number,
     toY: number,
   ): void {
@@ -781,63 +805,87 @@ export class CanvasEngine {
     ctx.restore();
   }
 
-  private drawNode(ctx: CanvasRenderingContext2D, n: LayoutNode): void {
+  private drawNode(ctx: CanvasRenderingContext2D, n: RenderNode): void {
     const isSelected = this.selectedNodeId === n.id;
     const isHovered = this.hoveredNodeId === n.id;
-    const x = n.renderX;
-    const y = n.renderY;
-    const w = n.width;
-    const h = n.height;
+    const signature = this.nodeSignature(n);
+    const PAD = 28;
 
-    ctx.save();
+    let cached = this.nodeRenderCache.get(n.id);
+    if (!cached || cached.signature !== signature) {
+      const cw = n.width + PAD * 2;
+      const ch = n.height + PAD * 2;
+      const off = document.createElement('canvas');
+      off.width = cw;
+      off.height = ch;
+      const octx = off.getContext('2d')!;
+      octx.imageSmoothingEnabled = true;
 
-    if (isSelected) {
-      const pulse = (Math.sin(this.pulseTime * 2) + 1) / 2;
-      ctx.shadowColor = COLORS.accent;
-      ctx.shadowBlur = 12 + pulse * 10;
-    } else if (isHovered) {
-      ctx.shadowColor = 'rgba(139, 94, 60, 0.35)';
-      ctx.shadowBlur = 8;
-      ctx.shadowOffsetY = 3;
-    } else {
-      ctx.shadowColor = 'rgba(139, 94, 60, 0.2)';
-      ctx.shadowBlur = 4;
-      ctx.shadowOffsetY = 2;
-    }
+      const x = PAD;
+      const y = PAD;
+      const w = n.width;
+      const h = n.height;
 
-    const genTint = Math.min(0.12, n.generation * 0.03);
-    const bgColor = this.tintColor(COLORS.nodeBg, -genTint);
-    ctx.fillStyle = bgColor;
-    ctx.strokeStyle = isSelected ? COLORS.accent : COLORS.nodeBorder;
-    ctx.lineWidth = isSelected ? 3 : 2;
-    this.roundRect(ctx, x, y, w, h, NODE_RADIUS);
-    ctx.fill();
-    ctx.stroke();
-    ctx.restore();
-
-    ctx.save();
-    this.roundRect(ctx, x + 4, y + 4, w - 8, h - 22, 6);
-    ctx.clip();
-    if (n.photoUrl) {
-      const img = this.getCachedImage(n);
-      if (img) {
-        ctx.drawImage(img, x + 4, y + 4, w - 8, h - 22);
+      if (isSelected) {
+        const pulse = (Math.sin(this.pulseTime * 2) + 1) / 2;
+        octx.shadowColor = COLORS.accent;
+        octx.shadowBlur = 12 + pulse * 10;
+      } else if (isHovered) {
+        octx.shadowColor = 'rgba(139, 94, 60, 0.35)';
+        octx.shadowBlur = 8;
+        octx.shadowOffsetY = 3;
       } else {
-        this.drawPlaceholder(ctx, x + 4, y + 4, w - 8, h - 22, n.name);
+        octx.shadowColor = 'rgba(139, 94, 60, 0.2)';
+        octx.shadowBlur = 4;
+        octx.shadowOffsetY = 2;
       }
-    } else {
-      this.drawPlaceholder(ctx, x + 4, y + 4, w - 8, h - 22, n.name);
-    }
-    ctx.restore();
 
-    ctx.save();
-    ctx.fillStyle = COLORS.text;
-    ctx.font = `bold ${13 / this.scale}px Georgia, "Noto Serif SC", serif`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    const label = n.name.length > 6 ? n.name.slice(0, 6) + '…' : n.name;
-    ctx.fillText(label, x + w / 2, y + h - 11);
-    ctx.restore();
+      const genTint = Math.min(0.12, n.generation * 0.03);
+      const bgColor = this.tintColor(COLORS.nodeBg, -genTint);
+      octx.fillStyle = bgColor;
+      octx.strokeStyle = isSelected ? COLORS.accent : COLORS.nodeBorder;
+      octx.lineWidth = isSelected ? 3 : 2;
+      this.roundRect(octx, x, y, w, h, NODE_RADIUS);
+      octx.fill();
+      octx.stroke();
+
+      octx.shadowColor = 'transparent';
+      octx.shadowBlur = 0;
+      octx.shadowOffsetY = 0;
+
+      octx.save();
+      this.roundRect(octx, x + 4, y + 4, w - 8, h - 22, 6);
+      octx.clip();
+      if (n.photoUrl) {
+        const img = this.getCachedImage(n);
+        if (img) {
+          octx.drawImage(img, x + 4, y + 4, w - 8, h - 22);
+        } else {
+          this.drawPlaceholder(octx, x + 4, y + 4, w - 8, h - 22, n.name);
+        }
+      } else {
+        this.drawPlaceholder(octx, x + 4, y + 4, w - 8, h - 22, n.name);
+      }
+      octx.restore();
+
+      octx.save();
+      octx.fillStyle = COLORS.text;
+      octx.font = `bold 13px Georgia, "Noto Serif SC", serif`;
+      octx.textAlign = 'center';
+      octx.textBaseline = 'middle';
+      const label = n.name.length > 6 ? n.name.slice(0, 6) + '…' : n.name;
+      octx.fillText(label, x + w / 2, y + h - 11);
+      octx.restore();
+
+      cached = { canvas: off, signature };
+      this.nodeRenderCache.set(n.id, cached);
+    }
+
+    ctx.drawImage(
+      cached.canvas,
+      Math.round(n.renderX - PAD),
+      Math.round(n.renderY - PAD),
+    );
   }
 
   private drawPlaceholder(
@@ -906,33 +954,61 @@ export class CanvasEngine {
       for (const k of Array.from(this.imageCache.keys())) {
         if (k.startsWith(`${nodeId}-`)) this.imageCache.delete(k);
       }
+      this.nodeRenderCache.delete(nodeId);
     } else {
       this.imageCache.clear();
+      this.nodeRenderCache.clear();
     }
     this.dirty = true;
   }
 
-  private drawCollapsedBox(ctx: CanvasRenderingContext2D, n: LayoutNode): void {
+  private nodeSignature(n: RenderNode): string {
+    const isSelected = this.selectedNodeId === n.id;
+    const isHovered = this.hoveredNodeId === n.id;
+    return [
+      n.id, n.name, n.photoUrl || '', n.generation,
+      isSelected ? '1' : '0', isHovered ? '1' : '0',
+      Math.floor(this.pulseTime * 2) % 4,
+    ].join('|');
+  }
+
+  private isInViewport(
+    x: number,
+    y: number,
+    w: number,
+    h: number,
+    margin = 60,
+  ): boolean {
+    const sp = this.worldToScreen(x - margin, y - margin);
+    const ep = this.worldToScreen(x + w + margin, y + h + margin);
+    return !(ep.x < 0 || ep.y < 0 || sp.x > this.width || sp.y > this.height);
+  }
+
+  private drawCollapsedBox(ctx: CanvasRenderingContext2D, n: RenderNode): void {
     const bx = n.renderX + n.width + 12;
-    const by = n.renderY + n.height / 2 - 16;
-    const bw = 80;
-    const bh = 32;
+    const by = n.renderY + n.height / 2 - 18;
+    const bw = 96;
+    const bh = 36;
+    const hovered = this.hoveredNodeId === '__collapsed:' + n.id;
     ctx.save();
-    ctx.globalAlpha = 0.75;
-    ctx.fillStyle = COLORS.primary;
-    ctx.strokeStyle = COLORS.secondary;
-    ctx.lineWidth = 1.5;
-    ctx.setLineDash([5, 4]);
-    this.roundRect(ctx, bx, by, bw, bh, 6);
+    ctx.globalAlpha = hovered ? 0.95 : 0.8;
+    ctx.shadowColor = 'rgba(139, 94, 60, 0.3)';
+    ctx.shadowBlur = hovered ? 10 : 5;
+    ctx.shadowOffsetY = 2;
+    ctx.fillStyle = hovered ? '#fff6e6' : COLORS.primary;
+    ctx.strokeStyle = hovered ? COLORS.accent : COLORS.secondary;
+    ctx.lineWidth = hovered ? 2.5 : 1.5;
+    ctx.setLineDash([6, 4]);
+    this.roundRect(ctx, bx, by, bw, bh, 8);
     ctx.fill();
     ctx.stroke();
     ctx.restore();
     ctx.save();
-    ctx.fillStyle = COLORS.text;
-    ctx.font = `bold ${12 / this.scale}px Georgia, serif`;
+    ctx.fillStyle = hovered ? COLORS.accent : COLORS.text;
+    ctx.font = `bold 12px Georgia, "Noto Serif SC", serif`;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText(`+${n.collapsedDescendantCount}`, bx + bw / 2, by + bh / 2);
+    ctx.fillText(`＋ ${n.collapsedDescendantCount}`, bx + bw / 2, by + bh / 2);
     ctx.restore();
   }
 
