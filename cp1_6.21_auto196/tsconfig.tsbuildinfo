@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/elementbar.tsx","./src/components/enemymanager.tsx","./src/components/grid.tsx","./src/components/hud.tsx","./src/context/gamecontext.tsx","./src/utils/elementsystem.ts"],"version":"5.8.3"}
