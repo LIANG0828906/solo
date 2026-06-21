@@ -61,9 +61,42 @@ export class Renderer {
     }
   }
 
+  public setTrailInterval(interval: number): void {
+    this.trailInterval = Math.max(1, Math.floor(interval));
+  }
+
+  public getTrailInterval(): number {
+    return this.trailInterval;
+  }
+
   public drawBackground(): void {
     this.ctx.fillStyle = '#1a1a2e';
     this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+  }
+
+  public drawPolarGrid(l1: number, l2: number): void {
+    const gridColor = 'rgba(255, 255, 255, 0.1)';
+    this.ctx.strokeStyle = gridColor;
+    this.ctx.lineWidth = 1;
+
+    const maxRadius = l1 + l2 + 30;
+    const rings = [l1 * 0.5, l1, l1 + l2 * 0.5, l1 + l2];
+    
+    for (const r of rings) {
+      this.ctx.beginPath();
+      this.ctx.arc(this.originX, this.originY, r, 0, Math.PI * 2);
+      this.ctx.stroke();
+    }
+
+    for (let angle = 0; angle < 360; angle += 30) {
+      const rad = (angle * Math.PI) / 180;
+      const x = this.originX + maxRadius * Math.sin(rad);
+      const y = this.originY + maxRadius * Math.cos(rad);
+      this.ctx.beginPath();
+      this.ctx.moveTo(this.originX, this.originY);
+      this.ctx.lineTo(x, y);
+      this.ctx.stroke();
+    }
   }
 
   public drawTrail(): void {
@@ -180,6 +213,7 @@ export class Renderer {
     }
     
     this.drawBackground();
+    this.drawPolarGrid(pendulum.l1, pendulum.l2);
     this.drawTrail();
     
     const h1x = this.originX + pendulum.l1 * Math.sin(pendulum.initialState.theta1);

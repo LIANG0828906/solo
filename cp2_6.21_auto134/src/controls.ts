@@ -11,6 +11,8 @@ export class Controls {
   private resetBtn: HTMLButtonElement;
   private speedSlider: HTMLInputElement;
   private speedValue: HTMLSpanElement;
+  private trailDensitySlider: HTMLInputElement;
+  private trailDensityValue: HTMLSpanElement;
 
   constructor(
     pendulum: DoublePendulum,
@@ -25,9 +27,12 @@ export class Controls {
     const resetBtn = document.getElementById('resetBtn');
     const speedSlider = document.getElementById('speedSlider');
     const speedValue = document.getElementById('speedValue');
+    const trailDensitySlider = document.getElementById('trailDensitySlider');
+    const trailDensityValue = document.getElementById('trailDensityValue');
 
     if (!toggleArmsBtn || !toggleTrailBtn || !clearTrailBtn ||
-        !resetBtn || !speedSlider || !speedValue) {
+        !resetBtn || !speedSlider || !speedValue ||
+        !trailDensitySlider || !trailDensityValue) {
       throw new Error('无法找到控制元素');
     }
 
@@ -37,8 +42,11 @@ export class Controls {
     this.resetBtn = resetBtn as HTMLButtonElement;
     this.speedSlider = speedSlider as HTMLInputElement;
     this.speedValue = speedValue as HTMLSpanElement;
+    this.trailDensitySlider = trailDensitySlider as HTMLInputElement;
+    this.trailDensityValue = trailDensityValue as HTMLSpanElement;
 
     this.speedValue.textContent = '1.0x';
+    this.trailDensityValue.textContent = '10帧/点';
     this.toggleArmsBtn.textContent = '隐藏摆臂';
     this.toggleArmsBtn.classList.add('active');
     this.toggleTrailBtn.textContent = '隐藏轨迹';
@@ -53,6 +61,7 @@ export class Controls {
     this.clearTrailBtn.addEventListener('click', () => this.clearTrail());
     this.resetBtn.addEventListener('click', () => this.reset());
     this.speedSlider.addEventListener('input', (e) => this.onSpeedChange(e));
+    this.trailDensitySlider.addEventListener('input', (e) => this.onTrailDensityChange(e));
   }
 
   private toggleArms(): void {
@@ -91,5 +100,12 @@ export class Controls {
     const speed = parseFloat(target.value);
     this.pendulum.speed = speed;
     this.speedValue.textContent = `${speed.toFixed(1)}x`;
+  }
+
+  private onTrailDensityChange(e: Event): void {
+    const target = e.target as HTMLInputElement;
+    const interval = parseInt(target.value, 10);
+    this.renderer.setTrailInterval(interval);
+    this.trailDensityValue.textContent = `${interval}帧/点`;
   }
 }
