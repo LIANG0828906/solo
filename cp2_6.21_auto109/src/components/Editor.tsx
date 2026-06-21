@@ -20,6 +20,7 @@ interface PendingSelection {
 interface ActiveCommentPopup {
   highlightId: string;
   position: { x: number; y: number };
+  visible: boolean;
 }
 
 function parseMarkdown(md: string): string {
@@ -94,6 +95,7 @@ const Editor: React.FC = () => {
   const [commentText, setCommentText] = useState('');
   const commentInputRef = useRef<HTMLTextAreaElement>(null);
   const renderKey = useRef(0);
+  const isSelecting = useRef(false);
 
   const allUsers = useMemo(() => {
     const map = new Map<string, User>();
@@ -179,7 +181,7 @@ const Editor: React.FC = () => {
       }
       const x = rect.left + window.scrollX + rect.width / 2;
       setActiveHighlightId(highlightId);
-      setActiveCommentPopup({ highlightId, position: { x, y } });
+      setActiveCommentPopup({ highlightId, position: { x, y }, visible: true });
       setCommentText('');
       setPendingSelection(null);
     },
@@ -315,25 +317,43 @@ const Editor: React.FC = () => {
     return result;
   }, [documentContent, renderDomNode]);
 
-  const handleMouseUp = useCallback(() => {
-    setTimeout(() => {
+  const handleWindowMouseUp = useCallback(() => {
+    if (!isSelecting.current) return;
+    isSelecting.current = false;
+
+    requestAnimationFrame(() => {
       const selection = window.getSelection();
       if (!selection || selection.isCollapsed) {
         setPendingSelection(null);
         return;
       }
-      const range = highlightEngine.extractRangeFromSelection(selection);
-      if (!range) {
+
+      if (!containerRef.current) return;
+
+      const range = selection.getRangeAt(0);
+      if (!containerRef.current.contains(range.commonAncestorContainer)) {
         setPendingSelection(null);
         return;
       }
+
+      const highlightRange = highlightEngine.handleTextSelection(selection);
+      if (!highlightRange) {
+        setPendingSelection(null);
+        return;
+      }
+
       const pos = highlightEngine.getSelectionPosition(selection);
       if (!pos) {
         setPendingSelection(null);
         return;
       }
-      setPendingSelection({ range, position: pos });
-    }, 0);
+
+      setPendingSelection({ range: highlightRange, position: pos });
+    });
+  }, []);
+
+  const handleWindowMouseDown = useCallback(() => {
+    isSelecting.current = true;
   }, []);
 
   const handleColorSelect = useCallback(
@@ -350,21 +370,28 @@ const Editor: React.FC = () => {
     if (!activeCommentPopup || !commentText.trim()) return;
     addComment(activeCommentPopup.highlightId, commentText.trim());
     setCommentText('');
-    setActiveCommentPopup(null);
-    setActiveHighlightId(null);
+    setActiveCommentPopup((prev) => (prev ? { ...prev, visible: false } : null));
+    setTimeout(() => {
+      setActiveCommentPopup(null);
+      setActiveHighlightId(null);
+    }, 200);
   }, [activeCommentPopup, commentText, addComment, setActiveHighlightId]);
 
   const cancelComment = useCallback(() => {
-    setActiveCommentPopup(null);
+    setActiveCommentPopup((prev) => (prev ? { ...prev, visible: false } : null));
     setCommentText('');
-    setActiveHighlightId(null);
+    setTimeout(() => {
+      setActiveCommentPopup(null);
+      setActiveHighlightId(null);
+    }, 200);
   }, [setActiveHighlightId]);
 
   const handleDocumentClick = useCallback(() => {
     setPendingSelection(null);
-    setActiveCommentPopup(null);
-    setActiveHighlightId(null);
-  }, [setActiveHighlightId]);
+    if (activeCommentPopup?.visible) {
+      cancelComment();
+    }
+  }, [activeCommentPopup, cancelComment]);
 
   useEffect(() => {
     if (containerRef.current) {
@@ -373,7 +400,17 @@ const Editor: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    if (activeCommentPopup && commentInputRef.current) {
+    window.addEventListener('mousedown', handleWindowMouseDown);
+    window.addEventListener('mouseup', handleWindowMouseUp);
+
+    return () => {
+      window.removeEventListener('mousedown', handleWindowMouseDown);
+      window.removeEventListener('mouseup', handleWindowMouseUp);
+    };
+  }, [handleWindowMouseDown, handleWindowMouseUp]);
+
+  useEffect(() => {
+    if (activeCommentPopup?.visible && commentInputRef.current) {
       setTimeout(() => commentInputRef.current?.focus(), 50);
     }
   }, [activeCommentPopup]);
@@ -389,6 +426,8 @@ const Editor: React.FC = () => {
     ? ({
         left: Math.max(16, Math.min(window.innerWidth - 336, activeCommentPopup.position.x - 160)),
         top: activeCommentPopup.position.y,
+        opacity: activeCommentPopup.visible ? 1 : 0,
+        transform: activeCommentPopup.visible ? 'translateY(0)' : 'translateY(8px)',
       } as React.CSSProperties)
     : undefined;
 
@@ -398,7 +437,6 @@ const Editor: React.FC = () => {
         <div
           ref={containerRef}
           className="document-content"
-          onMouseUp={handleMouseUp}
           onClick={(e) => e.stopPropagation()}
         >
           {renderedContent}

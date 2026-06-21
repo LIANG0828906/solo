@@ -368,18 +368,19 @@ body {
   border-radius: 8px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   padding: 12px;
-  animation: popupIn 0.2s ease;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+  opacity: 0;
+  transform: translateY(8px);
 }
 
-@keyframes popupIn {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+.comment-popup.visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+@keyframes popup-fade-out {
+  opacity: 0;
+  transform: translateY(8px);
 }
 
 .comment-input {
@@ -435,6 +436,11 @@ body {
 .btn-send:hover {
   transform: scale(1.05);
   filter: brightness(1.08);
+}
+
+.btn-send:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .comments-list {
@@ -513,33 +519,71 @@ body {
   .toolbar {
     flex-wrap: wrap;
     height: auto;
-    padding: 10px 16px;
-    gap: 10px;
+    min-height: 56px;
+    padding: 8px 16px;
+    gap: 8px;
   }
 
-  .toolbar-left,
+  .toolbar-left {
+    width: 100%;
+    order: 1;
+  }
+
   .toolbar-right {
     width: 100%;
+    order: 2;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
   }
 
-  .toolbar-right {
-    justify-content: space-between;
+  .room-info {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .user-avatars {
+    flex-shrink: 0;
+  }
+
+  .export-btn {
+    flex-shrink: 0;
   }
 
   .editor-wrapper {
-    margin-top: 100px;
+    margin-top: 110px;
     padding: 16px 8px;
   }
 
   .document-card {
-    padding: 32px 20px;
+    width: 100%;
+    padding: 24px 20px;
+    min-height: calc(100vh - 150px);
+  }
+
+  .document-content {
+    font-size: 14px;
+  }
+
+  .document-content h1 {
+    font-size: 22px;
+  }
+
+  .document-content h2 {
+    font-size: 18px;
+  }
+
+  .document-content h3 {
+    font-size: 15px;
   }
 
   .comment-popup {
-    width: calc(100% - 32px);
+    position: fixed !important;
     left: 16px !important;
     right: 16px !important;
+    width: calc(100% - 32px) !important;
     transform: none !important;
+    z-index: 200;
   }
 
   .comments-list {
@@ -547,5 +591,41 @@ body {
     width: 100%;
     margin-top: 12px;
     margin-bottom: 16px;
+  }
+
+  .color-picker {
+    left: 50% !important;
+    transform: translateX(-50%);
+  }
+}
+
+@media (max-width: 480px) {
+  .toolbar {
+    padding: 8px 12px;
+  }
+
+  .room-info {
+    font-size: 12px;
+    padding: 5px 10px;
+  }
+
+  .export-btn {
+    padding: 7px 12px;
+    font-size: 12px;
+  }
+
+  .avatar {
+    width: 28px;
+    height: 28px;
+    font-size: 11px;
+  }
+
+  .document-card {
+    padding: 20px 16px;
+  }
+
+  .editor-wrapper {
+    margin-top: 104px;
+    padding: 12px 6px;
   }
 }
