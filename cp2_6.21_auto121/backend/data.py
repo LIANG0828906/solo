@@ -6,7 +6,7 @@ import os
 import uuid
 
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "data"))
 DESIGNS_FILE = os.path.join(DATA_DIR, "designs.json")
 
 os.makedirs(DATA_DIR, exist_ok=True)
@@ -163,6 +163,137 @@ furniture_data: List[Furniture] = [
               image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=japanese%20ceramic%20vase%20minimalist%20wabi%20sabi&image_size=square",
               description="手工陶瓷，侘寂美学", dimensions="15x25cm", material="粗陶",
               style_tags=["日式", "北欧"]),
+
+    Furniture(id=36, name="铁艺书架", category="书架", price=1899.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=industrial%20iron%20bookshelf%20metal%20pipe%20wood%20shelves&image_size=square",
+              description="铁艺管材与实木层板结合，粗犷工业风", dimensions="90x180x35cm", material="铁艺管+松木板",
+              style_tags=["工业"]),
+    Furniture(id=37, name="工业风收纳柜", category="收纳柜", price=1599.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=industrial%20storage%20cabinet%20metal%20mesh%20door%20dark&image_size=square",
+              description="金属网门收纳柜，工业质感", dimensions="80x100x40cm", material="冷轧钢板",
+              style_tags=["工业"]),
+    Furniture(id=38, name="金属工作台", category="桌子", price=2299.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=industrial%20metal%20workbench%20table%20dark%20steel&image_size=square",
+              description="重型金属工作台，承重强", dimensions="140x70x85cm", material="角钢+实木台面",
+              style_tags=["工业"]),
+    Furniture(id=39, name="水泥花盆架", category="花架", price=599.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=concrete%20planter%20stand%20industrial%20geometric&image_size=square",
+              description="水泥与金属结合，工业美学花架", dimensions="30x70x30cm", material="水泥+铁艺",
+              style_tags=["工业"]),
+    Furniture(id=40, name="复古铁皮柜", category="收纳柜", price=1299.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=vintage%20metal%20cabinet%20rusted%20iron%20industrial&image_size=square",
+              description="做旧铁皮柜，复古工业风", dimensions="90x90x40cm", material="镀锌铁皮",
+              style_tags=["工业"]),
+
+    Furniture(id=41, name="日式榻榻米", category="床", price=3999.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=japanese%20tatami%20mat%20bed%20platform%20natural%20rush&image_size=square",
+              description="和室榻榻米地台床，蔺草编织", dimensions="180x200cm", material="蔺草+杉木框架",
+              style_tags=["日式"]),
+    Furniture(id=42, name="障子门收纳柜", category="收纳柜", price=2599.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=japanese%20shoji%20door%20storage%20cabinet%20wood%20paper&image_size=square",
+              description="障子纸推拉门收纳柜，和风设计", dimensions="120x180x45cm", material="杉木+和纸",
+              style_tags=["日式"]),
+    Furniture(id=43, name="日式矮桌(炬燵)", category="桌子", price=1299.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=japanese%20kotatsu%20low%20table%20wood%20cushion&image_size=square",
+              description="传统炬燵矮桌，被炉式设计", dimensions="80x80x40cm", material="榉木",
+              style_tags=["日式"]),
+    Furniture(id=44, name="竹制收纳架", category="收纳架", price=899.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=bamboo%20storage%20rack%20japanese%20natural%20minimal&image_size=square",
+              description="天然竹材，五层收纳架", dimensions="60x150x35cm", material="毛竹",
+              style_tags=["日式"]),
+    Furniture(id=45, name="日式被炉桌", category="桌子", price=1599.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=japanese%20kotatsu%20heated%20table%20blanket%20wood&image_size=square",
+              description="加热被炉桌，冬日温暖之选", dimensions="75x75x38cm", material="实木+电热组件",
+              style_tags=["日式"]),
+
+    Furniture(id=46, name="复古梳妆台", category="桌子", price=2899.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=vintage%20dressing%20table%20mirror%20dark%20wood%20ornate&image_size=square",
+              description="雕花梳妆台，配椭圆镜", dimensions="100x140x45cm", material="胡桃木",
+              style_tags=["复古"]),
+    Furniture(id=47, name="复古餐边柜", category="收纳柜", price=2199.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=vintage%20sideboard%20buffet%20cabinet%20dark%20brown&image_size=square",
+              description="复古做旧餐边柜，储物空间大", dimensions="140x85x45cm", material="橡木做旧",
+              style_tags=["复古"]),
+    Furniture(id=48, name="怀旧皮质躺椅", category="椅子", price=3599.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=vintage%20leather%20chaise%20lounge%20burgundy%20classic&image_size=square",
+              description="经典切斯特菲尔德躺椅，做旧真皮", dimensions="160x70x85cm", material="做旧真皮+实木",
+              style_tags=["复古"]),
+    Furniture(id=49, name="复古斗柜", category="收纳柜", price=1799.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=vintage%20chest%20of%20drawers%5%20ornate%20handles%20dark&image_size=square",
+              description="六斗柜，黄铜拉手，复古韵味", dimensions="80x110x45cm", material="樱桃木+黄铜",
+              style_tags=["复古"]),
+    Furniture(id=50, name="中式复古条案", category="桌子", price=3299.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=chinese%20vintage%20console%20table%20dark%20wood%20carved&image_size=square",
+              description="传统中式条案，雕花设计", dimensions="140x80x40cm", material="花梨木",
+              style_tags=["复古"]),
+
+    Furniture(id=51, name="现代几何地毯", category="地毯", price=899.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=modern%20geometric%20area%20rug%20gray%20white%20dark%20green&image_size=square",
+              description="几何图案设计，灰白墨绿配色", dimensions="200x300cm", material="丙纶",
+              style_tags=["现代"]),
+    Furniture(id=52, name="北欧羊毛地毯", category="地毯", price=1299.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=nordic%20wool%20area%20rug%20cream%20beige%20plush&image_size=square",
+              description="新西兰进口羊毛，柔软亲肤", dimensions="160x230cm", material="羊毛",
+              style_tags=["北欧"]),
+    Furniture(id=53, name="工业风做旧地毯", category="地毯", price=799.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=industrial%20distressed%20area%20rug%20dark%20gray%20brick%20red&image_size=square",
+              description="做旧质感地毯，深灰砖红配色", dimensions="160x230cm", material="棉麻混纺",
+              style_tags=["工业"]),
+    Furniture(id=54, name="日式蔺草席地毯", category="地毯", price=699.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=japanese%20rush%20grass%20tatami%20mat%20rug%20natural&image_size=square",
+              description="蔺草编织席面，清爽自然", dimensions="180x270cm", material="蔺草",
+              style_tags=["日式"]),
+    Furniture(id=55, name="复古波斯地毯", category="地毯", price=1599.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=vintage%20persian%20area%20rug%20burgundy%20mustard%20ornate&image_size=square",
+              description="经典波斯纹样，酒红芥末黄配色", dimensions="200x300cm", material="羊毛",
+              style_tags=["复古"]),
+
+    Furniture(id=56, name="日式和纸灯", category="灯具", price=459.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=japanese%20washi%20paper%20lantern%20pendant%20light%20natural&image_size=square",
+              description="和纸手工灯罩，柔和光影", dimensions="40x60cm", material="和纸+竹框",
+              style_tags=["日式"]),
+    Furniture(id=57, name="复古台灯", category="灯具", price=399.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=vintage%20table%20lamp%20brass%20base%20fabric%20shade%20burgundy&image_size=square",
+              description="黄铜底座，丝绒灯罩，复古优雅", dimensions="25x50cm", material="黄铜+丝绒",
+              style_tags=["复古"]),
+    Furniture(id=58, name="工业管道灯", category="灯具", price=599.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=industrial%20pipe%20pendant%20light%20black%20metal%20exposed&image_size=square",
+              description="水管造型吊灯，硬朗工业风", dimensions="30x80cm", material="铁艺管+爱迪生灯泡",
+              style_tags=["工业"]),
+    Furniture(id=59, name="北欧落地灯", category="灯具", price=699.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=nordic%20floor%20lamp%20wood%20tripod%20white%20shade&image_size=square",
+              description="三脚木架落地灯，北欧简约", dimensions="40x150cm", material="榉木+棉布灯罩",
+              style_tags=["北欧"]),
+    Furniture(id=60, name="现代简约吊灯", category="灯具", price=899.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=modern%20minimalist%20pendant%20light%20chrome%20geometric&image_size=square",
+              description="几何造型吊灯，镀铬金属", dimensions="40x120cm", material="金属+亚克力",
+              style_tags=["现代"]),
+
+    Furniture(id=61, name="现代抽象装饰画", category="装饰画", price=399.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=modern%20abstract%20wall%20art%20gray%20white%20green%20geometric&image_size=square",
+              description="抽象几何装饰画，灰白墨绿配色", dimensions="60x80cm", material="布面油画+实木框",
+              style_tags=["现代"]),
+    Furniture(id=62, name="北欧植物装饰画", category="装饰画", price=349.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=nordic%20botanical%20wall%20art%20watercolor%20leaves%20beige&image_size=square",
+              description="植物水彩装饰画，清新自然", dimensions="50x70cm", material="水彩纸+白木框",
+              style_tags=["北欧"]),
+    Furniture(id=63, name="工业风城市装饰画", category="装饰画", price=449.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=industrial%20cityscape%20wall%20art%20black%20white%20photography&image_size=square",
+              description="城市黑白摄影装饰画，粗犷质感", dimensions="60x80cm", material="相纸+铁艺框",
+              style_tags=["工业"]),
+    Furniture(id=64, name="日式水墨装饰画", category="装饰画", price=459.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=japanese%20ink%20wash%20wall%20art%20sumi%20e%20bamboo&image_size=square",
+              description="水墨画装饰，禅意悠远", dimensions="50x70cm", material="宣纸+杉木框",
+              style_tags=["日式"]),
+    Furniture(id=65, name="复古油画装饰画", category="装饰画", price=599.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=vintage%20oil%20painting%20wall%20art%20still%20life%20dark%20gold&image_size=square",
+              description="复古风格油画，典雅画框", dimensions="60x80cm", material="布面油画+做旧画框",
+              style_tags=["复古"]),
+
+    Furniture(id=66, name="工业风铁艺壁灯", category="灯具", price=349.0,
+              image_url="https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=industrial%20wall%20sconce%20iron%20pipe%20vintage%20bulb&image_size=square",
+              description="铁艺管壁灯，工业风墙面装饰", dimensions="15x25cm", material="铁艺+玻璃",
+              style_tags=["工业"]),
 ]
 
 style_data: List[Style] = [
@@ -205,23 +336,35 @@ def get_style_by_id(style_id: int):
 
 def load_designs():
     try:
-        with open(DESIGNS_FILE, "r", encoding="utf-8") as f:
+        filepath = os.path.abspath(DESIGNS_FILE)
+        with open(filepath, "r", encoding="utf-8") as f:
             return json.load(f)
-    except (json.JSONDecodeError, FileNotFoundError):
+    except (json.JSONDecodeError, FileNotFoundError, OSError):
         return []
 
 
 def save_designs(designs):
-    with open(DESIGNS_FILE, "w", encoding="utf-8") as f:
-        json.dump(designs, f, ensure_ascii=False, indent=2, default=str)
+    try:
+        filepath = os.path.abspath(DESIGNS_FILE)
+        with open(filepath, "w", encoding="utf-8") as f:
+            json.dump(designs, f, ensure_ascii=False, indent=2, default=str)
+            f.flush()
+            os.fsync(f.fileno())
+    except OSError as e:
+        print(f"Error saving designs: {e}")
 
 
-def calculate_total_price(furniture_items: List[Dict]) -> float:
+def calculate_total_price(furniture_items: List) -> float:
     total = 0.0
     for item in furniture_items:
-        furniture = get_furniture_by_id(item["furniture_id"])
-        if furniture:
-            total += furniture.price
+        if isinstance(item, dict):
+            furniture_id = item.get("furniture_id")
+        else:
+            furniture_id = getattr(item, "furniture_id", None)
+        if furniture_id is not None:
+            furniture = get_furniture_by_id(furniture_id)
+            if furniture:
+                total += furniture.price
     return round(total, 2)
 
 
