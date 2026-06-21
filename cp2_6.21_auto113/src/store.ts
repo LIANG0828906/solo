@@ -1,10 +1,10 @@
 import { create } from 'zustand';
-import type { User, Task, TaskStatus, ToastItem } from './types';
+import type { User, Task, TaskStatus, ToastItem, TaskPriority } from './types';
 
 interface BoardStore {
   currentUser: User | null;
   tasks: Task[];
-  filters: { status?: TaskStatus; reviewerId?: string };
+  filters: { status?: TaskStatus; reviewerId?: string; priority?: TaskPriority | 'all' };
   toasts: ToastItem[];
   setCurrentUser: (u: User) => void;
   setTasks: (tasks: Task[]) => void;
@@ -21,7 +21,7 @@ let toastCounter = 0;
 export const useBoardStore = create<BoardStore>((set, get) => ({
   currentUser: null,
   tasks: [],
-  filters: {},
+  filters: { priority: 'all' },
   toasts: [],
 
   setCurrentUser: (u) => set({ currentUser: u }),

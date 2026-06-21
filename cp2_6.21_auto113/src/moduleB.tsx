@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import {
   DragDropContext,
   Droppable,
@@ -9,8 +9,8 @@ import {
   type DraggableStateSnapshot,
   type DroppableStateSnapshot,
 } from 'react-beautiful-dnd';
-import type { Task, TaskStatus } from './types';
-import { STATUS_COLUMNS } from './types';
+import type { Task, TaskStatus, TaskPriority } from './types';
+import { STATUS_COLUMNS, PRIORITY_OPTIONS, PRIORITY_LABELS, PRIORITY_COLORS } from './types';
 import { getInitials, hashNameToColor, timeAgo } from './utils';
 import { updateTaskStatus } from './moduleA';
 import { useBoardStore } from './store';
@@ -40,6 +40,18 @@ const Avatar: React.FC<{ name: string; size?: number }> = ({ name, size = 32 }) 
   >
     {getInitials(name)}
   </div>
+);
+
+const PriorityBadge: React.FC<{ priority: TaskPriority }> = ({ priority }) => (
+  <span
+    className="priority-badge"
+    style={{
+      background: PRIORITY_COLORS[priority],
+      color: priority === 'medium' ? '#333' : '#fff',
+    }}
+  >
+    {PRIORITY_LABELS[priority]}
+  </span>
 );
 
 const TaskCard: React.FC<{
@@ -76,6 +88,9 @@ const TaskCard: React.FC<{
         zIndex: snapshot.isDragging ? 1000 : 1,
       }}
     >
+      <div className="task-card-header">
+        <PriorityBadge priority={task.priority} />
+      </div>
       <div className="task-title">{task.title}</div>
       {task.description && (
         <div className="task-desc" dangerouslySetInnerHTML={{ __html: renderMarkdown(task.description) }} />
@@ -134,7 +149,6 @@ const Column: React.FC<{
 
 const CustomPlaceholder: React.FC<{ placeholder: any }> = ({ placeholder }) => {
   if (!placeholder) return null;
-  const { placeholder: _p, ...restProvided } = placeholder as any;
   const style: React.CSSProperties = {
     ...(placeholder.style || {}),
     border: '2px dashed #ccc',
@@ -151,14 +165,39 @@ const CustomPlaceholder: React.FC<{ placeholder: any }> = ({ placeholder }) => {
         }
       }}
       style={style}
-      {...restProvided}
       data-rfd-placeholder="true"
     />
   );
 };
 
+const PriorityFilter: React.FC = () => {
+  const { filters, setFilters } = useBoardStore();
+  const selected = filters.priority || 'all';
+  return (
+    <div className="priority-filter">
+      <label className="filter-label">优先级：</label>
+      <select
+        className="filter-select"
+        value={selected}
+        onChange={(e) => setFilters({ priority: e.target.value as TaskPriority | 'all' })}
+      >
+        {PRIORITY_OPTIONS.map((opt) => (
+          <option key={opt.value} value={opt.value}>
+            {opt.label}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
+};
+
 const BoardView: React.FC<BoardProps> = ({ tasks, onStatusChange }) => {
-  const { addToast } = useBoardStore();
+  const { addToast, filters } = useBoardStore();
+
+  const filteredTasks = useMemo(() => {
+    if (!filters.priority || filters.priority === 'all') return tasks;
+    return tasks.filter((t) => t.priority === filters.priority);
+  }, [tasks, filters.priority]);
 
   const onDragEnd = async (result: DropResult) => {
     if (!result.destination) return;
@@ -180,16 +219,27 @@ const BoardView: React.FC<BoardProps> = ({ tasks, onStatusChange }) => {
   };
 
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
-      <div className="board-container">
-        {STATUS_COLUMNS.map((col) => {
-          const colTasks = tasks
-            .filter((t) => t.status === col.id)
-            .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
-          return <Column key={col.id} column={col} tasks={colTasks} />;
-        })}
+    <div className="board-wrapper">
+      <div className="board-toolbar">
+        <PriorityFilter />
+        <div className="board-toolbar-right">
+          <span className="task-count-info">
+            共 {filteredTasks.length} 个任务
+            {filters.priority && filters.priority !== 'all' && `（${PRIORITY_LABELS[filters.priority]}优先级）`}
+          </span>
+        </div>
       </div>
-    </DragDropContext>
+      <DragDropContext onDragEnd={onDragEnd}>
+        <div className="board-container">
+          {STATUS_COLUMNS.map((col) => {
+            const colTasks = filteredTasks
+              .filter((t) => t.status === col.id)
+              .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime());
+            return <Column key={col.id} column={col} tasks={colTasks} />;
+          })}
+        </div>
+      </DragDropContext>
+    </div>
   );
 };
 

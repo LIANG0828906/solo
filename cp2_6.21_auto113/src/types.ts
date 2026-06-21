@@ -1,4 +1,24 @@
 export type TaskStatus = 'pending' | 'reviewing' | 'approved' | 'changes_needed';
+export type TaskPriority = 'high' | 'medium' | 'low';
+
+export const PRIORITY_OPTIONS: { value: TaskPriority | 'all'; label: string }[] = [
+  { value: 'all', label: '全部' },
+  { value: 'high', label: '高' },
+  { value: 'medium', label: '中' },
+  { value: 'low', label: '低' },
+];
+
+export const PRIORITY_LABELS: Record<TaskPriority, string> = {
+  high: '高',
+  medium: '中',
+  low: '低',
+};
+
+export const PRIORITY_COLORS: Record<TaskPriority, string> = {
+  high: '#f44336',
+  medium: '#ffc107',
+  low: '#4caf50',
+};
 
 export interface User {
   id: string;
@@ -14,6 +34,7 @@ export interface Task {
   description: string;
   repoUrl: string;
   status: TaskStatus;
+  priority: TaskPriority;
   createdAt: string;
   updatedAt: string;
   submitter: User;
@@ -25,6 +46,7 @@ export interface CreateTaskPayload {
   description: string;
   repoUrl: string;
   submitterId: string;
+  priority?: TaskPriority;
   reviewerId?: string;
 }
 

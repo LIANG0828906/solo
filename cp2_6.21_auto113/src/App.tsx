@@ -4,15 +4,20 @@ import { createTask, fetchTasks, fetchReviewers } from './moduleA';
 import { initSocket } from './moduleC';
 import { useBoardStore } from './store';
 import { hashNameToColor } from './utils';
-import type { CreateTaskPayload, Task, User, TaskStatus } from './types';
-import { STATUS_COLUMNS, STATUS_TOAST_COLORS } from './types';
+import type { CreateTaskPayload, Task, User, TaskStatus, TaskPriority } from './types';
+import { STATUS_COLUMNS, STATUS_TOAST_COLORS, PRIORITY_OPTIONS, PRIORITY_LABELS } from './types';
 
 const App: React.FC = () => {
   const { currentUser, setCurrentUser, tasks, setTasks, toasts, removeToast, addToast } = useBoardStore();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState({ title: '', description: '', repoUrl: '' });
+  const [formData, setFormData] = useState<{ title: string; description: string; repoUrl: string; priority: TaskPriority }>({
+    title: '',
+    description: '',
+    repoUrl: '',
+    priority: 'medium',
+  });
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -51,10 +56,11 @@ const App: React.FC = () => {
         description: formData.description.trim(),
         repoUrl: formData.repoUrl.trim(),
         submitterId: currentUser.id,
+        priority: formData.priority,
       };
       const newTask = await createTask(payload);
       setTasks([newTask, ...tasks]);
-      setFormData({ title: '', description: '', repoUrl: '' });
+      setFormData({ title: '', description: '', repoUrl: '', priority: 'medium' });
       setShowModal(false);
     } catch (err) {
       console.error(err);
@@ -184,6 +190,20 @@ const App: React.FC = () => {
                   onChange={(e) => setFormData({ ...formData, repoUrl: e.target.value })}
                 />
               </div>
+              <div className="form-group">
+                <label className="form-label">优先级</label>
+                <select
+                  className="form-input"
+                  value={formData.priority}
+                  onChange={(e) => setFormData({ ...formData, priority: e.target.value as TaskPriority })}
+                >
+                  {PRIORITY_OPTIONS.filter((o) => o.value !== 'all').map((opt) => (
+                    <option key={opt.value} value={opt.value as TaskPriority}>
+                      {PRIORITY_LABELS[opt.value as TaskPriority]}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div className="form-actions">
                 <button
                   type="button"
@@ -235,6 +255,7 @@ function getMockTasks(): Task[] {
   const submitter: User = reviewers[0];
   const mk = (min: number) => new Date(now.getTime() - min * 60000).toISOString();
   const statuses: TaskStatus[] = ['pending', 'reviewing', 'approved', 'changes_needed'];
+  const priorities: TaskPriority[] = ['high', 'medium', 'low'];
   const titles = [
     '修复用户登录Token过期问题',
     '重构API中间件，支持流式响应',
@@ -253,6 +274,7 @@ function getMockTasks(): Task[] {
     description: i % 3 === 0 ? '**紧急**：需要 `本周` 内完成代码审查，否则影响发版。' : '',
     repoUrl: `https://github.com/org/repo/pull/${100 + i}`,
     status: statuses[i % statuses.length],
+    priority: priorities[i % priorities.length],
     createdAt: mk(60 + i * 17),
     updatedAt: mk(i * 3 + 1),
     submitter,

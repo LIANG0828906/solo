@@ -12,8 +12,10 @@ import socketio
 import uvicorn
 
 TaskStatus = str  # 'pending' | 'reviewing' | 'approved' | 'changes_needed'
+TaskPriority = str  # 'high' | 'medium' | 'low'
 
 STATUS_COLUMNS = ['pending', 'reviewing', 'approved', 'changes_needed']
+VALID_PRIORITIES = ['high', 'medium', 'low']
 
 
 def hash_name_to_color(name: str) -> str:
@@ -41,6 +43,7 @@ class CreateTaskPayload(BaseModel):
     description: str = ''
     repoUrl: str = ''
     submitterId: str
+    priority: TaskPriority = 'medium'
     reviewerId: Optional[str] = None
 
 
@@ -54,6 +57,7 @@ class TaskInDB(BaseModel):
     description: str
     repoUrl: str
     status: TaskStatus
+    priority: TaskPriority
     createdAt: str
     updatedAt: str
     submitterId: str
@@ -103,16 +107,16 @@ def get_initial_users() -> List[UserInDB]:
 def get_initial_tasks() -> List[TaskInDB]:
     now = datetime.utcnow()
     titles = [
-        ('修复用户登录Token过期问题', 'pending', 0),
-        ('重构API中间件，支持流式响应', 'reviewing', 1),
-        ('新增数据导出CSV功能', 'approved', 2),
-        ('修复商品列表分页Bug', 'changes_needed', 0),
-        ('优化首页加载速度，懒加载图片', 'pending', 1),
-        ('添加单元测试覆盖Auth模块', 'reviewing', 2),
-        ('修复移动端输入框被键盘遮挡', 'pending', 0),
+        ('修复用户登录Token过期问题', 'pending', 0, 'high'),
+        ('重构API中间件，支持流式响应', 'reviewing', 1, 'medium'),
+        ('新增数据导出CSV功能', 'approved', 2, 'low'),
+        ('修复商品列表分页Bug', 'changes_needed', 0, 'high'),
+        ('优化首页加载速度，懒加载图片', 'pending', 1, 'medium'),
+        ('添加单元测试覆盖Auth模块', 'reviewing', 2, 'low'),
+        ('修复移动端输入框被键盘遮挡', 'pending', 0, 'high'),
     ]
     tasks: List[TaskInDB] = []
-    for i, (title, status, reviewer_idx) in enumerate(titles):
+    for i, (title, status, reviewer_idx, priority) in enumerate(titles):
         reviewer_ids = [rid for rid, r in reviewers_db.items() if r.isOnline]
         reviewer_id = reviewer_ids[reviewer_idx % len(reviewer_ids)] if reviewer_ids else None
         if reviewer_id and reviewer_id in reviewers_db:
@@ -125,6 +129,7 @@ def get_initial_tasks() -> List[TaskInDB]:
             description='**紧急**：需要 `本周` 内完成代码审查，否则影响发版。' if i % 3 == 0 else '',
             repoUrl=f'https://github.com/org/repo/pull/{100 + i}',
             status=status,
+            priority=priority,
             createdAt=datetime.fromtimestamp(created).isoformat() + 'Z',
             updatedAt=datetime.fromtimestamp(updated).isoformat() + 'Z',
             submitterId='r1',
@@ -142,6 +147,7 @@ def task_to_public(task: TaskInDB) -> Dict[str, Any]:
         'description': task.description,
         'repoUrl': task.repoUrl,
         'status': task.status,
+        'priority': task.priority,
         'createdAt': task.createdAt,
         'updatedAt': task.updatedAt,
         'submitter': submitter.model_dump() if submitter else None,
@@ -201,12 +207,14 @@ async def create_task(payload: CreateTaskPayload):
         reviewer = assign_reviewer_round_robin()
     reviewer_id = reviewer.id if reviewer else None
 
+    priority = payload.priority if payload.priority in VALID_PRIORITIES else 'medium'
     task = TaskInDB(
         id=task_id,
         title=payload.title,
         description=payload.description,
         repoUrl=payload.repoUrl,
         status='pending',
+        priority=priority,
         createdAt=now,
         updatedAt=now,
         submitterId=payload.submitterId,
