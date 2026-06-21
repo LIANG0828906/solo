@@ -133,6 +133,7 @@ class App {
     this.animationId = requestAnimationFrame(() => this.animate());
     const delta = this.clock.getDelta();
     const deltaMs = delta * 1000;
+    this.controlPanel.update(deltaMs);
     this.crystal.update(deltaMs);
     this.controls.update();
     this.crystal.group.rotation.y += delta * 0.05;

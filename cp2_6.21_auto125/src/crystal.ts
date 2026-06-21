@@ -9,8 +9,11 @@ export interface CrystalParams {
 interface FaceNormal {
   normal: THREE.Vector3;
   distance: number;
+  targetDistance: number;
   growthRate: number;
+  targetGrowthRate: number;
   color: THREE.Color;
+  targetColor: THREE.Color;
   defects: number[];
 }
 
@@ -21,8 +24,8 @@ export class Crystal {
   public nucleusGroup: THREE.Group;
   public trajectoryLines: THREE.Line[];
   private params: CrystalParams;
+  private targetParams: CrystalParams;
   private faceNormals: FaceNormal[] = [];
-  private targetFaceNormals: FaceNormal[] = [];
   private startTime: number = 0;
   private elapsed: number = 0;
   private isPaused: boolean = false;
@@ -30,6 +33,11 @@ export class Crystal {
   private totalPausedTime: number = 0;
   public readonly TOTAL_DURATION: number = 60000;
   private nucleusAtoms: THREE.Mesh[] = [];
+  private smoothStats: {
+    faceCount: number;
+    vertexCount: number;
+    progress: number;
+  } = { faceCount: 0, vertexCount: 0, progress: 0 };
   public onStatsUpdate?: (stats: {
     faceCount: number;
     vertexCount: number;
@@ -38,6 +46,7 @@ export class Crystal {
 
   constructor(params: CrystalParams) {
     this.params = { ...params };
+    this.targetParams = { ...params };
     this.group = new THREE.Group();
     this.mesh = new THREE.Mesh();
     this.wireframe = new THREE.LineSegments();
@@ -90,34 +99,30 @@ export class Crystal {
     const baseNormals = this.generateBaseNormals(80);
     this.faceNormals = baseNormals.map((normal, idx) => {
       const hue = 0.55 + (idx / baseNormals.length) * 0.25;
+      const growthRate = this.calcGrowthRate(normal, this.params);
       return {
         normal: normal.clone(),
         distance: 0.3,
-        growthRate: this.calcGrowthRate(normal),
+        targetDistance: 0.3,
+        growthRate: growthRate,
+        targetGrowthRate: growthRate,
         color: new THREE.Color().setHSL(hue, 0.7, 0.65),
+        targetColor: new THREE.Color().setHSL(hue, 0.7, 0.65),
         defects: []
       };
     });
-    this.targetFaceNormals = this.faceNormals.map(f => ({
-      normal: f.normal.clone(),
-      distance: f.distance,
-      growthRate: f.growthRate,
-      color: f.color.clone(),
-      defects: []
-    }));
   }
 
-  private calcGrowthRate(normal: THREE.Vector3): number {
-    const tempFactor = 0.5 + this.params.temperature / 200;
-    const anisoFactor = 1 + (this.params.supersaturation - 1) * Math.abs(normal.y) * 2;
+  private calcGrowthRate(normal: THREE.Vector3, params: CrystalParams): number {
+    const tempFactor = 0.5 + params.temperature / 200;
+    const anisoFactor = 1 + (params.supersaturation - 1) * Math.abs(normal.y) * 2;
     return tempFactor * anisoFactor * (0.8 + Math.random() * 0.4);
   }
 
   public setParams(params: Partial<CrystalParams>): void {
-    this.params = { ...this.params, ...params };
-    this.faceNormals.forEach((face, i) => {
-      face.growthRate = this.calcGrowthRate(face.normal);
-      this.targetFaceNormals[i].growthRate = face.growthRate;
+    this.targetParams = { ...this.targetParams, ...params };
+    this.faceNormals.forEach((face) => {
+      face.targetGrowthRate = this.calcGrowthRate(face.normal, this.targetParams);
     });
   }
 
@@ -194,39 +199,68 @@ export class Crystal {
   }
 
   public update(deltaTime: number): void {
-    if (this.isPaused) return;
-    this.elapsed = performance.now() - this.startTime - this.totalPausedTime;
-    const progress = this.getProgress();
-    const targetCount = Math.floor(50 + progress * 150);
-    const currentCount = this.faceNormals.length;
-    if (currentCount < targetCount && Math.random() < 0.05) {
-      this.addNewFace();
+    this.interpolateParams(deltaTime);
+    this.interpolateFaceProperties(deltaTime);
+    if (!this.isPaused) {
+      this.elapsed = performance.now() - this.startTime - this.totalPausedTime;
+      const progress = this.getProgress();
+      const targetCount = Math.floor(50 + progress * 150);
+      const currentCount = this.faceNormals.length;
+      if (currentCount < targetCount && Math.random() < 0.05) {
+        this.addNewFace();
+      }
+      this.updateTargetDistances(deltaTime, progress);
     }
-    this.updateFaceDistances(deltaTime);
     this.updateDefects();
     this.reconstructGeometry();
+    const progress = this.getProgress();
     this.updateNucleus(progress);
-    if (this.onStatsUpdate) {
-      const geo = this.mesh.geometry as THREE.BufferGeometry;
-      const posAttr = geo.getAttribute('position');
-      this.onStatsUpdate({
-        faceCount: this.faceNormals.length,
-        vertexCount: posAttr ? posAttr.count : 0,
-        progress: progress * 100
-      });
-    }
+    this.updateSmoothStats(deltaTime);
   }
 
-  private updateFaceDistances(deltaTime: number): void {
-    const progress = this.getProgress();
+  private interpolateParams(deltaMs: number): void {
+    const lerpFactor = Math.min(1, deltaMs / 1500 * 3);
+    const keys = ['temperature', 'supersaturation', 'impurityConcentration'] as const;
+    keys.forEach(key => {
+      const diff = this.targetParams[key] - this.params[key];
+      if (Math.abs(diff) > 0.001) {
+        this.params[key] += diff * lerpFactor;
+        if (Math.abs(this.targetParams[key] - this.params[key]) < 0.001) {
+          this.params[key] = this.targetParams[key];
+        }
+      }
+    });
+  }
+
+  private interpolateFaceProperties(deltaMs: number): void {
+    const lerpFactor = Math.min(1, deltaMs / 1500 * 3);
+    this.faceNormals.forEach(face => {
+      const distDiff = face.targetDistance - face.distance;
+      if (Math.abs(distDiff) > 0.0001) {
+        face.distance += distDiff * lerpFactor;
+        if (Math.abs(face.targetDistance - face.distance) < 0.0001) {
+          face.distance = face.targetDistance;
+        }
+      }
+      const rateDiff = face.targetGrowthRate - face.growthRate;
+      if (Math.abs(rateDiff) > 0.0001) {
+        face.growthRate += rateDiff * lerpFactor;
+        if (Math.abs(face.targetGrowthRate - face.growthRate) < 0.0001) {
+          face.growthRate = face.targetGrowthRate;
+        }
+      }
+    });
+  }
+
+  private updateTargetDistances(deltaTime: number, progress: number): void {
     const maxSize = 4;
     this.faceNormals.forEach((face) => {
       const target = 0.3 + progress * maxSize * (0.7 + Math.random() * 0.3);
-      const growthAmount = face.growthRate * deltaTime * 0.001;
-      face.distance = Math.min(face.distance + growthAmount, target);
-      const tempFactor = this.params.temperature / 100;
+      const growthAmount = face.targetGrowthRate * deltaTime * 0.001;
+      face.targetDistance = Math.min(face.targetDistance + growthAmount, target);
+      const tempFactor = this.targetParams.temperature / 100;
       if (tempFactor > 0.5 && Math.random() < tempFactor * 0.02) {
-        face.distance = Math.max(0.3, face.distance - Math.random() * 0.05);
+        face.targetDistance = Math.max(0.3, face.targetDistance - Math.random() * 0.05);
       }
     });
   }
@@ -251,21 +285,18 @@ export class Crystal {
     ).normalize().multiplyScalar(0.2);
     const newNormal = baseNormal.clone().add(offset).normalize();
     const hue = 0.55 + Math.random() * 0.25;
+    const growthRate = this.calcGrowthRate(newNormal, this.targetParams);
     const newFace: FaceNormal = {
       normal: newNormal,
       distance: this.faceNormals[idx].distance * 0.9,
-      growthRate: this.calcGrowthRate(newNormal),
+      targetDistance: this.faceNormals[idx].targetDistance * 0.9,
+      growthRate: growthRate,
+      targetGrowthRate: growthRate,
       color: new THREE.Color().setHSL(hue, 0.7, 0.65),
+      targetColor: new THREE.Color().setHSL(hue, 0.7, 0.65),
       defects: []
     };
     this.faceNormals.push(newFace);
-    this.targetFaceNormals.push({
-      normal: newNormal.clone(),
-      distance: newFace.distance,
-      growthRate: newFace.growthRate,
-      color: newFace.color.clone(),
-      defects: []
-    });
   }
 
   private updateDefects(): void {
@@ -400,6 +431,27 @@ export class Crystal {
       transparent: true,
       opacity: 0.6
     });
+  }
+
+  private updateSmoothStats(deltaMs: number): void {
+    const geo = this.mesh.geometry as THREE.BufferGeometry;
+    const posAttr = geo.getAttribute('position');
+    const targetStats = {
+      faceCount: this.faceNormals.length,
+      vertexCount: posAttr ? posAttr.count : 0,
+      progress: this.getProgress() * 100
+    };
+    const lerpFactor = Math.min(1, deltaMs / 300);
+    this.smoothStats.faceCount += (targetStats.faceCount - this.smoothStats.faceCount) * lerpFactor;
+    this.smoothStats.vertexCount += (targetStats.vertexCount - this.smoothStats.vertexCount) * lerpFactor;
+    this.smoothStats.progress += (targetStats.progress - this.smoothStats.progress) * lerpFactor;
+    if (this.onStatsUpdate) {
+      this.onStatsUpdate({
+        faceCount: Math.round(this.smoothStats.faceCount),
+        vertexCount: Math.round(this.smoothStats.vertexCount),
+        progress: this.smoothStats.progress
+      });
+    }
   }
 
   private intersectPlanes(

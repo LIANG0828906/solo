@@ -15,7 +15,7 @@ export class ControlPanel {
   private listeners: Set<(params: CrystalParams) => void> = new Set();
   private smoothParams: CrystalParams;
   private targetParams: CrystalParams;
-  private animationId: number | null = null;
+  private readonly TRANSITION_DURATION: number = 1500;
 
   constructor(container: HTMLElement) {
     this.params = {
@@ -35,44 +35,37 @@ export class ControlPanel {
       .name('温度')
       .onChange((v: number) => {
         this.targetParams.temperature = v;
-        this.startSmoothing();
       });
     this.gui.add(this.params, 'supersaturation', 0, 2, 0.01)
       .name('过饱和度')
       .onChange((v: number) => {
         this.targetParams.supersaturation = v;
-        this.startSmoothing();
       });
     this.gui.add(this.params, 'impurityConcentration', 0, 1, 0.01)
       .name('杂质浓度')
       .onChange((v: number) => {
         this.targetParams.impurityConcentration = v;
-        this.startSmoothing();
       });
   }
 
-  private startSmoothing(): void {
-    if (this.animationId !== null) return;
-    const animate = () => {
-      let needsUpdate = false;
-      const keys = ['temperature', 'supersaturation', 'impurityConcentration'] as const;
-      keys.forEach(key => {
-        const diff = this.targetParams[key] - this.smoothParams[key];
-        if (Math.abs(diff) > 0.001) {
-          this.smoothParams[key] += diff * 0.05;
-          needsUpdate = true;
-        } else {
+  public update(deltaMs: number): boolean {
+    let changed = false;
+    const lerpFactor = Math.min(1, deltaMs / this.TRANSITION_DURATION);
+    const keys = ['temperature', 'supersaturation', 'impurityConcentration'] as const;
+    keys.forEach(key => {
+      const diff = this.targetParams[key] - this.smoothParams[key];
+      if (Math.abs(diff) > 0.001) {
+        this.smoothParams[key] += diff * lerpFactor * 3;
+        if (Math.abs(this.targetParams[key] - this.smoothParams[key]) < 0.001) {
           this.smoothParams[key] = this.targetParams[key];
         }
-      });
-      if (needsUpdate) {
-        this.notifyListeners();
-        this.animationId = requestAnimationFrame(animate);
-      } else {
-        this.animationId = null;
+        changed = true;
       }
-    };
-    this.animationId = requestAnimationFrame(animate);
+    });
+    if (changed) {
+      this.notifyListeners();
+    }
+    return changed;
   }
 
   private notifyListeners(): void {
@@ -89,9 +82,6 @@ export class ControlPanel {
   }
 
   public dispose(): void {
-    if (this.animationId !== null) {
-      cancelAnimationFrame(this.animationId);
-    }
     this.gui.destroy();
     this.listeners.clear();
   }
