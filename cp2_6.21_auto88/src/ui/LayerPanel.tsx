@@ -15,47 +15,150 @@ const LAYER_ICONS: Record<string, string> = {
 };
 
 function LayerIconSVG({ type }: { type: string }) {
-  const size = 20;
+  const size = 22;
   switch (type) {
     case 'particles':
       return (
-        <svg width={size} height={size} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M10 1L11.8 7.2L18 8L13.2 12.4L14.6 19L10 15.4L5.4 19L6.8 12.4L2 8L8.2 7.2L10 1Z" fill="#FFD700" stroke="#FFA000" strokeWidth="0.5" />
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <radialGradient id="starGlow" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor="#FFF7B0" stopOpacity="1" />
+              <stop offset="60%" stopColor="#FFD700" stopOpacity="0.9" />
+              <stop offset="100%" stopColor="#FFA500" stopOpacity="0.7" />
+            </radialGradient>
+          </defs>
+          <path
+            d="M12 2 L14.5 8.5 L21 9.5 L16 14.5 L17.5 21 L12 17.5 L6.5 21 L8 14.5 L3 9.5 L9.5 8.5 Z"
+            fill="url(#starGlow)"
+            stroke="#FFD700"
+            strokeWidth="0.5"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M12 5 L13.3 8.2 L16.8 8.8 L14.2 11.5 L15 15 L12 13.2 L9 15 L9.8 11.5 L7.2 8.8 L10.7 8.2 Z"
+            fill="#FFFEF0"
+            opacity="0.6"
+          />
+          <circle cx="12" cy="10" r="1.5" fill="#FFFFFF" opacity="0.9" />
         </svg>
       );
     case 'geometry':
       return (
-        <svg width={size} height={size} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M10 1.5L18.5 6.25V15.75L10 20.5L1.5 15.75V6.25L10 1.5Z" fill="none" stroke="#64B4FF" strokeWidth="1.5" strokeLinejoin="round" />
-          <path d="M10 5.5L14.5 8.25V13.75L10 16.5L5.5 13.75V8.25L10 5.5Z" fill="rgba(100,180,255,0.2)" stroke="#64B4FF" strokeWidth="0.8" strokeLinejoin="round" />
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="hexGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#64B4FF" />
+              <stop offset="50%" stopColor="#4FC3F7" />
+              <stop offset="100%" stopColor="#7C83FF" />
+            </linearGradient>
+          </defs>
+          <path
+            d="M12 2.5 L20.5 7.5 L20.5 16.5 L12 21.5 L3.5 16.5 L3.5 7.5 Z"
+            fill="none"
+            stroke="url(#hexGrad)"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M12 5.5 L18 9 L18 15 L12 18.5 L6 15 L6 9 Z"
+            fill="rgba(100, 180, 255, 0.15)"
+            stroke="rgba(100, 180, 255, 0.5)"
+            strokeWidth="0.8"
+            strokeLinejoin="round"
+          />
+          <circle cx="12" cy="12" r="4" fill="none" stroke="rgba(100, 180, 255, 0.4)" strokeWidth="0.8" strokeDasharray="2 2" />
+          <circle cx="12" cy="12" r="1.5" fill="rgba(79, 195, 247, 0.6)" />
+          <circle cx="12" cy="5.5" r="1" fill="#64B4FF" />
+          <circle cx="20.5" cy="12" r="1" fill="#4FC3F7" />
+          <circle cx="12" cy="18.5" r="1" fill="#7C83FF" />
+          <circle cx="3.5" cy="12" r="1" fill="#64B4FF" />
         </svg>
       );
     case 'gradient':
       return (
-        <svg width={size} height={size} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M2 4C2 2.9 2.9 2 4 2H8L6 6H2V4Z" fill="#FF6B6B" />
-          <path d="M8 2H12L10 6H6L8 2Z" fill="#FFEAA7" />
-          <path d="M12 2H16C17.1 2 18 2.9 18 4V6H14L12 2Z" fill="#A29BFE" />
-          <path d="M2 6H6L4 10H2V6Z" fill="#FD79A8" />
-          <path d="M6 6H10L8 10H4L6 6Z" fill="#74B9FF" />
-          <path d="M10 6H14L12 10H8L10 6Z" fill="#4ECDC4" />
-          <path d="M14 6H18V10H12L14 6Z" fill="#96CEB4" />
-          <path d="M2 10H4L2.5 13.5L2 10Z" fill="#E17055" />
-          <path d="M4 10H8L6 14H2.5L4 10Z" fill="#00B894" />
-          <path d="M8 10H12L10 14H6L8 10Z" fill="#45B7D1" />
-          <path d="M12 10H16L14 14H10L12 10Z" fill="#DFE6E9" />
-          <path d="M16 10H18L17.5 14H14L16 10Z" fill="#FF7675" />
-          <path d="M2.5 14H6L5 17C3.5 17 2.8 15.5 2.5 14Z" fill="#FF6B6B" />
-          <path d="M6 14H10L9 17H5L6 14Z" fill="#FFEAA7" />
-          <path d="M10 14H14L13 17H9L10 14Z" fill="#A29BFE" />
-          <path d="M14 14H17.5C17.2 15.5 16.5 17 15 17H13L14 14Z" fill="#4ECDC4" />
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="rainbow1" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#FF6B6B" />
+              <stop offset="20%" stopColor="#FFEAA7" />
+              <stop offset="40%" stopColor="#55EFC4" />
+              <stop offset="60%" stopColor="#74B9FF" />
+              <stop offset="80%" stopColor="#A29BFE" />
+              <stop offset="100%" stopColor="#FD79A8" />
+            </linearGradient>
+            <linearGradient id="rainbow2" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#FF8A80" />
+              <stop offset="25%" stopColor="#FFF59D" />
+              <stop offset="50%" stopColor="#81C784" />
+              <stop offset="75%" stopColor="#64B5F6" />
+              <stop offset="100%" stopColor="#BA68C8" />
+            </linearGradient>
+            <linearGradient id="rainbow3" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#FF5252" />
+              <stop offset="50%" stopColor="#FFEB3B" />
+              <stop offset="100%" stopColor="#448AFF" />
+            </linearGradient>
+          </defs>
+          <path
+            d="M2 18 Q12 3 22 18"
+            fill="none"
+            stroke="url(#rainbow1)"
+            strokeWidth="3"
+            strokeLinecap="round"
+            opacity="0.9"
+          />
+          <path
+            d="M4 17 Q12 5 20 17"
+            fill="none"
+            stroke="url(#rainbow2)"
+            strokeWidth="2.5"
+            strokeLinecap="round"
+            opacity="0.85"
+          />
+          <path
+            d="M6 16 Q12 7 18 16"
+            fill="none"
+            stroke="url(#rainbow3)"
+            strokeWidth="2"
+            strokeLinecap="round"
+            opacity="0.8"
+          />
+          <ellipse cx="12" cy="19" rx="10" ry="1.5" fill="rgba(100, 180, 255, 0.1)" />
         </svg>
       );
     case 'lines':
       return (
-        <svg width={size} height={size} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M1 8C4 4 7 12 10 8C13 4 16 12 19 8" stroke="#4ECDC4" strokeWidth="1.8" strokeLinecap="round" />
-          <path d="M1 14C4 10 7 18 10 14C13 10 16 18 19 14" stroke="#64B4FF" strokeWidth="1.4" strokeLinecap="round" opacity="0.7" />
+        <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="waveGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#4ECDC4" />
+              <stop offset="50%" stopColor="#64B4FF" />
+              <stop offset="100%" stopColor="#A29BFE" />
+            </linearGradient>
+          </defs>
+          <path
+            d="M1 8 Q4 4 7 8 Q10 12 13 8 Q16 4 19 8 Q22 12 24 8"
+            fill="none"
+            stroke="url(#waveGrad)"
+            strokeWidth="2"
+            strokeLinecap="round"
+          />
+          <path
+            d="M1 13 Q4 9 7 13 Q10 17 13 13 Q16 9 19 13 Q22 17 24 13"
+            fill="none"
+            stroke="rgba(100, 180, 255, 0.6)"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+          />
+          <path
+            d="M1 18 Q4 14 7 18 Q10 22 13 18 Q16 14 19 18 Q22 22 24 18"
+            fill="none"
+            stroke="rgba(78, 205, 196, 0.4)"
+            strokeWidth="1"
+            strokeLinecap="round"
+          />
+          <circle cx="10" cy="8" r="0.8" fill="#4ECDC4" opacity="0.8" />
+          <circle cx="17" cy="13" r="0.8" fill="#64B4FF" opacity="0.8" />
         </svg>
       );
     default:

@@ -89,15 +89,15 @@ export default function ControlBar() {
     <>
       <div
         style={{
-          height: '54px',
-          minHeight: '54px',
+          height: '62px',
+          minHeight: '62px',
           background: '#0f172a',
           borderTop: '1px solid rgba(255,255,255,0.05)',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
-          padding: '0 20px',
-          gap: '2px',
+          padding: '6px 20px 8px 20px',
+          gap: '4px',
         }}
       >
         <div
@@ -105,6 +105,7 @@ export default function ControlBar() {
             display: 'flex',
             alignItems: 'center',
             gap: '16px',
+            height: '32px',
           }}
         >
           <button
@@ -113,7 +114,7 @@ export default function ControlBar() {
               ...btnBase,
               background: state.isPlaying ? 'rgba(79, 195, 247, 0.15)' : 'rgba(79, 195, 247, 0.25)',
               color: '#4fc3f7',
-              fontSize: '16px',
+              fontSize: '15px',
               padding: '4px 12px',
             }}
             onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
@@ -125,15 +126,34 @@ export default function ControlBar() {
           <span
             style={{
               color: '#7a8aa8',
-              fontSize: '12px',
+              fontSize: '11px',
               fontFamily: 'monospace',
-              minWidth: '50px',
+              minWidth: '45px',
             }}
           >
             {formatTime(state.currentTime)}
           </span>
 
-          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ flex: 1, position: 'relative', display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div
+              style={{
+                position: 'absolute',
+                top: '-10px',
+                left: '50%',
+                transform: 'translateX(-50%)',
+                color: '#64B4FF',
+                fontSize: '10px',
+                fontFamily: 'monospace',
+                background: 'rgba(100, 180, 255, 0.08)',
+                padding: '1px 8px',
+                borderRadius: '3px',
+                border: '1px solid rgba(100, 180, 255, 0.15)',
+                whiteSpace: 'nowrap',
+                zIndex: 1,
+              }}
+            >
+              帧 {Math.floor(state.currentTime * FPS)} / {TOTAL_FRAMES}
+            </div>
             <input
               type="range"
               min="0"
@@ -149,41 +169,28 @@ export default function ControlBar() {
                 outline: 'none',
                 cursor: 'pointer',
                 accentColor: '#4fc3f7',
+                position: 'relative',
+                zIndex: 0,
               }}
             />
             <span
               style={{
                 color: '#7a8aa8',
-                fontSize: '12px',
+                fontSize: '11px',
                 fontFamily: 'monospace',
-                minWidth: '50px',
+                minWidth: '45px',
               }}
             >
               {formatTime(LOOP_DURATION)}
             </span>
           </div>
 
-          <span
-            style={{
-              color: '#64B4FF',
-              fontSize: '11px',
-              fontFamily: 'monospace',
-              minWidth: '90px',
-              textAlign: 'center',
-              background: 'rgba(100, 180, 255, 0.08)',
-              padding: '2px 8px',
-              borderRadius: '4px',
-              border: '1px solid rgba(100, 180, 255, 0.15)',
-            }}
-          >
-            帧 {Math.floor(state.currentTime * FPS)} / {TOTAL_FRAMES}
-          </span>
-
           <button
             onClick={() => dispatch({ type: 'TOGGLE_LOOPING' })}
             style={{
               ...btnBase,
               color: state.isLooping ? '#4fc3f7' : '#7a8aa8',
+              fontSize: '12px',
             }}
             onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
             onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
@@ -198,11 +205,14 @@ export default function ControlBar() {
             style={{
               ...btnBase,
               background: state.isRecording
-                ? 'rgba(255, 82, 82, 0.25)'
+                ? 'rgba(255, 82, 82, 0.35)'
                 : 'rgba(255, 82, 82, 0.12)',
-              color: state.isRecording ? '#ff8080' : '#ff5252',
+              color: state.isRecording ? '#ff6b6b' : '#ff5252',
               padding: '4px 12px',
+              fontSize: '12px',
+              transition: 'all 0.3s ease',
             }}
+            className={state.isRecording ? 'rec-btn-active' : ''}
             onMouseEnter={(e) => {
               if (!state.isRecording) e.currentTarget.style.transform = 'scale(1.05)';
             }}
@@ -210,14 +220,17 @@ export default function ControlBar() {
           >
             <span
               style={{
-                width: '10px',
-                height: '10px',
+                width: '9px',
+                height: '9px',
                 borderRadius: '50%',
                 background: state.isRecording ? '#ff5252' : '#ff5252',
                 display: 'inline-block',
-                animation: state.isRecording ? 'recBlink 1s infinite' : 'none',
-                boxShadow: state.isRecording ? '0 0 8px rgba(255, 82, 82, 0.8)' : 'none',
+                animation: state.isRecording ? 'recDotBlink 1s ease-in-out infinite' : 'none',
+                boxShadow: state.isRecording
+                  ? '0 0 10px rgba(255, 82, 82, 0.9), 0 0 20px rgba(255, 82, 82, 0.5)'
+                  : 'none',
               }}
+              className={state.isRecording ? 'rec-dot' : ''}
             />
             {state.isRecording ? '录制中...' : '录制 (10s)'}
           </button>
@@ -225,9 +238,28 @@ export default function ControlBar() {
       </div>
 
       <style>{`
-        @keyframes recBlink {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.2; transform: scale(0.8); }
+        @keyframes recDotBlink {
+          0%, 100% {
+            opacity: 1;
+            transform: scale(1);
+            box-shadow: 0 0 8px rgba(255, 82, 82, 0.8), 0 0 16px rgba(255, 82, 82, 0.4);
+          }
+          50% {
+            opacity: 0.3;
+            transform: scale(0.6);
+            box-shadow: 0 0 3px rgba(255, 82, 82, 0.3), 0 0 6px rgba(255, 82, 82, 0.1);
+          }
+        }
+        .rec-btn-active {
+          animation: recBtnPulse 1s ease-in-out infinite;
+        }
+        @keyframes recBtnPulse {
+          0%, 100% {
+            background: rgba(255, 82, 82, 0.35);
+          }
+          50% {
+            background: rgba(255, 82, 82, 0.2);
+          }
         }
       `}</style>
 

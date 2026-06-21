@@ -19,9 +19,11 @@ export default function CanvasArea() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rendererRef = useRef<WallRenderer | null>(null);
   const dragRef = useRef<DragState | null>(null);
+  const hoverTimerRef = useRef<number | null>(null);
   const [scale, setScale] = useState(1);
   const [hoveredElement, setHoveredElement] = useState<{ elementId: string; layerId: string } | null>(null);
   const [cursorStyle, setCursorStyle] = useState<string>('crosshair');
+  const HOVER_DEBOUNCE_MS = 40;
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -157,6 +159,21 @@ export default function CanvasArea() {
     [state, dispatch, getCanvasCoords]
   );
 
+  const updateHoverState = useCallback(
+    (x: number, y: number) => {
+      if (!rendererRef.current) return;
+      const hit = rendererRef.current.hitTest(x, y, state.layers);
+      if (hit) {
+        setHoveredElement({ elementId: hit.elementId, layerId: hit.layerId });
+        setCursorStyle('pointer');
+      } else {
+        setHoveredElement(null);
+        setCursorStyle('crosshair');
+      }
+    },
+    [state.layers]
+  );
+
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
       if (!rendererRef.current) return;
@@ -228,16 +245,14 @@ export default function CanvasArea() {
         return;
       }
 
-      const hit = rendererRef.current.hitTest(x, y, state.layers);
-      if (hit) {
-        setHoveredElement({ elementId: hit.elementId, layerId: hit.layerId });
-        setCursorStyle('pointer');
-      } else {
-        setHoveredElement(null);
-        setCursorStyle('crosshair');
+      if (hoverTimerRef.current !== null) {
+        window.clearTimeout(hoverTimerRef.current);
       }
+      hoverTimerRef.current = window.setTimeout(() => {
+        updateHoverState(x, y);
+      }, HOVER_DEBOUNCE_MS);
     },
-    [state, dispatch, getCanvasCoords]
+    [state, dispatch, getCanvasCoords, updateHoverState, HOVER_DEBOUNCE_MS]
   );
 
   const handleMouseUp = useCallback(() => {

@@ -419,10 +419,14 @@ export class WallRenderer {
     x: number,
     y: number,
     layers: Layer[]
-  ): { elementId: string; layerId: string } | null {
-    for (let i = layers.length - 1; i >= 0; i--) {
-      const layer = layers[i];
+  ): { elementId: string; layerId: string; layerIndex: number } | null {
+    let bestHit: { elementId: string; layerId: string; layerIndex: number; depth: number; size: number } | null = null;
+
+    for (let layerIndex = layers.length - 1; layerIndex >= 0; layerIndex--) {
+      const layer = layers[layerIndex];
       if (!layer.visible) continue;
+
+      const layerDepth = layerIndex;
 
       if (layer.type === 'geometry') {
         for (let j = layer.polygons.length - 1; j >= 0; j--) {
@@ -431,7 +435,10 @@ export class WallRenderer {
           const dy = y - poly.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist <= poly.radius + 5) {
-            return { elementId: poly.id, layerId: layer.id };
+            const priority = layerDepth * 10000 + poly.radius;
+            if (!bestHit || priority > bestHit.depth * 10000 + bestHit.size) {
+              bestHit = { elementId: poly.id, layerId: layer.id, layerIndex, depth: layerDepth, size: poly.radius };
+            }
           }
         }
       } else if (layer.type === 'particles') {
@@ -441,7 +448,10 @@ export class WallRenderer {
           const dy = y - p.y;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist <= p.size + 5) {
-            return { elementId: p.id, layerId: layer.id };
+            const priority = layerDepth * 10000 + p.size;
+            if (!bestHit || priority > bestHit.depth * 10000 + bestHit.size) {
+              bestHit = { elementId: p.id, layerId: layer.id, layerIndex, depth: layerDepth, size: p.size };
+            }
           }
         }
       } else if (layer.type === 'lines') {
@@ -453,12 +463,62 @@ export class WallRenderer {
           const dy = y - midY;
           const dist = Math.sqrt(dx * dx + dy * dy);
           if (dist <= 25) {
-            return { elementId: l.id, layerId: layer.id };
+            const priority = layerDepth * 10000 + 25;
+            if (!bestHit || priority > bestHit.depth * 10000 + bestHit.size) {
+              bestHit = { elementId: l.id, layerId: layer.id, layerIndex, depth: layerDepth, size: 25 };
+            }
           }
         }
       }
     }
+
+    if (bestHit) {
+      return { elementId: bestHit.elementId, layerId: bestHit.layerId, layerIndex: bestHit.layerIndex };
+    }
     return null;
+  }
+
+  drawHoverGlow(
+    ctx: CanvasRenderingContext2D,
+    element: Particle | Polygon | BezierLine,
+    elementType: 'particle' | 'polygon' | 'line'
+  ) {
+    ctx.save();
+    ctx.shadowColor = 'rgba(100, 180, 255, 0.7)';
+    ctx.shadowBlur = 20;
+    ctx.strokeStyle = 'rgba(100, 180, 255, 0.5)';
+    ctx.lineWidth = 3;
+
+    if (elementType === 'particle') {
+      const p = element as Particle;
+      ctx.beginPath();
+      ctx.arc(p.x, p.y, p.size + 8, 0, Math.PI * 2);
+      ctx.stroke();
+    } else if (elementType === 'polygon') {
+      const poly = element as Polygon;
+      ctx.translate(poly.x, poly.y);
+      ctx.rotate(poly.rotation);
+      ctx.beginPath();
+      for (let i = 0; i < poly.sides; i++) {
+        const angle = (i * 2 * Math.PI) / poly.sides - Math.PI / 2;
+        const x = Math.cos(angle) * (poly.radius + 10);
+        const y = Math.sin(angle) * (poly.radius + 10);
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.closePath();
+      ctx.stroke();
+    } else if (elementType === 'line') {
+      const line = element as BezierLine;
+      ctx.beginPath();
+      ctx.moveTo(line.startX, line.startY);
+      ctx.bezierCurveTo(line.cp1x, line.cp1y, line.cp2x, line.cp2y, line.endX, line.endY);
+      ctx.lineWidth = line.thickness * 2 + 10;
+      ctx.lineCap = 'round';
+      ctx.stroke();
+    }
+
+    ctx.restore();
   }
 
   getHandleAt(
