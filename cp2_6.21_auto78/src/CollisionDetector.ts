@@ -1,4 +1,4 @@
-import { Ball, Pocket, BALL_RADIUS } from './types';
+import { Ball, Pocket } from './types';
 
 export function checkCollisions(balls: Ball[]): void {
   for (let i = 0; i < balls.length; i++) {
@@ -37,10 +37,20 @@ export function checkCollisions(balls: Ball[]): void {
       const v1nAfter = (v1n * (m1 - m2) + 2 * m2 * v2n) / totalMass;
       const v2nAfter = (v2n * (m2 - m1) + 2 * m1 * v1n) / totalMass;
 
-      balls[i].vx = v1nAfter * nx + v1t * tx;
-      balls[i].vy = v1nAfter * ny + v1t * ty;
-      balls[j].vx = v2nAfter * nx + v2t * tx;
-      balls[j].vy = v2nAfter * ny + v2t * ty;
+      const v1nx = v1nAfter * nx;
+      const v1ny = v1nAfter * ny;
+      const v1tx = v1t * tx;
+      const v1ty = v1t * ty;
+
+      const v2nx = v2nAfter * nx;
+      const v2ny = v2nAfter * ny;
+      const v2tx = v2t * tx;
+      const v2ty = v2t * ty;
+
+      balls[i].vx = v1nx + v1tx;
+      balls[i].vy = v1ny + v1ty;
+      balls[j].vx = v2nx + v2tx;
+      balls[j].vy = v2ny + v2ty;
 
       const overlap = minDist - dist;
       const overlapRatio1 = m2 / totalMass;

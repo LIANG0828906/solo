@@ -15,8 +15,6 @@ export class Renderer {
   private scale: number = 1;
   private offsetX: number = 0;
   private offsetY: number = 0;
-  private aimLineVisible: boolean = true;
-  private lastAimBlinkTime: number = 0;
 
   constructor(ctx: CanvasRenderingContext2D) {
     this.ctx = ctx;
@@ -185,11 +183,9 @@ export class Renderer {
     if (!show || cueBall.pocketed) return;
 
     const now = Date.now();
-    if (now - this.lastAimBlinkTime >= AIM_BLINK_INTERVAL / 2) {
-      this.aimLineVisible = !this.aimLineVisible;
-      this.lastAimBlinkTime = now;
-    }
-    if (!this.aimLineVisible) return;
+    const blinkPhase = Math.floor(now / (AIM_BLINK_INTERVAL / 2)) % 2;
+    const isVisible = blinkPhase === 0;
+    if (!isVisible) return;
 
     const ctx = this.ctx;
     const dx = mouseX - cueBall.x;
@@ -206,11 +202,11 @@ export class Renderer {
     const endY = cueBall.y + ny * AIM_LINE_LENGTH;
 
     ctx.beginPath();
-    ctx.setLineDash([this.ts(5), this.ts(5)]);
+    ctx.setLineDash([this.ts(6), this.ts(4)]);
     ctx.moveTo(this.tx(startX), this.ty(startY));
     ctx.lineTo(this.tx(endX), this.ty(endY));
-    ctx.strokeStyle = 'rgba(255,255,255,0.85)';
-    ctx.lineWidth = this.ts(1.5);
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.lineWidth = this.ts(2);
     ctx.stroke();
     ctx.setLineDash([]);
   }

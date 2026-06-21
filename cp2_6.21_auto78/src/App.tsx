@@ -22,42 +22,32 @@ import {
 function createTable(): TableDimensions {
   const playW = TABLE_WIDTH;
   const playH = TABLE_HEIGHT;
+  const cw = CUSHION_WIDTH;
+
+  const innerLeft = cw;
+  const innerRight = cw + playW;
+  const innerTop = cw;
+  const innerBottom = cw + playH;
+  const innerMidX = cw + playW / 2;
 
   const pockets: Pocket[] = [
-    { x: CUSHION_WIDTH, y: CUSHION_WIDTH, radius: POCKET_RADIUS },
-    {
-      x: CUSHION_WIDTH + playW / 2,
-      y: CUSHION_WIDTH,
-      radius: POCKET_RADIUS,
-    },
-    {
-      x: CUSHION_WIDTH + playW,
-      y: CUSHION_WIDTH,
-      radius: POCKET_RADIUS,
-    },
-    {
-      x: CUSHION_WIDTH,
-      y: CUSHION_WIDTH + playH,
-      radius: POCKET_RADIUS,
-    },
-    {
-      x: CUSHION_WIDTH + playW / 2,
-      y: CUSHION_WIDTH + playH,
-      radius: POCKET_RADIUS,
-    },
-    {
-      x: CUSHION_WIDTH + playW,
-      y: CUSHION_WIDTH + playH,
-      radius: POCKET_RADIUS,
-    },
+    { x: innerLeft, y: innerTop, radius: POCKET_RADIUS },
+    { x: innerMidX, y: innerTop, radius: POCKET_RADIUS },
+    { x: innerRight, y: innerTop, radius: POCKET_RADIUS },
+    { x: innerLeft, y: innerBottom, radius: POCKET_RADIUS },
+    { x: innerMidX, y: innerBottom, radius: POCKET_RADIUS },
+    { x: innerRight, y: innerBottom, radius: POCKET_RADIUS },
   ];
+
+  const totalW = playW + 2 * cw;
+  const totalH = playH + 2 * cw;
 
   return {
     x: 0,
     y: 0,
-    width: playW + 2 * CUSHION_WIDTH,
-    height: playH + 2 * CUSHION_WIDTH,
-    cushionWidth: CUSHION_WIDTH,
+    width: totalW,
+    height: totalH,
+    cushionWidth: cw,
     pockets,
   };
 }
@@ -74,6 +64,7 @@ function createBall(id: number, x: number, y: number): Ball {
     stripe: id >= 9,
     number: id,
     pocketed: false,
+    trajectory: [],
   };
 }
 
@@ -308,15 +299,8 @@ const App: React.FC = () => {
 
         for (const id of pocketed) {
           latestState.addPocketedBall(id);
-          if (latestState.mode === 'sequential' && id !== 0) {
-            if (id === latestState.currentTarget) {
-              useGameStore.setState({ score: latestState.score + 10 });
-              useGameStore.setState({ currentTarget: latestState.currentTarget + 1 });
-            } else {
-              latestState.triggerFoul();
-            }
-          } else if (latestState.mode === 'free' && id !== 0) {
-            useGameStore.setState({ score: latestState.score + 10 });
+          if (id !== 0) {
+            latestState.checkPocketedBallForFoul(id);
           }
           if (id === 0) {
             placeCueBall(ballsRef.current);
@@ -331,6 +315,7 @@ const App: React.FC = () => {
         useGameStore.getState().addFrameToShot({ balls: frameBalls });
 
         if (allBallsStopped(ballsRef.current)) {
+          useGameStore.getState().collectBallTrajectories(ballsRef.current);
           useGameStore.getState().endShot();
           useGameStore.getState().setPhase('idle');
         }
@@ -507,6 +492,9 @@ const App: React.FC = () => {
         const speed = (state.power / 100) * MAX_SHOT_SPEED;
         cueBall.vx = aimDirRef.current.x * speed;
         cueBall.vy = aimDirRef.current.y * speed;
+        for (const b of ballsRef.current) {
+          b.trajectory = [{ x: b.x, y: b.y }];
+        }
         state.startShot();
         state.setPhase('moving');
       }

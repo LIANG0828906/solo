@@ -9,6 +9,7 @@ export interface Ball {
   stripe: boolean;
   number: number;
   pocketed: boolean;
+  trajectory: TrajectoryPoint[];
 }
 
 export interface Pocket {

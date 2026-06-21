@@ -34,11 +34,13 @@ interface GameStore {
   setCurrentTarget: (target: number) => void;
   triggerFoul: () => void;
   clearFoul: () => boolean;
+  checkPocketedBallForFoul: (ballId: number) => { isFoul: boolean; scoreDelta: number };
   addCushionFlash: (flash: CushionFlash) => void;
   cleanCushionFlashes: () => void;
   startShot: () => void;
   addFrameToShot: (frame: HistoryFrame) => void;
   setTrajectories: (traj: BallTrajectory[]) => void;
+  collectBallTrajectories: (balls: { id: number; trajectory: { x: number; y: number }[] }[]) => void;
   endShot: () => void;
   startReplay: () => void;
   advanceReplay: () => void;
@@ -112,6 +114,28 @@ export const useGameStore = create<GameStore>((set, get) => ({
     return false;
   },
 
+  checkPocketedBallForFoul: (ballId: number) => {
+    const s = get();
+    if (ballId === 0) {
+      return { isFoul: false, scoreDelta: 0 };
+    }
+    if (s.mode === 'sequential') {
+      if (ballId === s.currentTarget) {
+        set({
+          score: s.score + 10,
+          currentTarget: s.currentTarget + 1,
+        });
+        return { isFoul: false, scoreDelta: 10 };
+      } else {
+        set({ foul: true, foulTime: Date.now() });
+        return { isFoul: true, scoreDelta: 0 };
+      }
+    } else {
+      set({ score: s.score + 10 });
+      return { isFoul: false, scoreDelta: 10 };
+    }
+  },
+
   addCushionFlash: (flash) =>
     set((s) => ({ cushionFlashes: [...s.cushionFlashes, flash] })),
 
@@ -131,9 +155,27 @@ export const useGameStore = create<GameStore>((set, get) => ({
 
   setTrajectories: (traj) => set({ currentTrajectories: traj }),
 
+  collectBallTrajectories: (balls) => {
+    const trajectories: BallTrajectory[] = [];
+    for (const b of balls) {
+      if (b.trajectory && b.trajectory.length > 1) {
+        trajectories.push({
+          ballId: b.id,
+          points: b.trajectory.map((p) => ({ x: p.x, y: p.y })),
+        });
+      }
+    }
+    if (trajectories.length > 0) {
+      set({ currentTrajectories: trajectories });
+    }
+  },
+
   endShot: () => {
     const s = get();
-    const trajectories = buildTrajectories(s.currentShotFrames);
+    let trajectories = s.currentTrajectories;
+    if (trajectories.length === 0) {
+      trajectories = buildTrajectories(s.currentShotFrames);
+    }
     set((s) => ({
       shotHistory: [
         ...s.shotHistory,

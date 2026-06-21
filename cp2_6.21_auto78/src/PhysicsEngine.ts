@@ -13,6 +13,11 @@ export function updateBalls(
     ball.x += ball.vx;
     ball.y += ball.vy;
 
+    if (ball.trajectory === undefined) {
+      ball.trajectory = [];
+    }
+    ball.trajectory.push({ x: ball.x, y: ball.y });
+
     ball.vx *= FRICTION;
     ball.vy *= FRICTION;
 
