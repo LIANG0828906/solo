@@ -8,6 +8,7 @@ interface SnapshotEntry {
 
 interface DashboardState {
   isLoading: boolean
+  isRefreshing: boolean
   isError: boolean
   errorMessage: string | null
   summary: DashboardData['summary'] | null
@@ -28,6 +29,7 @@ const MAX_SNAPSHOTS = 48
 
 export const useDashboardStore = create<DashboardState>((set, get) => ({
   isLoading: false,
+  isRefreshing: false,
   isError: false,
   errorMessage: null,
   summary: null,
@@ -42,7 +44,7 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
     const state = get()
     if (state.isLoading) return
 
-    set({ isLoading: true, isError: false, errorMessage: null })
+    set({ isLoading: true, isRefreshing: true, isError: false, errorMessage: null })
 
     try {
       const data = await dataFetcher.fetchDashboardData()
@@ -62,10 +64,15 @@ export const useDashboardStore = create<DashboardState>((set, get) => ({
         lastUpdated: Date.now(),
         historySnapshots: snapshots
       })
+
+      setTimeout(() => {
+        set({ isRefreshing: false })
+      }, 3000)
     } catch (error: unknown) {
       const message = error instanceof Error ? error.message : '获取数据失败'
       set({
         isLoading: false,
+        isRefreshing: false,
         isError: true,
         errorMessage: message
       })

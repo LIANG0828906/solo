@@ -16,11 +16,13 @@ interface StatCardProps {
   title: string
   value: number
   suffix?: string
-  isLoading: boolean
+  isRefreshing: boolean
   prefix?: string
+  icon?: string
+  formatInteger?: boolean
 }
 
-const StatCard: React.FC<StatCardProps> = ({ title, value, suffix = '', isLoading, prefix = '' }) => {
+const StatCard: React.FC<StatCardProps> = ({ title, value, suffix = '', isRefreshing, prefix = '', icon, formatInteger = false }) => {
   const [displayValue, setDisplayValue] = React.useState(0)
   const prevValueRef = useRef(0)
   const animationRef = useRef<number | null>(null)
@@ -59,6 +61,12 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, suffix = '', isLoadin
   }, [value])
 
   const formatValue = (val: number): string => {
+    if (formatInteger) {
+      if (val >= 10000) {
+        return Math.round(val / 10000).toLocaleString() + '万'
+      }
+      return Math.round(val).toLocaleString()
+    }
     if (val >= 10000) {
       return (val / 10000).toFixed(2) + '万'
     }
@@ -92,8 +100,8 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, suffix = '', isLoadin
         position: 'absolute',
         top: '16px',
         right: '16px',
-        opacity: isLoading ? 1 : 0,
-        transition: 'opacity 0.2s ease'
+        opacity: isRefreshing ? 1 : 0,
+        transition: 'opacity 0.3s ease'
       }}>
         <svg
           width="20"
@@ -106,19 +114,28 @@ const StatCard: React.FC<StatCardProps> = ({ title, value, suffix = '', isLoadin
           strokeLinejoin="round"
           style={{
             color: 'rgba(255,255,255,0.8)',
-            animation: isLoading ? 'spin 1s linear infinite' : 'none'
+            animation: isRefreshing ? 'spin 1s linear infinite' : 'none'
           }}
         >
           <path d="M21 12a9 9 0 1 1-6.219-8.56" />
         </svg>
       </div>
       <div style={{
-        fontSize: '14px',
-        color: 'rgba(255,255,255,0.85)',
-        marginBottom: '12px',
-        fontWeight: 500
+        display: 'flex',
+        alignItems: 'center',
+        gap: '10px',
+        marginBottom: '12px'
       }}>
-        {title}
+        {icon && (
+          <span style={{ fontSize: '20px' }}>{icon}</span>
+        )}
+        <div style={{
+          fontSize: '14px',
+          color: 'rgba(255,255,255,0.85)',
+          fontWeight: 500
+        }}>
+          {title}
+        </div>
       </div>
       <div style={{
         fontSize: '28px',
@@ -268,7 +285,7 @@ export const Dashboard: React.FC = () => {
     anomalies,
     selectedAnomalyId,
     zoomRange,
-    isLoading,
+    isRefreshing,
     lastUpdated,
     selectAnomaly,
     setZoomRange
@@ -367,26 +384,32 @@ export const Dashboard: React.FC = () => {
             <StatCard
               title="总订单量"
               value={summary?.totalOrders || 0}
-              isLoading={isLoading}
+              isRefreshing={isRefreshing}
               suffix=" 单"
+              icon="📦"
+              formatInteger
             />
             <StatCard
               title="总销售额"
               value={summary?.totalSales || 0}
-              isLoading={isLoading}
+              isRefreshing={isRefreshing}
               prefix="¥"
+              icon="💰"
             />
             <StatCard
               title="平均客单价"
               value={summary?.avgOrderValue || 0}
-              isLoading={isLoading}
+              isRefreshing={isRefreshing}
               prefix="¥"
+              icon="📊"
             />
             <StatCard
-              title="库存变动数"
+              title="总库存变动"
               value={summary?.totalInventoryChange || 0}
-              isLoading={isLoading}
+              isRefreshing={isRefreshing}
               suffix=" 件"
+              icon="📋"
+              formatInteger
             />
           </div>
 
