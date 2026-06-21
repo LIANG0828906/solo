@@ -1,9 +1,9 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Search, X, ShoppingCart } from 'lucide-react';
-import { useAppStore } from '@/store/appStore';
+import { Search, X, ShoppingCart, AlertCircle } from 'lucide-react';
+import { useAppStore } from '@/state/appStore';
+import type { Recipe, MealSlot, WeekDay } from '@/state/appStore';
 import { cn } from '@/lib/utils';
-import type { Recipe, MealSlot, WeekDay } from '@/types';
 import { WEEKDAY_NAMES, SLOT_INFO, getMonday, formatDateRange } from '@/data/mockData';
 import ToastContainer from '@/components/ToastContainer';
 
@@ -18,7 +18,14 @@ interface DragInfo {
   fromDay: WeekDay;
   fromSlot: MealSlot;
   recipeId: string;
+  recipeName: string;
 }
+
+const SLOT_LABELS: Record<MealSlot, string> = {
+  breakfast: '早餐',
+  lunch: '午餐',
+  dinner: '晚餐',
+};
 
 export default function MealPlanner() {
   const { inviteCode } = useParams<{ inviteCode: string }>();
@@ -28,14 +35,17 @@ export default function MealPlanner() {
   const entries = useAppStore((s) => s.mealPlanEntries);
   const addMealPlanEntry = useAppStore((s) => s.addMealPlanEntry);
   const removeMealPlanEntry = useAppStore((s) => s.removeMealPlanEntry);
-  const moveMealPlanEntry = useAppStore((s) => s.moveMealPlanEntry);
+  const moveMealPlanEntryFlat = useAppStore((s) => s.moveMealPlanEntryFlat);
+  const pushToast = useAppStore((s) => s.pushToast);
 
   const [pickCell, setPickCell] = useState<PickCell | null>(null);
   const [search, setSearch] = useState('');
   const pickRef = useRef<HTMLDivElement>(null);
+  const dragGhostRef = useRef<HTMLDivElement | null>(null);
 
   const [dragInfo, setDragInfo] = useState<DragInfo | null>(null);
   const [hoverTarget, setHoverTarget] = useState<PickCell | null>(null);
+  const [invalidDropRejected, setInvalidDropRejected] = useState(false);
 
   const weekStart = useMemo(() => getMonday(new Date()), []);
   const weekDates = useMemo(() => {
@@ -58,8 +68,7 @@ export default function MealPlanner() {
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (!pickRef.current) return;
-      if (!pickRef.current.contains(e.target as Node)) {
+      if (pickRef.current && !pickRef.current.contains(e.target as Node)) {
         setPickCell(null);
         setSearch('');
       }
@@ -80,36 +89,104 @@ export default function MealPlanner() {
     setSearch('');
   };
 
+  const createDragGhost = (text: string) => {
+    const el = document.createElement('div');
+    el.className = 'fixed -left-[9999px] z-50 pointer-events-none select-none';
+    el.innerHTML = `
+      <div style="background:#fff;border:2px solid #f5a623;border-radius:12px;box-shadow:0 12px 32px rgba(0,0,0,0.18);padding:12px 16px;display:flex;align-items:center;gap:12px">
+        <span style="font-size:24px">🍽️</span>
+        <div>
+          <div style="font-family:'Ma Shan Zheng',serif;font-size:16px;color:#2d2a26">${text}</div>
+          <div style="font-size:11px;color:#999;margin-top:2px">拖拽移动中...</div>
+        </div>
+      </div>`;
+    document.body.appendChild(el);
+    dragGhostRef.current = el;
+    return el;
+  };
+
+  const cleanupDragGhost = () => {
+    if (dragGhostRef.current) {
+      document.body.removeChild(dragGhostRef.current);
+      dragGhostRef.current = null;
+    }
+  };
+
   const handleDragStart = (e: React.DragEvent, day: WeekDay, slot: MealSlot) => {
     const entry = getEntry(day, slot);
     if (!entry) return;
-    setDragInfo({ fromDay: day, fromSlot: slot, recipeId: entry.recipeId });
+    const recipe = getRecipe(entry.recipeId);
+    if (!recipe) return;
+
+    setDragInfo({
+      fromDay: day,
+      fromSlot: slot,
+      recipeId: entry.recipeId,
+      recipeName: recipe.name,
+    });
     e.dataTransfer.effectAllowed = 'move';
     e.dataTransfer.setData('text/plain', entry.recipeId);
+
+    const ghost = createDragGhost(recipe.name);
+    try {
+      e.dataTransfer.setDragImage(ghost, 60, 30);
+    } catch {
+      /* ignore */
+    }
+    setTimeout(cleanupDragGhost, 0);
   };
 
   const handleDragOver = (e: React.DragEvent, day: WeekDay, slot: MealSlot) => {
     if (!dragInfo) return;
-    if (dragInfo.fromSlot !== slot) return;
+    if (dragInfo.fromSlot !== slot) {
+      e.dataTransfer.dropEffect = 'none';
+      setHoverTarget({ day, slot });
+      setInvalidDropRejected(true);
+      return;
+    }
     e.preventDefault();
     e.dataTransfer.dropEffect = 'move';
     setHoverTarget({ day, slot });
+    setInvalidDropRejected(false);
+  };
+
+  const handleDragLeave = (_e: React.DragEvent, day: WeekDay, slot: MealSlot) => {
+    if (hoverTarget?.day === day && hoverTarget?.slot === slot) {
+      setHoverTarget(null);
+      setInvalidDropRejected(false);
+    }
   };
 
   const handleDrop = (e: React.DragEvent, day: WeekDay, slot: MealSlot) => {
     e.preventDefault();
     if (!dragInfo) return;
-    if (dragInfo.fromSlot !== slot) return;
+
+    if (dragInfo.fromSlot !== slot) {
+      pushToast(
+        'warning',
+        `拖拽失败：${SLOT_LABELS[dragInfo.fromSlot]} → ${SLOT_LABELS[slot]} 不允许跨餐次移动，仅相同餐次可跨日期`
+      );
+      setDragInfo(null);
+      setHoverTarget(null);
+      setInvalidDropRejected(false);
+      cleanupDragGhost();
+      return;
+    }
+
     if (dragInfo.fromDay !== day) {
-      moveMealPlanEntry(dragInfo.fromDay, dragInfo.fromSlot, day, slot);
+      moveMealPlanEntryFlat(dragInfo.fromDay, dragInfo.fromSlot, day, slot);
     }
     setDragInfo(null);
     setHoverTarget(null);
+    setInvalidDropRejected(false);
+    cleanupDragGhost();
   };
 
   const handleDragEnd = () => {
     setDragInfo(null);
     setHoverTarget(null);
+    setInvalidDropRejected(false);
+    cleanupDragGhost();
   };
 
   return (
@@ -127,6 +204,10 @@ export default function MealPlanner() {
             🍽️ 每周菜单规划
           </h1>
           <p className="text-gray-500 mt-1 text-sm">{formatDateRange(weekStart)}</p>
+          <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
+            <AlertCircle className="w-3.5 h-3.5" />
+            提示：拖拽菜单项可在「同一餐次」间跨日期移动
+          </p>
         </div>
         <button
           className="btn-primary"
@@ -174,16 +255,14 @@ export default function MealPlanner() {
                   const entry = getEntry(day, slot);
                   const recipe = entry ? getRecipe(entry.recipeId) : null;
                   const isDragOver =
-                    hoverTarget &&
-                    hoverTarget.day === day &&
-                    hoverTarget.slot === slot &&
-                    dragInfo &&
-                    dragInfo.fromSlot === slot &&
-                    dragInfo.fromDay !== day;
+                    hoverTarget?.day === day && hoverTarget?.slot === slot;
                   const isDragging =
-                    dragInfo &&
-                    dragInfo.fromDay === day &&
-                    dragInfo.fromSlot === slot;
+                    dragInfo?.fromDay === day && dragInfo?.fromSlot === slot;
+                  const sameSlotDrag =
+                    dragInfo && dragInfo.fromSlot === slot && dragInfo.fromDay !== day;
+                  const isDropTarget = isDragOver && !!sameSlotDrag;
+                  const isInvalidDrop =
+                    isDragOver && !!dragInfo && dragInfo.fromSlot !== slot && invalidDropRejected;
 
                   return (
                     <div
@@ -193,17 +272,14 @@ export default function MealPlanner() {
                         entry
                           ? 'bg-white border border-orange-100 shadow-sm hover:shadow-md hover:-translate-y-0.5'
                           : 'bg-white/40 border-2 border-dashed border-gray-200 hover:border-primary/50 hover:bg-orange-50/30',
-                        isDragOver && 'ring-2 ring-primary ring-offset-1 bg-orange-50',
-                        isDragging && 'opacity-50'
+                        isDropTarget && 'ring-2 ring-primary ring-offset-1 bg-orange-50',
+                        isInvalidDrop && 'ring-2 ring-red-400 ring-offset-1 bg-red-50',
+                        isDragging && 'opacity-40 scale-[0.98]'
                       )}
                       draggable={!!entry}
                       onDragStart={(e) => handleDragStart(e, day, slot)}
                       onDragOver={(e) => handleDragOver(e, day, slot)}
-                      onDragLeave={() => {
-                        if (hoverTarget?.day === day && hoverTarget?.slot === slot) {
-                          setHoverTarget(null);
-                        }
-                      }}
+                      onDragLeave={(e) => handleDragLeave(e, day, slot)}
                       onDrop={(e) => handleDrop(e, day, slot)}
                       onDragEnd={handleDragEnd}
                       onClick={() => !entry && setPickCell({ day, slot })}
@@ -311,6 +387,15 @@ export default function MealPlanner() {
                 </button>
               ))}
             </div>
+          </div>
+        </div>
+      )}
+
+      {invalidDropRejected && (
+        <div className="fixed bottom-8 left-1/2 -translate-x-1/2 z-50 pointer-events-none animate-toast-in">
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-2 rounded-xl shadow-lg flex items-center gap-2">
+            <AlertCircle className="w-4 h-4" />
+            <span className="text-sm font-medium">仅允许在相同餐次间跨日期移动</span>
           </div>
         </div>
       )}

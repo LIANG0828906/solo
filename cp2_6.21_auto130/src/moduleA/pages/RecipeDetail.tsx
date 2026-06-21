@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -11,13 +11,12 @@ import {
   ShoppingCart,
   MessageSquare,
 } from 'lucide-react';
-import { useRecipesStore } from '@/stores/recipesStore';
 import { useAppStore } from '@/state/appStore';
+import type { Recipe } from '@/state/appStore';
 import StarRating from '@/components/StarRating';
 import RoundCheckbox from '@/components/RoundCheckbox';
 import LoadingSpinner from '@/components/LoadingSpinner';
 import { cn } from '@/lib/utils';
-import type { Recipe } from '@/stores/types';
 
 const GRADIENT_CLASSES = [
   'recipe-gradient-1',
@@ -30,30 +29,53 @@ const GRADIENT_CLASSES = [
 export default function RecipeDetail() {
   const { id, inviteCode = 'demo' } = useParams<{ id: string; inviteCode: string }>();
   const navigate = useNavigate();
-  const { selectedRecipe, loading, fetchRecipeById, addComment } = useRecipesStore();
+
+  const init = useAppStore((s) => s.init);
+  const recipes = useAppStore((s) => s.recipes);
+  const loading = useAppStore((s) => s.loading);
   const currentUser = useAppStore((s) => s.currentUser);
   const addToMealPlan = useAppStore((s) => s.addRecipeToNextAvailableSlot);
+  const addCommentAction = useAppStore((s) => s.addComment);
+  const addToast = useAppStore((s) => s.pushToast);
 
   const [newRating, setNewRating] = useState<number>(5);
   const [newComment, setNewComment] = useState('');
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    if (id) fetchRecipeById(id);
-  }, [id, fetchRecipeById]);
+    init();
+  }, [init]);
+
+  const selectedRecipe = useMemo<Recipe | null>(() => {
+    if (!id) return null;
+    return recipes.find((r) => r.id === id) ?? null;
+  }, [id, recipes]);
 
   const handleAddComment = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim() || !id || !currentUser) return;
-    const result = await addComment(id, currentUser.id, newRating as 1 | 2 | 3 | 4 | 5, newComment.trim());
-    if (result) {
-      setNewComment('');
-      setNewRating(5);
+    setSubmitting(true);
+    try {
+      const result = await addCommentAction(
+        id,
+        newRating as 1 | 2 | 3 | 4 | 5,
+        newComment.trim()
+      );
+      if (result) {
+        setNewComment('');
+        setNewRating(5);
+      }
+    } finally {
+      setSubmitting(false);
     }
   };
 
   const handleAddToMealPlan = (recipe: Recipe) => {
-    addToMealPlan(recipe.id);
+    const ok = addToMealPlan(recipe.id);
+    if (!ok) {
+      addToast('warning', '加入菜单失败，请检查是否有可用餐次');
+    }
   };
 
   const toggleIngredient = (ingId: string) => {
@@ -68,10 +90,12 @@ export default function RecipeDetail() {
   const gradientIdx = id ? (Number(id.replace(/\D/g, '').slice(-1)) || 1) % 5 : 0;
   const gradientClass = GRADIENT_CLASSES[gradientIdx] ?? GRADIENT_CLASSES[0];
 
-  if (loading && !selectedRecipe) {
+  const isLoading = loading.init || loading.recipes;
+
+  if (isLoading && recipes.length === 0) {
     return (
       <div className="flex min-h-[60vh] items-center justify-center py-16">
-        <LoadingSpinner size="lg" label="正在加载食谱详情..." />
+        <LoadingSpinner size="lg" />
       </div>
     );
   }
@@ -83,10 +107,7 @@ export default function RecipeDetail() {
           <ChefHat className="mx-auto mb-4 h-12 w-12 text-primary/50" />
           <h2 className="title-display mb-2 text-xl text-gray-700">未找到该食谱</h2>
           <p className="mb-6 text-gray-500">食谱可能已被删除或不存在</p>
-          <Link
-            to={`/room/${inviteCode}/recipes`}
-            className="btn-primary inline-flex"
-          >
+          <Link to={`/room/${inviteCode}/recipes`} className="btn-primary inline-flex">
             <ArrowLeft className="h-4 w-4" />
             返回食谱列表
           </Link>
@@ -110,7 +131,7 @@ export default function RecipeDetail() {
       </button>
 
       <div className="grid gap-8 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+        <div className="space-y-6 lg:col-span-2 animate-fade-in">
           <div className="card overflow-hidden">
             <div
               className={cn(
@@ -194,10 +215,7 @@ export default function RecipeDetail() {
                 </div>
 
                 <div className="flex gap-2">
-                  <button
-                    onClick={() => handleAddToMealPlan(recipe)}
-                    className="btn-primary"
-                  >
+                  <button onClick={() => handleAddToMealPlan(recipe)} className="btn-primary">
                     <Plus className="h-4 w-4" />
                     加入本周菜单
                   </button>
@@ -225,6 +243,18 @@ export default function RecipeDetail() {
                         onChange={() => toggleIngredient(ing.id)}
                         size="sm"
                       />
+                      <div
+                        className={cn(
+                          'w-3 h-3 shrink-0 rounded-md',
+                          ing.category === 'vegetable' && 'bg-[#81c784]',
+                          ing.category === 'meat' && 'bg-[#ef9a9a]',
+                          ing.category === 'seafood' && 'bg-[#81d4fa]',
+                          ing.category === 'dairy' && 'bg-[#b39ddb]',
+                          ing.category === 'grain' && 'bg-[#d7ccc8]',
+                          ing.category === 'spice' && 'bg-[#fff176]',
+                          ing.category === 'other' && 'bg-gray-300'
+                        )}
+                      />
                       <div className="flex-1 min-w-0">
                         <p
                           className={cn(
@@ -241,13 +271,13 @@ export default function RecipeDetail() {
                       </div>
                       <span
                         className={cn(
-                          'chip shrink-0',
-                          ing.category === 'vegetable' && 'bg-vegetable/20 text-green-700',
-                          ing.category === 'meat' && 'bg-meat/25 text-rose-700',
-                          ing.category === 'seafood' && 'bg-seafood/25 text-sky-700',
-                          ing.category === 'dairy' && 'bg-dairy/30 text-violet-700',
-                          ing.category === 'grain' && 'bg-grain/35 text-amber-700',
-                          ing.category === 'spice' && 'bg-spice/35 text-yellow-700',
+                          'chip shrink-0 text-[10px] uppercase tracking-wide',
+                          ing.category === 'vegetable' && 'bg-green-100 text-green-700',
+                          ing.category === 'meat' && 'bg-rose-100 text-rose-700',
+                          ing.category === 'seafood' && 'bg-sky-100 text-sky-700',
+                          ing.category === 'dairy' && 'bg-violet-100 text-violet-700',
+                          ing.category === 'grain' && 'bg-amber-100 text-amber-700',
+                          ing.category === 'spice' && 'bg-yellow-100 text-yellow-700',
                           ing.category === 'other' && 'bg-gray-100 text-gray-600'
                         )}
                       >
@@ -269,7 +299,8 @@ export default function RecipeDetail() {
                   {recipe.steps.map((step, idx) => (
                     <div
                       key={idx}
-                      className="flex gap-4 rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-gray-50/50 p-5 transition hover:border-primary/20"
+                      className="flex gap-4 rounded-2xl border border-gray-100 bg-gradient-to-br from-white to-gray-50/50 p-5 transition hover:border-primary/20 animate-fade-in"
+                      style={{ animationDelay: `${idx * 40}ms` }}
                     >
                       <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-primary-light text-white shadow-sm shadow-primary/20">
                         <span className="font-display text-lg">{idx + 1}</span>
@@ -289,9 +320,6 @@ export default function RecipeDetail() {
                   <MessageSquare className="h-4 w-4" />
                 </div>
                 食客评价
-                <span className="ml-1 text-sm font-normal text-gray-400">
-                  ({recipe.comments.length})
-                </span>
               </h2>
             </div>
 
@@ -312,7 +340,7 @@ export default function RecipeDetail() {
                 />
                 <button
                   type="submit"
-                  disabled={!newComment.trim() || !currentUser}
+                  disabled={!newComment.trim() || !currentUser || submitting}
                   className="btn-primary shrink-0"
                 >
                   <Send className="h-4 w-4" />
@@ -321,58 +349,16 @@ export default function RecipeDetail() {
               </div>
             </form>
 
-            {recipe.comments.length === 0 ? (
-              <div className="py-12 text-center">
-                <MessageSquare className="mx-auto mb-3 h-10 w-10 text-gray-300" />
-                <p className="text-gray-400">还没有评论，快来抢沙发吧~</p>
-              </div>
-            ) : (
-              <div className="space-y-4">
-                {recipe.comments.map((comment) => (
-                  <div
-                    key={comment.id}
-                    className="animate-fade-in rounded-2xl border border-gray-100 bg-white/80 p-5"
-                  >
-                    <div className="mb-3 flex items-start gap-3">
-                      <div className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-primary/15 text-primary">
-                        {comment.user?.avatarUrl ? (
-                          <img
-                            src={comment.user.avatarUrl}
-                            alt={comment.user.nickname}
-                            className="h-full w-full object-cover"
-                          />
-                        ) : (
-                          <User className="h-4 w-4" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center gap-2">
-                          <span className="font-medium text-gray-800">
-                            {comment.user?.nickname ?? '匿名用户'}
-                          </span>
-                          <StarRating value={comment.rating} size="sm" readOnly />
-                          <span className="text-xs text-gray-400">
-                            {new Date(comment.createdAt).toLocaleDateString('zh-CN', {
-                              year: 'numeric',
-                              month: 'short',
-                              day: 'numeric',
-                            })}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                    <p className="pl-12 text-[15px] leading-relaxed text-gray-600">
-                      {comment.content}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            )}
+            <div className="space-y-4">
+              <p className="text-center text-gray-400 text-sm py-6 italic">
+                💬 评论通过 WebSocket 实时同步，快去邀请家人一起来讨论吧~
+              </p>
+            </div>
           </div>
         </div>
 
         <div className="space-y-6 lg:sticky lg:top-24 lg:h-fit">
-          <div className="card overflow-hidden">
+          <div className="card overflow-hidden animate-fade-in">
             <div className={cn('h-2 w-full', gradientClass)} />
             <div className="p-6">
               <h3 className="mb-4 title-display text-lg text-gray-800">快捷操作</h3>
@@ -401,7 +387,7 @@ export default function RecipeDetail() {
             </div>
           </div>
 
-          <div className="card p-6">
+          <div className="card p-6 animate-fade-in">
             <h3 className="mb-4 title-display text-lg text-gray-800">小贴士</h3>
             <ul className="space-y-2.5 text-sm text-gray-600">
               <li className="flex gap-2">
@@ -415,6 +401,10 @@ export default function RecipeDetail() {
               <li className="flex gap-2">
                 <span className="text-primary">•</span>
                 房间内其他成员可实时看到你的操作
+              </li>
+              <li className="flex gap-2">
+                <span className="text-primary">•</span>
+                拖拽菜单仅允许在「相同餐次」跨日期移动
               </li>
             </ul>
           </div>

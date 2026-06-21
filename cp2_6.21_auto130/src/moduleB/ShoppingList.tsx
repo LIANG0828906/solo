@@ -1,20 +1,27 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { RefreshCw, Check } from 'lucide-react';
-import { useAppStore } from '@/store/appStore';
+import { useAppStore } from '@/state/appStore';
 import { cn } from '@/lib/utils';
-import type { ShoppingItem, SupermarketZone } from '@/types';
+import type { ShoppingItem, SupermarketZone } from '@/state/appStore';
 import { ZONE_INFO, ZONE_ORDER } from '@/data/mockData';
 import ToastContainer from '@/components/ToastContainer';
+import LoadingSpinner from '@/components/LoadingSpinner';
 
 export default function ShoppingList() {
   const { inviteCode } = useParams<{ inviteCode: string }>();
   const shoppingItems = useAppStore((s) => s.shoppingItems);
   const toggleShoppingItem = useAppStore((s) => s.toggleShoppingItem);
   const forceSyncShoppingList = useAppStore((s) => s.forceSyncShoppingList);
+  const loading = useAppStore((s) => s.loading.shoppingSync);
+  const init = useAppStore((s) => s.init);
 
   const [syncing, setSyncing] = useState(false);
   const [animatingItems, setAnimatingItems] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    init();
+  }, [init]);
 
   const groupedItems = useMemo(() => {
     const g: Record<SupermarketZone, ShoppingItem[]> = {
@@ -39,12 +46,13 @@ export default function ShoppingList() {
     .filter((i) => i.purchased)
     .reduce((sum, i) => sum + (i.estimatedPrice || 0), 0);
 
-  const handleSync = () => {
+  const handleSync = async () => {
     setSyncing(true);
-    setTimeout(() => {
-      forceSyncShoppingList();
-      setSyncing(false);
-    }, 600);
+    try {
+      await forceSyncShoppingList();
+    } finally {
+      setTimeout(() => setSyncing(false), 500);
+    }
   };
 
   const handleToggle = (ingredientId: string) => {
@@ -63,9 +71,20 @@ export default function ShoppingList() {
     }, 300);
   };
 
+  const showLoading = loading || syncing;
+
   return (
-    <div className="min-h-screen p-4 md:p-8 max-w-3xl mx-auto pb-32">
+    <div className="min-h-screen p-4 md:p-8 max-w-3xl mx-auto pb-32 relative">
       <ToastContainer />
+
+      {showLoading && (
+        <div className="fixed inset-0 bg-black/20 backdrop-blur-[1px] z-40 flex items-center justify-center animate-fade-in">
+          <div className="bg-white rounded-2xl shadow-2xl px-6 py-5 flex items-center gap-3">
+            <LoadingSpinner size="md" />
+            <span className="text-gray-700 font-medium">正在同步最新清单...</span>
+          </div>
+        </div>
+      )}
 
       <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
         <div>
@@ -80,16 +99,17 @@ export default function ShoppingList() {
           <p className="text-gray-500 mt-1 text-sm">按超市区域分组，高效购物不遗漏</p>
         </div>
         <button
-          className={cn('btn-secondary', syncing && 'animate-spin-reverse')}
+          className={cn('btn-secondary', syncing && 'pointer-events-none')}
           onClick={handleSync}
           disabled={syncing}
+          title="强制从后端拉取最新版本并覆盖本地勾选状态"
         >
           <RefreshCw className={cn('w-4 h-4', syncing && 'animate-spin')} />
           同步
         </button>
       </div>
 
-      {shoppingItems.length === 0 && (
+      {shoppingItems.length === 0 && !showLoading && (
         <div className="card p-12 text-center animate-fade-in">
           <div className="text-5xl mb-4">📭</div>
           <div className="font-display text-lg text-gray-700 mb-2">清单还是空的</div>
@@ -102,22 +122,22 @@ export default function ShoppingList() {
           const items = groupedItems[zone];
           if (!items || items.length === 0) return null;
           const info = ZONE_INFO[zone];
+          const zonePurchased = items.filter((i) => i.purchased).length;
           return (
-            <div
-              key={zone}
-              className="card overflow-hidden animate-fade-in"
-            >
-              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50">
-                <span
-                  className={cn(
-                    'chip border px-3 py-1.5 font-semibold',
-                    info.color
-                  )}
-                >
+            <div key={zone} className="card overflow-hidden animate-fade-in">
+              <div className="px-4 py-3 border-b border-gray-100 bg-gray-50/50 flex items-center justify-between">
+                <span className={cn('chip border px-3 py-1.5 font-semibold', info.color)}>
                   <span className="mr-1 text-base">{info.emoji}</span>
                   {info.label}
-                  <span className="ml-1.5 text-xs opacity-70">{items.length}</span>
+                  <span className="ml-1.5 text-xs opacity-70">
+                    {zonePurchased}/{items.length}
+                  </span>
                 </span>
+                {zonePurchased === items.length && items.length > 0 && (
+                  <span className="chip bg-green-100 text-green-700 border border-green-200 text-xs">
+                    ✓ 已买齐
+                  </span>
+                )}
               </div>
 
               <ul className="divide-y divide-gray-50">
@@ -140,8 +160,11 @@ export default function ShoppingList() {
                             : 'border-gray-300 hover:border-primary/60 hover:bg-primary/5'
                         )}
                         onClick={() => handleToggle(item.ingredientId)}
+                        aria-label={item.purchased ? '取消已购' : '标记已购'}
                       >
-                        {item.purchased && <Check className="w-3 h-3 text-white stroke-[3]" />}
+                        {item.purchased && (
+                          <Check className="w-3 h-3 text-white stroke-[3] animate-pop" />
+                        )}
                       </button>
 
                       <div className="flex-1 min-w-0">

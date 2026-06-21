@@ -152,17 +152,33 @@ export interface AppState {
   toasts: Toast[];
   loading: LoadingState;
 
+  /** 派生：扁平化菜单条目（兼容旧API） */
+  mealPlanEntries: MealPlanEntry[];
+  /** 派生：采购清单项（兼容旧API） */
+  shoppingItems: ShoppingItem[];
+
   init: () => Promise<void>;
   setRecipes: (recipes: Recipe[]) => void;
   addRecipeToMealPlan: (recipeId: string, day?: WeekDay, slot?: MealSlot) => boolean;
   addRecipeToNextAvailableSlot: (recipeId: string) => boolean;
+  /** 新API：按(day, slot)直接添加（MealPlanner用） */
+  addMealPlanEntry: (day: WeekDay, slot: MealSlot, recipeId: string) => void;
   moveMealPlanEntry: (
     from: { day: WeekDay; slot: MealSlot },
     to: { day: WeekDay; slot: MealSlot }
   ) => boolean;
+  /** 兼容旧API：单独参数版移动 */
+  moveMealPlanEntryFlat: (
+    fromDay: WeekDay,
+    fromSlot: MealSlot,
+    toDay: WeekDay,
+    toSlot: MealSlot
+  ) => void;
   removeMealPlanEntry: (day: WeekDay, slot: MealSlot) => void;
   setShoppingList: (list: ShoppingList) => void;
   toggleShoppingItem: (ingredientId: string) => void;
+  /** 强制从后端拉取最新版本并覆盖本地状态（丢弃已勾选状态） */
+  forceSyncShoppingList: () => Promise<void>;
   addComment: (recipeId: string, rating: number, content: string) => Promise<Comment | null>;
   pushToast: (type: ToastType, message: string) => void;
   removeToast: (id: string) => void;
@@ -178,7 +194,9 @@ export const useAppStore = create<AppState>((set, get) => ({
   currentUser: null,
   recipes: [],
   mealPlan: buildEmptyGrid(),
+  mealPlanEntries: [],
   shoppingList: null,
+  shoppingItems: [],
   wsConnected: false,
   toasts: [],
   loading: {
@@ -204,11 +222,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         mockService.getMealPlan(),
         mockService.getShoppingList(),
       ]);
+      const grid = entriesToGrid(mealPlanEntries);
       set({
         currentUser: user,
         recipes,
-        mealPlan: entriesToGrid(mealPlanEntries),
+        mealPlan: grid,
+        mealPlanEntries: gridToEntries(grid),
         shoppingList,
+        shoppingItems: shoppingList?.items ?? [],
       });
       get().connectWebSocket();
     } catch (e) {
@@ -261,7 +282,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     };
 
     grid[targetDay][slotIdx] = entry;
-    set({ mealPlan: grid });
+    set({ mealPlan: grid, mealPlanEntries: gridToEntries(grid) });
 
     if (state.wsConnected) {
       mockSocket.emit('meal-plan:updated', { entry, action: 'add', by: user });
@@ -272,6 +293,10 @@ export const useAppStore = create<AppState>((set, get) => ({
 
   addRecipeToNextAvailableSlot: (recipeId) => {
     return get().addRecipeToMealPlan(recipeId);
+  },
+
+  addMealPlanEntry: (day, slot, recipeId) => {
+    get().addRecipeToMealPlan(recipeId, day, slot);
   },
 
   moveMealPlanEntry: (from, to) => {
@@ -291,12 +316,23 @@ export const useAppStore = create<AppState>((set, get) => ({
       : null;
     grid[to.day][toSlotIdx] = { ...source, day: to.day, slot: to.slot };
 
-    set({ mealPlan: grid });
+    set({ mealPlan: grid, mealPlanEntries: gridToEntries(grid) });
     const user = state.currentUser;
     if (state.wsConnected && user) {
       mockSocket.emit('meal-plan:updated', { entry: grid[to.day][toSlotIdx], action: 'move', by: user });
     }
     return true;
+  },
+
+  moveMealPlanEntryFlat: (fromDay, fromSlot, toDay, toSlot) => {
+    if (fromSlot !== toSlot) {
+      get().pushToast('warning', '仅允许在相同餐次间跨日期移动（如：周一早餐 → 周三早餐）');
+      return;
+    }
+    get().moveMealPlanEntry(
+      { day: fromDay, slot: fromSlot },
+      { day: toDay, slot: toSlot }
+    );
   },
 
   removeMealPlanEntry: (day, slot) => {
@@ -305,7 +341,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     const slotIdx = SLOTS.indexOf(slot);
     const removed = grid[day][slotIdx];
     grid[day][slotIdx] = null;
-    set({ mealPlan: grid });
+    set({ mealPlan: grid, mealPlanEntries: gridToEntries(grid) });
 
     const user = state.currentUser;
     if (state.wsConnected && user && removed) {
@@ -316,7 +352,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
 
-  setShoppingList: (list) => set({ shoppingList: list }),
+  setShoppingList: (list) =>
+    set({ shoppingList: list, shoppingItems: list?.items ?? [] }),
 
   toggleShoppingItem: (ingredientId) => {
     const state = get();
@@ -336,7 +373,10 @@ export const useAppStore = create<AppState>((set, get) => ({
       lastUpdatedAt: new Date().toISOString(),
       updatedBy: state.currentUser?.id ?? state.shoppingList.updatedBy,
     };
-    set({ shoppingList: list });
+    set({
+      shoppingList: list,
+      shoppingItems: list.items,
+    });
 
     const item = items.find((i) => i.ingredientId === ingredientId);
     if (state.wsConnected && state.currentUser && item) {
@@ -345,6 +385,24 @@ export const useAppStore = create<AppState>((set, get) => ({
         purchased: item.purchased,
         by: state.currentUser,
       });
+    }
+  },
+
+  forceSyncShoppingList: async () => {
+    const state = get();
+    get().setLoading('shoppingSync', true);
+    try {
+      const freshList = await mockService.getShoppingList(true);
+      set({
+        shoppingList: freshList,
+        shoppingItems: freshList.items,
+      });
+      get().pushToast('success', '已同步最新采购清单，勾选状态已重置');
+    } catch (e) {
+      console.error('[appStore] forceSyncShoppingList failed:', e);
+      get().pushToast('warning', '同步失败，请稍后重试');
+    } finally {
+      get().setLoading('shoppingSync', false);
     }
   },
 
@@ -417,6 +475,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             lastUpdatedAt: new Date().toISOString(),
             updatedBy: payload.by.id,
           },
+          shoppingItems: items,
         });
       },
       'room:join': (p) => {

@@ -339,7 +339,7 @@ export const mockService = {
     return generateMockMealPlan();
   },
 
-  async getShoppingList(): Promise<ShoppingList> {
+  async getShoppingList(force: boolean = false): Promise<ShoppingList> {
     await new Promise((r) => setTimeout(r, 300));
     const today = new Date();
     const weekStart = new Date(today);
@@ -373,8 +373,8 @@ export const mockService = {
 
     const items = Array.from(aggregated.values()).map((it, idx) => ({
       ...it,
-      purchased: idx % 5 === 0,
-      purchasedBy: idx % 5 === 0 ? 'user-2' : undefined,
+      purchased: force ? false : idx % 5 === 0,
+      purchasedBy: (!force && idx % 5 === 0) ? 'user-2' : undefined,
     }));
 
     return {
