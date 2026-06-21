@@ -69,6 +69,7 @@ class Game {
     this.generateMap();
     this.createPlayer();
     this.createAIMonsters();
+    this.createWalkableMarkers();
     this.runFirstPathfinding();
     this.createUI();
     this.createEdgeWarning();
@@ -330,35 +331,34 @@ class Game {
     this.toggleWalkableMarkers();
   }
 
-  private toggleWalkableMarkers(): void {
+  private createWalkableMarkers(): void {
     if (!this.mapData) return;
 
-    if (this.showDebug) {
-      this.walkableMarkers = new PIXI.Graphics();
-      for (let y = 0; y < this.mapData.height; y++) {
-        for (let x = 0; x < this.mapData.width; x++) {
-          const tile = this.mapData.tiles[y][x];
-          const px = x * this.tileSize + this.tileSize / 2;
-          const py = y * this.tileSize + this.tileSize / 2;
-          const size = 6;
+    this.walkableMarkers = new PIXI.Graphics();
+    for (let y = 0; y < this.mapData.height; y++) {
+      for (let x = 0; x < this.mapData.width; x++) {
+        const tile = this.mapData.tiles[y][x];
+        const px = x * this.tileSize + this.tileSize / 2;
+        const py = y * this.tileSize + this.tileSize / 2;
+        const size = 6;
 
-          if (tile.walkable) {
-            this.walkableMarkers.beginFill(0x4aff4a, 0.6);
-          } else {
-            this.walkableMarkers.beginFill(0xff4a4a, 0.6);
-          }
-          this.walkableMarkers.drawRect(px - size / 2, py - size / 2, size, size);
-          this.walkableMarkers.endFill();
+        if (tile.walkable) {
+          this.walkableMarkers.beginFill(0x4aff4a, 0.6);
+        } else {
+          this.walkableMarkers.beginFill(0xff4a4a, 0.6);
         }
-      }
-      this.mapRenderer.getContainer().addChild(this.walkableMarkers);
-    } else {
-      if (this.walkableMarkers) {
-        this.mapRenderer.getContainer().removeChild(this.walkableMarkers);
-        this.walkableMarkers.destroy();
-        this.walkableMarkers = null;
+        this.walkableMarkers.drawRect(px - size / 2, py - size / 2, size, size);
+        this.walkableMarkers.endFill();
       }
     }
+    this.walkableMarkers.visible = false;
+    this.mapRenderer.getContainer().addChild(this.walkableMarkers);
+  }
+
+  private toggleWalkableMarkers(): void {
+    if (!this.walkableMarkers) return;
+
+    this.walkableMarkers.visible = this.showDebug;
   }
 
   private updateCamera(): void {
@@ -416,12 +416,13 @@ class Game {
     }
 
     const moveSpeed = this.playerSpeed * delta * 0.1;
-    const newX = this.playerTargetPos.x + dx * moveSpeed;
-    const newY = this.playerTargetPos.y + dy * moveSpeed;
-
-    const playerRadius = this.tileSize * 0.3;
+    const totalDistance = moveSpeed;
+    const maxStep = this.tileSize * 0.25;
+    const steps = Math.ceil(totalDistance / maxStep);
+    const stepDistance = totalDistance / steps;
 
     const checkCollision = (px: number, py: number): boolean => {
+      const playerRadius = this.tileSize * 0.3;
       const checkPoints = [
         { x: px - playerRadius * 0.5, y: py - playerRadius * 0.5 },
         { x: px + playerRadius * 0.5, y: py - playerRadius * 0.5 },
@@ -444,31 +445,40 @@ class Game {
       return false;
     };
 
-    let canMoveX = true;
-    let canMoveY = true;
+    for (let step = 0; step < steps; step++) {
+      const newX = this.playerTargetPos.x + dx * stepDistance;
+      const newY = this.playerTargetPos.y + dy * stepDistance;
 
-    if (checkCollision(newX, this.playerTargetPos.y)) {
-      canMoveX = false;
-    }
-    if (checkCollision(this.playerTargetPos.x, newY)) {
-      canMoveY = false;
-    }
-    if (canMoveX && checkCollision(newX, newY)) {
-      if (!checkCollision(newX, this.playerTargetPos.y)) {
-        canMoveY = false;
-      } else if (!checkCollision(this.playerTargetPos.x, newY)) {
+      let canMoveX = true;
+      let canMoveY = true;
+
+      if (checkCollision(newX, this.playerTargetPos.y)) {
         canMoveX = false;
-      } else {
-        canMoveX = false;
+      }
+      if (checkCollision(this.playerTargetPos.x, newY)) {
         canMoveY = false;
       }
-    }
+      if (canMoveX && canMoveY && checkCollision(newX, newY)) {
+        if (!checkCollision(newX, this.playerTargetPos.y)) {
+          canMoveY = false;
+        } else if (!checkCollision(this.playerTargetPos.x, newY)) {
+          canMoveX = false;
+        } else {
+          canMoveX = false;
+          canMoveY = false;
+        }
+      }
 
-    if (canMoveX) {
-      this.playerTargetPos.x = newX;
-    }
-    if (canMoveY) {
-      this.playerTargetPos.y = newY;
+      if (canMoveX) {
+        this.playerTargetPos.x = newX;
+      }
+      if (canMoveY) {
+        this.playerTargetPos.y = newY;
+      }
+
+      if (!canMoveX && !canMoveY) {
+        break;
+      }
     }
 
     const gridX = Math.floor(this.playerTargetPos.x / this.tileSize);
@@ -511,7 +521,9 @@ class Game {
 
   private updateAI(delta: number): void {
     const timeBudget = 5;
+    const safetyMargin = 0.5;
     const startTime = performance.now();
+    let totalElapsed = 0;
     let monstersUpdated = 0;
     const maxMonstersPerFrame = 2;
 
@@ -521,22 +533,23 @@ class Game {
 
     for (let i = 0; i < this.aiControllers.length; i++) {
       const ai = this.aiControllers[i];
-      if (!ai.needsUpdate()) continue;
+      if (!ai.needsUpdate(this.playerGridPos)) continue;
       if (monstersUpdated >= maxMonstersPerFrame) break;
+      if (totalElapsed >= timeBudget - safetyMargin) break;
 
       ai.updatePath(this.playerGridPos);
+      
+      totalElapsed = performance.now() - startTime;
       monstersUpdated++;
 
-      const currentTotal = performance.now() - startTime;
-      if (currentTotal >= timeBudget) {
-        console.warn(`[Game] Pathfinding budget exceeded: ${currentTotal.toFixed(2)}ms / ${timeBudget}ms`);
+      if (totalElapsed >= timeBudget) {
+        console.warn(`[Game] Pathfinding budget exceeded: ${totalElapsed.toFixed(2)}ms / ${timeBudget}ms`);
         break;
       }
     }
 
-    const frameTotal = performance.now() - startTime;
-    if (monstersUpdated > 0 && frameTotal > 1) {
-      console.log(`[Game] Pathfinding: ${frameTotal.toFixed(2)}ms for ${monstersUpdated} monsters`);
+    if (monstersUpdated > 0 && totalElapsed > 1) {
+      console.log(`[Game] Pathfinding: ${totalElapsed.toFixed(2)}ms for ${monstersUpdated} monsters`);
     }
   }
 

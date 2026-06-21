@@ -78,13 +78,13 @@ export class MapGenerator {
       }
     }
 
-    const tiles = this.createFallbackMap();
+    const tiles = this.createGuaranteedMap();
     const elapsed = performance.now() - startTime;
-    console.log(`[MapGenerator] Fallback map generated in ${elapsed.toFixed(2)}ms`);
+    console.log(`[MapGenerator] Guaranteed map generated in ${elapsed.toFixed(2)}ms (after ${maxAttempts} failed attempts)`);
     return tiles;
   }
 
-  private createFallbackMap(): MapData {
+  private createGuaranteedMap(): MapData {
     const tiles: Tile[][] = [];
     const startPos = { x: 0, y: 0 };
     const endPos = { x: this.width - 1, y: this.height - 1 };
@@ -106,34 +106,49 @@ export class MapGenerator {
     const waterCount = Math.floor(totalTiles * this.waterRatio);
 
     let placed = 0;
-    while (placed < wallCount) {
+    let attempts = 0;
+    const maxPlacementAttempts = wallCount * 20;
+
+    while (placed < wallCount && attempts < maxPlacementAttempts) {
+      attempts++;
       const x = Math.floor(Math.random() * this.width);
       const y = Math.floor(Math.random() * this.height);
       if (
         tiles[y][x].type === TileType.GRASS &&
         !(x === startPos.x && y === startPos.y) &&
-        !(x === endPos.x && y === endPos.y) &&
-        !this.isOnManhattanPath(x, y, startPos, endPos)
+        !(x === endPos.x && y === endPos.y)
       ) {
         tiles[y][x].type = TileType.WALL;
         tiles[y][x].walkable = false;
-        placed++;
+        if (this.isPathExists(tiles, startPos, endPos)) {
+          placed++;
+        } else {
+          tiles[y][x].type = TileType.GRASS;
+          tiles[y][x].walkable = true;
+        }
       }
     }
 
     placed = 0;
-    while (placed < waterCount) {
+    attempts = 0;
+
+    while (placed < waterCount && attempts < maxPlacementAttempts) {
+      attempts++;
       const x = Math.floor(Math.random() * this.width);
       const y = Math.floor(Math.random() * this.height);
       if (
         tiles[y][x].type === TileType.GRASS &&
         !(x === startPos.x && y === startPos.y) &&
-        !(x === endPos.x && y === endPos.y) &&
-        !this.isOnManhattanPath(x, y, startPos, endPos)
+        !(x === endPos.x && y === endPos.y)
       ) {
         tiles[y][x].type = TileType.WATER;
         tiles[y][x].walkable = false;
-        placed++;
+        if (this.isPathExists(tiles, startPos, endPos)) {
+          placed++;
+        } else {
+          tiles[y][x].type = TileType.GRASS;
+          tiles[y][x].walkable = true;
+        }
       }
     }
 
@@ -144,11 +159,6 @@ export class MapGenerator {
       startPos,
       endPos
     };
-  }
-
-  private isOnManhattanPath(x: number, y: number, start: { x: number; y: number }, end: { x: number; y: number }): boolean {
-    return (x >= start.x && x <= end.x && y === start.y) ||
-           (y >= start.y && y <= end.y && x === end.x);
   }
 
   private placeRandomTiles(tiles: Tile[][], type: TileType, count: number): void {

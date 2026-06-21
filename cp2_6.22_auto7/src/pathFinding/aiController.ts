@@ -30,6 +30,10 @@ export class AIController {
   private pathGraphics: PIXI.Graphics;
   private showPath: boolean = false;
   private needsPathUpdate: boolean = true;
+  private lastPathUpdateTime: number = 0;
+  private static readonly FAR_DISTANCE_THRESHOLD: number = 8;
+  private static readonly FAR_UPDATE_INTERVAL: number = 500;
+  private static readonly NEAR_UPDATE_INTERVAL: number = 0;
 
   constructor(
     startPos: { x: number; y: number },
@@ -126,12 +130,24 @@ export class AIController {
     }
 
     this.needsPathUpdate = false;
+    this.lastPathUpdateTime = performance.now();
     const elapsed = performance.now() - startTime;
     return elapsed;
   }
 
-  public needsUpdate(): boolean {
-    return this.needsPathUpdate;
+  public needsUpdate(playerGridPos: { x: number; y: number }): boolean {
+    if (!this.needsPathUpdate) {
+      return false;
+    }
+
+    const distance = Math.abs(this.gridPosition.x - playerGridPos.x) + 
+                     Math.abs(this.gridPosition.y - playerGridPos.y);
+    const now = performance.now();
+    const updateInterval = distance >= AIController.FAR_DISTANCE_THRESHOLD 
+      ? AIController.FAR_UPDATE_INTERVAL 
+      : AIController.NEAR_UPDATE_INTERVAL;
+
+    return now - this.lastPathUpdateTime >= updateInterval;
   }
 
   private moveAlongPath(deltaTime: number): void {
