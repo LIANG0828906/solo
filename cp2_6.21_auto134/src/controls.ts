@@ -38,6 +38,12 @@ export class Controls {
     this.speedSlider = speedSlider as HTMLInputElement;
     this.speedValue = speedValue as HTMLSpanElement;
 
+    this.speedValue.textContent = '1.0x';
+    this.toggleArmsBtn.textContent = '隐藏摆臂';
+    this.toggleArmsBtn.classList.add('active');
+    this.toggleTrailBtn.textContent = '隐藏轨迹';
+    this.toggleTrailBtn.classList.add('active');
+
     this.bindEvents();
   }
 

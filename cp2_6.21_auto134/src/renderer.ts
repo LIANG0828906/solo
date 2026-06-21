@@ -74,7 +74,7 @@ export class Renderer {
       this.ctx.globalAlpha = alpha;
       this.ctx.fillStyle = this.options.trailColor;
       this.ctx.beginPath();
-      this.ctx.arc(this.trail[i].x, this.trail[i].y, this.options.trailWidth, 0, Math.PI * 2);
+      this.ctx.arc(this.trail[i].x, this.trail[i].y, 1.5, 0, Math.PI * 2);
       this.ctx.fill();
     }
     this.ctx.globalAlpha = 1;
@@ -130,6 +130,13 @@ export class Renderer {
   ): void {
     const handleX = centerX + length * Math.sin(angle);
     const handleY = centerY + length * Math.cos(angle);
+    
+    this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+    this.ctx.lineWidth = 1;
+    this.ctx.beginPath();
+    this.ctx.moveTo(centerX, centerY);
+    this.ctx.lineTo(handleX, handleY);
+    this.ctx.stroke();
     
     if (showLabel) {
       this.ctx.strokeStyle = color;
