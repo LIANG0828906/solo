@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>光影迷宫探秘者</title>
+    <link rel="stylesheet" href="/src/style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="game-canvas"></canvas>
+      <div id="hud">
+        <div class="hud-item">
+          <span class="label">光球数:</span>
+          <span id="orb-count" class="orb-count">0 / 6</span>
+        </div>
+        <div class="hud-item">
+          <span class="label">光照半径:</span>
+          <span id="light-radius" class="light-radius">2.0</span>
+        </div>
+      </div>
+      <div id="game-over" class="hidden">
+        <div class="overlay"></div>
+        <div class="game-over-content">
+          <h1 class="game-over-title">游戏结束</h1>
+          <p class="score-text">得分: <span id="score">0</span></p>
+          <button id="restart-btn">重新开始</button>
+        </div>
+      </div>
+      <div id="victory" class="hidden">
+        <div class="victory-overlay"></div>
+        <div class="victory-content">
+          <h1 class="victory-title">通关成功!</h1>
+          <p class="score-text">得分: <span id="victory-score">0</span></p>
+          <button id="victory-restart-btn">再来一局</button>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
