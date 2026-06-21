@@ -217,6 +217,8 @@ html, body, #root {
   padding: 8px;
   text-align: center;
   flex-shrink: 0;
+  white-space: pre-line;
+  line-height: 1.4;
 }
 
 .upload-zone:hover,

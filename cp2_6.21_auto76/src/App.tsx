@@ -24,6 +24,7 @@ const App: React.FC = () => {
   const [dragOver, setDragOver] = useState(false);
   const rafRef = useRef<number>(0);
   const charsTimerRef = useRef<number>(0);
+  const renderTimerRef = useRef<number>(0);
 
   const scheduleParamsUpdate = useCallback((newParams: LayoutParams) => {
     cancelAnimationFrame(rafRef.current);
@@ -35,6 +36,7 @@ const App: React.FC = () => {
   useEffect(() => {
     return () => {
       cancelAnimationFrame(rafRef.current);
+      cancelAnimationFrame(renderTimerRef.current);
       clearTimeout(charsTimerRef.current);
     };
   }, []);
@@ -122,12 +124,16 @@ const App: React.FC = () => {
   );
 
   useEffect(() => {
-    if (compareMode && renderResults.length >= 2 && fonts.length >= 2) {
-      const diff = compareRenderResults(fonts, renderResults);
-      setDiffResult(diff);
-    } else {
-      setDiffResult(null);
-    }
+    cancelAnimationFrame(renderTimerRef.current);
+    renderTimerRef.current = requestAnimationFrame(() => {
+      if (compareMode && renderResults.length >= 2 && fonts.length >= 2) {
+        const diff = compareRenderResults(fonts, renderResults);
+        setDiffResult(diff);
+      } else {
+        setDiffResult(null);
+      }
+    });
+    return () => cancelAnimationFrame(renderTimerRef.current);
   }, [compareMode, fonts, renderResults]);
 
   const handleExport = useCallback(() => {
@@ -188,51 +194,9 @@ const App: React.FC = () => {
     }
   }, []);
 
-  const renderCardPreview = (font: ParsedFont, canvas: HTMLCanvasElement) => {
-    const ctx = canvas.getContext('2d')!;
-    ctx.fillStyle = '#2b2b3d';
-    ctx.fillRect(0, 0, 140, 24);
-    const scale = 12 / font.unitsPerEm;
-    ctx.fillStyle = '#a78bfa';
-    let x = 4;
-    const baselineY = 16;
-    const sample = 'AaBbCc123';
-    for (const ch of sample) {
-      const glyph = font.glyphs[ch];
-      if (glyph) {
-        ctx.beginPath();
-        for (const cmd of glyph.commands) {
-          switch (cmd.type) {
-            case 'M':
-              ctx.moveTo(x + (cmd.x || 0) * scale, baselineY - (cmd.y || 0) * scale);
-              break;
-            case 'L':
-              ctx.lineTo(x + (cmd.x || 0) * scale, baselineY - (cmd.y || 0) * scale);
-              break;
-            case 'C':
-              ctx.bezierCurveTo(
-                x + (cmd.x1 || 0) * scale, baselineY - (cmd.y1 || 0) * scale,
-                x + (cmd.x2 || 0) * scale, baselineY - (cmd.y2 || 0) * scale,
-                x + (cmd.x || 0) * scale, baselineY - (cmd.y || 0) * scale
-              );
-              break;
-            case 'Q':
-              ctx.quadraticCurveTo(
-                x + (cmd.x1 || 0) * scale, baselineY - (cmd.y1 || 0) * scale,
-                x + (cmd.x || 0) * scale, baselineY - (cmd.y || 0) * scale
-              );
-              break;
-            case 'Z':
-              ctx.closePath();
-              break;
-          }
-        }
-        ctx.fill();
-        x += glyph.advanceWidth * scale + 1;
-      }
-      if (x > 136) break;
-    }
-  };
+  const handleUploadClick = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
 
   return (
     <div
@@ -259,53 +223,28 @@ const App: React.FC = () => {
       />
 
       <div className="preview-area">
-        <div className="font-cards-bar">
-          {fonts.map((font) => (
-            <div key={font.id} className="font-card">
-              <button
-                className="remove-btn"
-                onClick={() => handleRemoveFont(font.id)}
-              >
-                ✕
-              </button>
-              <div className="font-card-name">{font.name}</div>
-              <canvas
-                width={140}
-                height={24}
-                className="font-card-preview"
-                ref={(el) => {
-                  if (el) renderCardPreview(font, el);
-                }}
-              />
-            </div>
-          ))}
-
-          <div
-            className={`upload-zone${dragOver ? ' dragover' : ''}`}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            {loading ? '加载中...' : '+ 上传字体\n(TTF/OTF)'}
-          </div>
-
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".ttf,.otf"
-            multiple
-            style={{ display: 'none' }}
-            onChange={(e) => {
-              handleFiles(e.target.files);
-              if (e.target) e.target.value = '';
-            }}
-          />
-        </div>
-
         <PreviewPanel
           fonts={fonts}
           params={params}
           compareMode={compareMode}
           diffResult={diffResult}
           onRenderResults={handleRenderResults}
+          onRemoveFont={handleRemoveFont}
+          onUploadClick={handleUploadClick}
+          loading={loading}
+          dragOver={dragOver}
+        />
+
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".ttf,.otf"
+          multiple
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            handleFiles(e.target.files);
+            if (e.target) e.target.value = '';
+          }}
         />
       </div>
     </div>
