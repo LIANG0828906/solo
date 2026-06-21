@@ -35,11 +35,17 @@ export default function App() {
     snippets,
     loading,
     selectedTag,
+    sortBy,
+    sortOrder,
+    languageFilter,
     fetchSnippets,
     addSnippet,
     removeSnippet,
     updateSnippet,
     setSelectedTag,
+    setSortBy,
+    setSortOrder,
+    setLanguageFilter,
   } = useSnippetStore();
 
   const [editingSnippet, setEditingSnippet] = useState<Snippet | null>(null);
@@ -251,6 +257,12 @@ export default function App() {
             loading={loading}
             selectedTag={selectedTag}
             onTagSelect={handleTagClick}
+            sortBy={sortBy}
+            sortOrder={sortOrder}
+            languageFilter={languageFilter}
+            onSortByChange={setSortBy}
+            onSortOrderChange={setSortOrder}
+            onLanguageFilterChange={setLanguageFilter}
           />
         </div>
       </main>

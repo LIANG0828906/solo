@@ -30,3 +30,7 @@ export interface TagCount {
   tag: string;
   count: number;
 }
+
+export type SortBy = 'created_at' | 'updated_at';
+export type SortOrder = 'asc' | 'desc';
+export type LanguageFilter = 'all' | 'javascript' | 'python' | 'html' | 'css' | 'typescript';

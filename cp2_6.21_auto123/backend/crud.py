@@ -1,5 +1,5 @@
 from typing import List, Optional, Tuple
-from sqlalchemy import func, or_
+from sqlalchemy import func, or_, asc, desc
 from sqlalchemy.orm import Session
 
 from .models import Snippet, Tag, snippet_tag
@@ -50,14 +50,24 @@ def get_snippet(db: Session, snippet_id: str) -> Optional[dict]:
     return None
 
 
-def get_snippets(db: Session, skip: int = 0, limit: int = 100) -> List[dict]:
-    snippets = (
-        db.query(Snippet)
-        .order_by(Snippet.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
-    )
+def get_snippets(
+    db: Session,
+    skip: int = 0,
+    limit: int = 100,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    language: Optional[str] = None,
+) -> List[dict]:
+    query = db.query(Snippet)
+
+    if language and language != "all":
+        query = query.filter(Snippet.language == language)
+
+    sort_column = Snippet.created_at if sort_by == "created_at" else Snippet.updated_at
+    order_func = desc if sort_order == "desc" else asc
+    query = query.order_by(order_func(sort_column))
+
+    snippets = query.offset(skip).limit(limit).all()
     return [snippet_to_response(s) for s in snippets]
 
 
@@ -96,26 +106,32 @@ def delete_snippet(db: Session, snippet_id: str) -> bool:
 
 
 def search_snippets(
-    db: Session, query: str, skip: int = 0, limit: int = 100
+    db: Session,
+    query: str,
+    skip: int = 0,
+    limit: int = 100,
+    sort_by: str = "created_at",
+    sort_order: str = "desc",
+    language: Optional[str] = None,
 ) -> List[Tuple[dict, List[int]]]:
     query_lower = query.lower()
 
-    snippets = (
-        db.query(Snippet)
-        .outerjoin(snippet_tag)
-        .outerjoin(Tag)
-        .filter(
-            or_(
-                func.lower(Snippet.title).contains(query_lower),
-                func.lower(Snippet.code).contains(query_lower),
-                func.lower(Tag.name).contains(query_lower),
-            )
+    q = db.query(Snippet).outerjoin(snippet_tag).outerjoin(Tag).filter(
+        or_(
+            func.lower(Snippet.title).contains(query_lower),
+            func.lower(Snippet.code).contains(query_lower),
+            func.lower(Tag.name).contains(query_lower),
         )
-        .order_by(Snippet.created_at.desc())
-        .offset(skip)
-        .limit(limit)
-        .all()
     )
+
+    if language and language != "all":
+        q = q.filter(Snippet.language == language)
+
+    sort_column = Snippet.created_at if sort_by == "created_at" else Snippet.updated_at
+    order_func = desc if sort_order == "desc" else asc
+    q = q.order_by(order_func(sort_column))
+
+    snippets = q.offset(skip).limit(limit).all()
 
     results = []
     for snippet in snippets:

@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Snippet } from './types';
+import type { Snippet, SortBy, SortOrder, LanguageFilter } from './types';
 import * as api from './api';
 
 interface State {
@@ -8,6 +8,9 @@ interface State {
   selectedTag: string | null;
   loading: boolean;
   error: string | null;
+  sortBy: SortBy;
+  sortOrder: SortOrder;
+  languageFilter: LanguageFilter;
 }
 
 interface Actions {
@@ -19,6 +22,10 @@ interface Actions {
   setSelectedTag: (tag: string | null) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setSortBy: (sortBy: SortBy) => void;
+  setSortOrder: (sortOrder: SortOrder) => void;
+  toggleSortOrder: () => void;
+  setLanguageFilter: (filter: LanguageFilter) => void;
   fetchSnippets: () => Promise<void>;
 }
 
@@ -30,6 +37,9 @@ export const useSnippetStore = create<SnippetStore>((set) => ({
   selectedTag: null,
   loading: false,
   error: null,
+  sortBy: 'created_at',
+  sortOrder: 'desc',
+  languageFilter: 'all',
 
   setSnippets: (snippets) => set({ snippets }),
 
@@ -55,6 +65,15 @@ export const useSnippetStore = create<SnippetStore>((set) => ({
   setLoading: (loading) => set({ loading }),
 
   setError: (error) => set({ error }),
+
+  setSortBy: (sortBy) => set({ sortBy }),
+
+  setSortOrder: (sortOrder) => set({ sortOrder }),
+
+  toggleSortOrder: () =>
+    set((state) => ({ sortOrder: state.sortOrder === 'desc' ? 'asc' : 'desc' })),
+
+  setLanguageFilter: (languageFilter) => set({ languageFilter }),
 
   fetchSnippets: async () => {
     set({ loading: true, error: null });

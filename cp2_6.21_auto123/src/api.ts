@@ -1,14 +1,24 @@
 /* eslint-disable no-useless-catch */
 import axios from 'axios';
-import type { Snippet, SearchResult, SnippetCreate, SnippetUpdate, TagCount } from './types';
+import type { Snippet, SearchResult, SnippetCreate, SnippetUpdate, TagCount, SortBy, SortOrder, LanguageFilter } from './types';
 
 const api = axios.create({
   baseURL: '/api',
 });
 
-export const fetchSnippets = async (): Promise<Snippet[]> => {
+interface FetchSnippetsParams {
+  sort_by?: SortBy;
+  sort_order?: SortOrder;
+  language?: LanguageFilter;
+}
+
+interface SearchSnippetsParams extends FetchSnippetsParams {
+  q: string;
+}
+
+export const fetchSnippets = async (params?: FetchSnippetsParams): Promise<Snippet[]> => {
   try {
-    const response = await api.get<Snippet[]>('/snippets');
+    const response = await api.get<Snippet[]>('/snippets', { params });
     return response.data;
   } catch (error) {
     throw error;
@@ -51,11 +61,9 @@ export const deleteSnippet = async (id: string): Promise<{ success: boolean }> =
   }
 };
 
-export const searchSnippets = async (query: string): Promise<SearchResult[]> => {
+export const searchSnippets = async (params: SearchSnippetsParams): Promise<SearchResult[]> => {
   try {
-    const response = await api.get<SearchResult[]>('/search', {
-      params: { q: query },
-    });
+    const response = await api.get<SearchResult[]>('/search', { params });
     return response.data;
   } catch (error) {
     throw error;

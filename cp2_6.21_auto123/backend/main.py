@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 from fastapi import FastAPI, Depends, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
@@ -38,9 +38,19 @@ app.add_middleware(
 def read_snippets(
     skip: int = 0,
     limit: int = 100,
+    sort_by: str = Query("created_at", pattern="^(created_at|updated_at)$"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
+    language: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
-    return get_snippets(db, skip=skip, limit=limit)
+    return get_snippets(
+        db,
+        skip=skip,
+        limit=limit,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        language=language,
+    )
 
 
 @app.get("/api/snippets/{snippet_id}", response_model=SnippetResponse)
@@ -79,9 +89,20 @@ def search_snippets_endpoint(
     q: str = Query(..., min_length=1, description="搜索关键词"),
     skip: int = 0,
     limit: int = 100,
+    sort_by: str = Query("created_at", pattern="^(created_at|updated_at)$"),
+    sort_order: str = Query("desc", pattern="^(asc|desc)$"),
+    language: Optional[str] = Query(None),
     db: Session = Depends(get_db),
 ):
-    results = search_snippets(db, query=q, skip=skip, limit=limit)
+    results = search_snippets(
+        db,
+        query=q,
+        skip=skip,
+        limit=limit,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        language=language,
+    )
     response = []
     for snippet_data, matched_lines in results:
         response.append(
