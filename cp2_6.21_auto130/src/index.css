@@ -1,0 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@400;500;600;700&family=Noto+Serif+SC:wght@500;700&family=Caveat:wght@400;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Noto Sans SC', system-ui, sans-serif;
+  line-height: 1.55;
+  font-weight: 400;
+  color: #2d2a26;
+  background-color: #fff8f3;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(1200px 800px at 10% -10%, #fff0d9 0%, transparent 60%),
+              radial-gradient(1000px 700px at 110% 10%, #ffe4cc 0%, transparent 55%),
+              #fff8f3;
+}
+
+#root { min-height: 100vh; }
+
+/* ===== Component Styles ===== */
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+  .btn-primary {
+    @apply btn bg-primary text-white shadow-sm hover:brightness-110 active:scale-[0.98];
+  }
+  .btn-secondary {
+    @apply btn bg-secondary text-white shadow-sm hover:brightness-110 active:scale-[0.98];
+  }
+  .btn-ghost {
+    @apply btn bg-white/60 text-gray-700 border border-gray-200 hover:bg-white hover:shadow-sm;
+  }
+  .card {
+    @apply bg-surface rounded-card shadow-card transition-all duration-300 ease-out;
+  }
+  .card-hover {
+    @apply hover:shadow-card-hover hover:-translate-y-0.5;
+  }
+  .input-base {
+    @apply w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white/80 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary transition-all;
+  }
+  .chip {
+    @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+  .title-display {
+    @apply font-display tracking-wide;
+  }
+  .hand-write {
+    @apply font-hand;
+  }
+}
+
+/* ===== Scrollbar ===== */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #f0d9b5; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #e6c48f; }
+
+/* ===== Transition utilities ===== */
+.list-enter { opacity: 0; transform: translateY(6px); }
+.list-enter-active { opacity: 1; transform: translateY(0); transition: all 0.3s ease; }
+.list-exit { opacity: 1; transform: translateY(0); }
+.list-exit-active { opacity: 0; transform: translateY(-6px); transition: all 0.3s ease; }
+
+/* Recipe card thumbnail gradient */
+.recipe-gradient-1 { background: linear-gradient(135deg, #ffcc80 0%, #ffab91 50%, #f48fb1 100%); }
+.recipe-gradient-2 { background: linear-gradient(135deg, #ffd54f 0%, #ffb74d 50%, #ff8a65 100%); }
+.recipe-gradient-3 { background: linear-gradient(135deg, #aed581 0%, #ffb74d 50%, #ffd54f 100%); }
+.recipe-gradient-4 { background: linear-gradient(135deg, #80deea 0%, #81d4fa 50%, #b39ddb 100%); }
+.recipe-gradient-5 { background: linear-gradient(135deg, #f8bbd0 0%, #ffcc80 50%, #fff59d 100%); }
