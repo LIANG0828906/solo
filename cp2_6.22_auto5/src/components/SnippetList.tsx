@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import type { Snippet, ThemeName } from '../types';
 import { LANGUAGES } from '../types';
 
@@ -31,9 +31,47 @@ export default function SnippetList({
   onToggleSidebar,
   loading,
 }: SnippetListProps) {
-  const [search, setSearch] = useState('');
-  const [filterLang, setFilterLang] = useState<string>('all');
-  const [sortMode, setSortMode] = useState<SortMode>('time');
+  const [search, setSearch] = useState(() => {
+    try {
+      return localStorage.getItem('codeclip_search') || '';
+    } catch {
+      return '';
+    }
+  });
+  const [filterLang, setFilterLang] = useState<string>(() => {
+    try {
+      return localStorage.getItem('codeclip_filterLang') || 'all';
+    } catch {
+      return 'all';
+    }
+  });
+  const [sortMode, setSortMode] = useState<SortMode>(() => {
+    try {
+      const saved = localStorage.getItem('codeclip_sortMode');
+      if (saved === 'time' || saved === 'language' || saved === 'favorite') {
+        return saved;
+      }
+    } catch {}
+    return 'time';
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('codeclip_search', search);
+    } catch {}
+  }, [search]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('codeclip_filterLang', filterLang);
+    } catch {}
+  }, [filterLang]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('codeclip_sortMode', sortMode);
+    } catch {}
+  }, [sortMode]);
   const [showNewForm, setShowNewForm] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newLang, setNewLang] = useState('javascript');

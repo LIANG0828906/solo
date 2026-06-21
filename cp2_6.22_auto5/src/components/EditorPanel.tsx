@@ -1,13 +1,14 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { EditorView, keymap, lineNumbers, highlightActiveLineGutter, highlightActiveLine, drawSelection, rectangularSelection, crosshairCursor, highlightSpecialChars } from '@codemirror/view';
-import { EditorState, Compartment } from '@codemirror/state';
-import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
+import { EditorState, Compartment, Prec } from '@codemirror/state';
+import { defaultKeymap, history, historyKeymap, indentWithTab, insertNewlineAndIndent } from '@codemirror/commands';
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search';
 import { autocompletion, completionKeymap, closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete';
 import { lintKeymap } from '@codemirror/lint';
+import { syntaxTree } from '@codemirror/language';
 import { javascript } from '@codemirror/lang-javascript';
 import { python } from '@codemirror/lang-python';
-import { html } from '@codemirror/lang-html';
+import { html, html as htmlLang } from '@codemirror/lang-html';
 import { css } from '@codemirror/lang-css';
 import { java } from '@codemirror/lang-java';
 import { cpp } from '@codemirror/lang-cpp';
@@ -19,6 +20,8 @@ import { php } from '@codemirror/lang-php';
 import { go } from '@codemirror/lang-go';
 import { xml } from '@codemirror/lang-xml';
 import { yaml } from '@codemirror/lang-yaml';
+// @ts-ignore
+import emmet from 'emmet';
 import { getEditorThemeExtension } from '../utils/themeManager';
 import type { ThemeName } from '../types';
 
@@ -35,7 +38,7 @@ function getLanguageExtension(lang: string) {
     case 'javascript': return javascript({ jsx: true });
     case 'typescript': return javascript({ jsx: true, typescript: true });
     case 'python': return python();
-    case 'html': return html();
+    case 'html': return html({ autoCloseTags: true, matchClosingTags: true });
     case 'css': return css();
     case 'java': return java();
     case 'cpp': return cpp();
@@ -49,6 +52,68 @@ function getLanguageExtension(lang: string) {
     case 'yaml': return yaml();
     default: return javascript();
   }
+}
+
+function isEmmetEnabled(language: string) {
+  return language === 'html' || language === 'css' || language === 'xml';
+}
+
+function getEmmetSyntax(language: string): 'html' | 'css' {
+  return language === 'css' ? 'css' : 'html';
+}
+
+function expandEmmet(view: EditorView): boolean {
+  const { state } = view;
+  const { selection } = state;
+  if (selection.ranges.length > 1) return false;
+
+  const range = selection.main;
+  if (!range.empty) return false;
+
+  const pos = range.head;
+  const line = state.doc.lineAt(pos);
+  const lineText = line.text.slice(0, pos - line.from);
+
+  const abbrMatch = lineText.match(/[\w\s\.#\[\]\(\)\{\}\+\>^\*@=\-]+$/);
+  if (!abbrMatch) return false;
+
+  const abbr = abbrMatch[0].trim();
+  if (!abbr || abbr.length < 2) return false;
+
+  const lang = (window as any).__editorLanguage || 'html';
+  if (!isEmmetEnabled(lang)) return false;
+
+  try {
+    const syntax = getEmmetSyntax(lang);
+    const expandFn = (emmet as any).expand || (emmet as any).expandAbbreviation || (emmet as any).default?.expand;
+    if (!expandFn) return false;
+    const expanded = expandFn(abbr, {
+      syntax,
+      format: true,
+      indent: '  ',
+      baseIndent: line.text.match(/^\s*/)?.[0] || '',
+    });
+
+    if (!expanded || expanded === abbr) return false;
+
+    const start = line.from + abbrMatch.index!;
+    view.dispatch({
+      changes: { from: start, to: pos, insert: expanded },
+      selection: { anchor: start + expanded.length },
+      userEvent: 'input.emmet',
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function emmetKeymap() {
+  return Prec.high(keymap.of([{
+    key: 'Tab',
+    preventDefault: true,
+    run: expandEmmet,
+  }]));
 }
 
 export default function EditorPanel({ content, language, theme, onChange, readOnly }: EditorPanelProps) {
@@ -67,6 +132,8 @@ export default function EditorPanel({ content, language, theme, onChange, readOn
   useEffect(() => {
     if (!editorRef.current) return;
 
+    (window as any).__editorLanguage = language;
+
     const startState = EditorState.create({
       doc: content,
       extensions: [
@@ -75,8 +142,7 @@ export default function EditorPanel({ content, language, theme, onChange, readOn
         highlightSpecialChars(),
         history(),
         drawSelection(),
-        EditorView.allowMultipleSelections.of(true),
-        indentWithTab(),
+        EditorView.lineWrapping,
         rectangularSelection(),
         crosshairCursor(),
         highlightActiveLine(),
@@ -90,7 +156,9 @@ export default function EditorPanel({ content, language, theme, onChange, readOn
           ...historyKeymap,
           ...completionKeymap,
           ...lintKeymap,
+          indentWithTab,
         ]),
+        emmetKeymap(),
         langCompartment.current.of(getLanguageExtension(language)),
         themeCompartment.current.of(getEditorThemeExtension(theme)),
         EditorView.updateListener.of((update) => {
@@ -99,7 +167,6 @@ export default function EditorPanel({ content, language, theme, onChange, readOn
             onChangeRef.current(update.state.doc.toString());
           }
         }),
-        EditorView.lineWrapping,
         ...(readOnly ? [EditorState.readOnly.of(true)] : []),
         EditorView.theme({
           '&': { height: '100%' },
@@ -138,6 +205,7 @@ export default function EditorPanel({ content, language, theme, onChange, readOn
 
   useEffect(() => {
     if (!viewRef.current) return;
+    (window as any).__editorLanguage = language;
     viewRef.current.dispatch({
       effects: langCompartment.current.reconfigure(getLanguageExtension(language)),
     });

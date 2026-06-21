@@ -12,6 +12,7 @@ interface ShareModalProps {
 export default function ShareModal({ snippet, onClose, onUpdateExpiration }: ShareModalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [copied, setCopied] = useState(false);
+  const [qrError, setQrError] = useState<string | null>(null);
   const [selectedExpiration, setSelectedExpiration] = useState<Expiration>(() => {
     if (!snippet.expiresAt) return 'never';
     const diff = snippet.expiresAt - snippet.createdAt;
@@ -24,16 +25,26 @@ export default function ShareModal({ snippet, onClose, onUpdateExpiration }: Sha
   const shareUrl = `${window.location.origin}/s/${snippet.shareId}`;
 
   useEffect(() => {
-    if (canvasRef.current) {
-      QRCode.toCanvas(canvasRef.current, shareUrl, {
-        width: 180,
-        margin: 2,
-        color: {
-          dark: '#0d1117',
-          light: '#ffffff',
-        },
-      });
-    }
+    if (!canvasRef.current) return;
+
+    const generateQR = async () => {
+      try {
+        setQrError(null);
+        await QRCode.toCanvas(canvasRef.current!, shareUrl, {
+          width: 180,
+          margin: 2,
+          color: {
+            dark: '#0d1117',
+            light: '#ffffff',
+          },
+        });
+      } catch (err) {
+        console.error('QR code generation failed:', err);
+        setQrError('二维码生成失败，请直接复制链接分享');
+      }
+    };
+
+    generateQR();
   }, [shareUrl]);
 
   const handleCopy = async () => {
@@ -105,9 +116,22 @@ export default function ShareModal({ snippet, onClose, onUpdateExpiration }: Sha
 
         <div className="share-section">
           <div className="share-label">二维码</div>
-          <div className="qr-wrapper">
-            <canvas ref={canvasRef} />
-          </div>
+          {qrError ? (
+            <div style={{
+              padding: '20px',
+              textAlign: 'center',
+              color: 'var(--danger)',
+              fontSize: '13px',
+              background: 'var(--danger-dim)',
+              borderRadius: 'var(--radius)',
+            }}>
+              {qrError}
+            </div>
+          ) : (
+            <div className="qr-wrapper">
+              <canvas ref={canvasRef} />
+            </div>
+          )}
         </div>
 
         <div className="expiration-selector">

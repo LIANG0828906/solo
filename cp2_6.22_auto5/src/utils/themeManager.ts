@@ -1,6 +1,6 @@
 import { EditorView } from '@codemirror/view';
 import { HighlightStyle, syntaxHighlighting } from '@codemirror/language';
-import { tags as t } from '@lezer/highlight';
+import { tags, tags as t } from '@lezer/highlight';
 import type { ThemeName } from '../types';
 
 export function applyTheme(theme: ThemeName) {

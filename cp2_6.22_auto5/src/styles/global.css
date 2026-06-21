@@ -957,6 +957,11 @@ body {
   to { opacity: 0; transform: scale(0.95); }
 }
 
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
@@ -967,6 +972,10 @@ body {
 
 .snippet-exit {
   animation: fadeOutScale 0.3s ease forwards;
+}
+
+.hamburger-btn {
+  display: none;
 }
 
 @media (max-width: 768px) {
@@ -991,17 +1000,52 @@ body {
 
   .hamburger-btn {
     display: inline-flex;
+    margin-left: auto;
   }
 
   .main-toolbar {
     padding: 10px 14px;
     gap: 8px;
     flex-wrap: wrap;
+    position: relative;
   }
 
   .toolbar-left {
     flex-wrap: wrap;
     gap: 6px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .toolbar-right {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 12px;
+    background: var(--bg-glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--bg-glass-border);
+    z-index: 20;
+    animation: slideDown 0.2s ease;
+  }
+
+  .toolbar-right.mobile-open {
+    display: flex;
+  }
+
+  .toolbar-right .theme-switcher {
+    justify-content: center;
+  }
+
+  .toolbar-right .btn {
+    justify-content: center;
+    width: 100%;
   }
 
   .title-input {

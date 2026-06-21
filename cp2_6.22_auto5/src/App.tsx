@@ -21,6 +21,7 @@ export default function App() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const selectedSnippet = snippets.find((s) => s.id === selectedId) || null;
 
@@ -229,19 +230,22 @@ export default function App() {
                   ))}
                 </select>
               </div>
-              <div className="toolbar-right">
+              <div className={`toolbar-right ${mobileMenuOpen ? 'mobile-open' : ''}`}>
                 <div className="theme-switcher">
                   {THEMES.map((t) => (
                     <button
                       key={t.value}
                       className={`theme-btn ${theme === t.value ? 'active' : ''}`}
-                      onClick={() => setTheme(t.value)}
+                      onClick={() => {
+                        setTheme(t.value);
+                        setMobileMenuOpen(false);
+                      }}
                     >
                       {t.label}
                     </button>
                   ))}
                 </div>
-                <button className="btn btn-primary" onClick={handleShare}>
+                <button className="btn btn-primary" onClick={() => { handleShare(); setMobileMenuOpen(false); }}>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <circle cx="18" cy="5" r="3" />
                     <circle cx="6" cy="12" r="3" />
@@ -251,13 +255,31 @@ export default function App() {
                   </svg>
                   分享
                 </button>
-                <button className="btn btn-danger btn-icon" onClick={() => handleDelete(selectedSnippet.id)} title="删除">
+                <button className="btn btn-danger btn-icon" onClick={() => { handleDelete(selectedSnippet.id); setMobileMenuOpen(false); }} title="删除">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <polyline points="3 6 5 6 21 6" />
                     <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
                   </svg>
                 </button>
               </div>
+              <button
+                className="btn btn-icon btn-ghost hamburger-btn"
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                title="菜单"
+              >
+                {mobileMenuOpen ? (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="18" y1="6" x2="6" y2="18" />
+                    <line x1="6" y1="6" x2="18" y2="18" />
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <line x1="3" y1="12" x2="21" y2="12" />
+                    <line x1="3" y1="6" x2="21" y2="6" />
+                    <line x1="3" y1="18" x2="21" y2="18" />
+                  </svg>
+                )}
+              </button>
             </div>
             <EditorPanel
               content={selectedSnippet.content}
