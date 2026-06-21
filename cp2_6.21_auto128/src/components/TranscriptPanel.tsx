@@ -2,11 +2,14 @@ import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react'
 import { useUploadStore } from '@/stores/uploadStore';
 import { useSearchStore } from '@/stores/searchStore';
 import { formatTime, formatSRTTime } from '@/utils/mockApi';
+import { useDebounce } from '@/hooks/useDebounce';
 import type { TranscriptSentence, ExportFormat } from '@/types';
 import styles from './TranscriptPanel.module.css';
 
-const SENTENCE_HEIGHT = 80;
+const ESTIMATED_SENTENCE_HEIGHT = 80;
 const VIRTUAL_THRESHOLD = 100;
+const OVERSCAN_COUNT = 5;
+const SEARCH_DEBOUNCE_MS = 100;
 
 export const TranscriptPanel: React.FC = () => {
   const { transcript, getSpeakerById, status } = useUploadStore();
@@ -17,7 +20,6 @@ export const TranscriptPanel: React.FC = () => {
     timelineMarkers,
     setKeyword,
     setActiveSentence,
-    clearSearch,
   } = useSearchStore();
 
   const [showExportModal, setShowExportModal] = useState(false);
@@ -25,52 +27,74 @@ export const TranscriptPanel: React.FC = () => {
   const [exportProgress, setExportProgress] = useState(0);
   const [isExporting, setIsExporting] = useState(false);
   const [activeMarkerIndex, setActiveMarkerIndex] = useState<number | null>(null);
+  const [searchInput, setSearchInput] = useState('');
 
-  const transcriptRef = useRef<HTMLDivElement>(null);
-  const sentenceRefs = useRef<Record<string, HTMLDivElement | null>>({});
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [containerHeight, setContainerHeight] = useState(0);
+  const [scrollTop, setScrollTop] = useState(0);
+  const sentenceRefs = useRef<Map<string, HTMLDivElement>>(new Map());
+
+  const debouncedSearch = useDebounce(searchInput, SEARCH_DEBOUNCE_MS);
 
   const sentences = transcript?.sentences || [];
   const duration = transcript?.duration || 0;
-
   const useVirtualList = sentences.length > VIRTUAL_THRESHOLD;
 
-  const [scrollTop, setScrollTop] = useState(0);
-  const [containerHeight, setContainerHeight] = useState(600);
+  useEffect(() => {
+    setKeyword(debouncedSearch, sentences);
+  }, [debouncedSearch, sentences, setKeyword]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setContainerHeight(entry.contentRect.height);
+      }
+    });
+
+    resizeObserver.observe(container);
+    return () => resizeObserver.disconnect();
+  }, [status]);
 
   const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     setScrollTop(e.currentTarget.scrollTop);
   }, []);
 
-  useEffect(() => {
-    if (transcriptRef.current) {
-      setContainerHeight(transcriptRef.current.clientHeight);
-    }
-  }, [status]);
-
-  const visibleRange = useMemo(() => {
+  const { startIndex, endIndex, totalHeight, offsetY } = useMemo(() => {
     if (!useVirtualList) {
-      return { start: 0, end: sentences.length };
+      return {
+        startIndex: 0,
+        endIndex: sentences.length,
+        totalHeight: sentences.length * ESTIMATED_SENTENCE_HEIGHT,
+        offsetY: 0,
+      };
     }
-    const overscan = 10;
-    const start = Math.max(0, Math.floor(scrollTop / SENTENCE_HEIGHT) - overscan);
-    const end = Math.min(
+
+    const startIndex = Math.max(0, Math.floor(scrollTop / ESTIMATED_SENTENCE_HEIGHT) - OVERSCAN_COUNT);
+    const endIndex = Math.min(
       sentences.length,
-      Math.ceil((scrollTop + containerHeight) / SENTENCE_HEIGHT) + overscan
+      Math.ceil((scrollTop + containerHeight) / ESTIMATED_SENTENCE_HEIGHT) + OVERSCAN_COUNT
     );
-    return { start, end };
+    const totalHeight = sentences.length * ESTIMATED_SENTENCE_HEIGHT;
+    const offsetY = startIndex * ESTIMATED_SENTENCE_HEIGHT;
+
+    return { startIndex, endIndex, totalHeight, offsetY };
   }, [scrollTop, containerHeight, sentences.length, useVirtualList]);
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const value = e.target.value;
-    setKeyword(value, sentences);
-  };
+  const visibleSentences = useMemo(() => {
+    return sentences.slice(startIndex, endIndex);
+  }, [sentences, startIndex, endIndex]);
 
-  const highlightText = (text: string, keyword: string) => {
+  const highlightText = useCallback((text: string, keyword: string) => {
     if (!keyword.trim()) return text;
 
-    const parts = text.split(new RegExp(`(${keyword})`, 'gi'));
+    const regex = new RegExp(`(${keyword.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')})`, 'gi');
+    const parts = text.split(regex);
+
     return parts.map((part, index) =>
-      part.toLowerCase() === keyword.toLowerCase() ? (
+      regex.test(part) ? (
         <span key={index} className={styles.highlight}>
           {part}
         </span>
@@ -78,31 +102,52 @@ export const TranscriptPanel: React.FC = () => {
         part
       )
     );
-  };
+  }, []);
 
-  const scrollToSentence = (sentenceId: string) => {
-    const element = sentenceRefs.current[sentenceId];
-    if (element && transcriptRef.current) {
-      transcriptRef.current.scrollTo({
-        top: element.offsetTop - transcriptRef.current.offsetTop - 100,
+  const scrollToSentence = useCallback((sentenceId: string) => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    if (useVirtualList) {
+      const sentenceIndex = sentences.findIndex((s) => s.id === sentenceId);
+      if (sentenceIndex === -1) return;
+
+      const targetScrollTop = sentenceIndex * ESTIMATED_SENTENCE_HEIGHT - containerHeight / 3;
+      container.scrollTo({
+        top: Math.max(0, targetScrollTop),
         behavior: 'smooth',
       });
-      setActiveSentence(sentenceId);
-      setTimeout(() => setActiveSentence(null), 1000);
-
-      const index = matchedSentenceIds.indexOf(sentenceId);
-      if (index !== -1) {
-        setActiveMarkerIndex(index);
-        setTimeout(() => setActiveMarkerIndex(null), 1000);
+    } else {
+      const element = sentenceRefs.current.get(sentenceId);
+      if (element) {
+        container.scrollTo({
+          top: element.offsetTop - container.offsetTop - 100,
+          behavior: 'smooth',
+        });
       }
     }
-  };
 
-  const handleTimelineClick = (markerTime: number) => {
+    setActiveSentence(sentenceId);
+    setTimeout(() => setActiveSentence(null), 1000);
+
+    const index = matchedSentenceIds.indexOf(sentenceId);
+    if (index !== -1) {
+      setActiveMarkerIndex(index);
+      setTimeout(() => setActiveMarkerIndex(null), 1000);
+    }
+  }, [sentences, useVirtualList, containerHeight, matchedSentenceIds, setActiveSentence]);
+
+  const handleTimelineClick = useCallback((markerTime: number, index: number) => {
     const sentence = sentences.find((s) => Math.abs(s.startTime - markerTime) < 1);
     if (sentence) {
       scrollToSentence(sentence.id);
+      setActiveMarkerIndex(index);
+      setTimeout(() => setActiveMarkerIndex(null), 1000);
     }
+  }, [sentences, scrollToSentence]);
+
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchInput(e.target.value);
   };
 
   const handleExport = async () => {
@@ -113,15 +158,15 @@ export const TranscriptPanel: React.FC = () => {
 
     const interval = setInterval(() => {
       setExportProgress((prev) => {
-        if (prev >= 90) {
+        if (prev >= 85) {
           clearInterval(interval);
-          return 90;
+          return 85;
         }
-        return prev + Math.random() * 15;
+        return prev + Math.random() * 12;
       });
     }, 100);
 
-    await new Promise((resolve) => setTimeout(resolve, 800));
+    await new Promise((resolve) => setTimeout(resolve, 600));
 
     let content = '';
     let fileName = '';
@@ -153,7 +198,7 @@ export const TranscriptPanel: React.FC = () => {
       setIsExporting(false);
       setShowExportModal(false);
       setExportProgress(0);
-    }, 300);
+    }, 400);
   };
 
   const generateTXT = (sentences: TranscriptSentence[]): string => {
@@ -205,28 +250,34 @@ export const TranscriptPanel: React.FC = () => {
     URL.revokeObjectURL(url);
   };
 
-  const renderSentence = (sentence: TranscriptSentence, index: number) => {
+  const setSentenceRef = useCallback((id: string) => (el: HTMLDivElement | null) => {
+    if (el) {
+      sentenceRefs.current.set(id, el);
+    } else {
+      sentenceRefs.current.delete(id);
+    }
+  }, []);
+
+  const renderSentence = (sentence: TranscriptSentence) => {
     const speaker = getSpeakerById(sentence.speakerId);
     const isActive = activeSentenceId === sentence.id;
-    const isMatch = matchedSentenceIds.includes(sentence.id);
+    const isMatch = keyword && sentence.text.toLowerCase().includes(keyword.toLowerCase());
 
     return (
       <div
         key={sentence.id}
-        ref={(el) => {
-          sentenceRefs.current[sentence.id] = el;
-        }}
+        ref={setSentenceRef(sentence.id)}
         className={`${styles.sentenceItem} ${isActive ? styles.sentenceActive : ''}`}
         style={{
           backgroundColor: speaker?.color || '#f5f5f5',
-          height: useVirtualList ? SENTENCE_HEIGHT : 'auto',
+          minHeight: useVirtualList ? ESTIMATED_SENTENCE_HEIGHT : 'auto',
         }}
         onClick={() => scrollToSentence(sentence.id)}
       >
         <div className={styles.sentenceHeader}>
           <span className={styles.speakerTag}>{speaker?.name || '未知'}</span>
           <span className={styles.timestamp}>{formatTime(sentence.startTime)}</span>
-          {isMatch && <span className={styles.timestamp}>✓ 匹配</span>}
+          {isMatch && <span className={styles.matchBadge}>✓ 匹配</span>}
         </div>
         <p className={styles.sentenceText}>
           {highlightText(sentence.text, keyword)}
@@ -236,27 +287,23 @@ export const TranscriptPanel: React.FC = () => {
   };
 
   const renderVirtualList = () => {
-    const { start, end } = visibleRange;
-    const visibleSentences = sentences.slice(start, end);
-    const totalHeight = sentences.length * SENTENCE_HEIGHT;
-    const offsetY = start * SENTENCE_HEIGHT;
-
     return (
-      <div className={styles.virtualList} style={{ height: totalHeight }}>
+      <div style={{ height: totalHeight, position: 'relative' }}>
         <div style={{ transform: `translateY(${offsetY}px)` }}>
-          {visibleSentences.map((sentence, index) =>
-            renderSentence(sentence, start + index)
-          )}
+          {visibleSentences.map((sentence) => renderSentence(sentence))}
         </div>
       </div>
     );
   };
 
   const renderFullList = () => {
-    return sentences.map((sentence, index) => renderSentence(sentence, index));
+    return sentences.map((sentence) => renderSentence(sentence));
   };
 
-  const timelineHeight = Math.max(600, sentences.length * 15);
+  const timelineHeight = Math.max(400, sentences.length * 12);
+
+  const isLoading = status === 'uploading' || status === 'transcribing';
+  const hasData = status === 'completed' && sentences.length > 0;
 
   return (
     <div className={styles.panel}>
@@ -276,7 +323,7 @@ export const TranscriptPanel: React.FC = () => {
           type="text"
           className={styles.searchInput}
           placeholder="搜索关键词..."
-          value={keyword}
+          value={searchInput}
           onChange={handleSearchChange}
           disabled={!transcript}
         />
@@ -290,25 +337,31 @@ export const TranscriptPanel: React.FC = () => {
       <div className={styles.contentWrapper}>
         <div
           className={styles.transcriptContainer}
-          ref={transcriptRef}
+          ref={containerRef}
           onScroll={handleScroll}
         >
-          {!transcript && status !== 'transcribing' && status !== 'uploading' ? (
+          {!hasData && !isLoading && (
             <div className={styles.emptyState}>
               <div className={styles.emptyIcon}>📝</div>
               <p className={styles.emptyText}>
                 上传音频文件后，转写结果将显示在这里
               </p>
             </div>
-          ) : status === 'transcribing' || status === 'uploading' ? (
+          )}
+
+          {isLoading && (
             <div className={styles.emptyState}>
               <div className={styles.emptyIcon}>⏳</div>
               <p className={styles.emptyText}>正在处理中，请稍候...</p>
             </div>
-          ) : sentences.length === 0 ? (
-            <div className={styles.noResults}>暂无转写结果</div>
-          ) : (
+          )}
+
+          {hasData && (
             <>{useVirtualList ? renderVirtualList() : renderFullList()}</>
+          )}
+
+          {hasData && matchedSentenceIds.length === 0 && keyword && (
+            <div className={styles.noResults}>没有找到匹配的内容</div>
           )}
         </div>
 
@@ -319,14 +372,14 @@ export const TranscriptPanel: React.FC = () => {
             style={{ height: timelineHeight }}
           >
             {timelineMarkers.map((marker, index) => {
-              const topPercent = (marker / (duration || 1)) * 100;
+              const topPercent = duration > 0 ? (marker / duration) * 100 : 0;
               const isActive = activeMarkerIndex === index;
               return (
                 <div
                   key={index}
                   className={`${styles.timelineMarker} ${isActive ? styles.timelineMarkerActive : ''}`}
                   style={{ top: `${topPercent}%` }}
-                  onClick={() => handleTimelineClick(marker)}
+                  onClick={() => handleTimelineClick(marker, index)}
                   title={formatTime(marker)}
                 />
               );

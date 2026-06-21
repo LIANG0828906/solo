@@ -140,6 +140,15 @@
   color: #888;
 }
 
+.matchBadge {
+  font-size: 11px;
+  color: #f57f17;
+  background: #fff8e1;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
 .sentenceText {
   font-size: 14px;
   line-height: 1.6;
