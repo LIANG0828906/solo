@@ -55,7 +55,6 @@
       padding: 20px;
       display: flex;
       flex-direction: column;
-      gap: 20px;
       z-index: 10;
       border-left: 1px solid rgba(255, 255, 255, 0.1);
     }
@@ -65,20 +64,35 @@
       font-weight: 600;
       color: #e0e0e0;
       text-align: center;
-      padding-bottom: 10px;
+      padding-bottom: 14px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      margin-bottom: 4px;
+    }
+
+    .controls-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-evenly;
+      align-items: center;
+      padding: 8px 0;
+      gap: 12px;
     }
 
     .control-group {
       display: flex;
       flex-direction: column;
+      align-items: center;
       gap: 8px;
+      width: 100%;
     }
 
     .control-label {
       display: flex;
       justify-content: space-between;
       align-items: center;
+      width: 100%;
+      padding: 0 4px;
       font-size: 13px;
       color: #b0b0b0;
     }
@@ -89,18 +103,39 @@
       font-size: 14px;
     }
 
-    input[type="range"] {
+    .slider-track-container {
+      width: 100%;
+      height: 130px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    input[type="range"].vertical-slider {
       -webkit-appearance: none;
       appearance: none;
-      width: 100%;
-      height: 6px;
+      writing-mode: vertical-lr;
+      direction: rtl;
+      width: 6px;
+      height: 110px;
       background: #333;
       border-radius: 3px;
       outline: none;
       cursor: pointer;
+      padding: 0;
+      margin: 0;
     }
 
-    input[type="range"]::-webkit-slider-thumb {
+    input[type="range"].vertical-slider::-webkit-slider-runnable-track {
+      background: #333;
+      border-radius: 3px;
+      width: 6px;
+    }
+
+    input[type="range"].vertical-slider::-webkit-slider-thumb {
       -webkit-appearance: none;
       appearance: none;
       width: 18px;
@@ -110,13 +145,20 @@
       cursor: pointer;
       box-shadow: 0 0 8px rgba(255, 167, 38, 0.5);
       transition: transform 0.15s ease;
+      margin-left: -6px;
     }
 
-    input[type="range"]::-webkit-slider-thumb:hover {
+    input[type="range"].vertical-slider::-webkit-slider-thumb:hover {
       transform: scale(1.15);
     }
 
-    input[type="range"]::-moz-range-thumb {
+    input[type="range"].vertical-slider::-moz-range-track {
+      background: #333;
+      border-radius: 3px;
+      width: 6px;
+    }
+
+    input[type="range"].vertical-slider::-moz-range-thumb {
       width: 18px;
       height: 18px;
       background: #ffa726;
@@ -126,9 +168,20 @@
       box-shadow: 0 0 8px rgba(255, 167, 38, 0.5);
     }
 
-    input[type="color"] {
+    .color-container {
       width: 100%;
-      height: 36px;
+      height: 130px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(255, 255, 255, 0.03);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    input[type="color"] {
+      width: 52px;
+      height: 110px;
       border: none;
       border-radius: 8px;
       cursor: pointer;
@@ -137,7 +190,7 @@
     }
 
     input[type="color"]::-webkit-color-swatch-wrapper {
-      padding: 0;
+      padding: 2px;
     }
 
     input[type="color"]::-webkit-color-swatch {
@@ -145,47 +198,61 @@
       border-radius: 6px;
     }
 
+    input[type="color"]::-moz-color-swatch {
+      border: none;
+      border-radius: 6px;
+    }
+
     .button-group {
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
       margin-top: auto;
+      padding-top: 16px;
     }
 
     .btn {
-      padding: 12px 16px;
+      padding: 14px 18px;
       border: none;
       border-radius: 8px;
       font-size: 14px;
       font-weight: 500;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: all 0.18s ease;
       background: #42a5f5;
-      color: white;
+      color: #ffffff;
+      letter-spacing: 0.5px;
+      user-select: none;
+      outline: none;
     }
 
     .btn:hover {
-      background: #1e88e5;
-      transform: translateY(-1px);
-      box-shadow: 0 4px 12px rgba(66, 165, 245, 0.4);
+      background: #64b5f6;
+      box-shadow: 0 4px 14px rgba(66, 165, 245, 0.45);
     }
 
     .btn:active {
       transform: scale(0.95);
+      box-shadow: 0 2px 6px rgba(66, 165, 245, 0.35);
     }
 
     .btn-secondary {
-      background: #555;
+      background: #5c5c5c;
     }
 
     .btn-secondary:hover {
-      background: #666;
-      box-shadow: 0 4px 12px rgba(102, 102, 102, 0.4);
+      background: #707070;
+      box-shadow: 0 4px 14px rgba(102, 102, 102, 0.35);
+    }
+
+    .btn-secondary:active {
+      box-shadow: 0 2px 6px rgba(102, 102, 102, 0.3);
     }
 
     .fps-display {
       text-align: center;
-      padding-top: 10px;
+      padding-top: 14px;
+      margin-top: 14px;
       border-top: 1px solid rgba(255, 255, 255, 0.1);
       font-size: 12px;
       color: #66bb6a;
@@ -210,27 +277,35 @@
     <div class="control-panel">
       <div class="panel-title">车流模拟控制</div>
       
-      <div class="control-group">
-        <div class="control-label">
-          <span>交通密度</span>
-          <span class="control-value" id="density-value">40</span>
+      <div class="controls-wrapper">
+        <div class="control-group">
+          <div class="control-label">
+            <span>交通密度</span>
+            <span class="control-value" id="density-value">40</span>
+          </div>
+          <div class="slider-track-container">
+            <input type="range" class="vertical-slider" id="density-slider" min="10" max="100" step="5" value="40" />
+          </div>
         </div>
-        <input type="range" id="density-slider" min="10" max="100" step="5" value="40" />
-      </div>
-      
-      <div class="control-group">
-        <div class="control-label">
-          <span>车速</span>
-          <span class="control-value" id="speed-value">1.5</span>
+        
+        <div class="control-group">
+          <div class="control-label">
+            <span>车速</span>
+            <span class="control-value" id="speed-value">1.5</span>
+          </div>
+          <div class="slider-track-container">
+            <input type="range" class="vertical-slider" id="speed-slider" min="0.5" max="3.0" step="0.1" value="1.5" />
+          </div>
         </div>
-        <input type="range" id="speed-slider" min="0.5" max="3.0" step="0.1" value="1.5" />
-      </div>
-      
-      <div class="control-group">
-        <div class="control-label">
-          <span>灯光颜色</span>
+        
+        <div class="control-group">
+          <div class="control-label">
+            <span>灯光颜色</span>
+          </div>
+          <div class="color-container">
+            <input type="color" id="color-picker" value="#ffffff" />
+          </div>
         </div>
-        <input type="color" id="color-picker" value="#ffffff" />
       </div>
       
       <div class="button-group">
