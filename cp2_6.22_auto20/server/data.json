@@ -1,0 +1,12 @@
+{
+  "trips": [
+    {
+      "id": "mqofm5xxbcp9wya36d",
+      "destination": "东京",
+      "startDate": "2026-07-01",
+      "endDate": "2026-07-05",
+      "coverImage": "",
+      "days": []
+    }
+  ]
+}
