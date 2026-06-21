@@ -2,6 +2,8 @@ import { create } from 'zustand'
 
 export type Vec3 = [number, number, number]
 
+export type GradientMode = 'linear' | 'exponential'
+
 export interface EmitterConfig {
   id: string
   position: Vec3
@@ -11,6 +13,7 @@ export interface EmitterConfig {
   colorStart: string
   colorEnd: string
   particleSize: number
+  gradientMode: GradientMode
   active: boolean
 }
 
@@ -21,6 +24,7 @@ export interface PhysicsConfig {
   vortexAmplitude: number
   windDirection: Vec3
   windStrength: number
+  trailLength: number
 }
 
 interface SimulationState {
@@ -52,6 +56,7 @@ export const useSimulationStore = create<SimulationState>((set) => ({
     vortexAmplitude: 2.0,
     windDirection: [1, 0, 0] as Vec3,
     windStrength: 0,
+    trailLength: 0.5,
   },
   activeEmitterId: null,
 
@@ -69,6 +74,7 @@ export const useSimulationStore = create<SimulationState>((set) => ({
         colorStart: defaultColors[idx].start,
         colorEnd: defaultColors[idx].end,
         particleSize: 3,
+        gradientMode: 'linear',
         active: true,
       }
       return {

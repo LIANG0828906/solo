@@ -1,10 +1,11 @@
-import { useRef, useMemo, useCallback } from 'react'
-import { Canvas, useFrame } from '@react-three/fiber'
-import { OrbitControls, Text } from '@react-three/drei'
-import { EffectComposer, Afterimage, Bloom } from '@react-three/postprocessing'
+import { useRef, useMemo, useCallback, useEffect } from 'react'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
+import { OrbitControls, Text, Ring } from '@react-three/drei'
 import * as THREE from 'three'
+import { EffectComposer, RenderPass, BloomEffect, EffectPass, KernelSize } from 'postprocessing'
 import { useSimulationStore } from '@/store/useSimulationStore'
 import { ParticleSystem, computeParticleTrajectory } from '@/physics/particleSystem'
+import { AfterimagePass } from './AfterimagePass'
 
 const vertexShader = `
   attribute float size;
@@ -32,11 +33,9 @@ const fragmentShader = `
 function Particles() {
   const pointsRef = useRef<THREE.Points>(null)
   const systemRef = useRef(new ParticleSystem())
-  const materialRef = useRef<THREE.ShaderMaterial>(null)
 
   const emitters = useSimulationStore((s) => s.emitters)
   const physics = useSimulationStore((s) => s.physics)
-  const addEmitter = useSimulationStore((s) => s.addEmitter)
 
   const geometry = useMemo(() => {
     const geo = new THREE.BufferGeometry()
@@ -60,15 +59,15 @@ function Particles() {
 
     posAttr.array.set(system.renderPositions.subarray(0, system.aliveCount * 3))
     posAttr.needsUpdate = true
-    posAttr.updateRange = { offset: 0, count: system.aliveCount * 3 }
+    posAttr.addUpdateRange(0, system.aliveCount * 3)
 
     colAttr.array.set(system.renderColors.subarray(0, system.aliveCount * 4))
     colAttr.needsUpdate = true
-    colAttr.updateRange = { offset: 0, count: system.aliveCount * 4 }
+    colAttr.addUpdateRange(0, system.aliveCount * 4)
 
     sizeAttr.array.set(system.renderSizes.subarray(0, system.aliveCount))
     sizeAttr.needsUpdate = true
-    sizeAttr.updateRange = { offset: 0, count: system.aliveCount }
+    sizeAttr.addUpdateRange(0, system.aliveCount)
 
     geometry.setDrawRange(0, system.aliveCount)
   })
@@ -76,7 +75,6 @@ function Particles() {
   return (
     <points ref={pointsRef} geometry={geometry}>
       <shaderMaterial
-        ref={materialRef}
         vertexShader={vertexShader}
         fragmentShader={fragmentShader}
         transparent
@@ -85,6 +83,67 @@ function Particles() {
       />
     </points>
   )
+}
+
+function PostProcessing({ trailLength }: { trailLength: number }) {
+  const { gl, scene, camera, size } = useThree()
+  const composerRef = useRef<EffectComposer | null>(null)
+  const afterimagePassRef = useRef<AfterimagePass | null>(null)
+
+  useEffect(() => {
+    const composer = new EffectComposer(gl, {
+      frameBufferType: THREE.HalfFloatType,
+      multisampling: 0,
+    })
+    composer.setSize(size.width, size.height)
+
+    const renderPass = new RenderPass(scene, camera)
+    composer.addPass(renderPass)
+
+    const afterimagePass = new AfterimagePass()
+    composer.addPass(afterimagePass)
+    afterimagePassRef.current = afterimagePass
+
+    const bloomEffect = new BloomEffect({
+      intensity: 0.6,
+      luminanceThreshold: 0.2,
+      luminanceSmoothing: 0.9,
+      kernelSize: KernelSize.MEDIUM,
+      mipmapBlur: true,
+    })
+    const effectPass = new EffectPass(camera, bloomEffect)
+    composer.addPass(effectPass)
+
+    composerRef.current = composer
+
+    return () => {
+      composer.dispose()
+    }
+  }, [gl, scene, camera, size])
+
+  useEffect(() => {
+    if (composerRef.current) {
+      composerRef.current.setSize(size.width, size.height)
+    }
+  }, [size.width, size.height])
+
+  useEffect(() => {
+    if (afterimagePassRef.current) {
+      const minDamp = 0.5
+      const maxDamp = 0.96
+      const t = (trailLength - 0.1) / 1.9
+      const damp = minDamp + Math.pow(t, 0.7) * (maxDamp - minDamp)
+      afterimagePassRef.current.damp = damp
+    }
+  }, [trailLength])
+
+  useFrame((_, delta) => {
+    if (composerRef.current) {
+      composerRef.current.render(delta)
+    }
+  }, 1)
+
+  return null
 }
 
 function GroundPlane() {
@@ -123,6 +182,122 @@ function GridFloor() {
   )
 }
 
+function EmitterMarker({ emitter, isActive, onClick }: {
+  emitter: { id: string; position: [number, number, number]; colorStart: string; active: boolean }
+  isActive: boolean
+  onClick: () => void
+}) {
+  const ring1Ref = useRef<THREE.Mesh>(null)
+  const ring2Ref = useRef<THREE.Mesh>(null)
+  const haloRef = useRef<THREE.Mesh>(null)
+  const pulsePhase = useRef(Math.random() * Math.PI * 2)
+
+  useFrame((_, delta) => {
+    pulsePhase.current += delta * 2
+    const t = (Math.sin(pulsePhase.current) + 1) * 0.5
+
+    if (ring1Ref.current) {
+      const s = 0.6 + t * 0.3
+      ring1Ref.current.scale.set(s, s, s)
+      const mat = ring1Ref.current.material as THREE.MeshBasicMaterial
+      mat.opacity = (1 - t) * (isActive ? 0.8 : 0.4)
+    }
+
+    if (ring2Ref.current) {
+      const s = 0.4 + (1 - t) * 0.3
+      ring2Ref.current.scale.set(s, s, s)
+      const mat = ring2Ref.current.material as THREE.MeshBasicMaterial
+      mat.opacity = t * (isActive ? 0.6 : 0.3)
+    }
+
+    if (haloRef.current) {
+      const mat = haloRef.current.material as THREE.MeshBasicMaterial
+      mat.opacity = 0.15 + t * 0.15
+    }
+  })
+
+  return (
+    <group position={emitter.position} onClick={(e) => { e.stopPropagation(); onClick() }}>
+      <mesh ref={haloRef} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
+        <circleGeometry args={[1.2, 48]} />
+        <meshBasicMaterial
+          color={emitter.colorStart}
+          transparent
+          opacity={0.2}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+        />
+      </mesh>
+
+      <Ring
+        ref={ring1Ref as any}
+        args={[0.45, 0.5, 64]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, 0.05, 0]}
+      >
+        <meshBasicMaterial
+          color={emitter.colorStart}
+          transparent
+          opacity={0.6}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+        />
+      </Ring>
+
+      <Ring
+        ref={ring2Ref as any}
+        args={[0.25, 0.3, 64]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        position={[0, 0.05, 0]}
+      >
+        <meshBasicMaterial
+          color={emitter.colorStart}
+          transparent
+          opacity={0.4}
+          side={THREE.DoubleSide}
+          depthWrite={false}
+        />
+      </Ring>
+
+      <mesh position={[0, 0.3, 0]}>
+        <octahedronGeometry args={[isActive ? 0.22 : 0.18, 0]} />
+        <meshStandardMaterial
+          color={emitter.colorStart}
+          emissive={emitter.colorStart}
+          emissiveIntensity={isActive ? 2.5 : 1}
+          wireframe={!isActive}
+          transparent
+          opacity={emitter.active ? 1 : 0.4}
+        />
+      </mesh>
+
+      {isActive && (
+        <mesh position={[0, 0.3, 0]}>
+          <octahedronGeometry args={[0.35, 0]} />
+          <meshBasicMaterial
+            color={emitter.colorStart}
+            transparent
+            opacity={0.15}
+            side={THREE.DoubleSide}
+            depthWrite={false}
+          />
+        </mesh>
+      )}
+
+      <Text
+        position={[0, 1, 0]}
+        fontSize={0.22}
+        color={isActive ? emitter.colorStart : '#8892a4'}
+        anchorX="center"
+        anchorY="bottom"
+        fontWeight={600}
+      >
+        {isActive ? '● 选中' : ''}
+      </Text>
+    </group>
+  )
+}
+
 function EmitterMarkers() {
   const emitters = useSimulationStore((s) => s.emitters)
   const activeEmitterId = useSimulationStore((s) => s.activeEmitterId)
@@ -130,32 +305,13 @@ function EmitterMarkers() {
 
   return (
     <group>
-      {emitters.map((em, idx) => (
-        <group key={em.id} position={em.position}>
-          <mesh
-            onClick={(e) => {
-              e.stopPropagation()
-              setActiveEmitter(em.id)
-            }}
-          >
-            <octahedronGeometry args={[0.25, 0]} />
-            <meshStandardMaterial
-              color={em.colorStart}
-              emissive={em.colorStart}
-              emissiveIntensity={activeEmitterId === em.id ? 2 : 0.8}
-              wireframe={activeEmitterId !== em.id}
-            />
-          </mesh>
-          <Text
-            position={[0, 0.5, 0]}
-            fontSize={0.2}
-            color="#8892a4"
-            anchorX="center"
-            anchorY="bottom"
-          >
-            {`E${idx + 1}`}
-          </Text>
-        </group>
+      {emitters.map((em) => (
+        <EmitterMarker
+          key={em.id}
+          emitter={em}
+          isActive={activeEmitterId === em.id}
+          onClick={() => setActiveEmitter(em.id)}
+        />
       ))}
     </group>
   )
@@ -179,6 +335,8 @@ function ClickHint() {
 }
 
 function Scene() {
+  const trailLength = useSimulationStore((s) => s.physics.trailLength)
+
   return (
     <>
       <ambientLight intensity={0.3} />
@@ -196,15 +354,7 @@ function Scene() {
         maxDistance={50}
         maxPolarAngle={Math.PI * 0.85}
       />
-      <EffectComposer>
-        <Afterimage damp={0.88} />
-        <Bloom
-          intensity={0.6}
-          luminanceThreshold={0.2}
-          luminanceSmoothing={0.9}
-          mipmapBlur
-        />
-      </EffectComposer>
+      <PostProcessing trailLength={trailLength} />
     </>
   )
 }

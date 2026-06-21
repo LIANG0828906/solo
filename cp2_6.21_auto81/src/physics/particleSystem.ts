@@ -1,4 +1,4 @@
-import type { EmitterConfig, PhysicsConfig } from '../store/useSimulationStore'
+import type { EmitterConfig, PhysicsConfig, GradientMode } from '../store/useSimulationStore'
 
 const MAX_PARTICLES = 15000
 
@@ -9,6 +9,13 @@ function hexToRgb(hex: string): [number, number, number] {
     parseInt(h.substring(2, 4), 16) / 255,
     parseInt(h.substring(4, 6), 16) / 255,
   ]
+}
+
+function applyGradient(t: number, mode: GradientMode): number {
+  if (mode === 'exponential') {
+    return t * t
+  }
+  return t
 }
 
 export class ParticleSystem {
@@ -28,6 +35,7 @@ export class ParticleSystem {
   private colB1: Float32Array
   private sizeArr: Float32Array
   private alive: Uint8Array
+  private gradientMode: Uint8Array
 
   renderPositions: Float32Array
   renderColors: Float32Array
@@ -54,6 +62,7 @@ export class ParticleSystem {
     this.colB1 = new Float32Array(MAX_PARTICLES)
     this.sizeArr = new Float32Array(MAX_PARTICLES)
     this.alive = new Uint8Array(MAX_PARTICLES)
+    this.gradientMode = new Uint8Array(MAX_PARTICLES)
 
     this.renderPositions = new Float32Array(MAX_PARTICLES * 3)
     this.renderColors = new Float32Array(MAX_PARTICLES * 4)
@@ -91,6 +100,7 @@ export class ParticleSystem {
     this.colB1[slot] = c1[2]
 
     this.sizeArr[slot] = emitter.particleSize
+    this.gradientMode[slot] = emitter.gradientMode === 'exponential' ? 1 : 0
     this.alive[slot] = 1
   }
 
@@ -162,14 +172,15 @@ export class ParticleSystem {
 
       const tRatio = this.age[i] / this.lifetime[i]
       const fadeAlpha = 1.0 - tRatio * tRatio
+      const colorT = this.gradientMode[i] === 1 ? tRatio * tRatio : tRatio
 
       this.renderPositions[alive * 3] = this.posX[i]
       this.renderPositions[alive * 3 + 1] = this.posY[i]
       this.renderPositions[alive * 3 + 2] = this.posZ[i]
 
-      this.renderColors[alive * 4] = this.colR0[i] + (this.colR1[i] - this.colR0[i]) * tRatio
-      this.renderColors[alive * 4 + 1] = this.colG0[i] + (this.colG1[i] - this.colG0[i]) * tRatio
-      this.renderColors[alive * 4 + 2] = this.colB0[i] + (this.colB1[i] - this.colB0[i]) * tRatio
+      this.renderColors[alive * 4] = this.colR0[i] + (this.colR1[i] - this.colR0[i]) * colorT
+      this.renderColors[alive * 4 + 1] = this.colG0[i] + (this.colG1[i] - this.colG0[i]) * colorT
+      this.renderColors[alive * 4 + 2] = this.colB0[i] + (this.colB1[i] - this.colB0[i]) * colorT
       this.renderColors[alive * 4 + 3] = fadeAlpha * 0.85
 
       this.renderSizes[alive] = this.sizeArr[i] * (1.0 - tRatio * 0.4)
