@@ -107,6 +107,13 @@ export class ScenarioPanel {
         <span class="slider-value" data-key="${config.key}">${this.formatValue(value)} ${config.unit}</span>
       `;
       
+      const sliderWrapper = document.createElement('div');
+      sliderWrapper.className = 'slider-wrapper';
+      
+      const glowRing = document.createElement('div');
+      glowRing.className = 'slider-glow-ring';
+      glowRing.dataset.key = config.key;
+      
       const slider = document.createElement('input');
       slider.type = 'range';
       slider.min = String(config.min);
@@ -115,15 +122,89 @@ export class ScenarioPanel {
       slider.value = String(value);
       slider.dataset.key = config.key;
       slider.dataset.scenario = scenario;
+      slider.className = 'custom-slider';
+      
+      const ticksContainer = document.createElement('div');
+      ticksContainer.className = 'slider-ticks';
+      ticksContainer.dataset.key = config.key;
+      
+      const tickCount = 5;
+      for (let i = 0; i < tickCount; i++) {
+        const tickValue = config.min + (config.max - config.min) * (i / (tickCount - 1));
+        const tick = document.createElement('div');
+        tick.className = 'tick';
+        tick.style.left = `${(i / (tickCount - 1)) * 100}%`;
+        tick.dataset.value = String(tickValue);
+        
+        const tickLabel = document.createElement('span');
+        tickLabel.className = 'tick-label';
+        tickLabel.textContent = this.formatTickValue(tickValue, config);
+        tick.appendChild(tickLabel);
+        
+        ticksContainer.appendChild(tick);
+      }
+      
+      const activeTick = document.createElement('div');
+      activeTick.className = 'tick-active';
+      activeTick.dataset.key = config.key;
+      ticksContainer.appendChild(activeTick);
       
       slider.addEventListener('input', (e) => {
         this.onSliderChange(e, scenario, config);
       });
       
+      slider.addEventListener('mousedown', () => {
+        this.triggerGlowPulse(config.key, value, config);
+      });
+      
+      slider.addEventListener('touchstart', () => {
+        this.triggerGlowPulse(config.key, value, config);
+      });
+      
+      sliderWrapper.appendChild(glowRing);
+      sliderWrapper.appendChild(slider);
+      sliderWrapper.appendChild(ticksContainer);
+      
       sliderGroup.appendChild(sliderLabel);
-      sliderGroup.appendChild(slider);
+      sliderGroup.appendChild(sliderWrapper);
       this.contentEl.appendChild(sliderGroup);
+      
+      this.updateActiveTickPosition(config.key, value, config);
     });
+  }
+
+  private formatTickValue(value: number, config: SliderConfig): string {
+    if (config.max >= 100) {
+      return String(Math.round(value));
+    } else if (config.step >= 1) {
+      return String(Math.round(value));
+    } else {
+      return value.toFixed(1);
+    }
+  }
+
+  private triggerGlowPulse(key: string, value: number, config: SliderConfig): void {
+    const glowRing = this.contentEl.querySelector(`.slider-glow-ring[data-key="${key}"]`);
+    if (!glowRing) return;
+    
+    const normalizedValue = (value - config.min) / (config.max - config.min);
+    const glowSize = 20 + normalizedValue * 30;
+    
+    glowRing.classList.remove('pulse-active');
+    void glowRing.getBoundingClientRect();
+    
+    (glowRing as HTMLElement).style.setProperty('--glow-size', `${glowSize}px`);
+    (glowRing as HTMLElement).style.left = `${normalizedValue * 100}%`;
+    
+    glowRing.classList.add('pulse-active');
+  }
+
+  private updateActiveTickPosition(key: string, value: number, config: SliderConfig): void {
+    const activeTick = this.contentEl.querySelector(`.tick-active[data-key="${key}"]`);
+    if (!activeTick) return;
+    
+    const percentage = ((value - config.min) / (config.max - config.min)) * 100;
+    (activeTick as HTMLElement).style.left = `${percentage}%`;
   }
 
   private formatValue(value: number): string {
@@ -144,6 +225,9 @@ export class ScenarioPanel {
     if (valueEl) {
       valueEl.textContent = `${this.formatValue(value)} ${config.unit}`;
     }
+
+    this.triggerGlowPulse(config.key, value, config);
+    this.updateActiveTickPosition(config.key, value, config);
 
     this.result = calculateScenario(this.params);
     this.updateCarbonDisplay();
