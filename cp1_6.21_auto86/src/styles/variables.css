@@ -1,0 +1,31 @@
+:root {
+  --bg-primary: #1A1A2E;
+  --bg-secondary: #1E1E1E;
+  --bg-tertiary: #2C3E50;
+  --text-primary: #E0E0E0;
+  --text-secondary: #B0B0B0;
+  --accent-primary: #6C63FF;
+  --accent-secondary: #8B83FF;
+  --accent-gradient: linear-gradient(135deg, #6C63FF 0%, #8B83FF 100%);
+  --accent-playing: linear-gradient(135deg, #E74C3C 0%, #F39C12 100%);
+  --success: #00E676;
+  --warning: #F39C12;
+  --chord-major: #FF6B6B;
+  --chord-minor: #48C9B0;
+  --chord-dominant7: #F39C12;
+  --string-color: #B0B0B0;
+  --panel-bg: #F0F4F8;
+  --panel-selected: #E8E0FF;
+  --border-color: rgba(255, 255, 255, 0.1);
+  
+  --font-display: 'Space Grotesk', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  
+  --radius-sm: 8px;
+  --radius-md: 20px;
+  --radius-full: 9999px;
+  
+  --transition-fast: 0.1s ease-out;
+  --transition-normal: 0.2s ease-out;
+  --transition-slow: 0.3s ease-out;
+}
