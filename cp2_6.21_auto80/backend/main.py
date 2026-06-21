@@ -8,6 +8,15 @@ from uuid import uuid4
 
 VALID_FLAVOR_IDS = {'sea-salt-caramel', 'matcha', 'dark-chocolate', 'strawberry', 'pistachio', 'baileys'}
 
+
+def validate_hex_color(value: str, field_name: str) -> str:
+    if not re.match(r'^#([0-9A-Fa-f]{3}|[0-9A-Fa-f]{6})$', value):
+        raise HTTPException(status_code=400, detail=f"无效的{field_name}格式: {value}. 必须是十六进制颜色如 #RRGGBB 或 #RGB")
+    if len(value) == 4:
+        value = '#' + value[1] * 2 + value[2] * 2 + value[3] * 2
+    return value.lower()
+
+
 app = FastAPI()
 
 app.add_middleware(
@@ -52,14 +61,21 @@ def create_order(order: OrderCreate):
     for chocolate in order.chocolates:
         if chocolate.flavorId not in VALID_FLAVOR_IDS:
             raise HTTPException(status_code=400, detail=f"无效的口味ID: {chocolate.flavorId}")
-        if not re.match(r'^#[0-9A-Fa-f]{6}$', chocolate.color):
-            raise HTTPException(status_code=400, detail=f"无效的颜色格式: {chocolate.color}. 必须是十六进制如 #RRGGBB")
+        chocolate.color = validate_hex_color(chocolate.color, "巧克力颜色")
         if chocolate.shape not in {'circle', 'square', 'heart', 'shell'}:
             raise HTTPException(status_code=400, detail=f"无效的形状: {chocolate.shape}")
         if chocolate.texture not in {'matte', 'glossy', 'crushed-nuts', 'gold-foil'}:
             raise HTTPException(status_code=400, detail=f"无效的纹理: {chocolate.texture}")
     if order.giftBox.boxShape not in {'square', 'heart', 'drawer'}:
         raise HTTPException(status_code=400, detail=f"无效的礼盒形状: {order.giftBox.boxShape}")
+    if order.giftBox.ribbonColor.startswith("linear-gradient"):
+        hex_colors = re.findall(r'#[0-9A-Fa-f]{3,6}', order.giftBox.ribbonColor)
+        for hex_color in hex_colors:
+            normalized = validate_hex_color(hex_color, "丝带颜色")
+            order.giftBox.ribbonColor = order.giftBox.ribbonColor.replace(hex_color, normalized)
+    else:
+        order.giftBox.ribbonColor = validate_hex_color(order.giftBox.ribbonColor, "丝带颜色")
+    order.giftBox.cardColor = validate_hex_color(order.giftBox.cardColor, "贺卡文字颜色")
     if len(order.giftBox.cardText) > 200:
         raise HTTPException(status_code=400, detail="贺卡文字不能超过200个字符")
     order_id = str(uuid4())

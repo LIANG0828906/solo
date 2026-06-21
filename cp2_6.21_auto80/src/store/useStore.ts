@@ -63,13 +63,14 @@ interface StoreState {
   removeChocolate: (id: string) => void;
   updateChocolate: (id: string, updates: Partial<ChocolateItem>) => void;
   swapChocolates: (id1: string, id2: string) => void;
+  reorderChocolates: (newOrder: ChocolateItem[]) => void;
   selectChocolate: (id: string | null) => void;
   updateGiftBox: (updates: Partial<GiftBoxConfig>) => void;
   submitOrder: () => Promise<void>;
   fetchOrderHistory: () => Promise<void>;
 }
 
-export const useStore = create<StoreState>((set, get) => ({
+export const createStore = (set: any, get: any) => ({
   selectedChocolates: [],
   giftBox: {
     boxShape: 'square',
@@ -121,6 +122,10 @@ export const useStore = create<StoreState>((set, get) => ({
     });
   },
 
+  reorderChocolates: (newOrder) => {
+    set({ selectedChocolates: newOrder });
+  },
+
   selectChocolate: (id) => {
     set({ selectedChocolateId: id });
   },
@@ -148,4 +153,6 @@ export const useStore = create<StoreState>((set, get) => ({
     const history = await fetchOrderHistoryApi();
     set({ orderHistory: history });
   },
-}));
+});
+
+export const useStore = create<StoreState>((set, get) => createStore(set, get));

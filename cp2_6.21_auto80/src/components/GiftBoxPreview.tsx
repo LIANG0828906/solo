@@ -190,7 +190,7 @@ function GiftBoxMesh({ boxShape, ribbonColor, cardText, cardFont, cardColor, cho
 
       {cardText && (
         <>
-          <RoundedBox args={[0.6, 0.4, 0.01, 2, 0.005]} position={[0.8, 0.5, 0]} rotation={[0, 0, 0.15]}>
+          <RoundedBox args={[0.6, 0.45, 0.01, 2, 0.005]} position={[0.8, 0.5, 0]} rotation={[0, 0, 0.15]}>
             <meshStandardMaterial color="#FFF8E1" roughness={0.8} metalness={0.05} />
           </RoundedBox>
           <Text
@@ -199,13 +199,14 @@ function GiftBoxMesh({ boxShape, ribbonColor, cardText, cardFont, cardColor, cho
             fontSize={0.055}
             color={cardColor}
             font={cardFont}
-            maxWidth={0.5}
+            maxWidth={0.52}
             lineHeight={1.3}
             textAlign="center"
             anchorX="center"
             anchorY="middle"
             wrapLines={true}
             whiteSpace="normal"
+            overflowWrap="break-word"
           >
             {cardText}
           </Text>

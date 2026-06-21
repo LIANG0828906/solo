@@ -102,6 +102,13 @@ function ChocolateMesh({ shape, color, texture, size = 1 }: ChocolatePreviewProp
     return geo
   }, [shape, size])
 
+  /**
+   * Cylinder geometry for round chocolate disc shape.
+   * Radius: 0.4 * size, Height: 0.2 * size (height-to-radius ratio = 0.5)
+   * This matches the original sphere-flattened visual proportions (diameter 0.8, height 0.4)
+   * while avoiding the lighting artifacts caused by non-uniform mesh scaling.
+   * The 48 radial segments create a perfectly smooth circle.
+   */
   const circleGeometry = useMemo(() => {
     if (shape !== 'circle') return null
     return new THREE.CylinderGeometry(0.4 * size, 0.4 * size, 0.2 * size, 48, 1)
