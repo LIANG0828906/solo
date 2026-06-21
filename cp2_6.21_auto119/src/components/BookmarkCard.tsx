@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef, useCallback } from 'react';
-import { X, ExternalLink } from 'lucide-react';
+import { X, ExternalLink, Copy, Check } from 'lucide-react';
 import type { Bookmark } from '@/types';
 import { useBookmarkStore } from '@/store';
 import styles from './BookmarkCard.module.css';
@@ -67,7 +67,11 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = React.memo(({ bookmark,
   const setShowDetailPanel = useBookmarkStore((state) => state.setShowDetailPanel);
   const deleteBookmark = useBookmarkStore((state) => state.deleteBookmark);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [copied, setCopied] = useState(false);
   const cardRef = useRef<HTMLDivElement>(null);
+  const copyTimerRef = useRef<number | null>(null);
+
+  const summary = bookmark.summary || (bookmark as unknown as { description?: string }).description;
 
   const handleTransitionEnd = useCallback(
     (e: React.TransitionEvent<HTMLDivElement>) => {
@@ -101,6 +105,44 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = React.memo(({ bookmark,
     window.open(bookmark.url, '_blank', 'noopener,noreferrer');
   };
 
+  const handleCopyLink = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    if (copied) return;
+
+    try {
+      await navigator.clipboard.writeText(bookmark.url);
+      setCopied(true);
+
+      if (copyTimerRef.current) {
+        window.clearTimeout(copyTimerRef.current);
+      }
+      copyTimerRef.current = window.setTimeout(() => {
+        setCopied(false);
+      }, 1500);
+    } catch {
+      const textarea = document.createElement('textarea');
+      textarea.value = bookmark.url;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      try {
+        document.execCommand('copy');
+        setCopied(true);
+        if (copyTimerRef.current) {
+          window.clearTimeout(copyTimerRef.current);
+        }
+        copyTimerRef.current = window.setTimeout(() => {
+          setCopied(false);
+        }, 1500);
+      } catch {
+        console.warn('复制链接失败');
+      }
+      document.body.removeChild(textarea);
+    }
+  };
+
   const displayTitle = useMemo(
     () => highlightText(bookmark.title, searchKeyword),
     [bookmark.title, searchKeyword]
@@ -111,7 +153,13 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = React.memo(({ bookmark,
     [bookmark.url, searchKeyword]
   );
 
+  const displaySummary = useMemo(
+    () => (summary ? highlightText(summary, searchKeyword) : null),
+    [summary, searchKeyword]
+  );
+
   const cardClassName = `${styles.card} ${isDeleting ? styles.slideOut : ''}`;
+  const copyBtnClassName = `${styles.copyBtn} ${copied ? styles.copied : ''}`;
 
   return (
     <div
@@ -138,6 +186,15 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = React.memo(({ bookmark,
       </button>
 
       <button
+        className={copyBtnClassName}
+        onClick={handleCopyLink}
+        aria-label={copied ? '已复制' : '复制链接'}
+        title={copied ? '已复制' : '复制链接'}
+      >
+        {copied ? <Check size={14} /> : <Copy size={14} />}
+      </button>
+
+      <button
         className={styles.openLinkBtn}
         onClick={handleOpenLink}
         aria-label="打开链接"
@@ -153,6 +210,12 @@ export const BookmarkCard: React.FC<BookmarkCardProps> = React.memo(({ bookmark,
       <p className={styles.url} title={bookmark.url}>
         {displayUrl}
       </p>
+
+      {displaySummary && (
+        <p className={styles.summary} title={summary}>
+          {displaySummary}
+        </p>
+      )}
 
       <div className={styles.tags}>
         {bookmark.categories.map((category) => (
