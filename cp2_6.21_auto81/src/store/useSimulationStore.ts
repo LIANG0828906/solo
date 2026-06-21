@@ -27,16 +27,28 @@ export interface PhysicsConfig {
   trailLength: number
 }
 
+export interface PlacementEffect {
+  id: string
+  position: Vec3
+  timestamp: number
+  color: string
+}
+
 interface SimulationState {
   emitters: EmitterConfig[]
   physics: PhysicsConfig
   activeEmitterId: string | null
+  placementEffects: PlacementEffect[]
+  hoveredEmitterId: string | null
 
   addEmitter: (position: Vec3) => void
   removeEmitter: (id: string) => void
   updateEmitter: (id: string, partial: Partial<EmitterConfig>) => void
   setActiveEmitter: (id: string | null) => void
   updatePhysics: (partial: Partial<PhysicsConfig>) => void
+  addPlacementEffect: (position: Vec3, color: string) => void
+  clearPlacementEffect: (id: string) => void
+  setHoveredEmitter: (id: string | null) => void
 }
 
 let emitterCounter = 0
@@ -59,6 +71,8 @@ export const useSimulationStore = create<SimulationState>((set) => ({
     trailLength: 0.5,
   },
   activeEmitterId: null,
+  placementEffects: [],
+  hoveredEmitterId: null,
 
   addEmitter: (position) =>
     set((state) => {
@@ -102,4 +116,24 @@ export const useSimulationStore = create<SimulationState>((set) => ({
     set((state) => ({
       physics: { ...state.physics, ...partial },
     })),
+
+  addPlacementEffect: (position, color) =>
+    set((state) => ({
+      placementEffects: [
+        ...state.placementEffects,
+        {
+          id: `effect-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          position,
+          timestamp: Date.now(),
+          color,
+        },
+      ],
+    })),
+
+  clearPlacementEffect: (id) =>
+    set((state) => ({
+      placementEffects: state.placementEffects.filter((e) => e.id !== id),
+    })),
+
+  setHoveredEmitter: (id) => set({ hoveredEmitterId: id }),
 }))
