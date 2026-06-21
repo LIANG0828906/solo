@@ -98,7 +98,7 @@ export class Player {
 
   update(groundY: number): void {
     this.animTimer++;
-    if (this.animTimer >= 8) {
+    if (this.animTimer >= 6) {
       this.animTimer = 0;
       this.animFrame = (this.animFrame + 1) % 4;
     }
@@ -169,6 +169,8 @@ export class Player {
 
     if (this.state === PlayerState.Sliding) {
       this.drawSliding(ctx, screenX, screenY);
+    } else if (!this.grounded || this.state === PlayerState.Jumping || this.state === PlayerState.Flipping) {
+      this.drawJumping(ctx, screenX, screenY);
     } else {
       this.drawRunning(ctx, screenX, screenY);
     }
@@ -183,45 +185,123 @@ export class Player {
   private drawRunning(ctx: CanvasRenderingContext2D, sx: number, sy: number): void {
     ctx.fillStyle = '#00f0ff';
     ctx.fillRect(sx + 4, sy, 24, 8);
+    ctx.fillStyle = '#00d0e0';
+    ctx.fillRect(sx + 10, sy - 3, 12, 4);
 
     ctx.fillStyle = '#ffeaa7';
     ctx.fillRect(sx + 8, sy + 8, 16, 12);
+    ctx.fillStyle = '#2d3436';
+    ctx.fillRect(sx + 11, sy + 12, 3, 3);
+    ctx.fillRect(sx + 18, sy + 12, 3, 3);
 
     ctx.fillStyle = '#dfe6e9';
     ctx.fillRect(sx + 6, sy + 20, 20, 14);
+    ctx.fillStyle = '#b2bec3';
+    ctx.fillRect(sx + 6, sy + 20, 20, 3);
 
-    const legOffset = this.grounded ? (this.animFrame % 2 === 0 ? 2 : -2) : 0;
     ctx.fillStyle = '#636e72';
-    ctx.fillRect(sx + 8, sy + 34, 6, 14);
-    ctx.fillRect(sx + 18, sy + 34 + legOffset, 6, 14);
+    if (this.animFrame === 0) {
+      ctx.fillRect(sx + 8, sy + 34, 6, 14);
+      ctx.fillRect(sx + 18, sy + 36, 6, 12);
+    } else if (this.animFrame === 1) {
+      ctx.fillRect(sx + 6, sy + 36, 6, 12);
+      ctx.fillRect(sx + 20, sy + 34, 6, 14);
+    } else if (this.animFrame === 2) {
+      ctx.fillRect(sx + 8, sy + 36, 6, 12);
+      ctx.fillRect(sx + 18, sy + 34, 6, 14);
+    } else {
+      ctx.fillRect(sx + 6, sy + 34, 6, 14);
+      ctx.fillRect(sx + 20, sy + 36, 6, 12);
+    }
+
+    ctx.fillStyle = '#e17055';
+    if (this.animFrame % 2 === 0) {
+      ctx.fillRect(sx + 2, sy + 24, 6, 4);
+      ctx.fillRect(sx + 24, sy + 20, 6, 4);
+    } else {
+      ctx.fillRect(sx + 2, sy + 20, 6, 4);
+      ctx.fillRect(sx + 24, sy + 24, 6, 4);
+    }
 
     ctx.fillStyle = '#2d3436';
     ctx.fillRect(sx + 2, sy + 44, 28, 4);
+    ctx.fillStyle = '#00f0ff';
+    ctx.fillRect(sx + 2, sy + 44, 28, 1);
+  }
+
+  private drawJumping(ctx: CanvasRenderingContext2D, sx: number, sy: number): void {
+    ctx.fillStyle = '#00f0ff';
+    ctx.fillRect(sx + 4, sy, 24, 8);
+    ctx.fillStyle = '#00d0e0';
+    ctx.fillRect(sx + 10, sy - 3, 12, 4);
+
+    ctx.fillStyle = '#ffeaa7';
+    ctx.fillRect(sx + 8, sy + 8, 16, 12);
+    ctx.fillStyle = '#2d3436';
+    ctx.fillRect(sx + 11, sy + 12, 3, 3);
+    ctx.fillRect(sx + 18, sy + 12, 3, 3);
+
+    ctx.fillStyle = '#dfe6e9';
+    ctx.fillRect(sx + 6, sy + 20, 20, 16);
+    ctx.fillStyle = '#b2bec3';
+    ctx.fillRect(sx + 6, sy + 20, 20, 3);
+
+    ctx.fillStyle = '#e17055';
+    ctx.fillRect(sx - 2, sy + 22, 6, 6);
+    ctx.fillRect(sx + 28, sy + 22, 6, 6);
+
+    ctx.fillStyle = '#636e72';
+    ctx.fillRect(sx + 6, sy + 36, 8, 8);
+    ctx.fillRect(sx + 18, sy + 36, 8, 8);
+
+    ctx.fillStyle = '#2d3436';
+    ctx.fillRect(sx + 2, sy + 44, 28, 4);
+    ctx.fillStyle = '#00f0ff';
+    ctx.fillRect(sx + 2, sy + 44, 28, 1);
   }
 
   private drawSliding(ctx: CanvasRenderingContext2D, sx: number, sy: number): void {
     ctx.fillStyle = '#00f0ff';
-    ctx.fillRect(sx, sy + 38, 32, 6);
+    ctx.fillRect(sx + 2, sy + 26, 26, 6);
 
     ctx.fillStyle = '#ffeaa7';
-    ctx.fillRect(sx + 6, sy + 32, 14, 8);
+    ctx.fillRect(sx + 24, sy + 22, 10, 10);
+    ctx.fillStyle = '#2d3436';
+    ctx.fillRect(sx + 28, sy + 26, 2, 2);
 
     ctx.fillStyle = '#dfe6e9';
-    ctx.fillRect(sx + 18, sy + 34, 10, 6);
+    ctx.fillRect(sx + 4, sy + 32, 24, 10);
+
+    ctx.fillStyle = '#e17055';
+    if (this.animFrame % 2 === 0) {
+      ctx.fillRect(sx + 0, sy + 34, 6, 3);
+    } else {
+      ctx.fillRect(sx + 0, sy + 38, 6, 3);
+    }
+
+    ctx.fillStyle = '#636e72';
+    ctx.fillRect(sx + 6, sy + 42, 22, 4);
 
     ctx.fillStyle = '#2d3436';
     ctx.fillRect(sx + 2, sy + 44, 28, 4);
+    ctx.fillStyle = '#00f0ff';
+    ctx.fillRect(sx + 2, sy + 44, 28, 1);
   }
 
   private drawBoostTrail(ctx: CanvasRenderingContext2D, sx: number, sy: number): void {
-    for (let i = 1; i <= 6; i++) {
-      const ratio = i / 6;
+    const trailCount = 10;
+    const trailY = sy + this.height / 2;
+    for (let i = 1; i <= trailCount; i++) {
+      const ratio = i / trailCount;
       const r = Math.floor(231 + (243 - 231) * ratio);
       const g = Math.floor(76 + (156 - 76) * ratio);
       const b = Math.floor(60 + (18 - 60) * ratio);
-      ctx.fillStyle = `rgba(${r},${g},${b},${1 - ratio * 0.8})`;
+      const alpha = 1 - ratio * 0.85;
+      const size = 3 - 2 * ratio;
+      ctx.fillStyle = `rgba(${r},${g},${b},${alpha})`;
       ctx.beginPath();
-      ctx.arc(sx - i * 6, sy + this.height / 2 + (Math.random() - 0.5) * 8, 3 - ratio * 1.5, 0, Math.PI * 2);
+      const jitter = (Math.random() - 0.5) * 10;
+      ctx.arc(sx - i * 4, trailY + jitter, Math.max(size, 0.5), 0, Math.PI * 2);
       ctx.fill();
     }
   }

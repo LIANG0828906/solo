@@ -1,12 +1,33 @@
 import { ObstaclePool, Obstacle, Collectible } from './obstacle';
 
+interface BaseParticle {
+  x: number;
+  y: number;
+  vx: number;
+  vy: number;
+  life: number;
+  maxLife: number;
+  color: string;
+  size: number;
+}
+
+interface CollectBurst {
+  x: number;
+  y: number;
+  color: string;
+  life: number;
+  maxLife: number;
+}
+
 export class Renderer {
   private canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D;
   private screenFlashTimer: number = 0;
   private screenFlashColor: string = '';
   private panelGlowPhase: number = 0;
-  private particles: Array<{ x: number; y: number; vx: number; vy: number; life: number; maxLife: number; color: string; size: number }> = [];
+  private panelEdgePhase: number = 0;
+  private particles: BaseParticle[] = [];
+  private collectBursts: CollectBurst[] = [];
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -154,9 +175,46 @@ export class Renderer {
     const ctx = this.ctx;
 
     for (const col of collectibles) {
-      if (!col.active || col.collected) continue;
+      if (!col.active) continue;
       const sx = col.x - cameraX;
       if (sx > this.canvas.width + 20 || sx < -20) continue;
+
+      if (col.collected) {
+        const progress = 1 - col.collectAnimTimer / 18;
+        const scale = 1 + progress * 2;
+        const alpha = 1 - progress;
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(sx, col.y);
+        ctx.scale(scale, scale);
+        if (col.type === 'energy') {
+          ctx.shadowColor = '#f1c40f';
+          ctx.shadowBlur = 20;
+          ctx.fillStyle = '#f1c40f';
+          ctx.beginPath();
+          for (let i = 0; i < 6; i++) {
+            const angle = (Math.PI / 3) * i - Math.PI / 6;
+            const px = Math.cos(angle) * col.size;
+            const py = Math.sin(angle) * col.size;
+            if (i === 0) ctx.moveTo(px, py);
+            else ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.fill();
+        } else {
+          ctx.shadowColor = '#e74c3c';
+          ctx.shadowBlur = 20;
+          ctx.fillStyle = '#e74c3c';
+          ctx.beginPath();
+          ctx.moveTo(0, -col.size);
+          ctx.lineTo(-col.size, col.size * 0.6);
+          ctx.lineTo(col.size, col.size * 0.6);
+          ctx.closePath();
+          ctx.fill();
+        }
+        ctx.restore();
+        continue;
+      }
 
       const pulse = Math.sin(col.pulsePhase) * 0.3 + 1;
 
@@ -197,6 +255,8 @@ export class Renderer {
   drawUI(score: number, health: number, highScore: number): void {
     const ctx = this.ctx;
     this.panelGlowPhase += 0.05;
+    this.panelEdgePhase += 1 / 120;
+    if (this.panelEdgePhase >= 1) this.panelEdgePhase = 0;
 
     const panelX = 16;
     const panelY = 16;
@@ -207,12 +267,11 @@ export class Renderer {
     ctx.fillRect(panelX, panelY, panelW, panelH);
 
     const glowIntensity = (Math.sin(this.panelGlowPhase) + 1) / 2;
-    ctx.strokeStyle = `rgba(0,240,255,${0.4 + glowIntensity * 0.6})`;
+    ctx.strokeStyle = `rgba(0,240,255,${0.3 + glowIntensity * 0.4})`;
     ctx.lineWidth = 2;
-    ctx.shadowColor = '#00f0ff';
-    ctx.shadowBlur = 4 + glowIntensity * 8;
     ctx.strokeRect(panelX, panelY, panelW, panelH);
-    ctx.shadowBlur = 0;
+
+    this.drawEdgeFlow(panelX, panelY, panelW, panelH, this.panelEdgePhase);
 
     ctx.font = '14px "Courier New", monospace';
     ctx.fillStyle = '#00f0ff';
@@ -230,6 +289,89 @@ export class Renderer {
     ctx.shadowBlur = 0;
   }
 
+  private drawEdgeFlow(x: number, y: number, w: number, h: number, phase: number): void {
+    const ctx = this.ctx;
+    const perimeter = 2 * (w + h);
+    const headPos = phase * perimeter;
+    const glowLen = 60;
+
+    ctx.save();
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 12;
+    ctx.lineWidth = 3;
+
+    const drawSegment = (px: number, py: number, len: number, vertical: boolean, dir: number, alpha: number) => {
+      ctx.strokeStyle = `rgba(0,240,255,${alpha})`;
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      if (vertical) {
+        ctx.lineTo(px, py + dir * len);
+      } else {
+        ctx.lineTo(px + dir * len, py);
+      }
+      ctx.stroke();
+    };
+
+    let remaining = headPos;
+    let currentX = x;
+    let currentY = y;
+
+    const edges: { len: number; vertical: boolean; dir: number }[] = [
+      { len: w, vertical: false, dir: 1 },
+      { len: h, vertical: true, dir: 1 },
+      { len: w, vertical: false, dir: -1 },
+      { len: h, vertical: true, dir: -1 },
+    ];
+
+    let startEdge = 0;
+    for (let i = 0; i < edges.length; i++) {
+      if (remaining <= edges[i].len) {
+        startEdge = i;
+        break;
+      }
+      remaining -= edges[i].len;
+      if (edges[i].vertical) {
+        currentY += edges[i].dir * edges[i].len;
+      } else {
+        currentX += edges[i].dir * edges[i].len;
+      }
+    }
+
+    let remainingGlow = glowLen;
+    let edgeIdx = startEdge;
+    let posOnEdge = remaining;
+
+    for (let step = 0; step < 2 && remainingGlow > 0; step++) {
+      const edge = edges[edgeIdx];
+      const segLen = Math.min(posOnEdge, remainingGlow);
+      const alpha = 1 - (glowLen - remainingGlow + segLen / 2) / glowLen;
+
+      if (edge.vertical) {
+        const startY = currentY + edge.dir * (edge.len - posOnEdge);
+        drawSegment(currentX, startY, segLen, true, edge.dir, Math.max(0.2, alpha));
+      } else {
+        const startX = currentX + edge.dir * (edge.len - posOnEdge);
+        drawSegment(startX, currentY, segLen, false, edge.dir, Math.max(0.2, alpha));
+      }
+
+      remainingGlow -= segLen;
+      posOnEdge -= segLen;
+      if (posOnEdge <= 0) {
+        edgeIdx = (edgeIdx - 1 + edges.length) % edges.length;
+        posOnEdge = edges[edgeIdx].len;
+        const prevEdge = edges[(edgeIdx + 1) % edges.length];
+        if (prevEdge.vertical) {
+          currentY += prevEdge.dir * prevEdge.len;
+        } else {
+          currentX += prevEdge.dir * prevEdge.len;
+        }
+        if (edgeIdx === startEdge && step > 0) break;
+      }
+    }
+
+    ctx.restore();
+  }
+
   flashScreen(color: string): void {
     this.screenFlashTimer = 12;
     this.screenFlashColor = color;
@@ -245,53 +387,95 @@ export class Renderer {
     }
   }
 
+  addCollectBurst(x: number, y: number, color: string): void {
+    this.collectBursts.push({ x, y, color, life: 18, maxLife: 18 });
+    for (let i = 0; i < 10; i++) {
+      const angle = (Math.PI * 2 * i) / 10;
+      const speed = 2 + Math.random() * 2;
+      this.particles.push({
+        x,
+        y,
+        vx: Math.cos(angle) * speed,
+        vy: Math.sin(angle) * speed - 1,
+        life: 18,
+        maxLife: 18,
+        color,
+        size: 3
+      });
+    }
+  }
+
   drawGameOver(score: number, highScore: number, animProgress: number, onRestart: (() => void) | null): void {
     const ctx = this.ctx;
     const w = this.canvas.width;
     const h = this.canvas.height;
 
+    ctx.save();
+    ctx.fillStyle = 'rgba(10,0,25,0.5)';
+    for (let ox = -4; ox <= 4; ox += 2) {
+      for (let oy = -4; oy <= 4; oy += 2) {
+        if (ox === 0 && oy === 0) continue;
+        ctx.globalAlpha = 0.1;
+        ctx.fillRect(0, 0, w, h);
+      }
+    }
+    ctx.globalAlpha = 1;
     ctx.fillStyle = 'rgba(0,0,0,0.7)';
     ctx.fillRect(0, 0, w, h);
+    ctx.restore();
 
-    const eased = 1 - Math.pow(1 - Math.min(animProgress, 1), 3);
-    const panelY = -200 + (h / 2 - 80) * eased;
+    const clamped = Math.min(animProgress, 1);
+    const eased = 1 - Math.pow(1 - clamped, 3);
+    const finalPanelY = h / 2 - 110;
+    const panelY = -280 + (finalPanelY + 280) * eased;
 
     const pw = 360;
-    const ph = 220;
+    const ph = 240;
     const px = w / 2 - pw / 2;
 
-    ctx.fillStyle = 'rgba(10,0,20,0.9)';
+    ctx.save();
+    ctx.fillStyle = 'rgba(10,0,25,0.88)';
     ctx.fillRect(px, panelY, pw, ph);
+    ctx.restore();
 
     ctx.strokeStyle = '#00f0ff';
     ctx.lineWidth = 2;
     ctx.shadowColor = '#00f0ff';
-    ctx.shadowBlur = 10;
+    ctx.shadowBlur = 14;
     ctx.strokeRect(px, panelY, pw, ph);
     ctx.shadowBlur = 0;
 
     ctx.font = 'bold 28px "Courier New", monospace';
     ctx.fillStyle = '#ff0066';
     ctx.textAlign = 'center';
+    ctx.shadowColor = '#ff0066';
+    ctx.shadowBlur = 10;
     ctx.fillText('GAME OVER', w / 2, panelY + 50);
+    ctx.shadowBlur = 0;
 
     ctx.font = '18px "Courier New", monospace';
     ctx.fillStyle = '#00f0ff';
-    ctx.fillText(`SCORE: ${score}`, w / 2, panelY + 90);
+    ctx.shadowColor = '#00f0ff';
+    ctx.shadowBlur = 4;
+    ctx.fillText(`SCORE: ${score}`, w / 2, panelY + 95);
+    ctx.shadowBlur = 0;
     ctx.fillStyle = '#ffeaa7';
-    ctx.fillText(`BEST:  ${highScore}`, w / 2, panelY + 120);
+    ctx.fillText(`BEST:  ${highScore}`, w / 2, panelY + 125);
 
-    if (animProgress >= 1 && onRestart) {
+    if (clamped >= 1 && onRestart) {
       const bx = w / 2 - 70;
-      const by = panelY + 150;
+      const by = panelY + 160;
       const bw = 140;
-      const bh = 40;
+      const bh = 44;
 
       const gradient = ctx.createLinearGradient(bx, by, bx + bw, by);
       gradient.addColorStop(0, '#00f0ff');
       gradient.addColorStop(1, '#ff00ff');
       ctx.fillStyle = gradient;
+      ctx.shadowColor = '#00f0ff';
+      ctx.shadowBlur = 8;
       ctx.fillRect(bx, by, bw, bh);
+      ctx.shadowBlur = 0;
 
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 1;
@@ -299,7 +483,7 @@ export class Renderer {
 
       ctx.font = 'bold 16px "Courier New", monospace';
       ctx.fillStyle = '#0d0221';
-      ctx.fillText('RESTART', w / 2, by + 26);
+      ctx.fillText('RESTART', w / 2, by + 28);
 
       this._restartBtn = { x: bx, y: by, w: bw, h: bh, callback: onRestart };
     } else {
@@ -344,9 +528,30 @@ export class Renderer {
       const alpha = p.life / p.maxLife;
       ctx.globalAlpha = alpha;
       ctx.fillStyle = p.color;
-      ctx.fillRect(p.x, p.y, p.size, p.size);
+      ctx.shadowColor = p.color;
+      ctx.shadowBlur = 4;
+      ctx.fillRect(p.x - p.size / 2, p.y - p.size / 2, p.size, p.size);
     }
     ctx.globalAlpha = 1;
+    ctx.shadowBlur = 0;
+
+    this.collectBursts = this.collectBursts.filter(b => b.life > 0);
+    for (const b of this.collectBursts) {
+      b.life--;
+      const progress = 1 - b.life / b.maxLife;
+      const radius = 6 + progress * 30;
+      const alpha = 1 - progress;
+      ctx.save();
+      ctx.globalAlpha = alpha * 0.6;
+      ctx.strokeStyle = b.color;
+      ctx.lineWidth = 3;
+      ctx.shadowColor = b.color;
+      ctx.shadowBlur = 16;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, radius, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.restore();
+    }
   }
 
   getParticleCount(): number {

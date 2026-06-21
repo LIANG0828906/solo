@@ -16,6 +16,7 @@ export interface Collectible extends Poolable {
   size: number;
   pulsePhase: number;
   collected: boolean;
+  collectAnimTimer: number;
 }
 
 export class ObstaclePool {
@@ -92,6 +93,10 @@ export class ObstaclePool {
         col.x -= scrollSpeed;
         col.pulsePhase += 0.08;
         if (col.x + col.size < -50) col.active = false;
+      } else if (col.active && col.collected) {
+        col.x -= scrollSpeed;
+        col.collectAnimTimer--;
+        if (col.collectAnimTimer <= 0) col.active = false;
       }
     }
   }
@@ -105,7 +110,7 @@ export class ObstaclePool {
   }
 
   getActiveCollectibles(): Collectible[] {
-    return this.collectibles.filter(c => c.active && !c.collected);
+    return this.collectibles.filter(c => c.active);
   }
 
   private spawnObstacle(bx: number, roofY: number, bw: number): void {
@@ -143,13 +148,14 @@ export class ObstaclePool {
   private spawnCollectible(bx: number, roofY: number, bw: number): void {
     let col = this.collectibles.find(c => !c.active);
     if (!col) {
-      col = { active: true, x: 0, y: 0, type: 'energy', size: 0, pulsePhase: 0, collected: false };
+      col = { active: true, x: 0, y: 0, type: 'energy', size: 0, pulsePhase: 0, collected: false, collectAnimTimer: 0 };
       this.collectibles.push(col);
     }
 
     const t = Math.random() < 0.7 ? 'energy' : 'boost';
     col.active = true;
     col.collected = false;
+    col.collectAnimTimer = 0;
     col.x = bx + 20 + Math.random() * (bw - 40);
     col.type = t;
     col.pulsePhase = Math.random() * Math.PI * 2;

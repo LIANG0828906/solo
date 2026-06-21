@@ -112,7 +112,8 @@ export class Game {
     }
 
     const scrollSpeed = this.player.speed;
-    this.cameraX += scrollSpeed;
+    this.player.x += scrollSpeed;
+    this.cameraX = this.player.x - 80;
 
     const groundY = this.pool.getGroundYAt(this.player.x + this.player.width / 2, this.canvas.height);
 
@@ -171,13 +172,14 @@ export class Game {
       const colHit = { x: col.x - col.size, y: col.y - col.size, w: col.size * 2, h: col.size * 2 };
       if (this.aabb(hit.x, hit.y, hit.w, hit.h, colHit.x, colHit.y, colHit.w, colHit.h)) {
         col.collected = true;
+        col.collectAnimTimer = 18;
 
         if (col.type === 'energy') {
           this.player.score += 100;
-          this.renderer.addParticle(col.x, col.y, '#f1c40f', 6);
+          this.renderer.addCollectBurst(col.x, col.y, '#f1c40f');
         } else {
           this.player.activateBoost();
-          this.renderer.addParticle(col.x, col.y, '#e74c3c', 8);
+          this.renderer.addCollectBurst(col.x, col.y, '#e74c3c');
         }
       }
     }
