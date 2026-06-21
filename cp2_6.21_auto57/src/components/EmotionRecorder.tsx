@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { emotionAPI, CreateRecordPayload } from '../api/emotionAPI';
 
 const CATEGORIES = [
@@ -23,17 +23,6 @@ interface Props {
   onSubmitted: () => void;
 }
 
-function getGradientColor(value: number, min: number, max: number, startColor: string, endColor: string): string {
-  const t = (value - min) / (max - min);
-  const start = hexToRgb(startColor);
-  const end = hexToRgb(endColor);
-  if (!start || !end) return startColor;
-  const r = Math.round(start.r + (end.r - start.r) * t);
-  const g = Math.round(start.g + (end.g - start.g) * t);
-  const b = Math.round(start.b + (end.b - start.b) * t);
-  return `rgb(${r}, ${g}, ${b})`;
-}
-
 function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
   const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
   return result
@@ -45,21 +34,64 @@ function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
     : null;
 }
 
+function interpolateColor(value: number, min: number, max: number, startHex: string, endHex: string): string {
+  const t = Math.max(0, Math.min(1, (value - min) / (max - min)));
+  const start = hexToRgb(startHex);
+  const end = hexToRgb(endHex);
+  if (!start || !end) return startHex;
+  const r = Math.round(start.r + (end.r - start.r) * t);
+  const g = Math.round(start.g + (end.g - start.g) * t);
+  const b = Math.round(start.b + (end.b - start.b) * t);
+  return `rgb(${r}, ${g}, ${b})`;
+}
+
 const EmotionRecorder: React.FC<Props> = ({ onSubmitted }) => {
   const [category, setCategory] = useState('');
-  const [intensity, setIntensity] = useState(5);
-  const [energy, setEnergy] = useState(5);
+  const [intensityValue, setIntensityValue] = useState(5);
+  const [energyValue, setEnergyValue] = useState(5);
   const [note, setNote] = useState('');
   const [tags, setTags] = useState<string[]>([]);
   const [submitting, setSubmitting] = useState(false);
+  const [isDraggingIntensity, setIsDraggingIntensity] = useState(false);
+  const [isDraggingEnergy, setIsDraggingEnergy] = useState(false);
 
-  const intensityColor = getGradientColor(intensity, 1, 10, '#ff6b6b', '#6bcf7f');
-  const energyColor = getGradientColor(energy, 1, 10, '#4fc3f7', '#1565c0');
+  const intensityColor = useMemo(
+    () => interpolateColor(intensityValue, 1, 10, '#ff6b6b', '#6bcf7f'),
+    [intensityValue]
+  );
+  const energyColor = useMemo(
+    () => interpolateColor(energyValue, 1, 10, '#4fc3f7', '#1565c0'),
+    [energyValue]
+  );
+
+  const intensityText = useMemo(() => {
+    if (intensityValue <= 2) return '非常低落';
+    if (intensityValue <= 4) return '较低';
+    if (intensityValue <= 6) return '中性';
+    if (intensityValue <= 8) return '较好';
+    return '非常愉悦';
+  }, [intensityValue]);
+
+  const energyText = useMemo(() => {
+    if (energyValue <= 2) return '精疲力竭';
+    if (energyValue <= 4) return '精力不足';
+    if (energyValue <= 6) return '状态一般';
+    if (energyValue <= 8) return '精力充沛';
+    return '能量爆棚';
+  }, [energyValue]);
 
   const toggleTag = (tag: string) => {
     setTags(prev =>
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     );
+  };
+
+  const handleIntensityChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setIntensityValue(Number(e.target.value));
+  };
+
+  const handleEnergyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEnergyValue(Number(e.target.value));
   };
 
   const handleSubmit = async () => {
@@ -76,15 +108,15 @@ const EmotionRecorder: React.FC<Props> = ({ onSubmitted }) => {
       const payload: CreateRecordPayload = {
         timestamp,
         category,
-        intensity,
-        energy,
+        intensity: intensityValue,
+        energy: energyValue,
         note: note.slice(0, 200),
         tags,
       };
       await emotionAPI.createRecord(payload);
       setCategory('');
-      setIntensity(5);
-      setEnergy(5);
+      setIntensityValue(5);
+      setEnergyValue(5);
       setNote('');
       setTags([]);
       onSubmitted();
@@ -123,20 +155,35 @@ const EmotionRecorder: React.FC<Props> = ({ onSubmitted }) => {
         <div className="form-label">
           情绪强度
           <span className="slider-label-value" style={{ color: intensityColor }}>
-            强度：{intensity}
+            强度：{intensityValue} · {intensityText}
           </span>
         </div>
-        <div className="slider-container">
-          <div className="slider-value-intensity" style={{ color: intensityColor }}>
-            {intensity}
+        <div className={`slider-container ${isDraggingIntensity ? 'dragging' : ''}`}>
+          <div
+            className="slider-value-intensity"
+            style={{
+              color: intensityColor,
+              transform: isDraggingIntensity ? 'scale(1.15)' : 'scale(1)',
+            }}
+          >
+            {intensityValue}
           </div>
           <input
             type="range"
             className="intensity-slider"
             min={1}
             max={10}
-            value={intensity}
-            onChange={e => setIntensity(Number(e.target.value))}
+            value={intensityValue}
+            onChange={handleIntensityChange}
+            onInput={handleIntensityChange}
+            onMouseDown={() => setIsDraggingIntensity(true)}
+            onMouseUp={() => setIsDraggingIntensity(false)}
+            onTouchStart={() => setIsDraggingIntensity(true)}
+            onTouchEnd={() => setIsDraggingIntensity(false)}
+            style={{
+              // @ts-expect-error CSS custom property
+              '--thumb-color': intensityColor,
+            } as React.CSSProperties}
           />
           <div className="slider-scale">
             <span>1</span>
@@ -150,20 +197,35 @@ const EmotionRecorder: React.FC<Props> = ({ onSubmitted }) => {
         <div className="form-label">
           精力值（能量水平）
           <span className="slider-label-value" style={{ color: energyColor }}>
-            精力：{energy}
+            精力：{energyValue} · {energyText}
           </span>
         </div>
-        <div className="slider-container">
-          <div className="slider-value-energy" style={{ color: energyColor }}>
-            {energy}
+        <div className={`slider-container ${isDraggingEnergy ? 'dragging' : ''}`}>
+          <div
+            className="slider-value-energy"
+            style={{
+              color: energyColor,
+              transform: isDraggingEnergy ? 'scale(1.15)' : 'scale(1)',
+            }}
+          >
+            {energyValue}
           </div>
           <input
             type="range"
             className="energy-slider"
             min={1}
             max={10}
-            value={energy}
-            onChange={e => setEnergy(Number(e.target.value))}
+            value={energyValue}
+            onChange={handleEnergyChange}
+            onInput={handleEnergyChange}
+            onMouseDown={() => setIsDraggingEnergy(true)}
+            onMouseUp={() => setIsDraggingEnergy(false)}
+            onTouchStart={() => setIsDraggingEnergy(true)}
+            onTouchEnd={() => setIsDraggingEnergy(false)}
+            style={{
+              // @ts-expect-error CSS custom property
+              '--thumb-color': energyColor,
+            } as React.CSSProperties}
           />
           <div className="slider-scale">
             <span>1</span>
