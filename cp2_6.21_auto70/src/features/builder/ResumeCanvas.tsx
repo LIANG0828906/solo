@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { useResumeStore } from '@/store/useResumeStore';
 import { TEMPLATES } from '@/types/resume';
 import PersonalSection from './sections/PersonalSection';
@@ -11,6 +11,16 @@ import './ResumeCanvas.css';
 
 const CANVAS_WIDTH = 794;
 const CANVAS_HEIGHT = 1123;
+
+const ZOOM_PRESETS = [
+  { label: '50%', value: 0.5 },
+  { label: '75%', value: 0.75 },
+  { label: '100%', value: 1 },
+  { label: '150%', value: 1.5 },
+];
+
+const MIN_ZOOM = 0.5;
+const MAX_ZOOM = 2;
 
 const ResumeCanvas: React.FC = () => {
   const canvasRef = useRef<HTMLDivElement>(null);
@@ -49,6 +59,30 @@ const ResumeCanvas: React.FC = () => {
     }
   };
 
+  const handleZoomIn = useCallback(() => {
+    const newZoom = Math.min(zoom + 0.1, MAX_ZOOM);
+    setZoom(Number(newZoom.toFixed(2)));
+  }, [zoom, setZoom]);
+
+  const handleZoomOut = useCallback(() => {
+    const newZoom = Math.max(zoom - 0.1, MIN_ZOOM);
+    setZoom(Number(newZoom.toFixed(2)));
+  }, [zoom, setZoom]);
+
+  const handleSliderChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setZoom(Number(e.target.value));
+    },
+    [setZoom]
+  );
+
+  const handlePresetClick = useCallback(
+    (value: number) => {
+      setZoom(value);
+    },
+    [setZoom]
+  );
+
   const canvasStyle = {
     background: template.colors.background,
     color: template.colors.text,
@@ -57,21 +91,57 @@ const ResumeCanvas: React.FC = () => {
     height: CANVAS_HEIGHT,
   };
 
+  const scaledWidth = CANVAS_WIDTH * zoom;
+  const scaledHeight = CANVAS_HEIGHT * zoom;
+
   return (
     <div className="canvas-container">
       <div className="canvas-toolbar">
-        <div className="zoom-control">
-          <span className="zoom-label">缩放</span>
-          <input
-            type="range"
-            min="0.7"
-            max="1.5"
-            step="0.05"
-            value={zoom}
-            onChange={(e) => setZoom(Number(e.target.value))}
-            className="zoom-slider"
-          />
-          <span className="zoom-value">{Math.round(zoom * 100)}%</span>
+        <div className="zoom-control-group">
+          <button
+            className="zoom-btn zoom-out-btn"
+            onClick={handleZoomOut}
+            disabled={zoom <= MIN_ZOOM}
+            title="缩小"
+          >
+            −
+          </button>
+          <div className="zoom-slider-wrapper">
+            <input
+              type="range"
+              min={MIN_ZOOM}
+              max={MAX_ZOOM}
+              step="0.05"
+              value={zoom}
+              onChange={handleSliderChange}
+              className="zoom-slider"
+            />
+          </div>
+          <button
+            className="zoom-btn zoom-in-btn"
+            onClick={handleZoomIn}
+            disabled={zoom >= MAX_ZOOM}
+            title="放大"
+          >
+            +
+          </button>
+          <div className="zoom-display" title="点击重置为100%" onClick={() => handlePresetClick(1)}>
+            {Math.round(zoom * 100)}%
+          </div>
+        </div>
+
+        <div className="zoom-preset-group">
+          {ZOOM_PRESETS.map((preset) => (
+            <button
+              key={preset.value}
+              className={`zoom-preset-btn ${
+                Math.abs(zoom - preset.value) < 0.01 ? 'active' : ''
+              }`}
+              onClick={() => handlePresetClick(preset.value)}
+            >
+              {preset.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -79,33 +149,54 @@ const ResumeCanvas: React.FC = () => {
         <div
           className="canvas-scale-wrapper"
           style={{
-            transform: `scale(${zoom})`,
-            transformOrigin: 'top center',
+            width: scaledWidth,
+            height: scaledHeight,
           }}
         >
           <div
-            ref={canvasRef}
-            id="resume-canvas"
-            className="resume-canvas"
-            style={canvasStyle}
-            key={renderKey}
+            className="canvas-inner"
+            style={{
+              transform: `scale(${zoom})`,
+              transformOrigin: 'top left',
+              width: CANVAS_WIDTH,
+              height: CANVAS_HEIGHT,
+            }}
           >
-            <div className="canvas-content">
-              {visibleModules.map((module) => (
-                <div
-                  key={module.id}
-                  className={`canvas-module ${
-                    activeModuleId === module.id ? 'active-highlight' : ''
-                  }`}
-                  style={{
-                    '--module-accent': template.colors.accent,
-                  } as React.CSSProperties}
-                >
-                  {renderModule(module.id, module.type)}
-                </div>
-              ))}
+            <div
+              ref={canvasRef}
+              id="resume-canvas"
+              className="resume-canvas"
+              style={canvasStyle}
+              key={renderKey}
+            >
+              <div className="canvas-content">
+                {visibleModules.map((module) => (
+                  <div
+                    key={module.id}
+                    className={`canvas-module ${
+                      activeModuleId === module.id ? 'active-highlight' : ''
+                    }`}
+                    style={{
+                      '--module-accent': template.colors.accent,
+                    } as React.CSSProperties}
+                  >
+                    {renderModule(module.id, module.type)}
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="canvas-bottom-toolbar">
+        <div className="zoom-info">
+          <span className="canvas-size-info">
+            画布尺寸: {CANVAS_WIDTH} × {CANVAS_HEIGHT} px (A4)
+          </span>
+          <span className="canvas-scale-info">
+            显示尺寸: {Math.round(scaledWidth)} × {Math.round(scaledHeight)} px
+          </span>
         </div>
       </div>
     </div>
