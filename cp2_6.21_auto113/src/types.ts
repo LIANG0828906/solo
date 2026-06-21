@@ -25,6 +25,7 @@ export interface CreateTaskPayload {
   description: string;
   repoUrl: string;
   submitterId: string;
+  reviewerId?: string;
 }
 
 export interface UpdateStatusPayload {
@@ -47,9 +48,9 @@ export const STATUS_COLUMNS: { id: TaskStatus; title: string; bgColor: string }[
 
 export const STATUS_TOAST_COLORS: Record<string, string> = {
   pending: '#6c757d',
-  reviewing: '#ff9800',
+  reviewing: '#2196f3',
   approved: '#4caf50',
-  changes_needed: '#f44336',
+  changes_needed: '#ff9800',
   info: '#2196f3',
   error: '#d32f2f',
   success: '#388e3c',

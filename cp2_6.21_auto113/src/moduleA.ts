@@ -4,11 +4,32 @@ import { useBoardStore } from './store';
 
 const api = axios.create({ baseURL: '/api', timeout: 10000 });
 
+function selectLeastBusyReviewer(reviewers: User[]): User | null {
+  const online = reviewers.filter((r) => r.isOnline);
+  if (online.length === 0) return null;
+  online.sort((a, b) => a.activeTasks - b.activeTasks || a.id.localeCompare(b.id));
+  return online[0];
+}
+
 export async function createTask(payload: CreateTaskPayload): Promise<Task> {
   try {
-    const { data } = await api.post<Task>('/tasks', payload);
+    let reviewers: User[] = [];
+    try {
+      const res = await api.get<User[]>('/reviewers');
+      reviewers = res.data;
+    } catch {
+      reviewers = [];
+    }
+
+    const chosen = selectLeastBusyReviewer(reviewers);
+    const finalPayload: CreateTaskPayload & { reviewerId?: string } = {
+      ...payload,
+      reviewerId: chosen?.id,
+    };
+
+    const { data } = await api.post<Task>('/tasks', finalPayload);
     useBoardStore.getState().addToast({
-      message: `任务已创建，分配给${data.reviewer?.name || '未分配'}`,
+      message: `任务已创建，分配给${data.reviewer?.name || chosen?.name || '未分配'}`,
       type: 'success',
     });
     return data;

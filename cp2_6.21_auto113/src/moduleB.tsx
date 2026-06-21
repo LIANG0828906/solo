@@ -7,6 +7,7 @@ import {
   type DraggableProvided,
   type DroppableProvided,
   type DraggableStateSnapshot,
+  type DroppableStateSnapshot,
 } from 'react-beautiful-dnd';
 import type { Task, TaskStatus } from './types';
 import { STATUS_COLUMNS } from './types';
@@ -19,12 +20,27 @@ interface BoardProps {
   onStatusChange?: (taskId: string, status: TaskStatus) => void;
 }
 
-function reorder(list: Task[], startIndex: number, endIndex: number): Task[] {
-  const result = Array.from(list);
-  const [removed] = result.splice(startIndex, 1);
-  result.splice(endIndex, 0, removed);
-  return result;
-}
+const Avatar: React.FC<{ name: string; size?: number }> = ({ name, size = 32 }) => (
+  <div
+    className="task-avatar"
+    style={{
+      width: `${size}px`,
+      height: `${size}px`,
+      borderRadius: '50%',
+      background: hashNameToColor(name),
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      color: '#fff',
+      fontSize: size <= 24 ? '11px' : '12px',
+      fontWeight: 700,
+      flexShrink: 0,
+    }}
+    title={name}
+  >
+    {getInitials(name)}
+  </div>
+);
 
 const TaskCard: React.FC<{
   task: Task;
@@ -45,7 +61,7 @@ const TaskCard: React.FC<{
 
   const reviewer = task.reviewer;
   const avatarName = reviewer?.name || task.submitter?.name || 'U';
-  const avatarColor = reviewer?.avatarColor || hashNameToColor(avatarName);
+  const baseTransform: string = (provided.draggableProps.style as any)?.transform || '';
 
   return (
     <div
@@ -54,10 +70,8 @@ const TaskCard: React.FC<{
       {...provided.dragHandleProps}
       className={`task-card ${highlight ? 'card-highlight' : ''}`}
       style={{
-        ...provided.draggableProps.style,
-        transform: snapshot.isDragging
-          ? `${provided.draggableProps.style?.transform || ''} scale(0.96)`
-          : provided.draggableProps.style?.transform,
+        ...(provided.draggableProps.style as any),
+        transform: snapshot.isDragging ? `${baseTransform} scale(0.6)` : baseTransform,
         transition: snapshot.isDragging ? 'transform 0.15s ease' : 'none',
         zIndex: snapshot.isDragging ? 1000 : 1,
       }}
@@ -67,9 +81,7 @@ const TaskCard: React.FC<{
         <div className="task-desc" dangerouslySetInnerHTML={{ __html: renderMarkdown(task.description) }} />
       )}
       <div className="task-footer">
-        <div className="task-avatar" style={{ background: avatarColor }} title={avatarName}>
-          {getInitials(avatarName)}
-        </div>
+        <Avatar name={avatarName} size={32} />
         <div className="task-meta">
           <div className="task-reviewer">{reviewer?.name || '未分配'}</div>
           <div className="task-time">{timeAgo(task.updatedAt)}</div>
@@ -100,7 +112,7 @@ const Column: React.FC<{
       <span className="column-count">{tasks.length}</span>
     </div>
     <Droppable droppableId={column.id}>
-      {(provided: DroppableProvided, snapshot) => (
+      {(provided: DroppableProvided, snapshot: DroppableStateSnapshot) => (
         <div
           {...provided.droppableProps}
           ref={provided.innerRef}
@@ -113,12 +125,37 @@ const Column: React.FC<{
               )}
             </Draggable>
           ))}
-          {provided.placeholder}
+          <CustomPlaceholder placeholder={provided.placeholder} />
         </div>
       )}
     </Droppable>
   </div>
 );
+
+const CustomPlaceholder: React.FC<{ placeholder: any }> = ({ placeholder }) => {
+  if (!placeholder) return null;
+  const { placeholder: _p, ...restProvided } = placeholder as any;
+  const style: React.CSSProperties = {
+    ...(placeholder.style || {}),
+    border: '2px dashed #ccc',
+    background: '#f9f9f9',
+    borderRadius: '10px',
+    marginBottom: '12px',
+    boxSizing: 'border-box',
+  };
+  return (
+    <div
+      ref={(el) => {
+        if (placeholder.ref) {
+          placeholder.ref(el);
+        }
+      }}
+      style={style}
+      {...restProvided}
+      data-rfd-placeholder="true"
+    />
+  );
+};
 
 const BoardView: React.FC<BoardProps> = ({ tasks, onStatusChange }) => {
   const { addToast } = useBoardStore();

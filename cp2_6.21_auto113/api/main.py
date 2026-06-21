@@ -41,6 +41,7 @@ class CreateTaskPayload(BaseModel):
     description: str = ''
     repoUrl: str = ''
     submitterId: str
+    reviewerId: Optional[str] = None
 
 
 class UpdateStatusPayload(BaseModel):
@@ -193,7 +194,11 @@ async def create_task(payload: CreateTaskPayload):
             isOnline=True,
         )
 
-    reviewer = assign_reviewer_round_robin()
+    if payload.reviewerId and payload.reviewerId in reviewers_db and reviewers_db[payload.reviewerId].isOnline:
+        reviewer = reviewers_db[payload.reviewerId]
+        reviewer.activeTasks += 1
+    else:
+        reviewer = assign_reviewer_round_robin()
     reviewer_id = reviewer.id if reviewer else None
 
     task = TaskInDB(
@@ -300,6 +305,12 @@ async def connect(sid: str, environ: Any):
 @sio.event
 async def disconnect(sid: str):
     print('[WS] disconnected:', sid)
+
+
+@sio.event
+async def ping(sid: str, data: Any):
+    await sio.emit('pong', {'t': data.get('t') if isinstance(data, dict) else None}, to=sid)
+    return True
 
 
 socketio_app = socketio.ASGIApp(sio, other_asgi_app=app, socketio_path='/socket.io')
