@@ -72,8 +72,21 @@ manager = ConnectionManager()
 
 
 @app.get("/api/books")
-async def get_books(page: int = Query(1, ge=1), page_size: int = Query(20, ge=1, le=100)):
-    return db.get_books(page, page_size)
+async def get_books(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    search: Optional[str] = Query(None),
+    tag: Optional[str] = Query(None),
+):
+    return db.get_books(page, page_size, search=search, tag=tag)
+
+
+@app.get("/api/books/{book_id}")
+async def get_book(book_id: int):
+    result = db.get_book_by_id(book_id)
+    if not result:
+        raise HTTPException(status_code=404, detail="书籍不存在")
+    return result
 
 
 @app.post("/api/books")
@@ -109,6 +122,11 @@ async def update_book_status(book_id: int, update: BookStatusUpdate):
 @app.get("/api/statistics")
 async def get_statistics():
     return db.get_statistics()
+
+
+@app.get("/api/tags")
+async def get_tags():
+    return {"tags": db.get_all_tags()}
 
 
 @app.websocket("/ws/{user_id}")

@@ -255,17 +255,32 @@ class Database:
                     (book_id, (i % 3) + 2, borrow_date)
                 )
 
-    def get_books(self, page: int = 1, limit: int = 20) -> Dict[str, Any]:
+    def get_books(self, page: int = 1, page_size: int = 20, search: Optional[str] = None, tag: Optional[str] = None) -> Dict[str, Any]:
         conn = self.get_connection()
         cursor = conn.cursor()
 
-        offset = (page - 1) * limit
-        cursor.execute('SELECT COUNT(*) FROM books')
+        conditions = []
+        params: list = []
+
+        if search:
+            conditions.append("(title LIKE ? OR author LIKE ?)")
+            params.extend([f'%{search}%', f'%{search}%'])
+
+        if tag:
+            conditions.append("tags LIKE ?")
+            params.append(f'%{tag}%')
+
+        where_clause = ""
+        if conditions:
+            where_clause = "WHERE " + " AND ".join(conditions)
+
+        cursor.execute(f'SELECT COUNT(*) FROM books {where_clause}', params)
         total = cursor.fetchone()[0]
 
+        offset = (page - 1) * page_size
         cursor.execute(
-            'SELECT * FROM books ORDER BY created_at DESC LIMIT ? OFFSET ?',
-            (limit, offset)
+            f'SELECT * FROM books {where_clause} ORDER BY created_at DESC LIMIT ? OFFSET ?',
+            params + [page_size, offset]
         )
         rows = cursor.fetchall()
         conn.close()
@@ -385,6 +400,35 @@ class Database:
             'tags_count': tags_count,
             'borrow_trend': borrow_trend
         }
+
+    def get_all_tags(self) -> List[str]:
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT tags FROM books')
+        rows = cursor.fetchall()
+        conn.close()
+
+        tag_set = set()
+        for row in rows:
+            tags = row['tags'].split(',') if row['tags'] else []
+            for tag in tags:
+                tag = tag.strip()
+                if tag:
+                    tag_set.add(tag)
+        return sorted(tag_set)
+
+    def get_book_by_id(self, book_id: int) -> Optional[Dict[str, Any]]:
+        conn = self.get_connection()
+        cursor = conn.cursor()
+        cursor.execute('SELECT * FROM books WHERE id = ?', (book_id,))
+        row = cursor.fetchone()
+        conn.close()
+
+        if row:
+            book = dict(row)
+            book['tags'] = book['tags'].split(',') if book['tags'] else []
+            return book
+        return None
 
     def get_user(self, user_id: int) -> Optional[Dict[str, Any]]:
         conn = self.get_connection()

@@ -6,28 +6,10 @@ import BookShelf from './book-management/BookShelf';
 import BookDetail from './book-management/BookDetail';
 import Dashboard from './statistics/Dashboard';
 import { useAppStore } from './store';
-import { bookApi } from './services/api';
 import { wsService } from './services/websocket';
 
 function App() {
-  const { user, setBooks, updateBookStatus, addToast, setLoading } = useAppStore();
-
-  useEffect(() => {
-    const fetchBooks = async () => {
-      setLoading(true);
-      try {
-        const { books } = await bookApi.getBooks(1, 20);
-        setBooks(books);
-      } catch (error) {
-        console.error('Failed to fetch books:', error);
-        addToast('加载书籍数据失败', 'warning');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchBooks();
-  }, [setBooks, setLoading, addToast]);
+  const { user, updateBookStatus, addToast } = useAppStore();
 
   useEffect(() => {
     wsService.connect(user.id);

@@ -8,10 +8,31 @@ const api = axios.create({
   },
 });
 
+export interface GetBooksParams {
+  page?: number;
+  pageSize?: number;
+  search?: string;
+  tag?: string;
+}
+
 export const bookApi = {
-  getBooks: async (page = 1, pageSize = 20): Promise<{ books: Book[]; total: number }> => {
-    const response = await api.get('/books', { params: { page, page_size: pageSize } });
+  getBooks: async (params: GetBooksParams = {}): Promise<{ books: Book[]; total: number }> => {
+    const { page = 1, pageSize = 20, search, tag } = params;
+    const queryParams: Record<string, string | number> = { page, page_size: pageSize };
+    if (search) queryParams.search = search;
+    if (tag) queryParams.tag = tag;
+    const response = await api.get('/books', { params: queryParams });
     return response.data;
+  },
+
+  getBookById: async (bookId: number): Promise<Book> => {
+    const response = await api.get(`/books/${bookId}`);
+    return response.data;
+  },
+
+  getTags: async (): Promise<string[]> => {
+    const response = await api.get('/tags');
+    return response.data.tags;
   },
 
   addBook: async (book: Omit<Book, 'id' | 'created_at'>): Promise<Book> => {

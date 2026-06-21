@@ -1,19 +1,51 @@
-import { useMemo, useRef, useCallback } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import BookCard from './BookCard';
 import { useAppStore } from '../store';
+import { bookApi } from '../services/api';
 
 const DEBOUNCE_DELAY = 300;
 
 const BookShelf = () => {
-  const { books, filteredBooks, searchQuery, selectedTag, setSearchQuery, setSelectedTag, isLoading } =
+  const { books, totalBooks, allTags, setBooks, setAllTags, isLoading, setLoading, addToast } =
     useAppStore();
+  const [searchParams, setSearchParams] = useSearchParams();
   const debounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const allTags = useMemo(() => {
-    const tagSet = new Set<string>();
-    books.forEach((book) => book.tags.forEach((tag) => tagSet.add(tag)));
-    return Array.from(tagSet);
-  }, [books]);
+  const currentSearch = searchParams.get('search') || '';
+  const currentTag = searchParams.get('tag') || '';
+
+  useEffect(() => {
+    const fetchTags = async () => {
+      try {
+        const tags = await bookApi.getTags();
+        setAllTags(tags);
+      } catch (error) {
+        console.error('Failed to fetch tags:', error);
+      }
+    };
+    fetchTags();
+  }, [setAllTags]);
+
+  useEffect(() => {
+    const fetchBooks = async () => {
+      setLoading(true);
+      try {
+        const result = await bookApi.getBooks({
+          search: currentSearch || undefined,
+          tag: currentTag || undefined,
+        });
+        setBooks(result.books, result.total);
+      } catch (error) {
+        console.error('Failed to fetch books:', error);
+        addToast('加载书籍数据失败', 'warning');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBooks();
+  }, [currentSearch, currentTag, setBooks, setLoading, addToast]);
 
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -22,10 +54,34 @@ const BookShelf = () => {
         clearTimeout(debounceTimer.current);
       }
       debounceTimer.current = setTimeout(() => {
-        setSearchQuery(value);
+        setSearchParams((prev) => {
+          const next = new URLSearchParams(prev);
+          if (value) {
+            next.set('search', value);
+          } else {
+            next.delete('search');
+          }
+          return next;
+        });
       }, DEBOUNCE_DELAY);
     },
-    [setSearchQuery]
+    [setSearchParams]
+  );
+
+  const handleTagChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      const value = e.target.value;
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        if (value) {
+          next.set('tag', value);
+        } else {
+          next.delete('tag');
+        }
+        return next;
+      });
+    },
+    [setSearchParams]
   );
 
   return (
@@ -47,7 +103,7 @@ const BookShelf = () => {
           <input
             type="text"
             placeholder="搜索书名或作者..."
-            defaultValue={searchQuery}
+            defaultValue={currentSearch}
             onChange={handleSearchChange}
             style={{
               width: '100%',
@@ -82,8 +138,8 @@ const BookShelf = () => {
         </div>
 
         <select
-          value={selectedTag}
-          onChange={(e) => setSelectedTag(e.target.value)}
+          value={currentTag}
+          onChange={handleTagChange}
           style={{
             padding: '10px 16px',
             borderRadius: '20px',
@@ -104,13 +160,13 @@ const BookShelf = () => {
         </select>
 
         <span style={{ fontSize: '13px', color: '#888' }}>
-          共 {filteredBooks.length} 本书
+          共 {totalBooks} 本书
         </span>
       </div>
 
       {isLoading ? (
         <div style={{ textAlign: 'center', padding: '60px', color: '#888' }}>加载中...</div>
-      ) : filteredBooks.length === 0 ? (
+      ) : books.length === 0 ? (
         <div style={{ textAlign: 'center', padding: '60px', color: '#888' }}>
           暂无匹配的书籍
         </div>
@@ -122,7 +178,7 @@ const BookShelf = () => {
             gap: '20px',
           }}
         >
-          {filteredBooks.map((book) => (
+          {books.map((book) => (
             <BookCard key={book.id} book={book} />
           ))}
         </div>

@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAppStore } from '../store';
 import { bookApi } from '../services/api';
+import { Book } from '../types';
 
 const BookDetail = () => {
   const { id } = useParams<{ id: string }>();
@@ -9,8 +10,68 @@ const BookDetail = () => {
   const { books, updateBookStatus, addToast, setLoading } = useAppStore();
   const [borrowerName, setBorrowerName] = useState('');
   const [showBorrowDialog, setShowBorrowDialog] = useState(false);
+  const [book, setBook] = useState<Book | null>(null);
+  const [loadingBook, setLoadingBook] = useState(true);
 
-  const book = books.find((b) => b.id === Number(id));
+  useEffect(() => {
+    const bookId = Number(id);
+    const found = books.find((b) => b.id === bookId) || null;
+    if (found) {
+      setBook(found);
+      setLoadingBook(false);
+    } else {
+      const fetchBook = async () => {
+        try {
+          const result = await bookApi.getBookById(bookId);
+          setBook(result);
+        } catch {
+          setBook(null);
+        } finally {
+          setLoadingBook(false);
+        }
+      };
+      fetchBook();
+    }
+  }, [id, books]);
+
+  const handleBorrow = async () => {
+    if (!book || !borrowerName.trim()) {
+      addToast('请输入借阅人姓名', 'warning');
+      return;
+    }
+    setLoading(true);
+    try {
+      await bookApi.updateStatus(book.id, 'borrowed', borrowerName.trim());
+      updateBookStatus(book.id, 'borrowed', borrowerName.trim());
+      setBook({ ...book, status: 'borrowed', borrower: borrowerName.trim() });
+      addToast(`《${book.title}》已成功借出`, 'success');
+      setShowBorrowDialog(false);
+      setBorrowerName('');
+    } catch (error) {
+      addToast('借出失败，请重试', 'warning');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleReturn = async () => {
+    if (!book) return;
+    setLoading(true);
+    try {
+      await bookApi.updateStatus(book.id, 'available');
+      updateBookStatus(book.id, 'available');
+      setBook({ ...book, status: 'available', borrower: undefined });
+      addToast(`《${book.title}》已成功归还`, 'success');
+    } catch (error) {
+      addToast('归还失败，请重试', 'warning');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (loadingBook) {
+    return <div style={{ textAlign: 'center', padding: '60px', color: '#888' }}>加载中...</div>;
+  }
 
   if (!book) {
     return (
@@ -30,38 +91,6 @@ const BookDetail = () => {
       </div>
     );
   }
-
-  const handleBorrow = async () => {
-    if (!borrowerName.trim()) {
-      addToast('请输入借阅人姓名', 'warning');
-      return;
-    }
-    setLoading(true);
-    try {
-      await bookApi.updateStatus(book.id, 'borrowed', borrowerName.trim());
-      updateBookStatus(book.id, 'borrowed', borrowerName.trim());
-      addToast(`《${book.title}》已成功借出`, 'success');
-      setShowBorrowDialog(false);
-      setBorrowerName('');
-    } catch (error) {
-      addToast('借出失败，请重试', 'warning');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleReturn = async () => {
-    setLoading(true);
-    try {
-      await bookApi.updateStatus(book.id, 'available');
-      updateBookStatus(book.id, 'available');
-      addToast(`《${book.title}》已成功归还`, 'success');
-    } catch (error) {
-      addToast('归还失败，请重试', 'warning');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div>
