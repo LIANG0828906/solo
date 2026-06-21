@@ -8,7 +8,14 @@ function getInitialTheme(): Theme {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-export function useTheme() {
+interface UseThemeReturn {
+  theme: 'light' | 'dark';
+  toggleTheme: () => void;
+  toggle: () => void;
+  isDark: boolean;
+}
+
+export function useTheme(): UseThemeReturn {
   const [theme, setTheme] = useState<Theme>(getInitialTheme);
 
   useEffect(() => {
@@ -28,7 +35,7 @@ export function useTheme() {
     return () => mq.removeEventListener('change', handler);
   }, []);
 
-  const toggle = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
+  const toggleTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
 
-  return { isDark: theme === 'dark', toggle };
+  return { theme, toggleTheme, toggle: toggleTheme, isDark: theme === 'dark' };
 }

@@ -102,16 +102,11 @@ export default function HistoryPanel({ doc, onClose }: HistoryPanelProps) {
       const confirmed = window.confirm(`确定要恢复到「${version.label ?? formatRelativeTime(version.timestamp)}」吗？当前未保存的内容将丢失。`);
       if (!confirmed) return;
 
-      try {
-        const snapshot = Y.decodeSnapshotState(new Uint8Array(Buffer.from(version.snapshot, 'base64')));
-        Y.applySnapshot(doc, snapshot);
-      } catch {
-        const ytext = doc.getText('content');
-        doc.transact(() => {
-          ytext.delete(0, ytext.length);
-          ytext.insert(0, version.snapshot);
-        });
-      }
+      const ytext = doc.getText('content');
+      doc.transact(() => {
+        ytext.delete(0, ytext.length);
+        ytext.insert(0, version.snapshot);
+      });
     },
     [doc]
   );

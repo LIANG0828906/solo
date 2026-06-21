@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { IComment, ITask, IDocumentVersion, IUserInfo } from '../shared/types';
+import type { IComment, ITask, IDocumentVersion, IUserInfo, TaskStatus } from '../shared/types';
 
 const USER_PALETTE = [
   '#E06C75',
@@ -49,6 +49,7 @@ interface YjsState {
   selectedTextRange: { from: number; to: number } | null;
   sidebarOpen: boolean;
   diffMode: { leftId: string | null; rightId: string | null };
+  users: IUserInfo[];
 }
 
 interface YjsActions {
@@ -70,6 +71,10 @@ interface YjsActions {
   setSelectedTextRange: (range: { from: number; to: number } | null) => void;
   setDiffMode: (mode: { leftId: string | null; rightId: string | null }) => void;
   getUserInfo: () => IUserInfo;
+  updateTaskStatus: (id: string, status: TaskStatus) => void;
+  updateVersionLabel: (versionId: string, label: string) => void;
+  setUsers: (users: IUserInfo[]) => void;
+  hydrate: (partial: Partial<YjsState>) => void;
 }
 
 const userId = getOrCreateUserId();
@@ -89,6 +94,7 @@ export const useYjsStore = create<YjsState & YjsActions>()((set, get) => ({
   selectedTextRange: null,
   sidebarOpen: true,
   diffMode: { leftId: null, rightId: null },
+  users: [],
 
   setRoomId: (id) => set({ roomId: id }),
   setUserName: (name) => {
@@ -146,4 +152,17 @@ export const useYjsStore = create<YjsState & YjsActions>()((set, get) => ({
     const { userId, userName, userColor } = get();
     return { userId, name: userName, color: userColor };
   },
+
+  updateTaskStatus: (id, status) => get().updateTask(id, { status }),
+
+  updateVersionLabel: (versionId, label) =>
+    set((s) => ({
+      versions: s.versions.map((v) =>
+        v.id === versionId ? { ...v, label } : v
+      ),
+    })),
+
+  setUsers: (users) => set({ users }),
+
+  hydrate: (partial) => set((s) => ({ ...s, ...partial })),
 }));

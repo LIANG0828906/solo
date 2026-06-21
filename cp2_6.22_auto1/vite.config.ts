@@ -2,29 +2,55 @@ import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tsconfigPaths from "vite-tsconfig-paths";
 import { traeBadgePlugin } from 'vite-plugin-trae-solo-badge';
+import { spawn, type ChildProcess } from 'node:child_process';
+import path from 'node:path';
 
 function yWebsocketServer(): Plugin {
+  let serverProcess: ChildProcess | null = null;
+
   return {
     name: 'y-websocket-server',
     configureServer() {
-      import('ws').then(({ default: WebSocketServer }) => {
-        import('y-websocket/bin/utils.js').then(({ setupWSConnection }) => {
-          const wss = new WebSocketServer({ port: 1234 });
-          const docs = new Map();
-          wss.on('connection', (ws, req) => {
-            const url = new URL(req.url || '', 'http://localhost');
-            const room = url.searchParams.get('room') || 'default';
-            console.log(`[y-websocket] Connection for room: ${room}`);
-            if (!docs.has(room)) {
-              const { Doc } = require('yjs');
-              docs.set(room, new Doc());
-            }
-            setupWSConnection(ws, req, { doc: docs.get(room) });
-          });
-          console.log('[y-websocket] Server running on ws://localhost:1234');
-        });
+      if (serverProcess) return;
+
+      const serverBin = path.resolve(
+        process.cwd(),
+        'node_modules',
+        'y-websocket',
+        'bin',
+        'server.cjs'
+      );
+
+      const env = {
+        ...process.env,
+        PORT: '1234',
+        YPERSISTENCE: '',
+      };
+
+      serverProcess = spawn('node', [serverBin], {
+        env,
+        stdio: 'inherit',
       });
-    }
+
+      serverProcess.on('error', (err) => {
+        console.error('[y-websocket] Failed to start:', err);
+      });
+
+      serverProcess.on('exit', (code) => {
+        if (code !== 0 && code !== null) {
+          console.warn(`[y-websocket] Exited with code ${code}`);
+        }
+        serverProcess = null;
+      });
+
+      console.log('[y-websocket] Server started on ws://localhost:1234');
+    },
+    closeBundle() {
+      if (serverProcess) {
+        serverProcess.kill('SIGTERM');
+        serverProcess = null;
+      }
+    },
   };
 }
 
@@ -52,4 +78,7 @@ export default defineConfig({
     tsconfigPaths(),
     yWebsocketServer(),
   ],
+  server: {
+    port: 5173,
+  },
 })

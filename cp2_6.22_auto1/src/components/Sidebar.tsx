@@ -52,7 +52,7 @@ export default function Sidebar({ doc, onTogglePanel }: SidebarProps) {
   const [activeTool, setActiveTool] = useState<string | null>(null);
   const [panelOpen, setPanelOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const { theme, toggleTheme } = useTheme();
+  const { isDark, toggleTheme } = useTheme();
 
   const content = useMemo(() => {
     const fragment = doc.getXmlFragment('content');
@@ -143,7 +143,7 @@ export default function Sidebar({ doc, onTogglePanel }: SidebarProps) {
             'text-muted-light dark:text-muted-dark hover:bg-black/5 dark:hover:bg-white/5'
           )}
         >
-          {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+          {isDark ? <Sun size={18} /> : <Moon size={18} />}
         </button>
 
         <button
