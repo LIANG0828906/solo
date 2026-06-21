@@ -43,6 +43,8 @@ export interface DocState {
   setDocument: (doc: Document) => void
   addAnnotation: (annotation: Annotation) => void
   updateAnnotations: (annotations: Annotation[]) => void
+  deleteAnnotation: (annotationId: string) => void
+  clearParagraphAnnotations: (paragraphIndex: number) => void
   setSnapshots: (snapshots: Snapshot[]) => void
   rollbackToSnapshot: (index: number) => void
   setFading: (fading: boolean) => void

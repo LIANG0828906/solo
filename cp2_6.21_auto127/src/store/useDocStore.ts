@@ -64,6 +64,18 @@ export const useDocStore = create<DocState>((set) => ({
     set({ annotations })
   },
 
+  deleteAnnotation: (annotationId: string) => {
+    set((state) => ({
+      annotations: state.annotations.filter((a) => a.id !== annotationId),
+    }))
+  },
+
+  clearParagraphAnnotations: (paragraphIndex: number) => {
+    set((state) => ({
+      annotations: state.annotations.filter((a) => a.paragraphIndex !== paragraphIndex),
+    }))
+  },
+
   setSnapshots: (snapshots: Snapshot[]) => {
     set({
       snapshots,

@@ -30,7 +30,7 @@ async def websocket_endpoint(
                 msg_type = message.get("type")
                 payload = message.get("payload", {})
 
-                if msg_type in ["annotation_add", "annotation_delete"]:
+                if msg_type in ["annotation_add", "annotation_delete", "add_annotation", "new_annotation", "clear_paragraph_annotations"]:
                     await manager.broadcast_to_doc(doc_id, message)
 
             except json.JSONDecodeError:
