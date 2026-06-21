@@ -15,15 +15,25 @@ export class ParticleSystem {
   private sizes: Float32Array;
   private params: ParticleParams;
   private targetParams: ParticleParams;
+  private paramAnimation: {
+    active: boolean;
+    startValues: ParticleParams;
+    targetValues: ParticleParams;
+    startTime: number;
+    duration: number;
+  } | null = null;
   private mouseForce: THREE.Vector3 | null = null;
   private mouseForceRadius: number = 15;
   private mouseForceStrength: number = 2.0;
   private qualityLevel: number = 1;
   private sphereRadius: number = 40;
+  private shellThickness: number = 2;
   private colorStart: THREE.Color = new THREE.Color(0x4a00e0);
   private colorEnd: THREE.Color = new THREE.Color(0xff6b35);
   private tempColor: THREE.Color = new THREE.Color();
   private baseSizes: Float32Array;
+  private colorUpdateSkip: number = 0;
+  private frameCount: number = 0;
 
   constructor(count: number = 5000) {
     this.particleCount = count;
@@ -51,14 +61,15 @@ export class ParticleSystem {
       
       const theta = Math.random() * Math.PI * 2;
       const phi = Math.acos(2 * Math.random() - 1);
-      const shellFactor = 0.7 + Math.random() * 0.3;
-      const r = this.sphereRadius * shellFactor;
+      const minRadius = this.sphereRadius - this.shellThickness;
+      const maxRadius = this.sphereRadius;
+      const r = minRadius + Math.random() * (maxRadius - minRadius);
 
       this.positions[i3] = r * Math.sin(phi) * Math.cos(theta);
       this.positions[i3 + 1] = r * Math.sin(phi) * Math.sin(theta);
       this.positions[i3 + 2] = r * Math.cos(phi);
 
-      const speed = 0.3 + Math.random() * 0.5;
+      const speed = 1.5 + Math.random() * 2.0;
       const tangentDir = new THREE.Vector3(
         Math.random() - 0.5,
         Math.random() - 0.5,
@@ -73,9 +84,16 @@ export class ParticleSystem {
       
       tangentDir.cross(posVec).normalize();
       
-      this.velocities[i3] = tangentDir.x * speed;
-      this.velocities[i3 + 1] = tangentDir.y * speed;
-      this.velocities[i3 + 2] = tangentDir.z * speed;
+      const bitangent = new THREE.Vector3().crossVectors(posVec, tangentDir).normalize();
+      const angle = Math.random() * Math.PI * 2;
+      const velocityDir = new THREE.Vector3()
+        .addScaledVector(tangentDir, Math.cos(angle))
+        .addScaledVector(bitangent, Math.sin(angle))
+        .normalize();
+      
+      this.velocities[i3] = velocityDir.x * speed;
+      this.velocities[i3 + 1] = velocityDir.y * speed;
+      this.velocities[i3 + 2] = velocityDir.z * speed;
 
       const size = 2 + Math.random() * 3;
       this.sizes[i] = size;
@@ -102,7 +120,23 @@ export class ParticleSystem {
   }
 
   setParams(params: Partial<ParticleParams>): void {
-    Object.assign(this.targetParams, params);
+    const newTarget = { ...this.targetParams, ...params };
+    
+    const hasChanged = 
+      newTarget.viscosity !== this.targetParams.viscosity ||
+      newTarget.diffusionRate !== this.targetParams.diffusionRate ||
+      newTarget.forceFieldStrength !== this.targetParams.forceFieldStrength;
+    
+    if (hasChanged) {
+      this.paramAnimation = {
+        active: true,
+        startValues: { ...this.params },
+        targetValues: { ...newTarget },
+        startTime: performance.now(),
+        duration: 500
+      };
+      this.targetParams = newTarget;
+    }
   }
 
   getParams(): ParticleParams {
@@ -122,16 +156,25 @@ export class ParticleSystem {
       sizes[i] = this.baseSizes[i] * this.qualityLevel;
     }
     sizeAttribute.needsUpdate = true;
+
+    if (this.qualityLevel > 0.8) {
+      this.colorUpdateSkip = 0;
+    } else if (this.qualityLevel > 0.5) {
+      this.colorUpdateSkip = 1;
+    } else {
+      this.colorUpdateSkip = 2;
+    }
   }
 
   update(deltaTime: number): void {
     this.animateParams();
+    this.frameCount++;
     
     const dt = Math.min(deltaTime, 0.033) * 60;
-    const viscosityFactor = Math.max(0.9, 1 - this.params.viscosity * 0.025);
+    const viscosityFactor = Math.max(0.92, 1 - this.params.viscosity * 0.02);
     const diffusion = this.params.diffusionRate;
     const forceStrength = this.params.forceFieldStrength;
-    const targetRadius = this.sphereRadius * 0.85;
+    const targetRadius = this.sphereRadius - this.shellThickness * 0.5;
 
     const posAttr = this.geometry.getAttribute('position') as THREE.BufferAttribute;
     const colAttr = this.geometry.getAttribute('color') as THREE.BufferAttribute;
@@ -142,6 +185,13 @@ export class ParticleSystem {
     const mouseY = this.mouseForce?.y ?? 0;
     const mouseZ = this.mouseForce?.z ?? 0;
     const hasMouseForce = this.mouseForce !== null;
+    const mouseRadiusSq = this.mouseForceRadius * this.mouseForceRadius;
+
+    const shouldUpdateColor = this.colorUpdateSkip === 0 || this.frameCount % (this.colorUpdateSkip + 1) === 0;
+
+    const minSpeed = 0.5;
+    const maxSpeed = 4.0;
+    const speedRange = maxSpeed - minSpeed;
 
     for (let i = 0; i < this.particleCount; i++) {
       const i3 = i * 3;
@@ -167,15 +217,16 @@ export class ParticleSystem {
         const ny = py * invDist;
         const nz = pz * invDist;
 
-        const radialForce = (targetRadius - dist) * 0.008 * forceStrength;
+        const radialError = targetRadius - dist;
+        const radialForce = radialError * 0.015 * forceStrength;
         vx += nx * radialForce;
         vy += ny * radialForce;
         vz += nz * radialForce;
 
-        const swirl = 0.02 * forceStrength;
-        vx += (-ny * swirl + nz * swirl * 0.5);
-        vy += (nx * swirl - nz * swirl * 0.3);
-        vz += (-nx * swirl * 0.5 + ny * swirl * 0.4);
+        const swirl = 0.012 * forceStrength;
+        vx += (-ny * swirl + nz * swirl * 0.3);
+        vy += (nx * swirl - nz * swirl * 0.5);
+        vz += (-nx * swirl * 0.4 + ny * swirl * 0.2);
       }
 
       if (hasMouseForce) {
@@ -184,10 +235,11 @@ export class ParticleSystem {
         const dz = pz - mouseZ;
         const mDistSq = dx * dx + dy * dy + dz * dz;
         
-        if (mDistSq < this.mouseForceRadius * this.mouseForceRadius && mDistSq > 0.01) {
+        if (mDistSq < mouseRadiusSq && mDistSq > 0.01) {
           const mDist = Math.sqrt(mDistSq);
           const invMDist = 1 / mDist;
-          const force = (1 - mDist / this.mouseForceRadius) * this.mouseForceStrength;
+          const falloff = 1 - mDist / this.mouseForceRadius;
+          const force = falloff * falloff * this.mouseForceStrength;
           vx += dx * invMDist * force;
           vy += dy * invMDist * force;
           vz += dz * invMDist * force;
@@ -198,7 +250,6 @@ export class ParticleSystem {
       vy *= viscosityFactor;
       vz *= viscosityFactor;
 
-      const maxSpeed = 3;
       const speedSq = vx * vx + vy * vy + vz * vz;
       if (speedSq > maxSpeed * maxSpeed) {
         const invSpeed = maxSpeed / Math.sqrt(speedSq);
@@ -215,24 +266,45 @@ export class ParticleSystem {
       positions[i3 + 1] += vy * dt;
       positions[i3 + 2] += vz * dt;
 
-      const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
-      const t = Math.min(speed * 0.4, 1);
-      
-      this.tempColor.copy(this.colorStart).lerp(this.colorEnd, t);
-      colors[i3] = this.tempColor.r;
-      colors[i3 + 1] = this.tempColor.g;
-      colors[i3 + 2] = this.tempColor.b;
+      if (shouldUpdateColor) {
+        const speed = Math.sqrt(vx * vx + vy * vy + vz * vz);
+        const t = Math.max(0, Math.min(1, (speed - minSpeed) / speedRange));
+        
+        this.tempColor.copy(this.colorStart).lerp(this.colorEnd, t);
+        colors[i3] = this.tempColor.r;
+        colors[i3 + 1] = this.tempColor.g;
+        colors[i3 + 2] = this.tempColor.b;
+      }
     }
 
     posAttr.needsUpdate = true;
-    colAttr.needsUpdate = true;
+    if (shouldUpdateColor) {
+      colAttr.needsUpdate = true;
+    }
+  }
+
+  private easeInOutCubic(t: number): number {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
   }
 
   private animateParams(): void {
-    const ease = 0.08;
-    this.params.viscosity += (this.targetParams.viscosity - this.params.viscosity) * ease;
-    this.params.diffusionRate += (this.targetParams.diffusionRate - this.params.diffusionRate) * ease;
-    this.params.forceFieldStrength += (this.targetParams.forceFieldStrength - this.params.forceFieldStrength) * ease;
+    if (!this.paramAnimation || !this.paramAnimation.active) return;
+
+    const now = performance.now();
+    const elapsed = now - this.paramAnimation.startTime;
+    const t = Math.min(1, elapsed / this.paramAnimation.duration);
+    const easedT = this.easeInOutCubic(t);
+
+    const { startValues, targetValues } = this.paramAnimation;
+    
+    this.params.viscosity = startValues.viscosity + (targetValues.viscosity - startValues.viscosity) * easedT;
+    this.params.diffusionRate = startValues.diffusionRate + (targetValues.diffusionRate - startValues.diffusionRate) * easedT;
+    this.params.forceFieldStrength = startValues.forceFieldStrength + (targetValues.forceFieldStrength - startValues.forceFieldStrength) * easedT;
+
+    if (t >= 1) {
+      this.paramAnimation.active = false;
+      this.params = { ...targetValues };
+    }
   }
 
   getSphereRadius(): number {
