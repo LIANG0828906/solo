@@ -1,0 +1,201 @@
+.waiting-room {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0a0e27 0%, #1a237e 50%, #0a0e27 100%);
+  padding: 20px;
+}
+
+.waiting-content {
+  text-align: center;
+  max-width: 400px;
+  width: 100%;
+}
+
+.game-title {
+  font-size: 42px;
+  font-weight: 900;
+  color: white;
+  margin: 0 0 6px 0;
+  text-shadow: 0 0 30px rgba(255, 213, 79, 0.4);
+  letter-spacing: 4px;
+  background: linear-gradient(135deg, #fff 0%, #ffd54f 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.game-subtitle {
+  font-size: 16px;
+  color: #90a4ae;
+  margin: 0 0 40px 0;
+  letter-spacing: 2px;
+}
+
+.waiting-animation {
+  margin: 30px 0;
+}
+
+.pulse-dots {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  padding: 20px 0;
+}
+
+.dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4fc3f7, #29b6f6);
+  box-shadow: 0 0 20px rgba(79, 195, 247, 0.6);
+  animation: pulseDot 1.5s ease-in-out infinite;
+}
+
+.dot-1 {
+  animation-delay: 0s;
+}
+
+.dot-2 {
+  animation-delay: 0.2s;
+}
+
+.dot-3 {
+  animation-delay: 0.4s;
+}
+
+@keyframes pulseDot {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.5;
+    box-shadow: 0 0 10px rgba(79, 195, 247, 0.4);
+  }
+  50% {
+    transform: scale(1.4);
+    opacity: 1;
+    box-shadow: 0 0 30px rgba(79, 195, 247, 0.8);
+  }
+}
+
+.waiting-text {
+  font-size: 20px;
+  color: #e0e0e0;
+  margin-bottom: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+
+.waiting-label {
+  font-weight: 500;
+}
+
+.waiting-dots {
+  display: inline-flex;
+  width: 24px;
+  justify-content: flex-start;
+}
+
+.waiting-dots span {
+  animation: blinkDot 1.4s infinite;
+  opacity: 0;
+}
+
+.waiting-dots span:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.waiting-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.waiting-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
+
+@keyframes blinkDot {
+  0%, 100% { opacity: 0; }
+  50% { opacity: 1; }
+}
+
+.player-info-waiting {
+  margin-bottom: 30px;
+}
+
+.player-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  padding: 8px 16px;
+  border-radius: 20px;
+}
+
+.badge-label {
+  background: #cddc39;
+  color: #33691e;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.badge-name {
+  color: white;
+  font-weight: 500;
+}
+
+.game-rules {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: left;
+}
+
+.rules-title {
+  font-size: 14px;
+  color: #ffd54f;
+  margin: 0 0 12px 0;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.rules-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.rules-list li {
+  color: #b0bec5;
+  font-size: 13px;
+  padding: 4px 0;
+  padding-left: 16px;
+  position: relative;
+}
+
+.rules-list li::before {
+  content: '▸';
+  position: absolute;
+  left: 0;
+  color: #4fc3f7;
+}
+
+@media (max-width: 480px) {
+  .game-title {
+    font-size: 32px;
+  }
+
+  .waiting-text {
+    font-size: 16px;
+  }
+
+  .dot {
+    width: 12px;
+    height: 12px;
+  }
+}
