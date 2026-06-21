@@ -12,7 +12,6 @@ import {
 const CAR_WIDTH = 40;
 const CAR_HEIGHT = 60;
 const CAR_Y = CANVAS_HEIGHT - 120;
-const CAR_SPEED = 350;
 const BASE_SCROLL_SPEED = 200;
 const BOOST_MULTIPLIER = 1.5;
 const BOOST_DURATION = 3;
@@ -22,6 +21,8 @@ const MAX_DIFFICULTY_TIME = 180;
 const EXPLOSION_PARTICLE_COUNT = 6;
 const EXPLOSION_DURATION = 0.3;
 const EXPLOSION_SPEED = 250;
+const SOUND_MIN_INTERVAL = 0.1;
+const BASE_CAR_SPEED = 350;
 
 export interface GameState {
   carX: number;
@@ -44,6 +45,8 @@ export class GameLoop {
   private score: number = 0;
   private timeElapsed: number = 0;
   private speedBoostRemaining: number = 0;
+  private baseCarSpeed: number = BASE_CAR_SPEED;
+  private currentCarSpeed: number = BASE_CAR_SPEED;
   private obstacles: Obstacle[] = [];
   private coins: Coin[] = [];
   private powerups: Powerup[] = [];
@@ -54,6 +57,7 @@ export class GameLoop {
   private topEdge: number = 0;
   private keys: Set<string> = new Set();
   private audioCtx: AudioContext | null = null;
+  private lastSoundTime: number = -Infinity;
 
   constructor() {
     this.initTrack();
@@ -74,6 +78,8 @@ export class GameLoop {
     this.score = 0;
     this.timeElapsed = 0;
     this.speedBoostRemaining = 0;
+    this.baseCarSpeed = BASE_CAR_SPEED;
+    this.currentCarSpeed = BASE_CAR_SPEED;
     this.obstacles = [];
     this.coins = [];
     this.powerups = [];
@@ -82,6 +88,7 @@ export class GameLoop {
     this.explosionDone = false;
     this.difficultyLevel = 0;
     this.keys.clear();
+    this.lastSoundTime = -Infinity;
     this.initTrack();
   }
 
@@ -136,7 +143,7 @@ export class GameLoop {
   }
 
   private updateCarPosition(dt: number): void {
-    const speed = CAR_SPEED * dt;
+    const speed = this.currentCarSpeed * dt;
     if (this.keys.has('ArrowLeft')) {
       this.carX = Math.max(0, this.carX - speed);
     }
@@ -172,26 +179,28 @@ export class GameLoop {
     const carBottom = CAR_Y + CAR_HEIGHT;
 
     for (const obs of this.obstacles) {
-      let oLeft: number, oRight: number, oTop: number, oBottom: number;
+      let hit = false;
 
       if (obs.type === 'barrel') {
-        oLeft = obs.x - 15;
-        oRight = obs.x + 15;
-        oTop = obs.y - 15;
-        oBottom = obs.y + 15;
+        hit = this.checkCircleRect(obs.x, obs.y, 15, carLeft, carTop, carRight, carBottom);
       } else if (obs.type === 'barrier') {
-        oLeft = obs.x - 10;
-        oRight = obs.x + 10;
-        oTop = obs.y - 15;
-        oBottom = obs.y + 15;
+        const oLeft = obs.x - 10;
+        const oRight = obs.x + 10;
+        const oTop = obs.y - 15;
+        const oBottom = obs.y + 15;
+        hit = carLeft < oRight && carRight > oLeft && carTop < oBottom && carBottom > oTop;
       } else {
-        oLeft = obs.x - 10;
-        oRight = obs.x + 10;
-        oTop = obs.y - 10;
-        oBottom = obs.y + 10;
+        const tx = obs.x;
+        const ty = obs.y;
+        const tri: [number, number][] = [
+          [tx, ty - 10],
+          [tx + 10, ty + 10],
+          [tx - 10, ty + 10],
+        ];
+        hit = this.checkTriangleRect(tri, carLeft, carTop, carRight, carBottom);
       }
 
-      if (carLeft < oRight && carRight > oLeft && carTop < oBottom && carBottom > oTop) {
+      if (hit) {
         this.triggerGameOver();
         return;
       }
@@ -223,6 +232,85 @@ export class GameLoop {
         this.speedBoostRemaining = BOOST_DURATION;
       }
     }
+  }
+
+  private checkCircleRect(
+    cx: number, cy: number, r: number,
+    rx: number, ry: number, rw: number, rh: number
+  ): boolean {
+    const nearestX = Math.max(rx, Math.min(cx, rw));
+    const nearestY = Math.max(ry, Math.min(cy, rh));
+    const dx = cx - nearestX;
+    const dy = cy - nearestY;
+    return dx * dx + dy * dy < r * r;
+  }
+
+  private pointInTriangle(
+    px: number, py: number,
+    [x1, y1]: [number, number],
+    [x2, y2]: [number, number],
+    [x3, y3]: [number, number]
+  ): boolean {
+    const d1 = this.sign(px, py, x1, y1, x2, y2);
+    const d2 = this.sign(px, py, x2, y2, x3, y3);
+    const d3 = this.sign(px, py, x3, y3, x1, y1);
+    const hasNeg = d1 < 0 || d2 < 0 || d3 < 0;
+    const hasPos = d1 > 0 || d2 > 0 || d3 > 0;
+    return !(hasNeg && hasPos);
+  }
+
+  private sign(px: number, py: number, x1: number, y1: number, x2: number, y2: number): number {
+    return (px - x2) * (y1 - y2) - (x1 - x2) * (py - y2);
+  }
+
+  private segIntersect(
+    a1: [number, number], a2: [number, number],
+    b1: [number, number], b2: [number, number]
+  ): boolean {
+    const [ax1, ay1] = a1;
+    const [ax2, ay2] = a2;
+    const [bx1, by1] = b1;
+    const [bx2, by2] = b2;
+    const d1x = ax2 - ax1;
+    const d1y = ay2 - ay1;
+    const d2x = bx2 - bx1;
+    const d2y = by2 - by1;
+    const denom = d1x * d2y - d1y * d2x;
+    if (Math.abs(denom) < 1e-10) return false;
+    const s = ((ax1 - bx1) * (-d2y) - (ay1 - by1) * (-d2x)) / denom;
+    const t = ((ax1 - bx1) * d1y - (ay1 - by1) * d1x) / -denom;
+    return s >= 0 && s <= 1 && t >= 0 && t <= 1;
+  }
+
+  private checkTriangleRect(
+    tri: [number, number][],
+    rx: number, ry: number, rw: number, rh: number
+  ): boolean {
+    const carPts: [number, number][] = [
+      [rx, ry], [rw, ry], [rw, rh], [rx, rh],
+    ];
+    for (const p of carPts) {
+      if (this.pointInTriangle(p[0], p[1], tri[0], tri[1], tri[2])) return true;
+    }
+    for (const p of tri) {
+      if (p[0] >= rx && p[0] <= rw && p[1] >= ry && p[1] <= rh) return true;
+    }
+    const triEdges: [number, number][] = [
+      [tri[0][0], tri[0][1]], [tri[1][0], tri[1][1]], [tri[2][0], tri[2][1]],
+    ];
+    const rectEdges: [number, number][] = [
+      [rx, ry], [rw, ry], [rw, rh], [rx, rh],
+    ];
+    for (let i = 0; i < 3; i++) {
+      const a1 = triEdges[i];
+      const a2 = triEdges[(i + 1) % 3];
+      for (let j = 0; j < 4; j++) {
+        const b1 = rectEdges[j];
+        const b2 = rectEdges[(j + 1) % 4];
+        if (this.segIntersect(a1, a2, b1, b2)) return true;
+      }
+    }
+    return false;
   }
 
   private triggerGameOver(): void {
@@ -264,6 +352,13 @@ export class GameLoop {
   private updateBoost(dt: number): void {
     if (this.speedBoostRemaining > 0) {
       this.speedBoostRemaining = Math.max(0, this.speedBoostRemaining - dt);
+      if (this.speedBoostRemaining > 0) {
+        this.currentCarSpeed = this.baseCarSpeed * BOOST_MULTIPLIER;
+      } else {
+        this.currentCarSpeed = this.baseCarSpeed;
+      }
+    } else {
+      this.currentCarSpeed = this.baseCarSpeed;
     }
   }
 
@@ -276,6 +371,10 @@ export class GameLoop {
 
   private playCoinSound(): void {
     try {
+      if (this.timeElapsed - this.lastSoundTime < SOUND_MIN_INTERVAL) {
+        return;
+      }
+      this.lastSoundTime = this.timeElapsed;
       if (!this.audioCtx) {
         this.audioCtx = new AudioContext();
       }

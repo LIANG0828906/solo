@@ -60,7 +60,7 @@ export function generateSegment(yOffset: number, difficultyLevel: number): Segme
   for (let i = 0; i < obstacleCount; i++) {
     obstacles.push({
       type: types[randInt(0, 2)],
-      x: rand(100, 700),
+      x: rand(65, 735),
       y: yOffset + rand(20, SEGMENT_HEIGHT - 40),
     });
   }

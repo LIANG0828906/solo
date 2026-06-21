@@ -165,8 +165,10 @@ function drawCar(ctx: CanvasRenderingContext2D, carX: number, carY: number): voi
 
 function drawParticles(ctx: CanvasRenderingContext2D, particles: Particle[]): void {
   for (const p of particles) {
-    const alpha = p.life / p.maxLife;
+    if (p.life <= 0) continue;
+    const alpha = Math.max(0, p.life / p.maxLife);
     const size = 6 * alpha;
+    if (size < 0.5) continue;
     ctx.globalAlpha = alpha;
     ctx.fillStyle = '#ff8844';
     ctx.fillRect(p.x - size / 2, p.y - size / 2, size, size);
