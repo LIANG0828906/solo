@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>记忆深渊 - Memory Abyss</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+    }
+
+    #app {
+      display: flex;
+      align-items: flex-start;
+      gap: 32px;
+      padding: 32px;
+    }
+
+    #game-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+
+    #canvas-wrapper {
+      background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+      padding: 24px;
+      border-radius: 20px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    #game-canvas {
+      display: block;
+      border-radius: 8px;
+    }
+
+    #status-tip {
+      color: #cbd5e1;
+      font-size: 14px;
+      text-align: center;
+      min-height: 24px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    #status-tip.show {
+      opacity: 1;
+    }
+
+    #info-panel {
+      width: 200px;
+      background: rgba(51, 65, 85, 0.4);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      border-radius: 12px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      border: 1px solid rgba(148, 163, 184, 0.15);
+    }
+
+    .panel-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .panel-label {
+      color: #94a3b8;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .panel-value {
+      color: #f1f5f9;
+      font-size: 24px;
+      font-family: 'Courier New', Courier, monospace;
+      font-weight: 600;
+    }
+
+    #reset-btn {
+      width: 100%;
+      padding: 12px 16px;
+      background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      letter-spacing: 0.5px;
+    }
+
+    #reset-btn:hover {
+      filter: brightness(1.15);
+    }
+
+    #reset-btn:active {
+      transform: translateY(1px);
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="game-container">
+      <div id="canvas-wrapper">
+        <canvas id="game-canvas"></canvas>
+      </div>
+      <div id="status-tip">点击任意卡片开始</div>
+    </div>
+    <div id="info-panel">
+      <div class="panel-section">
+        <span class="panel-label">回合数</span>
+        <span class="panel-value" id="turn-count">0</span>
+      </div>
+      <div class="panel-section">
+        <span class="panel-label">已配对</span>
+        <span class="panel-value" id="matched-count">0 / 8</span>
+      </div>
+      <div class="panel-section">
+        <span class="panel-label">计时器</span>
+        <span class="panel-value" id="timer">00:00</span>
+      </div>
+      <button id="reset-btn">重新开始</button>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
