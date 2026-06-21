@@ -67,7 +67,7 @@ export class WallRenderer {
     this.rafId = requestAnimationFrame(this.loop);
   };
 
-  render(layers: Layer[], selectedElementId: string | null, selectedLayerId: string | null) {
+  render(layers: Layer[], selectedElementId: string | null, selectedLayerId: string | null, hoveredElementId: string | null = null, hoveredLayerId: string | null = null) {
     const ctx = this.backCtx;
 
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
@@ -86,13 +86,13 @@ export class WallRenderer {
           this.renderGradient(ctx, layer);
           break;
         case 'particles':
-          this.renderParticles(ctx, layer);
+          this.renderParticles(ctx, layer, hoveredElementId, hoveredLayerId);
           break;
         case 'geometry':
-          this.renderGeometry(ctx, layer, selectedElementId, selectedLayerId);
+          this.renderGeometry(ctx, layer, selectedElementId, selectedLayerId, hoveredElementId, hoveredLayerId);
           break;
         case 'lines':
-          this.renderLines(ctx, layer, selectedElementId, selectedLayerId);
+          this.renderLines(ctx, layer, selectedElementId, selectedLayerId, hoveredElementId, hoveredLayerId);
           break;
       }
 
@@ -136,28 +136,74 @@ export class WallRenderer {
     ctx.fillRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
   }
 
-  private renderParticles(ctx: CanvasRenderingContext2D, layer: ParticleLayer) {
+  private renderParticles(ctx: CanvasRenderingContext2D, layer: ParticleLayer, hoveredElementId: string | null, hoveredLayerId: string | null) {
     for (const p of layer.particles) {
       ctx.beginPath();
       ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
       ctx.fillStyle = p.color;
       ctx.fill();
+
+      if (hoveredLayerId === layer.id && hoveredElementId === p.id) {
+        this.drawParticleHoverGlow(ctx, p);
+      }
     }
+  }
+
+  private drawParticleHoverGlow(ctx: CanvasRenderingContext2D, p: Particle) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.size + 8, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(100, 180, 255, 0.4)';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = 'rgba(100, 180, 255, 0.6)';
+    ctx.shadowBlur = 12;
+    ctx.stroke();
+    ctx.restore();
   }
 
   private renderGeometry(
     ctx: CanvasRenderingContext2D,
     layer: GeometryLayer,
     selectedElementId: string | null,
-    selectedLayerId: string | null
+    selectedLayerId: string | null,
+    hoveredElementId: string | null,
+    hoveredLayerId: string | null
   ) {
     for (const poly of layer.polygons) {
       this.drawPolygon(ctx, poly);
+
+      if (hoveredLayerId === layer.id && hoveredElementId === poly.id && !(selectedLayerId === layer.id && selectedElementId === poly.id)) {
+        this.drawPolygonHoverGlow(ctx, poly);
+      }
 
       if (selectedLayerId === layer.id && selectedElementId === poly.id) {
         this.drawSelectionGlow(ctx, poly);
       }
     }
+  }
+
+  private drawPolygonHoverGlow(ctx: CanvasRenderingContext2D, poly: Polygon) {
+    ctx.save();
+    ctx.translate(poly.x, poly.y);
+    ctx.rotate(poly.rotation);
+
+    ctx.beginPath();
+    for (let i = 0; i < poly.sides; i++) {
+      const angle = (i * 2 * Math.PI) / poly.sides - Math.PI / 2;
+      const x = Math.cos(angle) * (poly.radius + 8);
+      const y = Math.sin(angle) * (poly.radius + 8);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.closePath();
+
+    ctx.strokeStyle = 'rgba(100, 180, 255, 0.4)';
+    ctx.lineWidth = 3;
+    ctx.shadowColor = 'rgba(100, 180, 255, 0.6)';
+    ctx.shadowBlur = 16;
+    ctx.stroke();
+
+    ctx.restore();
   }
 
   private drawPolygon(ctx: CanvasRenderingContext2D, poly: Polygon) {
@@ -218,7 +264,9 @@ export class WallRenderer {
     ctx: CanvasRenderingContext2D,
     layer: LinesLayer,
     selectedElementId: string | null,
-    selectedLayerId: string | null
+    selectedLayerId: string | null,
+    hoveredElementId: string | null,
+    hoveredLayerId: string | null
   ) {
     for (const line of layer.lines) {
       ctx.save();
@@ -232,10 +280,28 @@ export class WallRenderer {
       ctx.stroke();
       ctx.restore();
 
+      if (hoveredLayerId === layer.id && hoveredElementId === line.id && !(selectedLayerId === layer.id && selectedElementId === line.id)) {
+        this.drawLineHoverGlow(ctx, line);
+      }
+
       if (selectedLayerId === layer.id && selectedElementId === line.id) {
         this.drawLineSelection(ctx, line);
       }
     }
+  }
+
+  private drawLineHoverGlow(ctx: CanvasRenderingContext2D, line: BezierLine) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(line.startX, line.startY);
+    ctx.bezierCurveTo(line.cp1x, line.cp1y, line.cp2x, line.cp2y, line.endX, line.endY);
+    ctx.strokeStyle = 'rgba(100, 180, 255, 0.4)';
+    ctx.lineWidth = line.thickness * 2 + 6;
+    ctx.lineCap = 'round';
+    ctx.shadowColor = 'rgba(100, 180, 255, 0.6)';
+    ctx.shadowBlur = 14;
+    ctx.stroke();
+    ctx.restore();
   }
 
   private drawLineSelection(ctx: CanvasRenderingContext2D, line: BezierLine) {

@@ -14,6 +14,55 @@ const LAYER_ICONS: Record<string, string> = {
   lines: '〰',
 };
 
+function LayerIconSVG({ type }: { type: string }) {
+  const size = 20;
+  switch (type) {
+    case 'particles':
+      return (
+        <svg width={size} height={size} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 1L11.8 7.2L18 8L13.2 12.4L14.6 19L10 15.4L5.4 19L6.8 12.4L2 8L8.2 7.2L10 1Z" fill="#FFD700" stroke="#FFA000" strokeWidth="0.5" />
+        </svg>
+      );
+    case 'geometry':
+      return (
+        <svg width={size} height={size} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M10 1.5L18.5 6.25V15.75L10 20.5L1.5 15.75V6.25L10 1.5Z" fill="none" stroke="#64B4FF" strokeWidth="1.5" strokeLinejoin="round" />
+          <path d="M10 5.5L14.5 8.25V13.75L10 16.5L5.5 13.75V8.25L10 5.5Z" fill="rgba(100,180,255,0.2)" stroke="#64B4FF" strokeWidth="0.8" strokeLinejoin="round" />
+        </svg>
+      );
+    case 'gradient':
+      return (
+        <svg width={size} height={size} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M2 4C2 2.9 2.9 2 4 2H8L6 6H2V4Z" fill="#FF6B6B" />
+          <path d="M8 2H12L10 6H6L8 2Z" fill="#FFEAA7" />
+          <path d="M12 2H16C17.1 2 18 2.9 18 4V6H14L12 2Z" fill="#A29BFE" />
+          <path d="M2 6H6L4 10H2V6Z" fill="#FD79A8" />
+          <path d="M6 6H10L8 10H4L6 6Z" fill="#74B9FF" />
+          <path d="M10 6H14L12 10H8L10 6Z" fill="#4ECDC4" />
+          <path d="M14 6H18V10H12L14 6Z" fill="#96CEB4" />
+          <path d="M2 10H4L2.5 13.5L2 10Z" fill="#E17055" />
+          <path d="M4 10H8L6 14H2.5L4 10Z" fill="#00B894" />
+          <path d="M8 10H12L10 14H6L8 10Z" fill="#45B7D1" />
+          <path d="M12 10H16L14 14H10L12 10Z" fill="#DFE6E9" />
+          <path d="M16 10H18L17.5 14H14L16 10Z" fill="#FF7675" />
+          <path d="M2.5 14H6L5 17C3.5 17 2.8 15.5 2.5 14Z" fill="#FF6B6B" />
+          <path d="M6 14H10L9 17H5L6 14Z" fill="#FFEAA7" />
+          <path d="M10 14H14L13 17H9L10 14Z" fill="#A29BFE" />
+          <path d="M14 14H17.5C17.2 15.5 16.5 17 15 17H13L14 14Z" fill="#4ECDC4" />
+        </svg>
+      );
+    case 'lines':
+      return (
+        <svg width={size} height={size} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M1 8C4 4 7 12 10 8C13 4 16 12 19 8" stroke="#4ECDC4" strokeWidth="1.8" strokeLinecap="round" />
+          <path d="M1 14C4 10 7 18 10 14C13 10 16 18 19 14" stroke="#64B4FF" strokeWidth="1.4" strokeLinecap="round" opacity="0.7" />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
+
 const LAYER_NAMES: Record<string, string> = {
   gradient: '渐变层',
   particles: '粒子层',
@@ -521,13 +570,14 @@ function LayerCard({ layer, index }: { layer: Layer; index: number }) {
       >
         <span
           style={{
-            fontSize: '16px',
-            width: '22px',
-            textAlign: 'center',
-            color: '#4fc3f7',
+            width: '24px',
+            height: '24px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
           }}
         >
-          {LAYER_ICONS[layer.type]}
+          <LayerIconSVG type={layer.type} />
         </span>
         <span
           style={{

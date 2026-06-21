@@ -20,6 +20,8 @@ export default function CanvasArea() {
   const rendererRef = useRef<WallRenderer | null>(null);
   const dragRef = useRef<DragState | null>(null);
   const [scale, setScale] = useState(1);
+  const [hoveredElement, setHoveredElement] = useState<{ elementId: string; layerId: string } | null>(null);
+  const [cursorStyle, setCursorStyle] = useState<string>('crosshair');
 
   useEffect(() => {
     if (!canvasRef.current) return;
@@ -44,10 +46,12 @@ export default function CanvasArea() {
       rendererRef.current.render(
         state.layers,
         state.selectedElementId,
-        state.selectedLayerId
+        state.selectedLayerId,
+        hoveredElement?.elementId ?? null,
+        hoveredElement?.layerId ?? null
       );
     }
-  }, [state.layers, state.selectedElementId, state.selectedLayerId]);
+  }, [state.layers, state.selectedElementId, state.selectedLayerId, hoveredElement]);
 
   useEffect(() => {
     function updateScale() {
@@ -155,69 +159,82 @@ export default function CanvasArea() {
 
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<HTMLCanvasElement>) => {
-      if (!dragRef.current || !rendererRef.current) return;
+      if (!rendererRef.current) return;
 
       const { x, y } = getCanvasCoords(e.clientX, e.clientY);
-      const drag = dragRef.current;
 
-      if (drag.mode === 'move') {
-        const dx = x - drag.startX;
-        const dy = y - drag.startY;
-        const newX = drag.origX + dx;
-        const newY = drag.origY + dy;
+      if (dragRef.current) {
+        const drag = dragRef.current;
 
-        const layer = state.layers.find((l) => l.id === drag.layerId);
-        if (!layer) return;
+        if (drag.mode === 'move') {
+          const dx = x - drag.startX;
+          const dy = y - drag.startY;
+          const newX = drag.origX + dx;
+          const newY = drag.origY + dy;
 
-        if (layer.type === 'geometry') {
-          dispatch({
-            type: 'UPDATE_POLYGON',
-            layerId: drag.layerId,
-            polygonId: drag.elementId,
-            updates: { x: newX, y: newY },
-          });
-        } else if (layer.type === 'particles') {
-          dispatch({
-            type: 'UPDATE_PARTICLE',
-            layerId: drag.layerId,
-            particleId: drag.elementId,
-            updates: { x: newX, y: newY },
-          });
-        } else if (layer.type === 'lines') {
-          const line = layer.lines.find((l) => l.id === drag.elementId);
-          if (line) {
-            const centerX = (line.startX + line.endX) / 2;
-            const centerY = (line.startY + line.endY) / 2;
-            const offsetX = newX - centerX;
-            const offsetY = newY - centerY;
+          const layer = state.layers.find((l) => l.id === drag.layerId);
+          if (!layer) return;
+
+          if (layer.type === 'geometry') {
             dispatch({
-              type: 'UPDATE_LINE',
+              type: 'UPDATE_POLYGON',
               layerId: drag.layerId,
-              lineId: drag.elementId,
-              updates: {
-                startX: line.startX + offsetX,
-                startY: line.startY + offsetY,
-                endX: line.endX + offsetX,
-                endY: line.endY + offsetY,
-                cp1x: line.cp1x + offsetX,
-                cp1y: line.cp1y + offsetY,
-                cp2x: line.cp2x + offsetX,
-                cp2y: line.cp2y + offsetY,
-              },
+              polygonId: drag.elementId,
+              updates: { x: newX, y: newY },
+            });
+          } else if (layer.type === 'particles') {
+            dispatch({
+              type: 'UPDATE_PARTICLE',
+              layerId: drag.layerId,
+              particleId: drag.elementId,
+              updates: { x: newX, y: newY },
+            });
+          } else if (layer.type === 'lines') {
+            const line = layer.lines.find((l) => l.id === drag.elementId);
+            if (line) {
+              const centerX = (line.startX + line.endX) / 2;
+              const centerY = (line.startY + line.endY) / 2;
+              const offsetX = newX - centerX;
+              const offsetY = newY - centerY;
+              dispatch({
+                type: 'UPDATE_LINE',
+                layerId: drag.layerId,
+                lineId: drag.elementId,
+                updates: {
+                  startX: line.startX + offsetX,
+                  startY: line.startY + offsetY,
+                  endX: line.endX + offsetX,
+                  endY: line.endY + offsetY,
+                  cp1x: line.cp1x + offsetX,
+                  cp1y: line.cp1y + offsetY,
+                  cp2x: line.cp2x + offsetX,
+                  cp2y: line.cp2y + offsetY,
+                },
+              });
+            }
+          }
+        } else if (drag.mode === 'rotate') {
+          const angle = Math.atan2(y - drag.origY, x - drag.origX);
+          const layer = state.layers.find((l) => l.id === drag.layerId);
+          if (layer?.type === 'geometry') {
+            dispatch({
+              type: 'UPDATE_POLYGON',
+              layerId: drag.layerId,
+              polygonId: drag.elementId,
+              updates: { rotation: angle },
             });
           }
         }
-      } else if (drag.mode === 'rotate') {
-        const angle = Math.atan2(y - drag.origY, x - drag.origX);
-        const layer = state.layers.find((l) => l.id === drag.layerId);
-        if (layer?.type === 'geometry') {
-          dispatch({
-            type: 'UPDATE_POLYGON',
-            layerId: drag.layerId,
-            polygonId: drag.elementId,
-            updates: { rotation: angle },
-          });
-        }
+        return;
+      }
+
+      const hit = rendererRef.current.hitTest(x, y, state.layers);
+      if (hit) {
+        setHoveredElement({ elementId: hit.elementId, layerId: hit.layerId });
+        setCursorStyle('pointer');
+      } else {
+        setHoveredElement(null);
+        setCursorStyle('crosshair');
       }
     },
     [state, dispatch, getCanvasCoords]
@@ -225,6 +242,8 @@ export default function CanvasArea() {
 
   const handleMouseUp = useCallback(() => {
     dragRef.current = null;
+    setHoveredElement(null);
+    setCursorStyle('crosshair');
   }, []);
 
   return (
@@ -256,7 +275,7 @@ export default function CanvasArea() {
           onMouseLeave={handleMouseUp}
           style={{
             display: 'block',
-            cursor: 'crosshair',
+            cursor: cursorStyle as 'crosshair' | 'pointer',
             width: CANVAS_WIDTH,
             height: CANVAS_HEIGHT,
           }}

@@ -2,6 +2,8 @@ import { useRef, useState } from 'react';
 import { useAppState } from '../state';
 
 const LOOP_DURATION = 10;
+const FPS = 60;
+const TOTAL_FRAMES = LOOP_DURATION * FPS;
 
 export default function ControlBar() {
   const { state, dispatch } = useAppState();
@@ -87,60 +89,39 @@ export default function ControlBar() {
     <>
       <div
         style={{
-          height: '50px',
-          minHeight: '50px',
+          height: '54px',
+          minHeight: '54px',
           background: '#0f172a',
           borderTop: '1px solid rgba(255,255,255,0.05)',
           display: 'flex',
-          alignItems: 'center',
+          flexDirection: 'column',
+          justifyContent: 'center',
           padding: '0 20px',
-          gap: '16px',
+          gap: '2px',
         }}
       >
-        <button
-          onClick={() => dispatch({ type: 'TOGGLE_PLAYING' })}
+        <div
           style={{
-            ...btnBase,
-            background: state.isPlaying ? 'rgba(79, 195, 247, 0.15)' : 'rgba(79, 195, 247, 0.25)',
-            color: '#4fc3f7',
-            fontSize: '16px',
-            padding: '6px 14px',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
-          onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-        >
-          {state.isPlaying ? '❚❚ 暂停' : '▶ 播放'}
-        </button>
-
-        <span
-          style={{
-            color: '#7a8aa8',
-            fontSize: '12px',
-            fontFamily: 'monospace',
-            minWidth: '50px',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '16px',
           }}
         >
-          {formatTime(state.currentTime)}
-        </span>
-
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <input
-            type="range"
-            min="0"
-            max={LOOP_DURATION}
-            step="0.01"
-            value={state.currentTime}
-            onChange={handleSeek}
+          <button
+            onClick={() => dispatch({ type: 'TOGGLE_PLAYING' })}
             style={{
-              flex: 1,
-              height: '4px',
-              background: '#2a2a4a',
-              borderRadius: '2px',
-              outline: 'none',
-              cursor: 'pointer',
-              accentColor: '#4fc3f7',
+              ...btnBase,
+              background: state.isPlaying ? 'rgba(79, 195, 247, 0.15)' : 'rgba(79, 195, 247, 0.25)',
+              color: '#4fc3f7',
+              fontSize: '16px',
+              padding: '4px 12px',
             }}
-          />
+            onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
+            onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+          >
+            {state.isPlaying ? '❚❚ 暂停' : '▶ 播放'}
+          </button>
+
           <span
             style={{
               color: '#7a8aa8',
@@ -149,56 +130,104 @@ export default function ControlBar() {
               minWidth: '50px',
             }}
           >
-            {formatTime(LOOP_DURATION)}
+            {formatTime(state.currentTime)}
           </span>
-        </div>
 
-        <button
-          onClick={() => dispatch({ type: 'TOGGLE_LOOPING' })}
-          style={{
-            ...btnBase,
-            color: state.isLooping ? '#4fc3f7' : '#7a8aa8',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
-          onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-          title={state.isLooping ? '关闭循环' : '开启循环'}
-        >
-          ↻ 循环
-        </button>
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <input
+              type="range"
+              min="0"
+              max={LOOP_DURATION}
+              step="0.01"
+              value={state.currentTime}
+              onChange={handleSeek}
+              style={{
+                flex: 1,
+                height: '4px',
+                background: '#2a2a4a',
+                borderRadius: '2px',
+                outline: 'none',
+                cursor: 'pointer',
+                accentColor: '#4fc3f7',
+              }}
+            />
+            <span
+              style={{
+                color: '#7a8aa8',
+                fontSize: '12px',
+                fontFamily: 'monospace',
+                minWidth: '50px',
+              }}
+            >
+              {formatTime(LOOP_DURATION)}
+            </span>
+          </div>
 
-        <button
-          onClick={startRecording}
-          disabled={state.isRecording}
-          style={{
-            ...btnBase,
-            background: state.isRecording
-              ? 'rgba(255, 82, 82, 0.3)'
-              : 'rgba(255, 82, 82, 0.15)',
-            color: state.isRecording ? '#ff8080' : '#ff5252',
-            animation: state.isRecording ? 'pulse 1s infinite' : 'none',
-          }}
-          onMouseEnter={(e) => {
-            if (!state.isRecording) e.currentTarget.style.transform = 'scale(1.05)';
-          }}
-          onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
-        >
           <span
             style={{
-              width: '8px',
-              height: '8px',
-              borderRadius: '50%',
-              background: state.isRecording ? '#ff5252' : '#ff5252',
-              display: 'inline-block',
+              color: '#64B4FF',
+              fontSize: '11px',
+              fontFamily: 'monospace',
+              minWidth: '90px',
+              textAlign: 'center',
+              background: 'rgba(100, 180, 255, 0.08)',
+              padding: '2px 8px',
+              borderRadius: '4px',
+              border: '1px solid rgba(100, 180, 255, 0.15)',
             }}
-          />
-          {state.isRecording ? '录制中...' : '录制 (10s)'}
-        </button>
+          >
+            帧 {Math.floor(state.currentTime * FPS)} / {TOTAL_FRAMES}
+          </span>
+
+          <button
+            onClick={() => dispatch({ type: 'TOGGLE_LOOPING' })}
+            style={{
+              ...btnBase,
+              color: state.isLooping ? '#4fc3f7' : '#7a8aa8',
+            }}
+            onMouseEnter={(e) => (e.currentTarget.style.transform = 'scale(1.05)')}
+            onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+            title={state.isLooping ? '关闭循环' : '开启循环'}
+          >
+            ↻ 循环
+          </button>
+
+          <button
+            onClick={startRecording}
+            disabled={state.isRecording}
+            style={{
+              ...btnBase,
+              background: state.isRecording
+                ? 'rgba(255, 82, 82, 0.25)'
+                : 'rgba(255, 82, 82, 0.12)',
+              color: state.isRecording ? '#ff8080' : '#ff5252',
+              padding: '4px 12px',
+            }}
+            onMouseEnter={(e) => {
+              if (!state.isRecording) e.currentTarget.style.transform = 'scale(1.05)';
+            }}
+            onMouseLeave={(e) => (e.currentTarget.style.transform = 'scale(1)')}
+          >
+            <span
+              style={{
+                width: '10px',
+                height: '10px',
+                borderRadius: '50%',
+                background: state.isRecording ? '#ff5252' : '#ff5252',
+                display: 'inline-block',
+                animation: state.isRecording ? 'recBlink 1s infinite' : 'none',
+                boxShadow: state.isRecording ? '0 0 8px rgba(255, 82, 82, 0.8)' : 'none',
+              }}
+            />
+            {state.isRecording ? '录制中...' : '录制 (10s)'}
+          </button>
+        </div>
       </div>
 
       <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; }
-          50% { opacity: 0.5; }
+        @keyframes recBlink {
+          0%, 100% { opacity: 1; transform: scale(1); }
+          50% { opacity: 0.2; transform: scale(0.8); }
         }
       `}</style>
 
