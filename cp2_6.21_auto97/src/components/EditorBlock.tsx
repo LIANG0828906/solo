@@ -1,14 +1,19 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import type { Block, VoteType, VoteCounts } from '../types';
+import type { Block, VoteType } from '../types';
 
 interface EditorBlockProps {
   block: Block;
   isNew?: boolean;
+  dragTransform?: string;
+  isTouchDragging?: boolean;
   onContentChange: (blockId: string, content: string) => void;
   onDragStart: (e: React.DragEvent, blockId: string) => void;
   onDragOver: (e: React.DragEvent, blockId: string) => void;
   onDrop: (e: React.DragEvent, blockId: string) => void;
   onDragEnd: () => void;
+  onTouchDragStart: (blockId: string, startY: number) => void;
+  onTouchDragMove: (currentY: number) => void;
+  onTouchDragEnd: () => void;
   onDelete: (blockId: string) => void;
   onVote: (blockId: string, type: VoteType) => void;
   onAddConnection: (fromBlockId: string) => void;
@@ -27,11 +32,16 @@ const VOTE_EMOJIS: Record<VoteType, string> = {
 export const EditorBlock: React.FC<EditorBlockProps> = ({
   block,
   isNew = false,
+  dragTransform,
+  isTouchDragging = false,
   onContentChange,
   onDragStart,
   onDragOver,
   onDrop,
   onDragEnd,
+  onTouchDragStart,
+  onTouchDragMove,
+  onTouchDragEnd,
   onDelete,
   onVote,
   onAddConnection,
@@ -42,8 +52,10 @@ export const EditorBlock: React.FC<EditorBlockProps> = ({
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const codeRef = useRef<HTMLDivElement>(null);
-  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const [isDraggable, setIsDraggable] = useState(false);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const touchStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const isLongPressActiveRef = useRef(false);
+  const [isDesktopDraggable, setIsDesktopDraggable] = useState(false);
   const [localContent, setLocalContent] = useState(block.content);
   const [imageUrl, setImageUrl] = useState(block.type === 'image' ? block.content : '');
 
@@ -56,6 +68,14 @@ export const EditorBlock: React.FC<EditorBlockProps> = ({
       setImageUrl(block.content);
     }
   }, [block.type, block.content]);
+
+  useEffect(() => {
+    return () => {
+      if (longPressTimerRef.current) {
+        clearTimeout(longPressTimerRef.current);
+      }
+    };
+  }, []);
 
   const handleTextChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     const newContent = e.target.value;
@@ -80,29 +100,84 @@ export const EditorBlock: React.FC<EditorBlockProps> = ({
     onVote(block.id, type);
   }, [block.id, onVote]);
 
-  const handleTouchStart = useCallback(() => {
+  const handleBlockTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
+
     longPressTimerRef.current = setTimeout(() => {
-      setIsDraggable(true);
+      isLongPressActiveRef.current = true;
       if (navigator.vibrate) {
         navigator.vibrate(50);
       }
+      onTouchDragStart(block.id, touch.clientY);
     }, 500);
-  }, []);
+  }, [block.id, onTouchDragStart]);
 
-  const handleTouchEnd = useCallback(() => {
+  const handleBlockTouchMove = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0];
+
+    if (isLongPressActiveRef.current) {
+      e.preventDefault();
+      onTouchDragMove(touch.clientY);
+      return;
+    }
+
+    if (touchStartPosRef.current && longPressTimerRef.current) {
+      const dx = touch.clientX - touchStartPosRef.current.x;
+      const dy = touch.clientY - touchStartPosRef.current.y;
+      if (Math.abs(dx) > 10 || Math.abs(dy) > 10) {
+        clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = null;
+      }
+    }
+  }, [onTouchDragMove]);
+
+  const handleBlockTouchEnd = useCallback(() => {
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
-    setTimeout(() => setIsDraggable(false), 100);
-  }, []);
 
-  const handleTouchMove = useCallback(() => {
+    if (isLongPressActiveRef.current) {
+      isLongPressActiveRef.current = false;
+      onTouchDragEnd();
+    }
+
+    touchStartPosRef.current = null;
+  }, [onTouchDragEnd]);
+
+  const handleDragHandleTouchStart = useCallback((e: React.TouchEvent) => {
+    e.stopPropagation();
+    const touch = e.touches[0];
+
+    longPressTimerRef.current = setTimeout(() => {
+      isLongPressActiveRef.current = true;
+      if (navigator.vibrate) {
+        navigator.vibrate(50);
+      }
+      onTouchDragStart(block.id, touch.clientY);
+    }, 500);
+  }, [block.id, onTouchDragStart]);
+
+  const handleDragHandleTouchMove = useCallback((e: React.TouchEvent) => {
+    if (isLongPressActiveRef.current) {
+      e.preventDefault();
+      const touch = e.touches[0];
+      onTouchDragMove(touch.clientY);
+    }
+  }, [onTouchDragMove]);
+
+  const handleDragHandleTouchEnd = useCallback((e: React.TouchEvent) => {
+    e.stopPropagation();
     if (longPressTimerRef.current) {
       clearTimeout(longPressTimerRef.current);
       longPressTimerRef.current = null;
     }
-  }, []);
+    if (isLongPressActiveRef.current) {
+      isLongPressActiveRef.current = false;
+      onTouchDragEnd();
+    }
+  }, [onTouchDragEnd]);
 
   const renderContent = () => {
     switch (block.type) {
@@ -151,7 +226,6 @@ export const EditorBlock: React.FC<EditorBlockProps> = ({
               contentEditable
               onInput={handleCodeChange}
               suppressContentEditableWarning
-              placeholder="// 在这里输入代码..."
             >
               {localContent}
             </div>
@@ -164,25 +238,43 @@ export const EditorBlock: React.FC<EditorBlockProps> = ({
 
   const totalVotes = block.votes.happy + block.votes.sad + block.votes.surprised;
 
+  const blockStyle: React.CSSProperties = {};
+  if (dragTransform) {
+    blockStyle.transform = dragTransform;
+    blockStyle.transition = 'transform 0.2s ease';
+    blockStyle.willChange = 'transform';
+  }
+  if (isTouchDragging) {
+    blockStyle.zIndex = 1000;
+    blockStyle.opacity = 0.85;
+    blockStyle.boxShadow = '0 8px 24px rgba(0, 0, 0, 0.15)';
+    blockStyle.transform = dragTransform || 'scale(1.02)';
+    blockStyle.transition = 'none';
+  }
+
   return (
     <div
       ref={blockRef}
-      className={`editor-block ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''} ${isNew ? 'new-block' : ''}`}
-      draggable={isDraggable}
+      className={`editor-block ${isDragging ? 'dragging' : ''} ${isDragOver ? 'drag-over' : ''} ${isNew ? 'new-block' : ''} ${isTouchDragging ? 'touch-dragging' : ''}`}
+      draggable={isDesktopDraggable}
       onDragStart={(e) => onDragStart(e, block.id)}
       onDragOver={(e) => onDragOver(e, block.id)}
       onDrop={(e) => onDrop(e, block.id)}
       onDragEnd={onDragEnd}
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-      onTouchMove={handleTouchMove}
+      onTouchStart={handleBlockTouchStart}
+      onTouchMove={handleBlockTouchMove}
+      onTouchEnd={handleBlockTouchEnd}
+      style={blockStyle}
       data-block-id={block.id}
     >
       <div
         className="block-drag-handle"
-        onMouseDown={() => setIsDraggable(true)}
-        onMouseUp={() => setIsDraggable(false)}
-        onMouseLeave={() => setIsDraggable(false)}
+        onMouseDown={() => setIsDesktopDraggable(true)}
+        onMouseUp={() => setIsDesktopDraggable(false)}
+        onMouseLeave={() => setIsDesktopDraggable(false)}
+        onTouchStart={handleDragHandleTouchStart}
+        onTouchMove={handleDragHandleTouchMove}
+        onTouchEnd={handleDragHandleTouchEnd}
       >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <circle cx="9" cy="6" r="1.5" />

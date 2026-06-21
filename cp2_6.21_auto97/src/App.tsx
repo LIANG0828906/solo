@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { v4 as uuidv4 } from 'uuid';
+import axios from 'axios';
 import { EditorBlock } from './components/EditorBlock';
 import { Sidebar } from './components/Sidebar';
 import { useWebSocket } from './hooks/useWebSocket';
@@ -15,6 +16,8 @@ import type {
   VoteCounts,
   VersionHistory,
 } from './types';
+
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 const USER_COLORS = [
   '#ef4444', '#f97316', '#eab308', '#22c55e',
@@ -138,6 +141,11 @@ const App: React.FC = () => {
   const [connectingFromBlock, setConnectingFromBlock] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const [touchDragBlockId, setTouchDragBlockId] = useState<string | null>(null);
+  const [touchDragStartY, setTouchDragStartY] = useState(0);
+  const [touchDragCurrentY, setTouchDragCurrentY] = useState(0);
+  const [touchDropTargetIndex, setTouchDropTargetIndex] = useState<number | null>(null);
+
   const blockRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   const editorContainerRef = useRef<HTMLDivElement>(null);
 
@@ -194,6 +202,30 @@ const App: React.FC = () => {
       setOutline(extractOutline(page.blocks));
     }
   }, [page?.blocks]);
+
+  useEffect(() => {
+    if (touchDragBlockId && editorContainerRef.current && page) {
+      const containerRect = editorContainerRef.current.getBoundingClientRect();
+      const blockEls = blockRefs.current;
+      let targetIdx: number | null = null;
+
+      for (let i = 0; i < page.blocks.length; i++) {
+        const el = blockEls.get(page.blocks[i].id);
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+        const blockMidY = rect.top + rect.height / 2;
+        if (touchDragCurrentY < blockMidY) {
+          targetIdx = i;
+          break;
+        }
+      }
+
+      if (targetIdx === null && page.blocks.length > 0) {
+        targetIdx = page.blocks.length - 1;
+      }
+      setTouchDropTargetIndex(targetIdx);
+    }
+  }, [touchDragCurrentY, touchDragBlockId, page]);
 
   const handlePageUpdate = useCallback((newPage: WikiPage) => {
     setPage(newPage);
@@ -268,7 +300,7 @@ const App: React.FC = () => {
     });
   }, []);
 
-  const handleUserJoined = useCallback((joinedUserId: string, name: string, color: string) => {
+  const handleUserJoined = useCallback((_userId: string, name: string, _color: string) => {
     console.log('User joined:', name);
   }, []);
 
@@ -292,7 +324,7 @@ const App: React.FC = () => {
     });
   }, []);
 
-  const handlePageRolledBack = useCallback((rolledBackPage: WikiPage, remoteUserId: string) => {
+  const handlePageRolledBack = useCallback((rolledBackPage: WikiPage, _remoteUserId: string) => {
     setPage(rolledBackPage);
     setShowVersionPanel(false);
   }, []);
@@ -308,12 +340,8 @@ const App: React.FC = () => {
         updatedAt: Date.now(),
       };
     });
-
-    const lastContent = page?.blocks.find(b => b.id === blockId)?.content || '';
-    if (lastContent !== content) {
-      sendBlockUpdate(blockId, content);
-    }
-  }, [page?.blocks, sendBlockUpdate]);
+    sendBlockUpdate(blockId, content);
+  }, [sendBlockUpdate]);
 
   const handleDragStart = useCallback((e: React.DragEvent, blockId: string) => {
     setDraggingBlockId(blockId);
@@ -331,21 +359,21 @@ const App: React.FC = () => {
   const handleDrop = useCallback((e: React.DragEvent, targetBlockId: string) => {
     e.preventDefault();
     const sourceBlockId = e.dataTransfer.getData('text/plain');
-    
+
     if (sourceBlockId && sourceBlockId !== targetBlockId && page) {
       const blocks = [...page.blocks];
       const sourceIndex = blocks.findIndex(b => b.id === sourceBlockId);
       const targetIndex = blocks.findIndex(b => b.id === targetBlockId);
-      
+
       if (sourceIndex !== -1 && targetIndex !== -1) {
         const [block] = blocks.splice(sourceIndex, 1);
         blocks.splice(targetIndex, 0, block);
-        
+
         setPage(prev => prev ? { ...prev, blocks, updatedAt: Date.now() } : prev);
         sendBlockReorder(sourceBlockId, targetIndex);
       }
     }
-    
+
     setDraggingBlockId(null);
     setDragOverBlockId(null);
   }, [page, sendBlockReorder]);
@@ -355,9 +383,41 @@ const App: React.FC = () => {
     setDragOverBlockId(null);
   }, []);
 
+  const handleTouchDragStart = useCallback((blockId: string, startY: number) => {
+    setTouchDragBlockId(blockId);
+    setTouchDragStartY(startY);
+    setTouchDragCurrentY(startY);
+  }, []);
+
+  const handleTouchDragMove = useCallback((currentY: number) => {
+    setTouchDragCurrentY(currentY);
+  }, []);
+
+  const handleTouchDragEnd = useCallback(() => {
+    if (touchDragBlockId && page && touchDropTargetIndex !== null) {
+      const sourceIndex = page.blocks.findIndex(b => b.id === touchDragBlockId);
+      if (sourceIndex !== -1 && sourceIndex !== touchDropTargetIndex) {
+        const blocks = [...page.blocks];
+        const [block] = blocks.splice(sourceIndex, 1);
+        const adjustedIndex = touchDropTargetIndex > sourceIndex
+          ? touchDropTargetIndex - 1
+          : touchDropTargetIndex;
+        blocks.splice(adjustedIndex, 0, block);
+
+        setPage(prev => prev ? { ...prev, blocks, updatedAt: Date.now() } : prev);
+        sendBlockReorder(touchDragBlockId, adjustedIndex);
+      }
+    }
+
+    setTouchDragBlockId(null);
+    setTouchDragStartY(0);
+    setTouchDragCurrentY(0);
+    setTouchDropTargetIndex(null);
+  }, [touchDragBlockId, touchDropTargetIndex, page, sendBlockReorder]);
+
   const handleDeleteBlock = useCallback((blockId: string) => {
     if (!page || page.blocks.length <= 1) return;
-    
+
     setPage(prev => {
       if (!prev) return prev;
       return {
@@ -367,11 +427,11 @@ const App: React.FC = () => {
         updatedAt: Date.now(),
       };
     });
-    
+
     sendBlockDelete(blockId);
   }, [page, sendBlockDelete]);
 
-  const handleVote = useCallback((blockId: string, type: VoteType) => {
+  const handleVote = useCallback(async (blockId: string, type: VoteType) => {
     setUserVotes(prev => {
       const next = new Map(prev);
       const currentVote = next.get(blockId);
@@ -388,7 +448,7 @@ const App: React.FC = () => {
       if (block) {
         const currentVote = userVotes.get(blockId);
         const newVotes = { ...block.votes };
-        
+
         if (currentVote) {
           newVotes[currentVote] = Math.max(0, newVotes[currentVote] - 1);
         }
@@ -407,6 +467,12 @@ const App: React.FC = () => {
         });
 
         sendVote(blockId, type);
+
+        try {
+          await axios.post(`${API_BASE}/pages/${page.id}/blocks/${blockId}/vote`, { type });
+        } catch {
+          console.warn('Vote API call failed, using WebSocket fallback');
+        }
       }
     }
   }, [page, userVotes, sendVote]);
@@ -419,7 +485,7 @@ const App: React.FC = () => {
       const existingConnection = page.connections.find(
         c => c.fromBlockId === connectingFromBlock && c.toBlockId === fromBlockId
       );
-      
+
       if (!existingConnection) {
         const connection: Connection = {
           id: uuidv4(),
@@ -427,7 +493,7 @@ const App: React.FC = () => {
           toBlockId: fromBlockId,
           createdAt: Date.now(),
         };
-        
+
         setPage(prev => {
           if (!prev) return prev;
           return {
@@ -436,7 +502,7 @@ const App: React.FC = () => {
             updatedAt: Date.now(),
           };
         });
-        
+
         sendConnectionCreate(connection);
       }
       setConnectingFromBlock(null);
@@ -464,9 +530,9 @@ const App: React.FC = () => {
     setPage(prev => prev ? { ...prev, blocks, updatedAt: Date.now() } : prev);
     setNewBlockId(newBlock.id);
     setShowBlockTypeMenu(null);
-    
+
     setTimeout(() => setNewBlockId(null), 500);
-    
+
     sendBlockCreate(newBlock, index);
   }, [page, sendBlockCreate]);
 
@@ -478,7 +544,7 @@ const App: React.FC = () => {
   const handleOutlineItemClick = useCallback((blockId: string) => {
     setActiveBlockId(blockId);
     setMobileSidebarOpen(false);
-    
+
     const blockEl = blockRefs.current.get(blockId);
     if (blockEl && editorContainerRef.current) {
       const containerRect = editorContainerRef.current.getBoundingClientRect();
@@ -492,14 +558,34 @@ const App: React.FC = () => {
     setOutline(prev => toggleCollapse(prev, itemId));
   }, []);
 
-  const handleRollback = useCallback((versionId: string) => {
+  const handleRollback = useCallback(async (versionId: string) => {
     const version = versions.find(v => v.id === versionId);
     if (version && page) {
       setPage(version.snapshot);
       setShowVersionPanel(false);
       sendRollback(versionId);
+
+      try {
+        await axios.post(`${API_BASE}/pages/${page.id}/versions/${versionId}/rollback`);
+      } catch {
+        console.warn('Rollback API call failed, using WebSocket fallback');
+      }
     }
   }, [versions, page, sendRollback]);
+
+  const handleShowVersionPanel = useCallback(async () => {
+    setShowVersionPanel(true);
+    if (page) {
+      try {
+        const res = await axios.get(`${API_BASE}/pages/${page.id}/versions`);
+        if (res.data && res.data.length > 0) {
+          setVersions(res.data);
+        }
+      } catch {
+        console.warn('Failed to fetch versions from API, using local versions');
+      }
+    }
+  }, [page]);
 
   const handleConnectionHover = useCallback((e: React.MouseEvent, connection: Connection) => {
     if (!page) return;
@@ -519,28 +605,28 @@ const App: React.FC = () => {
     const fromEl = blockRefs.current.get(connection.fromBlockId);
     const toEl = blockRefs.current.get(connection.toBlockId);
     const container = editorContainerRef.current;
-    
+
     if (!fromEl || !toEl || !container) return '';
-    
+
     const containerRect = container.getBoundingClientRect();
     const fromRect = fromEl.getBoundingClientRect();
     const toRect = toEl.getBoundingClientRect();
-    
+
     const x1 = fromRect.right - containerRect.left - 20;
     const y1 = fromRect.top - containerRect.top + fromRect.height / 2 + container.scrollTop;
     const x2 = toRect.left - containerRect.left + 20;
     const y2 = toRect.top - containerRect.top + toRect.height / 2 + container.scrollTop;
-    
+
     const midX = (x1 + x2) / 2;
     const midY = (y1 + y2) / 2;
     const curveOffset = Math.min(Math.abs(y2 - y1) * 0.3, 100);
-    
+
     return `M ${x1} ${y1} Q ${midX} ${midY - curveOffset}, ${x2} ${y2}`;
   }, []);
 
   const renderConnectionLines = useCallback(() => {
     if (!page || page.connections.length === 0) return null;
-    
+
     return (
       <svg className="connections-svg">
         <defs>
@@ -598,12 +684,12 @@ const App: React.FC = () => {
     const date = new Date(timestamp);
     const now = new Date();
     const diff = now.getTime() - timestamp;
-    
+
     if (diff < 60000) return '刚刚';
     if (diff < 3600000) return `${Math.floor(diff / 60000)} 分钟前`;
     if (diff < 86400000) return `${Math.floor(diff / 3600000)} 小时前`;
     if (diff < 604800000) return `${Math.floor(diff / 86400000)} 天前`;
-    
+
     return date.toLocaleDateString('zh-CN');
   };
 
@@ -686,16 +772,6 @@ const App: React.FC = () => {
                 </div>
               ))}
             </div>
-            <button
-              className="version-btn"
-              onClick={() => setShowVersionPanel(true)}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="12" r="10" />
-                <polyline points="12 6 12 12 16 14" />
-              </svg>
-              历史
-            </button>
           </div>
         </header>
 
@@ -703,7 +779,7 @@ const App: React.FC = () => {
           <div className="editor-content">
             {renderConnectionLines()}
             {renderRemoteCursors()}
-            
+
             {connectingFromBlock && (
               <div style={{
                 position: 'sticky',
@@ -721,63 +797,89 @@ const App: React.FC = () => {
               </div>
             )}
 
-            {page.blocks.map((block, index) => (
-              <React.Fragment key={block.id}>
-                <EditorBlock
-                  block={block}
-                  isNew={block.id === newBlockId}
-                  onContentChange={handleContentChange}
-                  onDragStart={handleDragStart}
-                  onDragOver={handleDragOver}
-                  onDrop={handleDrop}
-                  onDragEnd={handleDragEnd}
-                  onDelete={handleDeleteBlock}
-                  onVote={handleVote}
-                  onAddConnection={handleAddConnection}
-                  isDragging={block.id === draggingBlockId}
-                  isDragOver={block.id === dragOverBlockId}
-                  userVote={userVotes.get(block.id) || null}
-                  blockRef={(el) => {
-                    if (el) {
-                      blockRefs.current.set(block.id, el);
-                    } else {
-                      blockRefs.current.delete(block.id);
-                    }
-                  }}
-                />
-                {showBlockTypeMenu === index && (
-                  <div className="block-type-menu">
-                    <button
-                      className="block-type-btn"
-                      onClick={() => handleAddBlock(index + 1, 'text')}
-                    >
-                      <span className="block-type-icon">📝</span>
-                      <span>文本</span>
-                    </button>
-                    <button
-                      className="block-type-btn"
-                      onClick={() => handleAddBlock(index + 1, 'image')}
-                    >
-                      <span className="block-type-icon">🖼️</span>
-                      <span>图片</span>
-                    </button>
-                    <button
-                      className="block-type-btn"
-                      onClick={() => handleAddBlock(index + 1, 'code')}
-                    >
-                      <span className="block-type-icon">💻</span>
-                      <span>代码</span>
-                    </button>
-                  </div>
-                )}
-                <button
-                  className="add-block-btn"
-                  onClick={() => setShowBlockTypeMenu(showBlockTypeMenu === index ? null : index)}
-                >
-                  {showBlockTypeMenu === index ? '✕ 取消' : '+ 添加新块'}
-                </button>
-              </React.Fragment>
-            ))}
+            {page.blocks.map((block, index) => {
+              const isTouchDrag = touchDragBlockId === block.id;
+              const dragDelta = isTouchDrag ? touchDragCurrentY - touchDragStartY : 0;
+              const dragTransform = isTouchDrag ? `translateY(${dragDelta}px)` : undefined;
+              const isTouchDropTarget = touchDropTargetIndex === index && touchDragBlockId !== null && touchDragBlockId !== block.id;
+
+              return (
+                <React.Fragment key={block.id}>
+                  <EditorBlock
+                    block={block}
+                    isNew={block.id === newBlockId}
+                    dragTransform={dragTransform}
+                    isTouchDragging={isTouchDrag}
+                    onContentChange={handleContentChange}
+                    onDragStart={handleDragStart}
+                    onDragOver={handleDragOver}
+                    onDrop={handleDrop}
+                    onDragEnd={handleDragEnd}
+                    onTouchDragStart={handleTouchDragStart}
+                    onTouchDragMove={handleTouchDragMove}
+                    onTouchDragEnd={handleTouchDragEnd}
+                    onDelete={handleDeleteBlock}
+                    onVote={handleVote}
+                    onAddConnection={handleAddConnection}
+                    isDragging={block.id === draggingBlockId}
+                    isDragOver={block.id === dragOverBlockId || isTouchDropTarget}
+                    userVote={userVotes.get(block.id) || null}
+                    blockRef={(el) => {
+                      if (el) {
+                        blockRefs.current.set(block.id, el);
+                      } else {
+                        blockRefs.current.delete(block.id);
+                      }
+                    }}
+                  />
+                  {showBlockTypeMenu === index && (
+                    <div className="block-type-menu">
+                      <button
+                        className="block-type-btn"
+                        onClick={() => handleAddBlock(index + 1, 'text')}
+                      >
+                        <span className="block-type-icon">📝</span>
+                        <span>文本</span>
+                      </button>
+                      <button
+                        className="block-type-btn"
+                        onClick={() => handleAddBlock(index + 1, 'image')}
+                      >
+                        <span className="block-type-icon">🖼️</span>
+                        <span>图片</span>
+                      </button>
+                      <button
+                        className="block-type-btn"
+                        onClick={() => handleAddBlock(index + 1, 'code')}
+                      >
+                        <span className="block-type-icon">💻</span>
+                        <span>代码</span>
+                      </button>
+                    </div>
+                  )}
+                  <button
+                    className="add-block-btn"
+                    onClick={() => setShowBlockTypeMenu(showBlockTypeMenu === index ? null : index)}
+                  >
+                    {showBlockTypeMenu === index ? '✕ 取消' : '+ 添加新块'}
+                  </button>
+                </React.Fragment>
+              );
+            })}
+
+            <div className="editor-bottom-bar">
+              <button
+                className="version-history-btn"
+                onClick={handleShowVersionPanel}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                  <circle cx="12" cy="12" r="10" />
+                  <polyline points="12 6 12 12 16 14" />
+                </svg>
+                <span>版本历史</span>
+                <span className="version-count-badge">{versions.length}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>
@@ -826,7 +928,9 @@ const App: React.FC = () => {
                     </div>
                   </div>
                 </div>
-                <div className="version-item-summary">{version.summary}</div>
+                <div className="version-item-summary">
+                  {version.summary.length > 30 ? version.summary.slice(0, 30) + '…' : version.summary}
+                </div>
                 <button
                   className="version-item-rollback"
                   onClick={() => handleRollback(version.id)}
