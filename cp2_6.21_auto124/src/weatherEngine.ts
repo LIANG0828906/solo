@@ -27,6 +27,19 @@ interface SplashParticle {
   active: boolean;
 }
 
+interface GrassBlade {
+  x: number;
+  baseY: number;
+  height: number;
+  frequency: number;
+  amplitude: number;
+  phase: number;
+  thickness: number;
+  colorR: number;
+  colorG: number;
+  colorB: number;
+}
+
 interface Cloud {
   x: number;
   y: number;
@@ -90,6 +103,7 @@ export class WeatherEngine {
   private snowPool: Particle[] = [];
   private cloudPool: Cloud[] = [];
   private splashPool: SplashParticle[] = [];
+  private grassBlades: GrassBlade[] = [];
 
   private maxRain: number = 500;
   private maxSnow: number = 300;
@@ -155,6 +169,28 @@ export class WeatherEngine {
     for (let i = 0; i < this.maxSplashes; i++) {
       this.splashPool.push({
         x: 0, y: 0, radius: 2, life: 0, maxLife: 200, active: false
+      });
+    }
+
+    this.initGrassBlades();
+  }
+
+  private initGrassBlades(): void {
+    const grassTop = this.height * 0.65;
+    const count = 120;
+
+    for (let i = 0; i < count; i++) {
+      this.grassBlades.push({
+        x: (i / count) * this.width + (Math.random() - 0.5) * 12,
+        baseY: grassTop + 3 + Math.random() * 10,
+        height: 8 + Math.random() * 7,
+        frequency: 0.8 + Math.random() * 1.8,
+        amplitude: 2 + Math.random() * 5,
+        phase: Math.random() * Math.PI * 2,
+        thickness: 1 + Math.random() * 1.5,
+        colorR: 70 + Math.floor(Math.random() * 15),
+        colorG: 150 + Math.floor(Math.random() * 35),
+        colorB: 65 + Math.floor(Math.random() * 20)
       });
     }
   }
@@ -822,30 +858,86 @@ export class WeatherEngine {
     if (tone.isNight) return;
     if (this.cloudTransitionOpacity > 0.5 && this.weatherHasCloud(this.targetWeather) && this.targetWeather !== 'sunny') return;
 
-    const sunX = this.width * 0.75;
-    const sunY = this.height * 0.2;
+    const isSunny = this.targetWeather === 'sunny' ||
+                    (this.isTransitioning && this.currentWeather === 'sunny');
+
+    const sunX = this.width * 0.78;
+    const sunY = this.height * 0.18;
     const sunRadius = 40 * this.params.sunIntensity;
 
-    const glowIntensity = 0.4 * this.params.sunIntensity * (1 - this.cloudTransitionOpacity * 0.5);
+    const glowRadius = isSunny ? 100 * this.params.sunIntensity : sunRadius * 3;
+    const glowIntensity = isSunny
+      ? 0.65 * this.params.sunIntensity * (1 - this.cloudTransitionOpacity * 0.3)
+      : 0.4 * this.params.sunIntensity * (1 - this.cloudTransitionOpacity * 0.5);
 
-    const glowGradient = this.ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunRadius * 3);
-    glowGradient.addColorStop(0, `rgba(255, 236, 179, ${glowIntensity})`);
-    glowGradient.addColorStop(0.5, `rgba(255, 193, 7, ${glowIntensity * 0.5})`);
-    glowGradient.addColorStop(1, 'rgba(255, 193, 7, 0)');
+    const glowGradient = this.ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, glowRadius);
+    if (isSunny) {
+      glowGradient.addColorStop(0, `rgba(255, 248, 220, ${glowIntensity})`);
+      glowGradient.addColorStop(0.2, `rgba(255, 230, 140, ${glowIntensity * 0.85})`);
+      glowGradient.addColorStop(0.5, `rgba(255, 200, 80, ${glowIntensity * 0.5})`);
+      glowGradient.addColorStop(1, 'rgba(255, 180, 50, 0)');
+    } else {
+      glowGradient.addColorStop(0, `rgba(255, 236, 179, ${glowIntensity})`);
+      glowGradient.addColorStop(0.5, `rgba(255, 193, 7, ${glowIntensity * 0.5})`);
+      glowGradient.addColorStop(1, 'rgba(255, 193, 7, 0)');
+    }
 
     this.ctx.fillStyle = glowGradient;
     this.ctx.beginPath();
-    this.ctx.arc(sunX, sunY, sunRadius * 3, 0, Math.PI * 2);
+    this.ctx.arc(sunX, sunY, glowRadius, 0, Math.PI * 2);
     this.ctx.fill();
 
+    if (isSunny) {
+      this.drawSunRays(sunX, sunY, glowRadius * 0.9, glowIntensity * 0.7);
+    }
+
     const sunGradient = this.ctx.createRadialGradient(sunX, sunY, 0, sunX, sunY, sunRadius);
-    sunGradient.addColorStop(0, '#fff9c4');
+    sunGradient.addColorStop(0, '#ffffff');
+    sunGradient.addColorStop(0.4, '#fff9c4');
     sunGradient.addColorStop(1, '#ffeb3b');
 
     this.ctx.fillStyle = sunGradient;
     this.ctx.beginPath();
     this.ctx.arc(sunX, sunY, sunRadius, 0, Math.PI * 2);
     this.ctx.fill();
+  }
+
+  private drawSunRays(sunX: number, sunY: number, maxRadius: number, intensity: number): void {
+    const rayCount = 16;
+    const innerRadius = 50;
+
+    this.ctx.save();
+    this.ctx.translate(sunX, sunY);
+
+    for (let i = 0; i < rayCount; i++) {
+      const angle = (i / rayCount) * Math.PI * 2 + this.grassPhase * 0.05;
+      const rayWidth = 0.06 + (i % 3) * 0.04;
+      const rayLength = maxRadius * (0.6 + (i % 4) * 0.12);
+      const tipAlpha = intensity * (0.25 + (i % 5) * 0.08);
+
+      const x1 = Math.cos(angle - rayWidth) * innerRadius;
+      const y1 = Math.sin(angle - rayWidth) * innerRadius;
+      const x2 = Math.cos(angle + rayWidth) * innerRadius;
+      const y2 = Math.sin(angle + rayWidth) * innerRadius;
+      const xt = Math.cos(angle) * rayLength;
+      const yt = Math.sin(angle) * rayLength;
+
+      const rayGradient = this.ctx.createLinearGradient(
+        (x1 + x2) / 2, (y1 + y2) / 2, xt, yt
+      );
+      rayGradient.addColorStop(0, `rgba(255, 240, 180, ${tipAlpha})`);
+      rayGradient.addColorStop(1, 'rgba(255, 220, 120, 0)');
+
+      this.ctx.fillStyle = rayGradient;
+      this.ctx.beginPath();
+      this.ctx.moveTo(x1, y1);
+      this.ctx.lineTo(xt, yt);
+      this.ctx.lineTo(x2, y2);
+      this.ctx.closePath();
+      this.ctx.fill();
+    }
+
+    this.ctx.restore();
   }
 
   private drawClouds(tone: ColorTone): void {
@@ -914,24 +1006,49 @@ export class WeatherEngine {
   }
 
   private drawGrassBlades(grassTop: number, tone: ColorTone): void {
-    const bladeCount = 80;
-    const bladeHeight = 15;
+    const isSunnyDay = (this.targetWeather === 'sunny' ||
+                        (this.isTransitioning && this.currentWeather === 'sunny')) && !tone.isNight;
 
-    for (let i = 0; i < bladeCount; i++) {
-      const x = (i / bladeCount) * this.width + Math.sin(i * 1.5) * 5;
-      const baseY = grassTop + 5 + Math.sin(i * 0.7) * 3;
-      const sway = Math.sin(this.grassPhase + i * 0.3) * 3;
+    if (isSunnyDay) {
+      for (const blade of this.grassBlades) {
+        const sway = Math.sin(this.grassPhase * blade.frequency + blade.phase) * blade.amplitude;
+        const midY = blade.baseY - blade.height * 0.5;
+        const tipX = blade.x + sway * 1.5;
+        const tipY = blade.baseY - blade.height;
+        const ctrlX = blade.x + sway * 0.7;
 
-      const bladeColor = tone.isNight
-        ? 'rgba(27, 94, 32, 0.8)'
-        : 'rgba(76, 175, 80, 0.7)';
+        const bladeColor = tone.isNight
+          ? 'rgba(27, 94, 32, 0.85)'
+          : `rgba(${blade.colorR}, ${blade.colorG}, ${blade.colorB}, 0.9)`;
 
-      this.ctx.strokeStyle = bladeColor;
-      this.ctx.lineWidth = 2;
-      this.ctx.beginPath();
-      this.ctx.moveTo(x, baseY);
-      this.ctx.quadraticCurveTo(x + sway, baseY - bladeHeight / 2, x + sway * 1.5, baseY - bladeHeight);
-      this.ctx.stroke();
+        this.ctx.strokeStyle = bladeColor;
+        this.ctx.lineWidth = blade.thickness;
+        this.ctx.lineCap = 'round';
+        this.ctx.beginPath();
+        this.ctx.moveTo(blade.x, blade.baseY);
+        this.ctx.quadraticCurveTo(ctrlX, midY, tipX, tipY);
+        this.ctx.stroke();
+      }
+    } else {
+      const bladeCount = 80;
+      const bladeHeight = 15;
+
+      for (let i = 0; i < bladeCount; i++) {
+        const x = (i / bladeCount) * this.width + Math.sin(i * 1.5) * 5;
+        const baseY = grassTop + 5 + Math.sin(i * 0.7) * 3;
+        const sway = Math.sin(this.grassPhase + i * 0.3) * 3;
+
+        const bladeColor = tone.isNight
+          ? 'rgba(27, 94, 32, 0.7)'
+          : 'rgba(76, 175, 80, 0.6)';
+
+        this.ctx.strokeStyle = bladeColor;
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+        this.ctx.moveTo(x, baseY);
+        this.ctx.quadraticCurveTo(x + sway, baseY - bladeHeight / 2, x + sway * 1.5, baseY - bladeHeight);
+        this.ctx.stroke();
+      }
     }
   }
 
