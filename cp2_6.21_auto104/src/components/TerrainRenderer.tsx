@@ -203,10 +203,10 @@ const TerrainRenderer: React.FC<TerrainRendererProps> = ({ heightMap, landform }
         shadows={false}
         camera={{ position: [14, 12, 14], fov: 50, near: 0.1, far: 200 }}
         gl={{ antialias: true, alpha: false }}
-        style={{ background: '#252545' }}
+        style={{ background: '#1a1a2e' }}
       >
-        <color attach="background" args={['#252545']} />
-        <fog attach="fog" args={['#252545', 50, 100]} />
+        <color attach="background" args={['#1a1a2e']} />
+        <fog attach="fog" args={['#1a1a2e', 50, 100]} />
 
         <ambientLight intensity={0.6} color="#ffffff" />
         <directionalLight

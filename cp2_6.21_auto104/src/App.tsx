@@ -46,7 +46,7 @@ const App: React.FC = () => {
     initialHeightMapRef.current = newMap.map((row) => [...row]);
     const totalHeight = engine.calculateTotalHeight(newMap);
     setTerrainState({
-      heightMap: newMap,
+      heightMap: newMap.map((r) => [...r]),
       landform,
       iteration: 0,
       initialTotalHeight: totalHeight,
