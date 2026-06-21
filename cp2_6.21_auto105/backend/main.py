@@ -1,5 +1,6 @@
 import os
 import json
+import asyncio
 from datetime import datetime, timedelta
 from typing import Optional, List, Dict
 from fastapi import FastAPI, Depends, HTTPException, status, WebSocket, WebSocketDisconnect
@@ -24,6 +25,10 @@ SECRET_KEY = "your-secret-key-change-in-production-0123456789"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7
 
+WS_HEARTBEAT_INTERVAL = 30
+WS_HEARTBEAT_TIMEOUT = 60
+WS_MESSAGE_TIMEOUT = 0.2
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/auth/login", auto_error=False)
 
@@ -41,26 +46,103 @@ app.add_middleware(
 class ConnectionManager:
     def __init__(self):
         self.active_connections: Dict[int, List[WebSocket]] = {}
+        self.heartbeat_tasks: Dict[int, List[asyncio.Task]] = {}
+        self.last_pong: Dict[WebSocket, float] = {}
+        self.pending_messages: Dict[int, List[dict]] = {}
 
     async def connect(self, trip_id: int, websocket: WebSocket):
         await websocket.accept()
         if trip_id not in self.active_connections:
             self.active_connections[trip_id] = []
+            self.heartbeat_tasks[trip_id] = []
+            self.pending_messages[trip_id] = []
         self.active_connections[trip_id].append(websocket)
+        self.last_pong[websocket] = datetime.now().timestamp()
+
+        heartbeat_task = asyncio.create_task(
+            self._heartbeat_loop(trip_id, websocket)
+        )
+        self.heartbeat_tasks[trip_id].append(heartbeat_task)
+
+        await self._flush_pending(trip_id, websocket)
 
     def disconnect(self, trip_id: int, websocket: WebSocket):
         if trip_id in self.active_connections:
-            self.active_connections[trip_id].remove(websocket)
+            if websocket in self.active_connections[trip_id]:
+                self.active_connections[trip_id].remove(websocket)
             if not self.active_connections[trip_id]:
                 del self.active_connections[trip_id]
+                for task in self.heartbeat_tasks.get(trip_id, []):
+                    task.cancel()
+                if trip_id in self.heartbeat_tasks:
+                    del self.heartbeat_tasks[trip_id]
+
+        self.last_pong.pop(websocket, None)
+
+    async def _heartbeat_loop(self, trip_id: int, websocket: WebSocket):
+        try:
+            while True:
+                await asyncio.sleep(WS_HEARTBEAT_INTERVAL)
+                if websocket in self.active_connections.get(trip_id, []):
+                    try:
+                        await asyncio.wait_for(
+                            websocket.send_json({"type": "ping", "timestamp": datetime.now().timestamp()}),
+                            timeout=WS_MESSAGE_TIMEOUT,
+                        )
+                    except asyncio.TimeoutError:
+                        self._queue_message(trip_id, {"type": "ping", "timestamp": datetime.now().timestamp()})
+                    except Exception:
+                        break
+
+                    last = self.last_pong.get(websocket, 0)
+                    if datetime.now().timestamp() - last > WS_HEARTBEAT_TIMEOUT:
+                        try:
+                            await websocket.close(code=1000, reason="Heartbeat timeout")
+                        except Exception:
+                            pass
+                        break
+        except asyncio.CancelledError:
+            pass
+
+    async def _flush_pending(self, trip_id: int, websocket: WebSocket):
+        pending = self.pending_messages.get(trip_id, [])
+        remaining = []
+        for msg in pending:
+            try:
+                await asyncio.wait_for(
+                    websocket.send_json(msg),
+                    timeout=WS_MESSAGE_TIMEOUT,
+                )
+            except Exception:
+                remaining.append(msg)
+        self.pending_messages[trip_id] = remaining
+
+    def _queue_message(self, trip_id: int, message: dict):
+        if trip_id not in self.pending_messages:
+            self.pending_messages[trip_id] = []
+        self.pending_messages[trip_id].append(message)
+        if len(self.pending_messages[trip_id]) > 100:
+            self.pending_messages[trip_id] = self.pending_messages[trip_id][-50:]
 
     async def broadcast(self, trip_id: int, message: dict):
-        if trip_id in self.active_connections:
-            for connection in self.active_connections[trip_id]:
-                try:
-                    await connection.send_json(message)
-                except:
-                    pass
+        if trip_id not in self.active_connections:
+            return
+        disconnected = []
+        for connection in self.active_connections[trip_id]:
+            try:
+                await asyncio.wait_for(
+                    connection.send_json(message),
+                    timeout=WS_MESSAGE_TIMEOUT,
+                )
+            except asyncio.TimeoutError:
+                self._queue_message(trip_id, message)
+            except Exception:
+                disconnected.append(connection)
+        for conn in disconnected:
+            self.disconnect(trip_id, conn)
+
+    def record_pong(self, websocket: WebSocket):
+        self.last_pong[websocket] = datetime.now().timestamp()
 
 
 manager = ConnectionManager()
@@ -685,8 +767,14 @@ async def websocket_endpoint(websocket: WebSocket, trip_id: int):
                 message = json.loads(data)
                 msg_type = message.get("type")
                 msg_data = message.get("data", {})
+
+                if msg_type == "pong":
+                    manager.record_pong(websocket)
+                    continue
+
                 if msg_type:
-                    await manager.broadcast(trip_id, {"type": msg_type, "data": msg_data})
+                    message["timestamp"] = datetime.now().timestamp()
+                    await manager.broadcast(trip_id, {"type": msg_type, "data": msg_data, "timestamp": message["timestamp"]})
             except json.JSONDecodeError:
                 pass
     except WebSocketDisconnect:

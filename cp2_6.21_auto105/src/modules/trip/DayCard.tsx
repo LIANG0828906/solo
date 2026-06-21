@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import {
   ChevronDown,
   ChevronUp,
@@ -11,13 +11,280 @@ import {
   GripVertical,
   Trash2,
 } from 'lucide-react';
+import { FixedSizeList as List } from 'react-window';
 import type { DayPlan, Attraction, Comment } from '@/types';
 import useTripStore from '@/stores/tripStore';
+
+const VIRTUAL_SCROLL_THRESHOLD = 50;
+const ATTRACTION_ITEM_HEIGHT = 140;
 
 interface DayCardProps {
   dayPlan: DayPlan;
   isExpanded?: boolean;
   onToggle?: () => void;
+}
+
+interface AttractionRowProps {
+  attraction: Attraction;
+  index: number;
+  totalCount: number;
+  isSelected: boolean;
+  draggedId: string | null;
+  dragOverIndex: number | null;
+  commentValue: string;
+  onAttractionClick: (id: string) => void;
+  onDragStart: (e: React.DragEvent, id: string) => void;
+  onDragOver: (e: React.DragEvent, index: number) => void;
+  onDragEnd: () => void;
+  onDelete: (e: React.MouseEvent, id: string) => void;
+  onCommentChange: (id: string, value: string) => void;
+  onAddComment: (id: string) => void;
+  formatTime: (dateStr: string) => string;
+}
+
+function AttractionRow({
+  attraction,
+  index,
+  totalCount,
+  isSelected,
+  draggedId,
+  dragOverIndex,
+  commentValue,
+  onAttractionClick,
+  onDragStart,
+  onDragOver,
+  onDragEnd,
+  onDelete,
+  onCommentChange,
+  onAddComment,
+  formatTime,
+}: AttractionRowProps) {
+  return (
+    <div
+      draggable
+      onDragStart={(e) => onDragStart(e, attraction.id)}
+      onDragOver={(e) => onDragOver(e, index)}
+      onDragEnd={onDragEnd}
+      onClick={() => onAttractionClick(attraction.id)}
+      style={{
+        position: 'relative',
+        padding: '12px 12px 12px 32px',
+        marginBottom: index < totalCount - 1 ? '8px' : 0,
+        backgroundColor: isSelected ? '#eff6ff' : '#f9fafb',
+        borderRadius: '8px',
+        cursor: 'pointer',
+        transition: 'background-color 0.2s ease, transform 0.2s ease',
+        opacity: draggedId === attraction.id ? 0.5 : 1,
+        transform: dragOverIndex === index && draggedId !== attraction.id ? 'translateY(4px)' : 'none',
+      }}
+      onMouseOver={(e) => {
+        if (!isSelected) {
+          e.currentTarget.style.backgroundColor = '#f3f4f6';
+        }
+      }}
+      onMouseOut={(e) => {
+        if (!isSelected) {
+          e.currentTarget.style.backgroundColor = '#f9fafb';
+        }
+      }}
+    >
+      <div
+        style={{
+          position: 'absolute',
+          left: '8px',
+          top: '50%',
+          transform: 'translateY(-50%)',
+          display: 'flex',
+          alignItems: 'center',
+          cursor: 'grab',
+          color: '#9ca3af',
+        }}
+      >
+        <GripVertical size={16} />
+      </div>
+
+      <div style={{ position: 'absolute', left: '24px', top: '14px' }}>
+        <div
+          style={{
+            width: '10px',
+            height: '10px',
+            borderRadius: '50%',
+            backgroundColor: isSelected ? '#1a73e8' : '#d1d5db',
+            border: '2px solid white',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+          }}
+        />
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              marginBottom: '4px',
+            }}
+          >
+            <MapPin size={14} style={{ color: '#1a73e8', flexShrink: 0 }} />
+            <span
+              style={{
+                fontSize: '14px',
+                fontWeight: 500,
+                color: '#1f2937',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {attraction.name}
+            </span>
+          </div>
+          {attraction.notes && (
+            <p
+              style={{
+                fontSize: '12px',
+                color: '#6b7280',
+                margin: '4px 0 0 20px',
+                lineHeight: 1.4,
+              }}
+            >
+              {attraction.notes}
+            </p>
+          )}
+          {attraction.duration && (
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                marginTop: '6px',
+                marginLeft: '20px',
+              }}
+            >
+              <Clock size={12} style={{ color: '#9ca3af' }} />
+              <span style={{ fontSize: '11px', color: '#9ca3af' }}>
+                {attraction.duration} 分钟
+              </span>
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={(e) => onDelete(e, attraction.id)}
+          style={{
+            padding: '4px',
+            border: 'none',
+            background: 'none',
+            cursor: 'pointer',
+            color: '#9ca3af',
+            opacity: 0,
+            transition: 'opacity 0.2s, color 0.2s',
+            flexShrink: 0,
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.opacity = '1';
+            e.currentTarget.style.color = '#ef4444';
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.opacity = '0';
+            e.currentTarget.style.color = '#9ca3af';
+          }}
+          onFocus={(e) => (e.currentTarget.style.opacity = '1')}
+          onBlur={(e) => (e.currentTarget.style.opacity = '0')}
+        >
+          <Trash2 size={16} />
+        </button>
+      </div>
+
+      {attraction.comments.length > 0 && (
+        <div
+          style={{
+            marginTop: '10px',
+            marginLeft: '20px',
+            paddingTop: '8px',
+            borderTop: '1px solid #e5e7eb',
+          }}
+        >
+          {attraction.comments.slice(-2).map((comment) => (
+            <div
+              key={comment.id}
+              style={{
+                padding: '6px 0',
+                fontSize: '12px',
+                color: '#4b5563',
+              }}
+            >
+              <span style={{ fontWeight: 500, color: '#1a73e8' }}>
+                {comment.username}
+              </span>
+              <span style={{ color: '#9ca3af', marginLeft: '6px' }}>
+                {formatTime(comment.createdAt)}
+              </span>
+              <p style={{ margin: '2px 0 0', lineHeight: 1.4 }}>{comment.content}</p>
+            </div>
+          ))}
+          {attraction.comments.length > 2 && (
+            <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>
+              还有 {attraction.comments.length - 2} 条评论
+            </div>
+          )}
+        </div>
+      )}
+
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px',
+          marginTop: '10px',
+          marginLeft: '20px',
+          paddingTop: '8px',
+          borderTop: '1px solid #e5e7eb',
+        }}
+      >
+        <MessageSquare size={14} style={{ color: '#9ca3af' }} />
+        <input
+          type="text"
+          value={commentValue}
+          onChange={(e) => onCommentChange(attraction.id, e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') {
+              onAddComment(attraction.id);
+            }
+          }}
+          placeholder="添加评论..."
+          style={{
+            flex: 1,
+            padding: '6px 10px',
+            border: '1px solid #e5e7eb',
+            borderRadius: '6px',
+            fontSize: '12px',
+            outline: 'none',
+            backgroundColor: 'white',
+            transition: 'border-color 0.2s',
+          }}
+          onFocus={(e) => (e.target.style.borderColor = '#1a73e8')}
+          onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')}
+        />
+        <button
+          onClick={() => onAddComment(attraction.id)}
+          style={{
+            padding: '6px 10px',
+            border: 'none',
+            borderRadius: '6px',
+            backgroundColor: commentValue?.trim() ? '#1a73e8' : '#d1d5db',
+            color: 'white',
+            cursor: commentValue?.trim() ? 'pointer' : 'not-allowed',
+            transition: 'background-color 0.2s',
+          }}
+          disabled={!commentValue?.trim()}
+        >
+          <Send size={14} />
+        </button>
+      </div>
+    </div>
+  );
 }
 
 export function DayCard({ dayPlan, isExpanded = true, onToggle }: DayCardProps) {
@@ -33,9 +300,12 @@ export function DayCard({ dayPlan, isExpanded = true, onToggle }: DayCardProps) 
   const [isOpen, setIsOpen] = useState(isExpanded);
   const [contentHeight, setContentHeight] = useState<number | 'auto'>(0);
   const contentRef = useRef<HTMLDivElement>(null);
+  const virtualListRef = useRef<List>(null);
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
+
+  const useVirtualScroll = dayPlan.attractions.length >= VIRTUAL_SCROLL_THRESHOLD;
 
   useEffect(() => {
     if (contentRef.current) {
@@ -122,6 +392,80 @@ export function DayCard({ dayPlan, isExpanded = true, onToggle }: DayCardProps) 
     return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
   };
 
+  const virtualRowRenderer = useCallback(
+    ({ index, style }: { index: number; style: React.CSSProperties }) => {
+      const attraction = dayPlan.attractions[index];
+      return (
+        <div style={{ ...style, paddingLeft: 0, paddingRight: 0 }}>
+          <AttractionRow
+            attraction={attraction}
+            index={index}
+            totalCount={dayPlan.attractions.length}
+            isSelected={selectedAttractionId === attraction.id}
+            draggedId={draggedId}
+            dragOverIndex={dragOverIndex}
+            commentValue={commentInputs[attraction.id] || ''}
+            onAttractionClick={handleAttractionClick}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+            onDelete={handleDeleteAttraction}
+            onCommentChange={handleCommentChange}
+            onAddComment={handleAddComment}
+            formatTime={formatTime}
+          />
+        </div>
+      );
+    },
+    [dayPlan.attractions, selectedAttractionId, draggedId, dragOverIndex, commentInputs, handleAttractionClick, handleDragStart, handleDragOver, handleDragEnd, handleDeleteAttraction, handleCommentChange, handleAddComment]
+  );
+
+  const virtualListHeight = useMemo(() => {
+    return Math.min(dayPlan.attractions.length * ATTRACTION_ITEM_HEIGHT, 500);
+  }, [dayPlan.attractions.length]);
+
+  const attractionList = useMemo(() => {
+    if (useVirtualScroll) {
+      return (
+        <List
+          ref={virtualListRef}
+          height={virtualListHeight}
+          itemCount={dayPlan.attractions.length}
+          itemSize={ATTRACTION_ITEM_HEIGHT}
+          width="100%"
+          overscanCount={5}
+        >
+          {virtualRowRenderer}
+        </List>
+      );
+    }
+
+    return (
+      <div style={{ position: 'relative' }}>
+        {dayPlan.attractions.map((attraction, index) => (
+          <AttractionRow
+            key={attraction.id}
+            attraction={attraction}
+            index={index}
+            totalCount={dayPlan.attractions.length}
+            isSelected={selectedAttractionId === attraction.id}
+            draggedId={draggedId}
+            dragOverIndex={dragOverIndex}
+            commentValue={commentInputs[attraction.id] || ''}
+            onAttractionClick={handleAttractionClick}
+            onDragStart={handleDragStart}
+            onDragOver={handleDragOver}
+            onDragEnd={handleDragEnd}
+            onDelete={handleDeleteAttraction}
+            onCommentChange={handleCommentChange}
+            onAddComment={handleAddComment}
+            formatTime={formatTime}
+          />
+        ))}
+      </div>
+    );
+  }, [useVirtualScroll, dayPlan.attractions, selectedAttractionId, draggedId, dragOverIndex, commentInputs, virtualListHeight, virtualRowRenderer, handleAttractionClick, handleDragStart, handleDragOver, handleDragEnd, handleDeleteAttraction, handleCommentChange, handleAddComment]);
+
   return (
     <div
       style={{
@@ -178,6 +522,7 @@ export function DayCard({ dayPlan, isExpanded = true, onToggle }: DayCardProps) 
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '12px', color: '#9ca3af' }}>
             {dayPlan.attractions.length} 个景点
+            {useVirtualScroll && ' (虚拟滚动)'}
           </span>
           {isOpen ? (
             <ChevronUp size={20} style={{ color: '#6b7280' }} />
@@ -225,237 +570,7 @@ export function DayCard({ dayPlan, isExpanded = true, onToggle }: DayCardProps) 
             </div>
           )}
 
-          <div style={{ position: 'relative' }}>
-            {dayPlan.attractions.map((attraction, index) => (
-              <div
-                key={attraction.id}
-                draggable
-                onDragStart={(e) => handleDragStart(e, attraction.id)}
-                onDragOver={(e) => handleDragOver(e, index)}
-                onDragEnd={handleDragEnd}
-                onClick={() => handleAttractionClick(attraction.id)}
-                style={{
-                  position: 'relative',
-                  padding: '12px 12px 12px 32px',
-                  marginBottom: index < dayPlan.attractions.length - 1 ? '8px' : 0,
-                  backgroundColor:
-                    selectedAttractionId === attraction.id ? '#eff6ff' : '#f9fafb',
-                  borderRadius: '8px',
-                  cursor: 'pointer',
-                  transition: 'background-color 0.2s ease, transform 0.2s ease',
-                  opacity: draggedId === attraction.id ? 0.5 : 1,
-                  transform: dragOverIndex === index && draggedId !== attraction.id ? 'translateY(4px)' : 'none',
-                }}
-                onMouseOver={(e) => {
-                  if (selectedAttractionId !== attraction.id) {
-                    e.currentTarget.style.backgroundColor = '#f3f4f6';
-                  }
-                }}
-                onMouseOut={(e) => {
-                  if (selectedAttractionId !== attraction.id) {
-                    e.currentTarget.style.backgroundColor = '#f9fafb';
-                  }
-                }}
-              >
-                <div
-                  style={{
-                    position: 'absolute',
-                    left: '8px',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    cursor: 'grab',
-                    color: '#9ca3af',
-                  }}
-                >
-                  <GripVertical size={16} />
-                </div>
-
-                <div style={{ position: 'absolute', left: '24px', top: '14px' }}>
-                  <div
-                    style={{
-                      width: '10px',
-                      height: '10px',
-                      borderRadius: '50%',
-                      backgroundColor:
-                        selectedAttractionId === attraction.id ? '#1a73e8' : '#d1d5db',
-                      border: '2px solid white',
-                      boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                    }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '6px',
-                        marginBottom: '4px',
-                      }}
-                    >
-                      <MapPin size={14} style={{ color: '#1a73e8', flexShrink: 0 }} />
-                      <span
-                        style={{
-                          fontSize: '14px',
-                          fontWeight: 500,
-                          color: '#1f2937',
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {attraction.name}
-                      </span>
-                    </div>
-                    {attraction.notes && (
-                      <p
-                        style={{
-                          fontSize: '12px',
-                          color: '#6b7280',
-                          margin: '4px 0 0 20px',
-                          lineHeight: 1.4,
-                        }}
-                      >
-                        {attraction.notes}
-                      </p>
-                    )}
-                    {attraction.duration && (
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '4px',
-                          marginTop: '6px',
-                          marginLeft: '20px',
-                        }}
-                      >
-                        <Clock size={12} style={{ color: '#9ca3af' }} />
-                        <span style={{ fontSize: '11px', color: '#9ca3af' }}>
-                          {attraction.duration} 分钟
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  <button
-                    onClick={(e) => handleDeleteAttraction(e, attraction.id)}
-                    style={{
-                      padding: '4px',
-                      border: 'none',
-                      background: 'none',
-                      cursor: 'pointer',
-                      color: '#9ca3af',
-                      opacity: 0,
-                      transition: 'opacity 0.2s, color 0.2s',
-                      flexShrink: 0,
-                    }}
-                    onMouseOver={(e) => {
-                      e.currentTarget.style.opacity = '1';
-                      e.currentTarget.style.color = '#ef4444';
-                    }}
-                    onMouseOut={(e) => {
-                      e.currentTarget.style.opacity = '0';
-                      e.currentTarget.style.color = '#9ca3af';
-                    }}
-                    onFocus={(e) => (e.currentTarget.style.opacity = '1')}
-                    onBlur={(e) => (e.currentTarget.style.opacity = '0')}
-                  >
-                    <Trash2 size={16} />
-                  </button>
-                </div>
-
-                {attraction.comments.length > 0 && (
-                  <div
-                    style={{
-                      marginTop: '10px',
-                      marginLeft: '20px',
-                      paddingTop: '8px',
-                      borderTop: '1px solid #e5e7eb',
-                    }}
-                  >
-                    {attraction.comments.slice(-2).map((comment) => (
-                      <div
-                        key={comment.id}
-                        style={{
-                          padding: '6px 0',
-                          fontSize: '12px',
-                          color: '#4b5563',
-                        }}
-                      >
-                        <span style={{ fontWeight: 500, color: '#1a73e8' }}>
-                          {comment.username}
-                        </span>
-                        <span style={{ color: '#9ca3af', marginLeft: '6px' }}>
-                          {formatTime(comment.createdAt)}
-                        </span>
-                        <p style={{ margin: '2px 0 0', lineHeight: 1.4 }}>{comment.content}</p>
-                      </div>
-                    ))}
-                    {attraction.comments.length > 2 && (
-                      <div style={{ fontSize: '11px', color: '#9ca3af', marginTop: '4px' }}>
-                        还有 {attraction.comments.length - 2} 条评论
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '8px',
-                    marginTop: '10px',
-                    marginLeft: '20px',
-                    paddingTop: '8px',
-                    borderTop: '1px solid #e5e7eb',
-                  }}
-                >
-                  <MessageSquare size={14} style={{ color: '#9ca3af' }} />
-                  <input
-                    type="text"
-                    value={commentInputs[attraction.id] || ''}
-                    onChange={(e) => handleCommentChange(attraction.id, e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter') {
-                        handleAddComment(attraction.id);
-                      }
-                    }}
-                    placeholder="添加评论..."
-                    style={{
-                      flex: 1,
-                      padding: '6px 10px',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '6px',
-                      fontSize: '12px',
-                      outline: 'none',
-                      backgroundColor: 'white',
-                      transition: 'border-color 0.2s',
-                    }}
-                    onFocus={(e) => (e.target.style.borderColor = '#1a73e8')}
-                    onBlur={(e) => (e.target.style.borderColor = '#e5e7eb')}
-                  />
-                  <button
-                    onClick={() => handleAddComment(attraction.id)}
-                    style={{
-                      padding: '6px 10px',
-                      border: 'none',
-                      borderRadius: '6px',
-                      backgroundColor: commentInputs[attraction.id]?.trim() ? '#1a73e8' : '#d1d5db',
-                      color: 'white',
-                      cursor: commentInputs[attraction.id]?.trim() ? 'pointer' : 'not-allowed',
-                      transition: 'background-color 0.2s',
-                    }}
-                    disabled={!commentInputs[attraction.id]?.trim()}
-                  >
-                    <Send size={14} />
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
+          {attractionList}
         </div>
       </div>
     </div>

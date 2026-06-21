@@ -1,10 +1,10 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
-import type { Marker as LeafletMarker } from 'leaflet';
+import type { Popup as LeafletPopup } from 'leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { MapPin, Clock, Plus, X } from 'lucide-react';
-import type { Attraction } from '@/types';
+import type { AttractionCreateData } from '@/types';
 import useTripStore from '@/stores/tripStore';
 import RouteLayer from './RouteLayer';
 
@@ -183,7 +183,7 @@ export function MapView() {
   const [newName, setNewName] = useState('');
   const [newNotes, setNewNotes] = useState('');
   const [newDuration, setNewDuration] = useState('');
-  const addMarkerRef = useRef<LeafletMarker | null>(null);
+  const addPopupRef = useRef<LeafletPopup | null>(null);
 
   const allAttractions = useMemo(() => {
     if (!trip) return [];
@@ -215,20 +215,15 @@ export function MapView() {
   const handleAddAttraction = useCallback(() => {
     if (!selectedDayId || !newPoint) return;
 
-    const newAttraction: Attraction = {
-      id: `attr-${Date.now()}`,
+    const attractionData: AttractionCreateData = {
       name: newName || '未命名景点',
       lat: newPoint.lat,
       lng: newPoint.lng,
       notes: newNotes || undefined,
       duration: newDuration ? parseInt(newDuration, 10) : undefined,
-      order: 0,
-      comments: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     };
 
-    addAttraction(selectedDayId, newAttraction);
+    addAttraction(selectedDayId, attractionData);
     setShowAddPopup(false);
     setNewPoint(null);
   }, [selectedDayId, newPoint, newName, newNotes, newDuration, addAttraction]);
@@ -260,9 +255,9 @@ export function MapView() {
   );
 
   useEffect(() => {
-    if (showAddPopup && addMarkerRef.current) {
+    if (showAddPopup && addPopupRef.current) {
       setTimeout(() => {
-        addMarkerRef.current?.openPopup();
+        addPopupRef.current?.openOn(addPopupRef.current.getMap());
       }, 50);
     }
   }, [showAddPopup, newPoint]);
@@ -295,11 +290,6 @@ export function MapView() {
           <Marker
             position={[newPoint.lat, newPoint.lng]}
             icon={defaultIcon}
-            ref={(ref) => {
-              if (ref) {
-                addMarkerRef.current = ref as unknown as LeafletMarker;
-              }
-            }}
             eventHandlers={{
               popupclose: () => {
                 setShowAddPopup(false);
@@ -307,7 +297,13 @@ export function MapView() {
               },
             }}
           >
-            <Popup>
+            <Popup
+              ref={(ref) => {
+                if (ref) {
+                  addPopupRef.current = ref;
+                }
+              }}
+            >
               <div style={{ minWidth: '220px', padding: '8px 0' }}>
                 <div
                   style={{

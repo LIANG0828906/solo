@@ -58,6 +58,14 @@ export function useWebSocket(options: UseWebSocketOptions) {
       wsRef.current.onmessage = (event) => {
         try {
           const message: WSMessage = JSON.parse(event.data);
+
+          if (message.type === 'ping') {
+            if (wsRef.current?.readyState === WebSocket.OPEN) {
+              wsRef.current.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+            }
+            return;
+          }
+
           const listeners = messageListenersRef.current.get(message.type);
           if (listeners) {
             listeners.forEach((listener) => listener(message.data));

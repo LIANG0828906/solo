@@ -108,7 +108,7 @@ export default function TripPlanner({
         </div>
 
         <div className="flex-1 overflow-y-auto space-y-2">
-          {waypoints.map((waypoint, index) => (
+          {waypoints.map((waypoint) => (
             <div
               key={waypoint.id}
               className="bg-white border border-gray-200 rounded-lg p-3 hover:border-[#1a73e8] transition-colors"
@@ -116,7 +116,7 @@ export default function TripPlanner({
               <div className="flex items-start justify-between gap-2">
                 <div className="flex items-start gap-2">
                   <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#1a73e8] to-[#34a853] flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <span className="text-white text-xs font-semibold">{index + 1}</span>
+                    <span className="text-white text-xs font-semibold">{waypoint.day || ''}</span>
                   </div>
                   <div>
                     <p className="font-medium text-sm text-gray-900">{waypoint.name}</p>

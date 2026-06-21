@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { Trip, Attraction, Comment, TripStoreState, TripStoreActions } from '@/types';
+import type { Trip, Attraction, AttractionCreateData, Comment, TripStoreState, TripStoreActions } from '@/types';
 import api from '@/utils/api';
 
 const MAX_UNDO_STACK = 50;
@@ -51,15 +51,31 @@ export const useTripStore = create<TripStore>((set, get) => ({
     });
   },
 
-  addAttraction: (dayId, attraction) => {
+  addAttraction: (dayId, attractionData) => {
     const { trip, saveToUndoStack } = get();
     if (!trip) return;
 
     saveToUndoStack();
 
+    const isFullAttraction = 'id' in attractionData && 'comments' in attractionData && 'createdAt' in attractionData;
+
+    const fullAttraction: Attraction = isFullAttraction
+      ? (attractionData as Attraction)
+      : {
+          ...attractionData,
+          id: `attr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+          order: 0,
+          comments: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+
     const newDays = trip.days.map((day) => {
       if (day.id === dayId) {
-        const newAttractions = [...day.attractions, { ...attraction, order: day.attractions.length }];
+        if (!isFullAttraction) {
+          fullAttraction.order = day.attractions.length;
+        }
+        const newAttractions = [...day.attractions, fullAttraction];
         return { ...day, attractions: newAttractions };
       }
       return day;

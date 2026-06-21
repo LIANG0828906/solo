@@ -33,6 +33,8 @@ export interface Attraction {
 
 export type TransportMode = 'walk' | 'car' | 'bus' | 'plane';
 
+export type AttractionCreateData = Omit<Attraction, 'id' | 'order' | 'comments' | 'createdAt' | 'updatedAt'>;
+
 export interface DayPlan {
   id: string;
   date: string;
@@ -66,7 +68,9 @@ export type WSMessageType =
   | 'trip_update'
   | 'user_join'
   | 'user_leave'
-  | 'cursor_move';
+  | 'cursor_move'
+  | 'ping'
+  | 'pong';
 
 export interface WSMessage<T = unknown> {
   type: WSMessageType;
@@ -99,7 +103,7 @@ export interface TripStoreActions {
   setSelectedAttraction: (id: string | null) => void;
   setSelectedDay: (id: string | null) => void;
   setIsEditing: (editing: boolean) => void;
-  addAttraction: (dayId: string, attraction: Attraction) => void;
+  addAttraction: (dayId: string, attraction: AttractionCreateData | Attraction) => void;
   updateAttraction: (dayId: string, attractionId: string, updates: Partial<Attraction>) => void;
   deleteAttraction: (dayId: string, attractionId: string) => void;
   moveAttraction: (fromDayId: string, toDayId: string, attractionId: string, toIndex: number) => void;
