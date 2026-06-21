@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>跨模态传感数据融合仪表盘</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0D1117;
+      color: #ffffff;
+      overflow: hidden;
+      width: 100vw;
+      height: 100vh;
+    }
+    
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    
+    #scene-container {
+      width: 100%;
+      height: 85vh;
+      position: relative;
+    }
+    
+    #scene-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    
+    #alert-container {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      z-index: 100;
+      pointer-events: none;
+    }
+    
+    .alert-card {
+      width: 200px;
+      height: 60px;
+      background: #FFEBEE;
+      border: 1px solid #EF5350;
+      border-radius: 8px;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      animation: fadeIn 0.3s ease-in;
+    }
+    
+    .alert-title {
+      color: #D32F2F;
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 4px;
+    }
+    
+    .alert-value {
+      color: #D32F2F;
+      font-size: 12px;
+    }
+    
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
+    }
+    
+    #sensor-panel {
+      position: absolute;
+      display: none;
+      width: 200px;
+      height: 100px;
+      background: rgba(30, 30, 46, 0.9);
+      border: 1px solid #6C63FF;
+      border-radius: 8px;
+      padding: 12px;
+      z-index: 100;
+      pointer-events: auto;
+    }
+    
+    .panel-title {
+      color: #6C63FF;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    
+    .panel-row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      margin-bottom: 4px;
+      color: #C9D1D9;
+    }
+    
+    .panel-value {
+      color: #58A6FF;
+      font-weight: 500;
+    }
+    
+    #control-bar {
+      width: 100%;
+      height: 60px;
+      background: rgba(30, 30, 46, 0.9);
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 16px;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+    }
+    
+    .control-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      background: #21262D;
+      border: 1px solid #30363D;
+      color: #C9D1D9;
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+    }
+    
+    .control-btn:hover {
+      background: #6C63FF;
+      border-color: #6C63FF;
+      color: #FFFFFF;
+    }
+    
+    .control-btn:active {
+      transform: scale(0.95);
+      transition: transform 0.1s ease;
+    }
+    
+    .slider-container {
+      flex: 1;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      position: relative;
+    }
+    
+    .slider-track {
+      width: 100%;
+      height: 4px;
+      background: #30363D;
+      border-radius: 2px;
+      position: relative;
+    }
+    
+    .slider-progress {
+      height: 100%;
+      background: linear-gradient(90deg, #6C63FF, #58A6FF);
+      border-radius: 2px;
+      width: 0%;
+    }
+    
+    .slider-thumb {
+      position: absolute;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 40px;
+      height: 20px;
+      background: #6C63FF;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 2px 8px rgba(108, 99, 255, 0.4);
+    }
+    
+    .slider-thumb:hover {
+      background: #58A6FF;
+      box-shadow: 0 2px 12px rgba(88, 166, 255, 0.6);
+    }
+    
+    .slider-thumb:active {
+      transform: translate(-50%, -50%) scale(0.95);
+      transition: transform 0.1s ease;
+    }
+    
+    .time-display {
+      color: #C9D1D9;
+      font-size: 13px;
+      font-family: 'Consolas', monospace;
+      min-width: 120px;
+      text-align: center;
+    }
+    
+    .mode-indicator {
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .mode-live {
+      background: rgba(67, 160, 71, 0.2);
+      color: #81C784;
+      border: 1px solid #43A047;
+    }
+    
+    .mode-playback {
+      background: rgba(108, 99, 255, 0.2);
+      color: #6C63FF;
+      border: 1px solid #6C63FF;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="scene-container">
+      <canvas id="scene-canvas"></canvas>
+      <div id="alert-container"></div>
+      <div id="sensor-panel"></div>
+    </div>
+    <div id="control-bar">
+      <button id="play-btn" class="control-btn">▶</button>
+      <button id="reset-btn" class="control-btn">⏮</button>
+      <div class="slider-container">
+        <div class="slider-track">
+          <div class="slider-progress" id="slider-progress"></div>
+        </div>
+        <div class="slider-thumb" id="slider-thumb"></div>
+      </div>
+      <div class="time-display" id="time-display">-30s / 0s</div>
+      <div class="mode-indicator mode-live" id="mode-indicator">实时模式</div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
