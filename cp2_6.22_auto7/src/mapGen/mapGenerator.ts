@@ -31,7 +31,64 @@ export class MapGenerator {
   }
 
   public generate(): MapData {
+    const startTime = performance.now();
+    let attemptCount = 0;
+    const maxAttempts = 100;
+
+    while (attemptCount < maxAttempts) {
+      attemptCount++;
+      const tiles: Tile[][] = [];
+      for (let y = 0; y < this.height; y++) {
+        tiles[y] = [];
+        for (let x = 0; x < this.width; x++) {
+          tiles[y][x] = {
+            type: TileType.GRASS,
+            walkable: true,
+            x,
+            y
+          };
+        }
+      }
+
+      const totalTiles = this.width * this.height;
+      const wallCount = Math.floor(totalTiles * this.wallRatio);
+      const waterCount = Math.floor(totalTiles * this.waterRatio);
+
+      this.placeRandomTiles(tiles, TileType.WALL, wallCount);
+      this.placeRandomTiles(tiles, TileType.WATER, waterCount);
+
+      const startPos = { x: 0, y: 0 };
+      const endPos = { x: this.width - 1, y: this.height - 1 };
+
+      tiles[startPos.y][startPos.x].type = TileType.GRASS;
+      tiles[startPos.y][startPos.x].walkable = true;
+      tiles[endPos.y][endPos.x].type = TileType.GRASS;
+      tiles[endPos.y][endPos.x].walkable = true;
+
+      if (this.isPathExists(tiles, startPos, endPos)) {
+        const elapsed = performance.now() - startTime;
+        console.log(`[MapGenerator] Map generated in ${elapsed.toFixed(2)}ms (${attemptCount} attempts)`);
+        return {
+          width: this.width,
+          height: this.height,
+          tiles,
+          startPos,
+          endPos
+        };
+      }
+    }
+
+    const tiles = this.createFallbackMap();
+    const elapsed = performance.now() - startTime;
+    console.log(`[MapGenerator] Fallback map generated in ${elapsed.toFixed(2)}ms`);
+    return tiles;
+  }
+
+  private createFallbackMap(): MapData {
     const tiles: Tile[][] = [];
+    const startPos = { x: 0, y: 0 };
+    const endPos = { x: this.width - 1, y: this.height - 1 };
+
     for (let y = 0; y < this.height; y++) {
       tiles[y] = [];
       for (let x = 0; x < this.width; x++) {
@@ -48,19 +105,36 @@ export class MapGenerator {
     const wallCount = Math.floor(totalTiles * this.wallRatio);
     const waterCount = Math.floor(totalTiles * this.waterRatio);
 
-    this.placeRandomTiles(tiles, TileType.WALL, wallCount);
-    this.placeRandomTiles(tiles, TileType.WATER, waterCount);
+    let placed = 0;
+    while (placed < wallCount) {
+      const x = Math.floor(Math.random() * this.width);
+      const y = Math.floor(Math.random() * this.height);
+      if (
+        tiles[y][x].type === TileType.GRASS &&
+        !(x === startPos.x && y === startPos.y) &&
+        !(x === endPos.x && y === endPos.y) &&
+        !this.isOnManhattanPath(x, y, startPos, endPos)
+      ) {
+        tiles[y][x].type = TileType.WALL;
+        tiles[y][x].walkable = false;
+        placed++;
+      }
+    }
 
-    const startPos = { x: 0, y: Math.floor(this.height / 2) };
-    const endPos = { x: this.width - 1, y: Math.floor(this.height / 2) };
-
-    tiles[startPos.y][startPos.x].type = TileType.GRASS;
-    tiles[startPos.y][startPos.x].walkable = true;
-    tiles[endPos.y][endPos.x].type = TileType.GRASS;
-    tiles[endPos.y][endPos.x].walkable = true;
-
-    if (!this.isPathExists(tiles, startPos, endPos)) {
-      return this.ensureConnectivity(tiles, startPos, endPos);
+    placed = 0;
+    while (placed < waterCount) {
+      const x = Math.floor(Math.random() * this.width);
+      const y = Math.floor(Math.random() * this.height);
+      if (
+        tiles[y][x].type === TileType.GRASS &&
+        !(x === startPos.x && y === startPos.y) &&
+        !(x === endPos.x && y === endPos.y) &&
+        !this.isOnManhattanPath(x, y, startPos, endPos)
+      ) {
+        tiles[y][x].type = TileType.WATER;
+        tiles[y][x].walkable = false;
+        placed++;
+      }
     }
 
     return {
@@ -70,6 +144,11 @@ export class MapGenerator {
       startPos,
       endPos
     };
+  }
+
+  private isOnManhattanPath(x: number, y: number, start: { x: number; y: number }, end: { x: number; y: number }): boolean {
+    return (x >= start.x && x <= end.x && y === start.y) ||
+           (y >= start.y && y <= end.y && x === end.x);
   }
 
   private placeRandomTiles(tiles: Tile[][], type: TileType, count: number): void {
@@ -122,37 +201,6 @@ export class MapGenerator {
       }
     }
     return false;
-  }
-
-  private ensureConnectivity(tiles: Tile[][], startPos: { x: number; y: number }, endPos: { x: number; y: number }): MapData {
-    let x = startPos.x;
-    let y = startPos.y;
-
-    while (x !== endPos.x || y !== endPos.y) {
-      tiles[y][x].type = TileType.GRASS;
-      tiles[y][x].walkable = true;
-
-      if (x < endPos.x) {
-        x++;
-      } else if (x > endPos.x) {
-        x--;
-      } else if (y < endPos.y) {
-        y++;
-      } else if (y > endPos.y) {
-        y--;
-      }
-    }
-
-    tiles[y][x].type = TileType.GRASS;
-    tiles[y][x].walkable = true;
-
-    return {
-      width: this.width,
-      height: this.height,
-      tiles,
-      startPos,
-      endPos
-    };
   }
 
   public getRandomWalkableTile(tiles: Tile[][]): { x: number; y: number } {

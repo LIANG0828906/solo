@@ -26,11 +26,10 @@ export class AIController {
   private astar: AStar;
   private state: AIState = AIState.IDLE;
   private pulseTime: number = 0;
-  private pathUpdateInterval: number = 200;
-  private lastPathUpdate: number = 0;
   private mapContainer: PIXI.Container;
   private pathGraphics: PIXI.Graphics;
   private showPath: boolean = false;
+  private needsPathUpdate: boolean = true;
 
   constructor(
     startPos: { x: number; y: number },
@@ -85,28 +84,32 @@ export class AIController {
     this.glowSprite.endFill();
   }
 
-  public update(deltaTime: number, playerGridPos: { x: number; y: number }, currentTime: number): void {
+  public update(deltaTime: number, _playerGridPos: { x: number; y: number }): void {
     this.pulseTime += deltaTime * 0.05;
     const pulseScale = 1 + Math.sin(this.pulseTime) * 0.15;
     this.sprite.scale.set(pulseScale);
     this.drawGlow(pulseScale);
 
-    if (currentTime - this.lastPathUpdate > this.pathUpdateInterval) {
-      this.updatePath(playerGridPos);
-      this.lastPathUpdate = currentTime;
-    }
-
     this.moveAlongPath(deltaTime);
     this.updatePosition();
+
+    this.needsPathUpdate = true;
   }
 
-  private updatePath(playerGridPos: { x: number; y: number }): void {
+  public updatePath(playerGridPos: { x: number; y: number }): number {
+    const startTime = performance.now();
+
+    if (!this.needsPathUpdate) {
+      return performance.now() - startTime;
+    }
+
     if (
       this.gridPosition.x === playerGridPos.x &&
       this.gridPosition.y === playerGridPos.y
     ) {
       this.state = AIState.IDLE;
-      return;
+      this.needsPathUpdate = false;
+      return performance.now() - startTime;
     }
 
     this.state = AIState.PATHFINDING;
@@ -121,6 +124,14 @@ export class AIController {
     } else {
       this.state = AIState.IDLE;
     }
+
+    this.needsPathUpdate = false;
+    const elapsed = performance.now() - startTime;
+    return elapsed;
+  }
+
+  public needsUpdate(): boolean {
+    return this.needsPathUpdate;
   }
 
   private moveAlongPath(deltaTime: number): void {

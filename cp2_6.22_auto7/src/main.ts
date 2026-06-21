@@ -64,20 +64,54 @@ class Game {
   }
 
   private init(): void {
+    const totalStartTime = performance.now();
+
     this.generateMap();
     this.createPlayer();
     this.createAIMonsters();
+    this.runFirstPathfinding();
     this.createUI();
     this.createEdgeWarning();
     this.setupEventListeners();
     this.centerCameraOnPlayer();
 
-    this.app.ticker.add((delta) => this.update(delta));
+    const totalElapsed = performance.now() - totalStartTime;
+    console.log(`[Game] Initialization complete in ${totalElapsed.toFixed(2)}ms`);
+
+    this.startGameLoop();
+  }
+
+  private startGameLoop(): void {
+    let lastTime = performance.now();
+
+    const loop = () => {
+      const currentTime = performance.now();
+      const deltaTime = (currentTime - lastTime) / (1000 / 60);
+      lastTime = currentTime;
+
+      this.update(deltaTime);
+
+      requestAnimationFrame(loop);
+    };
+
+    requestAnimationFrame(loop);
   }
 
   private generateMap(): void {
     this.mapData = this.mapGenerator.generate();
     this.mapRenderer.render(this.mapData);
+  }
+
+  private runFirstPathfinding(): void {
+    if (!this.mapData) return;
+
+    const startTime = performance.now();
+    this.aiControllers.forEach((ai, index) => {
+      const elapsed = ai.updatePath(this.playerGridPos);
+      console.log(`[Game] First A* for monster ${index + 1}: ${elapsed.toFixed(2)}ms`);
+    });
+    const totalElapsed = performance.now() - startTime;
+    console.log(`[Game] Total first pathfinding: ${totalElapsed.toFixed(2)}ms`);
   }
 
   private createPlayer(): void {
@@ -356,7 +390,7 @@ class Game {
 
     this.handlePlayerMovement(delta);
     this.updatePlayerTrail();
-    this.updateAI(delta, now);
+    this.updateAI(delta);
     this.updateUI();
     this.checkEdgeWarning();
     this.mapRenderer.update(delta);
@@ -385,30 +419,65 @@ class Game {
     const newX = this.playerTargetPos.x + dx * moveSpeed;
     const newY = this.playerTargetPos.y + dy * moveSpeed;
 
-    const gridX = Math.floor(newX / this.tileSize);
-    const gridY = Math.floor(newY / this.tileSize);
+    const playerRadius = this.tileSize * 0.3;
 
+    const checkCollision = (px: number, py: number): boolean => {
+      const checkPoints = [
+        { x: px - playerRadius * 0.5, y: py - playerRadius * 0.5 },
+        { x: px + playerRadius * 0.5, y: py - playerRadius * 0.5 },
+        { x: px - playerRadius * 0.5, y: py + playerRadius * 0.5 },
+        { x: px + playerRadius * 0.5, y: py + playerRadius * 0.5 },
+        { x: px, y: py }
+      ];
+
+      for (const point of checkPoints) {
+        const gx = Math.floor(point.x / this.tileSize);
+        const gy = Math.floor(point.y / this.tileSize);
+        if (
+          gx < 0 || gx >= this.mapData!.width ||
+          gy < 0 || gy >= this.mapData!.height ||
+          !this.mapData!.tiles[gy][gx].walkable
+        ) {
+          return true;
+        }
+      }
+      return false;
+    };
+
+    let canMoveX = true;
+    let canMoveY = true;
+
+    if (checkCollision(newX, this.playerTargetPos.y)) {
+      canMoveX = false;
+    }
+    if (checkCollision(this.playerTargetPos.x, newY)) {
+      canMoveY = false;
+    }
+    if (canMoveX && checkCollision(newX, newY)) {
+      if (!checkCollision(newX, this.playerTargetPos.y)) {
+        canMoveY = false;
+      } else if (!checkCollision(this.playerTargetPos.x, newY)) {
+        canMoveX = false;
+      } else {
+        canMoveX = false;
+        canMoveY = false;
+      }
+    }
+
+    if (canMoveX) {
+      this.playerTargetPos.x = newX;
+    }
+    if (canMoveY) {
+      this.playerTargetPos.y = newY;
+    }
+
+    const gridX = Math.floor(this.playerTargetPos.x / this.tileSize);
+    const gridY = Math.floor(this.playerTargetPos.y / this.tileSize);
     if (
       gridX >= 0 && gridX < this.mapData.width &&
-      gridY >= 0 && gridY < this.mapData.height &&
-      this.mapData.tiles[gridY][gridX].walkable
+      gridY >= 0 && gridY < this.mapData.height
     ) {
-      this.playerTargetPos.x = newX;
-      this.playerTargetPos.y = newY;
       this.playerGridPos = { x: gridX, y: gridY };
-    } else {
-      if (
-        gridX >= 0 && gridX < this.mapData.width &&
-        this.mapData.tiles[Math.floor(this.playerTargetPos.y / this.tileSize)][gridX].walkable
-      ) {
-        this.playerTargetPos.x = newX;
-      }
-      if (
-        gridY >= 0 && gridY < this.mapData.height &&
-        this.mapData.tiles[gridY][Math.floor(this.playerTargetPos.x / this.tileSize)].walkable
-      ) {
-        this.playerTargetPos.y = newY;
-      }
     }
 
     this.updatePlayerPosition();
@@ -440,10 +509,35 @@ class Game {
     }
   }
 
-  private updateAI(delta: number, currentTime: number): void {
+  private updateAI(delta: number): void {
+    const timeBudget = 5;
+    const startTime = performance.now();
+    let monstersUpdated = 0;
+    const maxMonstersPerFrame = 2;
+
     this.aiControllers.forEach(ai => {
-      ai.update(delta, this.playerGridPos, currentTime);
+      ai.update(delta, this.playerGridPos);
     });
+
+    for (let i = 0; i < this.aiControllers.length; i++) {
+      const ai = this.aiControllers[i];
+      if (!ai.needsUpdate()) continue;
+      if (monstersUpdated >= maxMonstersPerFrame) break;
+
+      ai.updatePath(this.playerGridPos);
+      monstersUpdated++;
+
+      const currentTotal = performance.now() - startTime;
+      if (currentTotal >= timeBudget) {
+        console.warn(`[Game] Pathfinding budget exceeded: ${currentTotal.toFixed(2)}ms / ${timeBudget}ms`);
+        break;
+      }
+    }
+
+    const frameTotal = performance.now() - startTime;
+    if (monstersUpdated > 0 && frameTotal > 1) {
+      console.log(`[Game] Pathfinding: ${frameTotal.toFixed(2)}ms for ${monstersUpdated} monsters`);
+    }
   }
 
   private updateUI(): void {
