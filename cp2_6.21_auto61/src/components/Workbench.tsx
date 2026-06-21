@@ -3,7 +3,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { OrbitControls, TransformControls } from '@react-three/drei'
 import * as THREE from 'three'
 import { useStore, FragmentData } from '../store'
-import { checkSnapEligibility, lerpTowardsTarget, generateFragmentEdgeProfile } from '../utils/geometry'
+import { checkSnapEligibility, lerpTowardsTarget, generateFragmentEdgeProfile, generateWoodTexture } from '../utils/geometry'
 import { GoldenParticleSystem, SnapGlowEffect } from '../utils/particleSystem'
 
 const TOTAL_FRAGMENTS = 10
@@ -360,15 +360,68 @@ const FragmentMesh = forwardRef<THREE.Mesh, {
 FragmentMesh.displayName = 'FragmentMesh'
 
 function WorkbenchTable() {
+  const topTexture = useMemo(() => generateWoodTexture(2048, 2048, '#3e2723', '#2c1810', '#5d4037'), [])
+  const sideTexture = useMemo(() => generateWoodTexture(512, 256, '#2c1810', '#1a0e0a', '#4e342e'), [])
+  
+  const topMat = useMemo(() => {
+    const tex = topTexture.clone()
+    tex.needsUpdate = true
+    tex.repeat.set(1, 1)
+    return new THREE.MeshStandardMaterial({
+      map: tex,
+      color: 0xffffff,
+      roughness: 0.85,
+      metalness: 0.02
+    })
+  }, [topTexture])
+  
+  const sideMat = useMemo(() => {
+    const tex = sideTexture.clone()
+    tex.needsUpdate = true
+    tex.repeat.set(12, 1)
+    return new THREE.MeshStandardMaterial({
+      map: tex,
+      color: 0xffffff,
+      roughness: 0.92,
+      metalness: 0.02
+    })
+  }, [sideTexture])
+
+  const materials = [
+    sideMat,
+    sideMat,
+    topMat,
+    topMat,
+    sideMat,
+    sideMat
+  ]
+
   return (
-    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -1.8, 0]} receiveShadow>
-      <planeGeometry args={[12, 10]} />
-      <meshStandardMaterial 
-        color={0x3e2723} 
-        roughness={0.9}
-        metalness={0.05}
-      />
-    </mesh>
+    <group>
+      <mesh position={[0, -1.9, 0]} receiveShadow castShadow material={materials}>
+        <boxGeometry args={[12, 0.2, 10]} />
+      </mesh>
+      
+      <mesh position={[0, -2.01, 0]}>
+        <boxGeometry args={[12.3, 0.04, 10.3]} />
+        <meshStandardMaterial 
+          color={0x5d4037} 
+          roughness={0.6}
+          metalness={0.05}
+          emissive={0x5d4037}
+          emissiveIntensity={0.08}
+        />
+      </mesh>
+      
+      <mesh position={[0, -1.805, 0]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+        <ringGeometry args={[5.5, 5.6, 4, 1, Math.PI * 0.25, Math.PI * 1.5]} />
+        <meshBasicMaterial 
+          color={0x8d6e63} 
+          transparent={true}
+          opacity={0.25}
+        />
+      </mesh>
+    </group>
   )
 }
 
@@ -488,16 +541,18 @@ function SceneContent({ transformRef }: { transformRef: React.MutableRefObject<a
 
   return (
     <>
-      <ambientLight intensity={0.4} />
+      <ambientLight intensity={0.45} color={0xffe8cc} />
       <directionalLight 
         position={[5, 8, 5]} 
-        intensity={1.2} 
+        intensity={1.3} 
+        color={0xfff2e0}
         castShadow
         shadow-mapSize-width={2048}
         shadow-mapSize-height={2048}
       />
-      <directionalLight position={[-3, 4, -3]} intensity={0.5} color={0xd4a574} />
-      <pointLight position={[0, 3, 0]} intensity={0.4} color={0xffd700} distance={10} />
+      <directionalLight position={[-3, 4, -3]} intensity={0.6} color={0xe8b96d} />
+      <pointLight position={[0, 3, 0]} intensity={0.5} color={0xffb74d} distance={12} />
+      <pointLight position={[-4, 1, 4]} intensity={0.25} color={0xffd4a0} distance={8} />
       
       <WorkbenchTable />
       

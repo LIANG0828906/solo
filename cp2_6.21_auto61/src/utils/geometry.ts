@@ -264,3 +264,175 @@ export function getNearestFragments(
     .sort((a, b) => a.distance - b.distance)
     .slice(0, limit)
 }
+
+export function generateWoodTexture(
+  width: number = 1024,
+  height: number = 1024,
+  baseColor: string = '#3e2723',
+  darkColor: string = '#2c1810',
+  lightColor: string = '#5d4037'
+): THREE.CanvasTexture {
+  const canvas = document.createElement('canvas')
+  canvas.width = width
+  canvas.height = height
+  const ctx = canvas.getContext('2d')!
+
+  const base = new THREE.Color(baseColor)
+  const dark = new THREE.Color(darkColor)
+  const light = new THREE.Color(lightColor)
+
+  const bgGrad = ctx.createRadialGradient(
+    width * 0.5, height * 0.5, 0,
+    width * 0.5, height * 0.5, width * 0.7
+  )
+  bgGrad.addColorStop(0, `rgb(${Math.floor(light.r * 255)}, ${Math.floor(light.g * 255)}, ${Math.floor(light.b * 255)})`)
+  bgGrad.addColorStop(0.5, `rgb(${Math.floor(base.r * 255)}, ${Math.floor(base.g * 255)}, ${Math.floor(base.b * 255)})`)
+  bgGrad.addColorStop(1, `rgb(${Math.floor(dark.r * 255)}, ${Math.floor(dark.g * 255)}, ${Math.floor(dark.b * 255)})`)
+  ctx.fillStyle = bgGrad
+  ctx.fillRect(0, 0, width, height)
+
+  const rings = 35
+  const centerX = width * (0.45 + Math.random() * 0.1)
+  const centerY = height * (0.4 + Math.random() * 0.2)
+  const maxRadius = Math.sqrt(width * width + height * height) * 0.8
+
+  function pseudoNoise(x: number, y: number, seed: number): number {
+    const n = Math.sin(x * 0.01 + seed) * Math.cos(y * 0.015 + seed * 0.7)
+            + Math.sin(x * 0.025 - y * 0.01 + seed * 1.3) * 0.5
+            + Math.cos(x * 0.008 + y * 0.012 + seed * 2.1) * 0.3
+    return (n + 1.8) / 3.6
+  }
+
+  for (let i = 0; i < rings; i++) {
+    const t = i / rings
+    const baseRadius = t * maxRadius * (0.6 + Math.random() * 0.8)
+    const ringWidth = 3 + Math.random() * 12
+    const irregularity = 15 + Math.random() * 35
+    const segments = 120
+    
+    const ringColor = new THREE.Color()
+    const ringType = Math.random()
+    if (ringType < 0.35) {
+      ringColor.copy(dark).lerp(base, 0.3 + Math.random() * 0.4)
+    } else if (ringType < 0.7) {
+      ringColor.copy(base).lerp(light, 0.2 + Math.random() * 0.5)
+    } else {
+      ringColor.copy(base)
+    }
+    ringColor.lerp(new THREE.Color(Math.random() * 0.05, Math.random() * 0.03, 0), 0.5)
+    
+    const alpha = 0.25 + Math.random() * 0.55
+
+    ctx.beginPath()
+    for (let s = 0; s <= segments; s++) {
+      const angle = (s / segments) * Math.PI * 2
+      const noiseScale = pseudoNoise(
+        Math.cos(angle) * 100 + i * 50,
+        Math.sin(angle) * 100 + i * 75,
+        i * 3.7
+      )
+      const waveOffset = Math.sin(angle * (2 + i * 0.3) + i * 1.5) * irregularity * (0.3 + noiseScale * 0.7)
+      const radius = baseRadius + waveOffset + (noiseScale - 0.5) * irregularity * 0.6
+
+      const x = centerX + Math.cos(angle) * radius
+      const y = centerY + Math.sin(angle) * radius
+
+      if (s === 0) {
+        ctx.moveTo(x, y)
+      } else {
+        ctx.lineTo(x, y)
+      }
+    }
+    ctx.closePath()
+    ctx.strokeStyle = `rgba(${Math.floor(ringColor.r * 255)}, ${Math.floor(ringColor.g * 255)}, ${Math.floor(ringColor.b * 255)}, ${alpha})`
+    ctx.lineWidth = ringWidth
+    ctx.lineCap = 'round'
+    ctx.lineJoin = 'round'
+    ctx.stroke()
+  }
+
+  for (let k = 0; k < 8; k++) {
+    const startX = Math.random() * width
+    const startY = Math.random() * height
+    const lineLen = 100 + Math.random() * 400
+    const baseAngle = Math.random() * Math.PI * 2
+    const curvature = (Math.random() - 0.5) * 2
+
+    ctx.beginPath()
+    ctx.moveTo(startX, startY)
+    let px = startX
+    let py = startY
+    for (let step = 0; step < lineLen; step += 5) {
+      const t = step / lineLen
+      const angleOffset = Math.sin(t * Math.PI * 3 + k) * curvature * 0.5
+      const angle = baseAngle + angleOffset
+      const noise = (Math.random() - 0.5) * 3
+      px += Math.cos(angle) * 5 + noise
+      py += Math.sin(angle) * 5 + noise * 0.5
+      if (px > 0 && px < width && py > 0 && py < height) {
+        ctx.lineTo(px, py)
+      } else {
+        break
+      }
+    }
+    const lineColor = new THREE.Color().copy(dark).lerp(base, 0.2 + Math.random() * 0.5)
+    ctx.strokeStyle = `rgba(${Math.floor(lineColor.r * 255)}, ${Math.floor(lineColor.g * 255)}, ${Math.floor(lineColor.b * 255)}, ${0.1 + Math.random() * 0.3})`
+    ctx.lineWidth = 0.5 + Math.random() * 1.5
+    ctx.stroke()
+  }
+
+  const grainCanvas = document.createElement('canvas')
+  grainCanvas.width = width
+  grainCanvas.height = height
+  const grainCtx = grainCanvas.getContext('2d')!
+  const grainImageData = grainCtx.createImageData(width, height)
+  for (let i = 0; i < grainImageData.data.length; i += 4) {
+    const x = (i / 4) % width
+    const y = Math.floor(i / 4 / width)
+    const noise = (pseudoNoise(x, y, 999) - 0.5) * 25
+    grainImageData.data[i] = Math.max(0, Math.min(255, 128 + noise))
+    grainImageData.data[i + 1] = Math.max(0, Math.min(255, 120 + noise * 0.9))
+    grainImageData.data[i + 2] = Math.max(0, Math.min(255, 110 + noise * 0.8))
+    grainImageData.data[i + 3] = 12
+  }
+  grainCtx.putImageData(grainImageData, 0, 0)
+  ctx.globalAlpha = 0.3
+  ctx.globalCompositeOperation = 'overlay'
+  ctx.drawImage(grainCanvas, 0, 0)
+  ctx.globalCompositeOperation = 'source-over'
+  ctx.globalAlpha = 1
+
+  for (let i = 0; i < 15; i++) {
+    const kx = Math.random() * width
+    const ky = Math.random() * height
+    const knotR = 3 + Math.random() * 12
+    
+    const knotGrad = ctx.createRadialGradient(kx, ky, 0, kx, ky, knotR)
+    const knotColor = new THREE.Color().copy(dark).lerp(light, Math.random() * 0.3)
+    knotGrad.addColorStop(0, `rgba(${Math.floor(knotColor.r * 255)}, ${Math.floor(knotColor.g * 255)}, ${Math.floor(knotColor.b * 255)}, 0.6)`)
+    knotGrad.addColorStop(0.6, `rgba(${Math.floor(knotColor.r * 200)}, ${Math.floor(knotColor.g * 200)}, ${Math.floor(knotColor.b * 200)}, 0.3)`)
+    knotGrad.addColorStop(1, 'rgba(0, 0, 0, 0)')
+    
+    ctx.fillStyle = knotGrad
+    ctx.beginPath()
+    ctx.ellipse(kx, ky, knotR, knotR * (0.6 + Math.random() * 0.6), Math.random() * Math.PI, 0, Math.PI * 2)
+    ctx.fill()
+  }
+
+  const vignette = ctx.createRadialGradient(
+    width / 2, height / 2, width * 0.25,
+    width / 2, height / 2, width * 0.75
+  )
+  vignette.addColorStop(0, 'rgba(0, 0, 0, 0)')
+  vignette.addColorStop(1, `rgba(${Math.floor(dark.r * 128)}, ${Math.floor(dark.g * 128)}, ${Math.floor(dark.b * 128)}, 0.35)`)
+  ctx.fillStyle = vignette
+  ctx.fillRect(0, 0, width, height)
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.wrapS = THREE.RepeatWrapping
+  texture.wrapT = THREE.RepeatWrapping
+  texture.anisotropy = 8
+  texture.colorSpace = THREE.SRGBColorSpace
+
+  return texture
+}
