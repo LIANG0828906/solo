@@ -140,7 +140,10 @@ export const useEditorStore = create<EditorStore>((set, get) => ({
         targetPanelId: null,
       }));
 
-    set({ scriptLines: [...state.scriptLines, ...newLines] });
+    set({
+      scriptLines: [...state.scriptLines, ...newLines],
+      scriptInput: '',
+    });
   },
 
   assignScriptLineToPanel: (lineId, panelId) => {

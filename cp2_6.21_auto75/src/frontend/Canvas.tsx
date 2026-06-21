@@ -11,13 +11,26 @@ interface SnapLines {
   vertical: number | null;
 }
 
-const snapToValue = (value: number, targets: number[], gap = SNAP_GAP): { snapped: number; line: number | null } => {
+interface SnapResult {
+  snapped: number;
+  line: number | null;
+  target: number | null;
+}
+
+const snapToValue = (value: number, targets: number[], gap = SNAP_GAP): SnapResult => {
+  let closestDiff = Infinity;
+  let closestTarget: number | null = null;
   for (const target of targets) {
-    if (Math.abs(value - target) <= gap) {
-      return { snapped: target, line: target };
+    const diff = Math.abs(value - target);
+    if (diff <= gap && diff < closestDiff) {
+      closestDiff = diff;
+      closestTarget = target;
     }
   }
-  return { snapped: value, line: null };
+  if (closestTarget !== null) {
+    return { snapped: closestTarget, line: closestTarget, target: closestTarget };
+  }
+  return { snapped: value, line: null, target: null };
 };
 
 const findPanelForLayer = (panels: Panel[], layerId: string): Panel | null => {
@@ -83,6 +96,18 @@ export const Canvas: React.FC = () => {
     [panels],
   );
 
+  const getAllEdges = useCallback(
+    (x: number, y: number, w: number, h: number) => ({
+      left: x,
+      right: x + w,
+      hCenter: x + w / 2,
+      top: y,
+      bottom: y + h,
+      vCenter: y + h / 2,
+    }),
+    [],
+  );
+
   const handlePanelMouseDown = useCallback(
     (e: React.MouseEvent, panel: Panel) => {
       e.stopPropagation();
@@ -133,36 +158,59 @@ export const Canvas: React.FC = () => {
         const { hTargets, vTargets } = getSnapTargets(isDraggingPanel);
         const newX = panelStartRect.x + dx;
         const newY = panelStartRect.y + dy;
-        const { snapped: snapX, line: vLine } = snapToValue(newX, vTargets);
-        const { snapped: snapY, line: hLine } = snapToValue(newY, hTargets);
-        const hTargets2 = [...hTargets, ...hTargets.map((t) => t - panelStartRect.h)];
-        const vTargets2 = [...vTargets, ...vTargets.map((t) => t - panelStartRect.w)];
-        const hTargets3 = [...hTargets2, ...hTargets.map((t) => t - panelStartRect.h / 2)];
-        const vTargets3 = [...vTargets2, ...vTargets.map((t) => t - panelStartRect.w / 2)];
-        const { snapped: finalX, line: finalV } = snapToValue(newX, vTargets3);
-        const { snapped: finalY, line: finalH } = snapToValue(newY, hTargets3);
-        const snapVX = finalV ?? vLine;
-        const snapHY = finalH ?? hLine;
+        const w = panelStartRect.w;
+        const h = panelStartRect.h;
+
+        const dragEdges = getAllEdges(newX, newY, w, h);
+
+        const leftSnap = snapToValue(dragEdges.left, vTargets);
+        const rightSnap = snapToValue(dragEdges.right, vTargets);
+        const hCenterSnap = snapToValue(dragEdges.hCenter, vTargets);
+        const topSnap = snapToValue(dragEdges.top, hTargets);
+        const bottomSnap = snapToValue(dragEdges.bottom, hTargets);
+        const vCenterSnap = snapToValue(dragEdges.vCenter, hTargets);
+
+        let finalX = newX;
+        let finalY = newY;
+        let snapLineV: number | null = null;
+        let snapLineH: number | null = null;
+
+        if (leftSnap.line !== null) {
+          finalX = leftSnap.target!;
+          snapLineV = leftSnap.line;
+        } else if (rightSnap.line !== null) {
+          finalX = rightSnap.target! - w;
+          snapLineV = rightSnap.line;
+        } else if (hCenterSnap.line !== null) {
+          finalX = hCenterSnap.target! - w / 2;
+          snapLineV = hCenterSnap.line;
+        }
+
+        if (topSnap.line !== null) {
+          finalY = topSnap.target!;
+          snapLineH = topSnap.line;
+        } else if (bottomSnap.line !== null) {
+          finalY = bottomSnap.target! - h;
+          snapLineH = bottomSnap.line;
+        } else if (vCenterSnap.line !== null) {
+          finalY = vCenterSnap.target! - h / 2;
+          snapLineH = vCenterSnap.line;
+        }
 
         setSnapLines({
-          vertical: snapVX != null ? snapVX : null,
-          horizontal: snapHY != null ? snapHY : null,
+          vertical: snapLineV,
+          horizontal: snapLineH,
         });
 
         if (selectedPanelIds.length > 1 && selectedPanelIds.includes(isDraggingPanel)) {
           const startX = panelStartRect.x;
           const startY = panelStartRect.y;
           const panelsToMove = panels.filter((p) => selectedPanelIds.includes(p.id));
-          const updates = new Map<string, { x: number; y: number }>();
           panelsToMove.forEach((p) => {
-            updates.set(p.id, {
+            updatePanel(p.id, {
               x: p.x + (finalX - startX),
               y: p.y + (finalY - startY),
             });
-          });
-          panelsToMove.forEach((p) => {
-            const up = updates.get(p.id);
-            if (up) updatePanel(p.id, up);
           });
         } else {
           updatePanel(isDraggingPanel, { x: finalX, y: finalY });
