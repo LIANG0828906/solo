@@ -552,3 +552,141 @@ export class ScorePopup implements Entity {
     ctx.restore();
   }
 }
+
+export class SoundManager {
+  private audioContext: AudioContext | null = null;
+  private initialized: boolean = false;
+  private masterGain: GainNode | null = null;
+
+  public init(): void {
+    if (this.initialized) return;
+
+    try {
+      const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+      this.audioContext = new AudioCtx();
+      this.masterGain = this.audioContext.createGain();
+      this.masterGain.gain.value = 0.3;
+      this.masterGain.connect(this.audioContext.destination);
+      this.initialized = true;
+    } catch (e) {
+      console.warn('Web Audio API not supported');
+    }
+  }
+
+  private ensureContext(): void {
+    if (!this.audioContext || !this.masterGain) return;
+    if (this.audioContext.state === 'suspended') {
+      this.audioContext.resume();
+    }
+  }
+
+  public playLaser(): void {
+    if (!this.audioContext || !this.masterGain || !this.initialized) return;
+    this.ensureContext();
+
+    const ctx = this.audioContext;
+    const now = ctx.currentTime;
+    const duration = 0.15;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'sawtooth';
+    osc.frequency.setValueAtTime(400, now);
+    osc.frequency.exponentialRampToValueAtTime(1200, now + duration);
+
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.25, now + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc.start(now);
+    osc.stop(now + duration + 0.02);
+  }
+
+  public playCollect(pitch: number = 1): void {
+    if (!this.audioContext || !this.masterGain || !this.initialized) return;
+    this.ensureContext();
+
+    const ctx = this.audioContext;
+    const now = ctx.currentTime;
+    const duration = 0.12;
+    const baseFreq = 880 * pitch;
+
+    const osc1 = ctx.createOscillator();
+    const osc2 = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(baseFreq, now);
+    osc1.frequency.exponentialRampToValueAtTime(baseFreq * 1.5, now + duration * 0.5);
+    osc1.frequency.exponentialRampToValueAtTime(baseFreq * 1.2, now + duration);
+
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(baseFreq * 2, now);
+    osc2.frequency.exponentialRampToValueAtTime(baseFreq * 2.5, now + duration * 0.3);
+    osc2.frequency.exponentialRampToValueAtTime(baseFreq * 1.8, now + duration);
+
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.3, now + 0.005);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    osc1.connect(gain);
+    osc2.connect(gain);
+    gain.connect(this.masterGain);
+
+    osc1.start(now);
+    osc2.start(now);
+    osc1.stop(now + duration + 0.02);
+    osc2.stop(now + duration + 0.02);
+  }
+
+  public playGameOver(): void {
+    if (!this.audioContext || !this.masterGain || !this.initialized) return;
+    this.ensureContext();
+
+    const ctx = this.audioContext;
+    const now = ctx.currentTime;
+    const duration = 0.3;
+
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    osc.type = 'square';
+    osc.frequency.setValueAtTime(200, now);
+    osc.frequency.exponentialRampToValueAtTime(60, now + duration);
+
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.25, now + 0.02);
+    gain.gain.linearRampToValueAtTime(0.15, now + duration * 0.5);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    const osc2 = ctx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.setValueAtTime(100, now);
+    osc2.frequency.exponentialRampToValueAtTime(40, now + duration);
+
+    const gain2 = ctx.createGain();
+    gain2.gain.setValueAtTime(0, now);
+    gain2.gain.linearRampToValueAtTime(0.2, now + 0.03);
+    gain2.gain.exponentialRampToValueAtTime(0.001, now + duration);
+
+    osc.connect(gain);
+    gain.connect(this.masterGain);
+    osc2.connect(gain2);
+    gain2.connect(this.masterGain);
+
+    osc.start(now);
+    osc2.start(now);
+    osc.stop(now + duration + 0.05);
+    osc2.stop(now + duration + 0.05);
+  }
+
+  public setVolume(volume: number): void {
+    if (this.masterGain) {
+      this.masterGain.gain.value = Math.max(0, Math.min(1, volume));
+    }
+  }
+}

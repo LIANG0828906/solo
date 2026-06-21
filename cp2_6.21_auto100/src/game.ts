@@ -1,4 +1,4 @@
-import { Ship, Crystal, Laser, Meteor, Particle, ScorePopup } from './entities';
+import { Ship, Crystal, Laser, Meteor, Particle, ScorePopup, SoundManager } from './entities';
 import { InputManager } from './input';
 import {
   random,
@@ -42,7 +42,8 @@ class Game {
   private currentFps: number = 60;
 
   private state: GameState;
-  private stars: Array<{ x: number; y: number; size: number; alpha: number }> = [];
+  private stars: Array<{ x: number; y: number; size: number; alpha: number; speed: number; phase: number }> = [];
+  private soundManager: SoundManager;
 
   private gameOverOverlay: HTMLDivElement | null = null;
 
@@ -68,6 +69,7 @@ class Game {
 
     this.state = this.createInitialState();
     this.ship = new Ship(this.bounds);
+    this.soundManager = new SoundManager();
 
     this.generateStars();
     this.spawnInitialCrystals();
@@ -109,8 +111,10 @@ class Game {
       this.stars.push({
         x: random(0, this.bounds.width),
         y: random(0, this.bounds.height),
-        size: random(0.5, 2),
-        alpha: random(0.3, 1)
+        size: random(1, 2),
+        alpha: random(0.3, 1),
+        speed: random(0.5, 2),
+        phase: random(0, Math.PI * 2)
       });
     }
   }
@@ -131,10 +135,13 @@ class Game {
   private handleShoot(x: number, y: number): void {
     if (this.state.isGameOver) return;
 
+    this.soundManager.init();
+
     const startX = this.ship.x;
     const startY = this.ship.y - this.ship.size * 0.5;
     this.lasers.push(new Laser(startX, startY, x, y));
 
+    this.soundManager.playLaser();
     this.triggerScreenShake();
   }
 
@@ -196,6 +203,15 @@ class Game {
             this.addScore(crystal.score);
             this.scorePopups.push(new ScorePopup(crystal.x, crystal.y, crystal.score));
             this.spawnCrystalParticles(crystal.x, crystal.y, crystal.color);
+
+            const pitchMap: Record<string, number> = {
+              red: 0.8,
+              blue: 1.0,
+              green: 1.2,
+              purple: 1.5
+            };
+            this.soundManager.playCollect(pitchMap[crystal.color] || 1);
+
             crystal.active = false;
             laser.active = false;
             break;
@@ -257,6 +273,7 @@ class Game {
 
   private gameOver(): void {
     this.state.isGameOver = true;
+    this.soundManager.playGameOver();
     this.showGameOverOverlay();
   }
 
@@ -392,16 +409,16 @@ class Game {
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(0, 0, width, height);
 
+    const time = performance.now() * 0.001;
+    this.ctx.fillStyle = '#ffffff';
     this.stars.forEach(star => {
-      const twinkle = 0.7 + 0.3 * Math.sin(performance.now() * 0.001 + star.x);
-      this.ctx.save();
+      const twinkle = 0.5 + 0.5 * Math.sin(time * star.speed + star.phase);
       this.ctx.globalAlpha = star.alpha * twinkle;
-      this.ctx.fillStyle = '#ffffff';
       this.ctx.beginPath();
       this.ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
       this.ctx.fill();
-      this.ctx.restore();
     });
+    this.ctx.globalAlpha = 1;
   }
 
   private renderUI(): void {
