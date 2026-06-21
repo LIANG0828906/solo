@@ -1,0 +1,307 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', sans-serif;
+  background: linear-gradient(135deg, #fff0f5 0%, #ffe4e1 100%);
+  min-height: 100vh;
+  color: #333;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  gap: 20px;
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.app-title {
+  font-size: 28px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #db7093, #ff69b4);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.perf-badge {
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-weight: 500;
+}
+
+.perf-badge.ok {
+  background: rgba(76, 175, 80, 0.2);
+  color: #4caf50;
+}
+
+.perf-badge.warn {
+  background: rgba(255, 152, 0, 0.2);
+  color: #ff9800;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.canvas-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  min-width: 480px;
+}
+
+.input-toggle {
+  display: flex;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 6px;
+  border-radius: 30px;
+  box-shadow: 0 2px 12px rgba(219, 112, 147, 0.15);
+}
+
+.toggle-btn {
+  padding: 10px 24px;
+  border: none;
+  border-radius: 25px;
+  background: white;
+  color: #db7093;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 200ms ease-out;
+}
+
+.toggle-btn:hover {
+  transform: scale(1.05);
+}
+
+.toggle-btn:active {
+  transform: scale(0.95);
+}
+
+.toggle-btn.active {
+  background: linear-gradient(135deg, #db7093, #ff69b4);
+  color: white;
+}
+
+.canvas-wrapper {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.mirror-frame {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  max-width: 640px;
+  max-height: 480px;
+  border-radius: 50% / 45%;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(219, 112, 147, 0.3),
+    inset 0 2px 10px rgba(255, 255, 255, 0.5);
+  background: linear-gradient(135deg, #ffe4e1, #fff0f5);
+}
+
+.mirror-frame::before {
+  content: '';
+  position: absolute;
+  top: -20px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 40px;
+  background: radial-gradient(ellipse, rgba(255, 215, 0, 0.4), transparent);
+  filter: blur(10px);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.makeup-canvas {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.loading-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background: rgba(255, 240, 245, 0.9);
+  gap: 16px;
+}
+
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #ffe4e1;
+  border-top-color: #db7093;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-overlay p {
+  color: #8b3a62;
+  font-size: 14px;
+}
+
+.fps-display {
+  font-size: 12px;
+  color: #8b3a62;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 4px 12px;
+  border-radius: 12px;
+}
+
+/* Bug修复#5: 移动端底部浮动工具栏 - 毛玻璃效果 */
+.mobile-toolbar {
+  position: fixed;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  background: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 30px;
+  box-shadow: 0 4px 20px rgba(219, 112, 147, 0.2);
+  z-index: 100;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.mobile-tool-btn {
+  padding: 12px 20px;
+  border: none;
+  border-radius: 25px;
+  background: rgba(255, 255, 255, 0.6);
+  color: #db7093;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 200ms ease-out;
+}
+
+.mobile-tool-btn:active {
+  transform: scale(0.95);
+}
+
+.mobile-tool-btn.active {
+  background: linear-gradient(135deg, #db7093, #ff69b4);
+  color: white;
+}
+
+.mobile-tool-btn.save {
+  background: linear-gradient(135deg, #ffd700, #ffb347);
+  color: white;
+}
+
+.mobile-drawer {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-height: 60vh;
+  padding: 20px 16px 30px;
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 24px 24px 0 0;
+  box-shadow: 0 -4px 20px rgba(219, 112, 147, 0.15);
+  z-index: 200;
+  animation: slideUp 0.3s ease-out;
+  overflow-y: auto;
+}
+
+.backdrop-blur {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.drawer-handle {
+  width: 40px;
+  height: 4px;
+  background: rgba(219, 112, 147, 0.3);
+  border-radius: 2px;
+  margin: 0 auto 16px;
+}
+
+/* 响应式 */
+@media (max-width: 768px) {
+  .app-container {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .app-title {
+    font-size: 20px;
+  }
+
+  .main-content {
+    gap: 0;
+  }
+
+  .canvas-area {
+    min-width: auto;
+    width: 100%;
+  }
+
+  .mirror-frame {
+    border-radius: 20px;
+    aspect-ratio: 3 / 4;
+  }
+
+  .toggle-btn {
+    padding: 8px 16px;
+    font-size: 12px;
+  }
+}

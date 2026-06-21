@@ -1,0 +1,132 @@
+.product-panel {
+  width: 240px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(219, 112, 147, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.panel-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #8b3a62;
+  text-align: center;
+}
+
+.tab-buttons {
+  display: flex;
+  gap: 8px;
+  background: #fff0f5;
+  border-radius: 12px;
+  padding: 4px;
+}
+
+.tab-btn {
+  flex: 1;
+  padding: 8px 4px;
+  border: none;
+  background: transparent;
+  color: #db7093;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 200ms ease-out;
+}
+
+.tab-btn:hover {
+  transform: scale(1.05);
+}
+
+.tab-btn:active {
+  transform: scale(0.95);
+}
+
+.tab-btn.active {
+  background: white;
+  color: #db7093;
+  box-shadow: 0 2px 8px rgba(219, 112, 147, 0.2);
+}
+
+.tab-content {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.color-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  justify-content: center;
+  padding: 8px 0;
+}
+
+.color-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  transition: transform 200ms ease-out;
+  position: relative;
+}
+
+.color-card:hover {
+  transform: scale(1.1);
+}
+
+.color-card:active {
+  transform: scale(0.95);
+}
+
+.color-card.selected .color-circle {
+  box-shadow: 0 0 0 3px #ffd700, 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+.color-circle {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 2px solid white;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transition: box-shadow 200ms ease-out;
+}
+
+.color-name {
+  font-size: 11px;
+  color: #666;
+  white-space: nowrap;
+  max-width: 60px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  opacity: 0;
+  transition: opacity 200ms ease-out;
+}
+
+.color-card:hover .color-name {
+  opacity: 1;
+}
+
+@media (max-width: 768px) {
+  .product-panel {
+    width: 100%;
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -2px 20px rgba(219, 112, 147, 0.15);
+  }
+
+  .color-grid {
+    gap: 12px;
+  }
+
+  .color-circle {
+    width: 36px;
+    height: 36px;
+  }
+}
