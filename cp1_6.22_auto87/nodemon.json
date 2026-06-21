@@ -1,0 +1,10 @@
+{
+  "watch": ["api", "src/user-service.ts", "src/types"],
+  "ext": "ts,mts,js,json",
+  "ignore": ["api/dist/*", "src/assets", "src/components", "src/pages", "src/hooks", "src/lib"],
+  "exec": "tsx api/server.ts",
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "delay": 1000
+}
