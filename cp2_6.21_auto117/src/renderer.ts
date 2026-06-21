@@ -19,6 +19,7 @@ export class Renderer {
     avgRadius: [],
   };
   private maxChartPoints = 1000;
+  private glowGradientCache: Map<number, CanvasGradient> = new Map();
 
   constructor(
     private canvas: HTMLCanvasElement,
@@ -26,6 +27,18 @@ export class Renderer {
   ) {
     this.ctx = canvas.getContext('2d')!;
     this.chartCtx = chartCanvas.getContext('2d')!;
+  }
+
+  private getGlowGradient(innerRadius: number): CanvasGradient {
+    let g = this.glowGradientCache.get(innerRadius);
+    if (!g) {
+      const outerRadius = innerRadius + 12;
+      g = this.ctx.createRadialGradient(0, 0, innerRadius, 0, 0, outerRadius);
+      g.addColorStop(0, 'rgba(100, 181, 246, 0.45)');
+      g.addColorStop(1, 'rgba(100, 181, 246, 0)');
+      this.glowGradientCache.set(innerRadius, g);
+    }
+    return g;
   }
 
   pushChartData(plantCount: number, avgGrowth: number, avgRadius: number): void {
@@ -85,17 +98,13 @@ export class Renderer {
       const isHovered = hoveredPlant === plant;
 
       if (isHovered) {
-        ctx.save();
-        ctx.beginPath();
         const glowR = plant.radius + 12;
-        const gradient = ctx.createRadialGradient(
-          plant.x, plant.y, plant.radius,
-          plant.x, plant.y, glowR
-        );
-        gradient.addColorStop(0, 'rgba(100, 181, 246, 0.45)');
-        gradient.addColorStop(1, 'rgba(100, 181, 246, 0)');
+        const gradient = this.getGlowGradient(plant.radius);
+        ctx.save();
+        ctx.translate(plant.x, plant.y);
+        ctx.beginPath();
+        ctx.arc(0, 0, glowR, 0, Math.PI * 2);
         ctx.fillStyle = gradient;
-        ctx.arc(plant.x, plant.y, glowR, 0, Math.PI * 2);
         ctx.fill();
         ctx.restore();
       }
