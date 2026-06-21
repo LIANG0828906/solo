@@ -1,0 +1,25 @@
+export type GeometryType = 'dingBody' | 'ear' | 'leg' | 'pattern' | 'inscription';
+
+export interface PartData {
+  id: string;
+  name: string;
+  color: string;
+  defaultPosition: [number, number, number];
+  explodeAxis: [number, number, number];
+  label: string;
+  geometryType: GeometryType;
+  explodeTargetOffset: number;
+  geometryArgs?: Record<string, number>;
+}
+
+export interface ExplosionState {
+  partOffsets: Record<string, number>;
+  selectedParts: string[];
+  autoRotate: boolean;
+  isAnimating: boolean;
+  setPartOffset: (partId: string, value: number) => void;
+  togglePartSelection: (partId: string) => void;
+  toggleAutoRotate: () => void;
+  explodeAll: () => Promise<void>;
+  resetAll: () => Promise<void>;
+}

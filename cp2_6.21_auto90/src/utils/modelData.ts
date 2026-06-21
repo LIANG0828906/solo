@@ -1,0 +1,88 @@
+import { PartData } from '@/types';
+
+export const BRONZE_DING_PARTS: PartData[] = [
+  {
+    id: 'dingBody',
+    name: '鼎身',
+    color: '#6B4226',
+    defaultPosition: [0, 0, 0],
+    explodeAxis: [0, 0, 0],
+    label: '鼎身',
+    geometryType: 'dingBody',
+    explodeTargetOffset: 0,
+  },
+  {
+    id: 'leftEar',
+    name: '左耳',
+    color: '#8B5E3C',
+    defaultPosition: [-1.1, 1.3, 0],
+    explodeAxis: [-1, 1, 0],
+    label: '左耳',
+    geometryType: 'ear',
+    explodeTargetOffset: 2,
+  },
+  {
+    id: 'rightEar',
+    name: '右耳',
+    color: '#8B5E3C',
+    defaultPosition: [1.1, 1.3, 0],
+    explodeAxis: [1, 1, 0],
+    label: '右耳',
+    geometryType: 'ear',
+    explodeTargetOffset: 2,
+  },
+  {
+    id: 'frontLeftLeg',
+    name: '左前足',
+    color: '#5C3317',
+    defaultPosition: [-0.8, -1.2, 0.8],
+    explodeAxis: [-0.5, -1, 0.5],
+    label: '左前足',
+    geometryType: 'leg',
+    explodeTargetOffset: 2.5,
+  },
+  {
+    id: 'frontRightLeg',
+    name: '右前足',
+    color: '#5C3317',
+    defaultPosition: [0.8, -1.2, 0.8],
+    explodeAxis: [0.5, -1, 0.5],
+    label: '右前足',
+    geometryType: 'leg',
+    explodeTargetOffset: 2.5,
+  },
+  {
+    id: 'backLeg',
+    name: '后足',
+    color: '#5C3317',
+    defaultPosition: [0, -1.2, -0.9],
+    explodeAxis: [0, -1, -0.8],
+    label: '后足',
+    geometryType: 'leg',
+    explodeTargetOffset: 2.5,
+  },
+  {
+    id: 'patternLayer',
+    name: '纹饰层',
+    color: '#C4985A',
+    defaultPosition: [0, 0.2, 0],
+    explodeAxis: [0, 1, 0],
+    label: '纹饰层',
+    geometryType: 'pattern',
+    explodeTargetOffset: 3,
+  },
+  {
+    id: 'inscriptionLayer',
+    name: '铭文层',
+    color: '#D4AF37',
+    defaultPosition: [0, -0.1, 0],
+    explodeAxis: [0, -1, 0],
+    label: '铭文层',
+    geometryType: 'inscription',
+    explodeTargetOffset: 2,
+  },
+];
+
+export const EXPLODE_OFFSET_MIN = -3;
+export const EXPLODE_OFFSET_MAX = 5;
+export const MAX_SELECTED_PARTS = 2;
