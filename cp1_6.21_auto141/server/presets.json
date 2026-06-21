@@ -1,0 +1,9 @@
+[
+  {
+    "id": "default-cyclone",
+    "name": "标准气旋",
+    "cycloneType": "cyclone",
+    "windSpeed": 5,
+    "particleDensity": 2000
+  }
+]
