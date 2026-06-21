@@ -22,15 +22,25 @@ export const ControlPanel: React.FC = () => {
   } = useClockStore();
 
   const handleHourChange = (delta: number) => {
-    const newHour = ((time.hour + delta) % 24 + 24) % 24;
+    let newHour = time.hour + delta;
+    if (newHour >= 24) newHour = newHour - 24;
+    if (newHour < 0) newHour = newHour + 24;
     setTime({ ...time, hour: newHour });
   };
 
   const handleMinuteChange = (delta: number) => {
-    const newMinute = ((time.minute + delta) % 60 + 60) % 60;
+    let newMinute = time.minute + delta;
     let newHour = time.hour;
-    if (time.minute === 59 && delta === 1) newHour = (newHour + 1) % 24;
-    if (time.minute === 0 && delta === -1) newHour = (newHour + 23) % 24;
+    if (newMinute >= 60) {
+      newMinute = newMinute - 60;
+      newHour = newHour + 1;
+      if (newHour >= 24) newHour = 0;
+    }
+    if (newMinute < 0) {
+      newMinute = newMinute + 60;
+      newHour = newHour - 1;
+      if (newHour < 0) newHour = 23;
+    }
     setTime({ hour: newHour, minute: newMinute });
   };
 
@@ -46,6 +56,39 @@ export const ControlPanel: React.FC = () => {
     if (!isNaN(val)) {
       setTime({ ...time, minute: Math.max(0, Math.min(59, val)) });
     }
+  };
+
+  const displayHour12 = time.hour === 0 ? 12 : time.hour > 12 ? time.hour - 12 : time.hour;
+
+  const handleQuickHourInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = parseInt(e.target.value, 10);
+    if (isNaN(val)) return;
+    val = Math.max(1, Math.min(12, val));
+    const isPM = time.hour >= 12 && time.hour < 24;
+    let newHour = val === 12 ? (isPM ? 12 : 0) : (isPM ? val + 12 : val);
+    setTime({ ...time, hour: newHour });
+  };
+
+  const handleQuickMinuteInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseInt(e.target.value, 10);
+    if (!isNaN(val)) {
+      setTime({ ...time, minute: Math.max(0, Math.min(59, val)) });
+    }
+  };
+
+  const isPM = time.hour >= 12;
+
+  const toggleAmPm = () => {
+    let newHour = time.hour;
+    if (isPM) {
+      newHour = time.hour - 12;
+    } else {
+      newHour = time.hour + 12;
+    }
+    if (newHour === 24) newHour = 12;
+    if (newHour === 12 && !isPM) newHour = 12;
+    if (newHour === 0 && isPM) newHour = 12;
+    setTime({ ...time, hour: newHour });
   };
 
   return (
@@ -108,6 +151,41 @@ export const ControlPanel: React.FC = () => {
               </button>
             </div>
           </div>
+        </div>
+      </div>
+
+      <div className="panel-card">
+        <div className="card-title">精确时间输入（12小时制）</div>
+        <div className="quick-time-inputs">
+          <div className="quick-time-group">
+            <label className="input-label">时 (1-12)</label>
+            <input
+              type="number"
+              className="number-input quick-input"
+              min={1}
+              max={12}
+              value={displayHour12}
+              onChange={handleQuickHourInput}
+            />
+          </div>
+          <div className="quick-time-separator">:</div>
+          <div className="quick-time-group">
+            <label className="input-label">分 (0-59)</label>
+            <input
+              type="number"
+              className="number-input quick-input"
+              min={0}
+              max={59}
+              value={time.minute.toString().padStart(2, '0')}
+              onChange={handleQuickMinuteInput}
+            />
+          </div>
+          <button
+            className={`ampm-btn ${isPM ? 'pm' : 'am'}`}
+            onClick={toggleAmPm}
+          >
+            {isPM ? 'PM' : 'AM'}
+          </button>
         </div>
       </div>
 

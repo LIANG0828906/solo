@@ -110,6 +110,14 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+.angle-between {
+  font-size: 14px;
+  color: #d4a373;
+  font-weight: 600;
+  margin-top: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
 .control-panel {
   display: flex;
   flex-direction: column;
@@ -222,6 +230,64 @@ body {
   font-weight: 700;
   color: #555;
   margin-top: 18px;
+}
+
+.quick-time-inputs {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: nowrap;
+}
+
+.quick-time-group {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.quick-input {
+  width: 60px;
+  height: 36px;
+  font-size: 18px;
+}
+
+.quick-time-separator {
+  font-size: 24px;
+  font-weight: 700;
+  color: #555;
+  padding-bottom: 4px;
+}
+
+.ampm-btn {
+  height: 36px;
+  padding: 0 14px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: #f8f6f3;
+  color: #555;
+}
+
+.ampm-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.ampm-btn.am {
+  background: linear-gradient(135deg, #ffd89b 0%, #d4a373 100%);
+  color: #fff;
+  border-color: #d4a373;
+}
+
+.ampm-btn.pm {
+  background: linear-gradient(135deg, #667eea 0%, #4a90d9 100%);
+  color: #fff;
+  border-color: #4a90d9;
 }
 
 .color-picker {
@@ -418,28 +484,39 @@ body {
 
   .control-panel {
     overflow-x: auto;
+    overflow-y: hidden;
     flex-direction: row;
+    flex-wrap: nowrap;
     width: 100%;
     padding-bottom: 8px;
     -webkit-overflow-scrolling: touch;
+    white-space: nowrap;
+    scroll-snap-type: x mandatory;
   }
 
   .control-panel::-webkit-scrollbar {
-    height: 4px;
+    height: 6px;
   }
 
   .control-panel::-webkit-scrollbar-track {
     background: #f0ede8;
-    border-radius: 2px;
+    border-radius: 3px;
   }
 
   .control-panel::-webkit-scrollbar-thumb {
-    background: #ccc;
-    border-radius: 2px;
+    background: #d4a373;
+    border-radius: 3px;
+  }
+
+  .control-panel > * {
+    display: inline-flex;
+    flex-direction: column;
+    white-space: normal;
   }
 
   .panel-card {
     flex-shrink: 0;
     width: 260px;
+    scroll-snap-align: start;
   }
 }

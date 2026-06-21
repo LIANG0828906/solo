@@ -5,6 +5,8 @@ import {
   angleFromPointer,
   snapMinuteToFive,
   convertAngleToTime,
+  calculateAngleBetweenHands,
+  mapScreenToViewBox,
 } from '@/modules/clockEngine';
 import type { Time, TickStyle } from '@/store/clockStore';
 
@@ -31,6 +33,13 @@ export const ClockCanvas = forwardRef<HTMLDivElement, ClockCanvasProps>(
     [time]
   );
 
+  const angleBetween = useMemo(
+    () => calculateAngleBetweenHands(hourAngle, minuteAngle),
+    [hourAngle, minuteAngle]
+  );
+
+  const VIEW_BOX = { x: 0, y: 0, width: 500, height: 500 };
+
   const tickData = useMemo(() => generateTickData(tickStyle), [tickStyle]);
 
   const handlePointerDown = useCallback((type: DraggingType) => {
@@ -46,10 +55,12 @@ export const ClockCanvas = forwardRef<HTMLDivElement, ClockCanvasProps>(
       if (!dragging || !svgRef.current) return;
 
       const rect = svgRef.current.getBoundingClientRect();
-      const scaleX = 500 / rect.width;
-      const scaleY = 500 / rect.height;
-      const pointerX = (e.clientX - rect.left) * scaleX;
-      const pointerY = (e.clientY - rect.top) * scaleY;
+      const { x: pointerX, y: pointerY } = mapScreenToViewBox(
+        e.clientX,
+        e.clientY,
+        rect,
+        VIEW_BOX
+      );
 
       const angle = angleFromPointer(CENTER_X, CENTER_Y, pointerX, pointerY);
 
@@ -82,7 +93,7 @@ export const ClockCanvas = forwardRef<HTMLDivElement, ClockCanvasProps>(
         onTimeChange({ hour, minute: snappedMinute });
       }
     },
-    [dragging, time, minuteAngle, onTimeChange]
+    [dragging, time, minuteAngle, onTimeChange, VIEW_BOX]
   );
 
   const handlePointerUp = useCallback((e: React.PointerEvent) => {
@@ -271,6 +282,9 @@ export const ClockCanvas = forwardRef<HTMLDivElement, ClockCanvasProps>(
         <div className="digital-time">{formatTime(time)}</div>
         <div className="angle-info">
           时针：{hourAngle.toFixed(1)}° 分针：{minuteAngle.toFixed(1)}°
+        </div>
+        <div className="angle-between">
+          两针夹角：{angleBetween.toFixed(1)}°
         </div>
       </div>
     </div>

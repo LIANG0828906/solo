@@ -91,3 +91,26 @@ export function angleFromPointer(
   if (angle < 0) angle += 360;
   return angle;
 }
+
+export function calculateAngleBetweenHands(
+  hourAngle: number,
+  minuteAngle: number
+): number {
+  const rawDiff = Math.abs(hourAngle - minuteAngle);
+  const normalizedDiff = rawDiff % 360;
+  return Math.min(normalizedDiff, 360 - normalizedDiff);
+}
+
+export function mapScreenToViewBox(
+  screenX: number,
+  screenY: number,
+  rect: { left: number; top: number; width: number; height: number },
+  viewBox: { x: number; y: number; width: number; height: number }
+): { x: number; y: number } {
+  const scaleX = viewBox.width / rect.width;
+  const scaleY = viewBox.height / rect.height;
+  return {
+    x: viewBox.x + (screenX - rect.left) * scaleX,
+    y: viewBox.y + (screenY - rect.top) * scaleY,
+  };
+}
