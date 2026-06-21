@@ -15,6 +15,13 @@ export default function App() {
   const [page, setPage] = useState<Page>('recipe');
   const [entries, setEntries] = useState<MealEntry[]>([]);
   const [mobilePanelOpen, setMobilePanelOpen] = useState(false);
+  const [scrollToTrend, setScrollToTrend] = useState(false);
+
+  const openMobilePanel = () => {
+    setScrollToTrend(false);
+    setMobilePanelOpen(true);
+    setTimeout(() => setScrollToTrend(true), 50);
+  };
 
   return (
     <div className="app">
@@ -107,8 +114,8 @@ export default function App() {
 
       <button
         className="fab"
-        onClick={() => setMobilePanelOpen(true)}
-        title="查看营养面板"
+        onClick={openMobilePanel}
+        title="查看营养面板（自动滚动到7天趋势图）"
       >
         📊
       </button>
@@ -117,7 +124,7 @@ export default function App() {
         <div className="mobile-panel">
           <button className="mobile-close" onClick={() => setMobilePanelOpen(false)}>✕</button>
           <div style={{ clear: 'both' }} />
-          <NutritionPanel entries={entries} />
+          <NutritionPanel entries={entries} autoScrollToTrend={scrollToTrend} />
         </div>
       )}
     </div>

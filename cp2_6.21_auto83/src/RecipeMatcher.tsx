@@ -20,7 +20,7 @@ export default function RecipeMatcher() {
   const [hasMatched, setHasMatched] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [stepProgress, setStepProgress] = useState<Record<string, number>>({});
-  const showSugRef = useRef(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const suggestions = useMemo(() => fuzzySearchIngredient(query), [query]);
 
   useEffect(() => {
@@ -40,15 +40,15 @@ export default function RecipeMatcher() {
     const timers: ReturnType<typeof setInterval>[] = [];
     variant.steps.forEach((step, idx) => {
       const key = `${expandedId}-${idx}`;
-      setStepProgress((p) => ({ ...p, [key]: 0 }));
+      setStepProgress((p) => ({ ...p, [key]: 100 }));
       const totalMs = step.durationSec * 1000;
       const interval = 50;
-      const inc = (100 * interval) / totalMs;
-      let v = 0;
+      const dec = (100 * interval) / totalMs;
+      let v = 100;
       const t = setInterval(() => {
-        v = Math.min(100, v + inc);
+        v = Math.max(0, v - dec);
         setStepProgress((p) => ({ ...p, [key]: v }));
-        if (v >= 100) clearInterval(t);
+        if (v <= 0) clearInterval(t);
       }, interval);
       timers.push(t);
     });
@@ -60,7 +60,7 @@ export default function RecipeMatcher() {
     if (selected.length >= MAX_TAGS) return;
     setSelected((s) => [...s, ing]);
     setQuery('');
-    showSugRef.current = false;
+    setShowSuggestions(false);
   };
 
   const removeIngredient = (name: string) => {
@@ -93,12 +93,12 @@ export default function RecipeMatcher() {
           className="search-input"
           placeholder="输入食材名称，如：鸡胸肉、西兰花..."
           value={query}
-          onChange={(e) => { setQuery(e.target.value); showSugRef.current = true; }}
-          onFocus={() => { showSugRef.current = true; }}
-          onBlur={() => { setTimeout(() => { showSugRef.current = false; }, 200); }}
+          onChange={(e) => { setQuery(e.target.value); setShowSuggestions(true); }}
+          onFocus={() => { setShowSuggestions(true); }}
+          onBlur={() => { setTimeout(() => { setShowSuggestions(false); }, 200); }}
         />
         <span className="search-count">{selected.length}/{MAX_TAGS}</span>
-        {showSugRef.current && query.trim() && suggestions.length > 0 && (
+        {showSuggestions && query.trim() && suggestions.length > 0 && (
           <div className="suggestions">
             {suggestions.map((s) => (
               <div
@@ -190,14 +190,43 @@ export default function RecipeMatcher() {
                   <div className="rc-steps">
                     {variant.steps.map((s, idx) => {
                       const key = `${r.id}-${idx}`;
-                      const pct = stepProgress[key] || 0;
+                      const pct = stepProgress[key] ?? 100;
+                      const remainSec = Math.max(0, Math.ceil((pct / 100) * s.durationSec));
                       return (
                         <div className="rc-step" key={idx}>
-                          <div className="step-num">{s.order}</div>
+                          <div className="step-num" style={{
+                            background: pct <= 0
+                              ? 'linear-gradient(135deg, #88B04B, #6E8F3B)'
+                              : 'linear-gradient(135deg, #FF6B6B, #E85555)',
+                          }}>{s.order}</div>
                           <div className="step-body">
                             <div className="step-text">{s.description}</div>
-                            <div className="step-bar">
-                              <div className="step-fill" style={{ width: `${pct}%` }} />
+                            <div style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 10,
+                              marginTop: 4,
+                            }}>
+                              <div className="step-bar" style={{ flex: 1 }}>
+                                <div
+                                  className="step-fill"
+                                  style={{
+                                    width: `${pct}%`,
+                                    background: pct <= 0
+                                      ? 'linear-gradient(90deg, #88B04B, #6BCB77)'
+                                      : 'linear-gradient(90deg, #FF6B6B, #FF8E8E)',
+                                  }}
+                                />
+                              </div>
+                              <span style={{
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: pct <= 0 ? 'var(--matcha-dark)' : 'var(--coral)',
+                                minWidth: 44,
+                                textAlign: 'right',
+                              }}>
+                                {pct <= 0 ? '✓ 完成' : `⏱ ${remainSec}s`}
+                              </span>
                             </div>
                           </div>
                         </div>

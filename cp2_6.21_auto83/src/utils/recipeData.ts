@@ -378,3 +378,26 @@ export function getRecipeVariant(recipe: Recipe, cookMethod: CookMethod): Recipe
   if (found) return found;
   return recipe.variants[0];
 }
+
+(function validateAndDedupe() {
+  const seen = new Set<string>();
+  const deduped: Ingredient[] = [];
+  for (const ing of INGREDIENTS) {
+    if (!seen.has(ing.name)) {
+      seen.add(ing.name);
+      deduped.push(ing);
+    } else {
+      console.warn(`[数据校验] 食材列表存在重复项，已自动移除："${ing.name}"`);
+    }
+  }
+  INGREDIENTS.length = 0;
+  INGREDIENTS.push(...deduped);
+
+  for (const r of RECIPES) {
+    const unique = Array.from(new Set(r.ingredients));
+    if (unique.length !== r.ingredients.length) {
+      console.warn(`[数据校验] 食谱 "${r.name}" 的 ingredients 存在重复项，已自动去重`);
+      r.ingredients = unique;
+    }
+  }
+})();
