@@ -1,23 +1,24 @@
 import { create } from 'zustand';
 import type { ScoreOutput, TechTag } from '../utils/scoreCalculator';
 
-export interface IdeaProject {
+export interface Idea {
   id: string;
   name: string;
   description: string;
-  techTags: TechTag[];
-  developmentMonths: number;
-  targetUsers: number;
-  initialFunding: number;
+  tags: TechTag[];
+  devTime: number;
+  userScale: number;
+  budget: number;
   scores: ScoreOutput;
   isFavorite: boolean;
   createdAt: number;
 }
 
 interface IdeaState {
-  ideas: IdeaProject[];
+  ideas: Idea[];
+  favorites: string[];
   currentPreview: ScoreOutput | null;
-  addIdea: (idea: Omit<IdeaProject, 'id' | 'createdAt' | 'isFavorite'>) => void;
+  addIdea: (idea: Omit<Idea, 'id' | 'createdAt' | 'isFavorite'>) => void;
   toggleFavorite: (id: string) => void;
   setCurrentPreview: (scores: ScoreOutput | null) => void;
 }
@@ -28,6 +29,7 @@ const generateId = (): string => {
 
 export const useIdeaStore = create<IdeaState>((set) => ({
   ideas: [],
+  favorites: [],
   currentPreview: null,
 
   addIdea: (ideaData) =>
@@ -46,9 +48,12 @@ export const useIdeaStore = create<IdeaState>((set) => ({
 
   toggleFavorite: (id) =>
     set((state) => ({
-      ideas: state.ideas.map((idea) =>
+      ideas: state.ideas.map((idea: Idea) =>
         idea.id === id ? { ...idea, isFavorite: !idea.isFavorite } : idea
       ),
+      favorites: state.favorites.includes(id)
+        ? state.favorites.filter((fid: string) => fid !== id)
+        : [...state.favorites, id],
     })),
 
   setCurrentPreview: (scores) =>

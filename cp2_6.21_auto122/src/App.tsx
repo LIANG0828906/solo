@@ -1,6 +1,6 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { RadarChart } from './components/RadarChart';
-import { useIdeaStore, type IdeaProject } from './store/useIdeaStore';
+import { useIdeaStore, type Idea } from './store/useIdeaStore';
 import {
   TECH_TAGS,
   type TechTag,
@@ -31,10 +31,12 @@ function IdeaCard({
   idea,
   index,
   onToggleFavorite,
+  listKey,
 }: {
-  idea: IdeaProject;
+  idea: Idea;
   index: number;
   onToggleFavorite: (id: string) => void;
+  listKey: number;
 }) {
   const [animating, setAnimating] = useState(false);
 
@@ -47,6 +49,7 @@ function IdeaCard({
 
   return (
     <div
+      key={`${idea.id}-${listKey}-${index}`}
       className={`card-fade-in idea-card ${idea.isFavorite ? 'favorite' : ''}`}
       style={{ animationDelay: `${index * 0.05}s` }}
     >
@@ -61,7 +64,7 @@ function IdeaCard({
         </button>
       </div>
       <div className="card-tags">
-        {idea.techTags.map((tag) => (
+        {idea.tags.map((tag) => (
           <span key={tag} className="card-tag">
             {tag}
           </span>
@@ -80,9 +83,10 @@ export default function App() {
   const [form, setForm] = useState<FormState>(INITIAL_FORM);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterTag, setFilterTag] = useState<TechTag | null>(null);
+  const [listVersion, setListVersion] = useState(0);
   const { ideas, addIdea, toggleFavorite, currentPreview } = useIdeaStore();
 
-  const handleTagToggle = (tag: TechTag) => {
+  const handleTagToggle = useCallback((tag: TechTag) => {
     setForm((prev) => {
       if (prev.techTags.includes(tag)) {
         return { ...prev, techTags: prev.techTags.filter((t) => t !== tag) };
@@ -92,33 +96,40 @@ export default function App() {
       }
       return { ...prev, techTags: [...prev.techTags, tag] };
     });
-  };
+  }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!form.name.trim() || !form.description.trim()) {
-      return;
-    }
+  const handleSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!form.name.trim() || !form.description.trim()) {
+        return;
+      }
+      if (form.techTags.length < 1 || form.techTags.length > 3) {
+        return;
+      }
 
-    const scores = calculateScore({
-      techTags: form.techTags,
-      developmentMonths: form.developmentMonths,
-      targetUsers: form.targetUsers,
-      initialFunding: form.initialFunding,
-    });
+      const scores = calculateScore({
+        techTags: form.techTags,
+        developmentMonths: form.developmentMonths,
+        targetUsers: form.targetUsers,
+        initialFunding: form.initialFunding,
+      });
 
-    addIdea({
-      name: form.name.trim(),
-      description: form.description.trim(),
-      techTags: form.techTags,
-      developmentMonths: form.developmentMonths,
-      targetUsers: form.targetUsers,
-      initialFunding: form.initialFunding,
-      scores,
-    });
+      addIdea({
+        name: form.name.trim(),
+        description: form.description.trim(),
+        tags: form.techTags,
+        devTime: form.developmentMonths,
+        userScale: form.targetUsers,
+        budget: form.initialFunding,
+        scores,
+      });
 
-    setForm((prev) => ({ ...prev, name: '', description: '', techTags: [] }));
-  };
+      setListVersion((v) => v + 1);
+      setForm((prev) => ({ ...prev, name: '', description: '', techTags: [] }));
+    },
+    [form, addIdea]
+  );
 
   const sortedIdeas = useMemo(() => {
     let filtered = ideas;
@@ -133,7 +144,7 @@ export default function App() {
     }
 
     if (filterTag) {
-      filtered = filtered.filter((idea) => idea.techTags.includes(filterTag));
+      filtered = filtered.filter((idea) => idea.tags.includes(filterTag));
     }
 
     return [...filtered].sort((a, b) => {
@@ -143,6 +154,12 @@ export default function App() {
       return b.scores.total - a.scores.total;
     });
   }, [ideas, searchQuery, filterTag]);
+
+  const isFormValid =
+    form.name.trim() !== '' &&
+    form.description.trim() !== '' &&
+    form.techTags.length >= 1 &&
+    form.techTags.length <= 3;
 
   return (
     <div className="app-container">
@@ -177,11 +194,17 @@ export default function App() {
               <div className="form-group">
                 <label className="form-label">
                   技术标签（选择1-3个）
-                  {form.techTags.length > 0 && (
-                    <span style={{ color: 'var(--accent-end)', marginLeft: 8 }}>
-                      已选 {form.techTags.length}/3
-                    </span>
-                  )}
+                  <span
+                    style={{
+                      color:
+                        form.techTags.length >= 1 && form.techTags.length <= 3
+                          ? 'var(--accent-end)'
+                          : 'var(--text-muted)',
+                      marginLeft: 8,
+                    }}
+                  >
+                    已选 {form.techTags.length}/3
+                  </span>
                 </label>
                 <div className="tags-container">
                   {TECH_TAGS.map((tag) => {
@@ -191,7 +214,11 @@ export default function App() {
                       <div
                         key={tag}
                         className={`tag-chip ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`}
-                        onClick={() => !isDisabled && handleTagToggle(tag)}
+                        onClick={() => {
+                          if (!isDisabled) {
+                            handleTagToggle(tag);
+                          }
+                        }}
                       >
                         {tag}
                       </div>
@@ -266,7 +293,15 @@ export default function App() {
                 </div>
               </div>
 
-              <button type="submit" className="submit-btn">
+              <button
+                type="submit"
+                className="submit-btn"
+                disabled={!isFormValid}
+                style={{
+                  opacity: isFormValid ? 1 : 0.5,
+                  cursor: isFormValid ? 'pointer' : 'not-allowed',
+                }}
+              >
                 提交评估
               </button>
             </form>
@@ -279,7 +314,10 @@ export default function App() {
             <RadarChart scores={currentPreview} />
           </div>
 
-          <div className="panel-card" style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <div
+            className="panel-card"
+            style={{ flex: 1, display: 'flex', flexDirection: 'column', minHeight: 0 }}
+          >
             <h2 className="section-title">创意排行榜</h2>
 
             <div style={{ display: 'flex', gap: 12, marginBottom: 16, flexWrap: 'wrap' }}>
@@ -288,13 +326,19 @@ export default function App() {
                 className="form-input"
                 placeholder="搜索项目名称或描述..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setListVersion((v) => v + 1);
+                }}
                 style={{ flex: 1, minWidth: 200 }}
               />
               <div className="tags-container">
                 <div
                   className={`tag-chip ${!filterTag ? 'selected' : ''}`}
-                  onClick={() => setFilterTag(null)}
+                  onClick={() => {
+                    setFilterTag(null);
+                    setListVersion((v) => v + 1);
+                  }}
                 >
                   全部
                 </div>
@@ -302,7 +346,10 @@ export default function App() {
                   <div
                     key={tag}
                     className={`tag-chip ${filterTag === tag ? 'selected' : ''}`}
-                    onClick={() => setFilterTag(filterTag === tag ? null : tag)}
+                    onClick={() => {
+                      setFilterTag(filterTag === tag ? null : tag);
+                      setListVersion((v) => v + 1);
+                    }}
                   >
                     {tag}
                   </div>
@@ -324,10 +371,14 @@ export default function App() {
                 <div className="cards-grid">
                   {sortedIdeas.map((idea, index) => (
                     <IdeaCard
-                      key={idea.id}
+                      key={`${idea.id}-${listVersion}`}
                       idea={idea}
                       index={index}
-                      onToggleFavorite={toggleFavorite}
+                      onToggleFavorite={(id) => {
+                        toggleFavorite(id);
+                        setListVersion((v) => v + 1);
+                      }}
+                      listKey={listVersion}
                     />
                   ))}
                 </div>
