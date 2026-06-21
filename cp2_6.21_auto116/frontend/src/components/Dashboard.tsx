@@ -542,7 +542,7 @@ export const Dashboard: React.FC = () => {
 }
 
 const ResponsiveChart: React.FC<{
-  data: Array<{ time: string; timestamp: number; sales: number; orders: number }>
+  data: Array<{ time: string; timestamp: number; sales: number; orders: number; inventory: number }>
   formatTime: (ts: number) => string
 }> = ({ data, formatTime }) => {
   const chartData = React.useMemo(() => {
@@ -585,7 +585,7 @@ const ResponsiveChart: React.FC<{
               }} />
               <span style={{ color: '#a1a1aa' }}>{entry.name}:</span>
               <span style={{ color: '#f4f4f5', fontWeight: 600 }}>
-                {entry.dataKey === 'sales' ? '¥' : ''}{entry.value.toLocaleString()}
+                {entry.dataKey === 'sales' ? '¥' : ''}{entry.dataKey === 'inventory' ? `${entry.value.toLocaleString()} 件` : entry.value.toLocaleString()}
               </span>
             </div>
           ))}

@@ -12,6 +12,7 @@ export interface TimeSeriesPoint {
   timestamp: number
   sales: number
   orders: number
+  inventory: number
 }
 
 export interface AnomalyRecord {
