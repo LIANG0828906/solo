@@ -242,8 +242,9 @@ export const useGameStore = create<GameState>((set, get) => {
           return { ...crystal, accumulatedTime: 0, litTime: 0 };
         }
 
-        const requiredTime = hit.intensity < 0.5 ? 2000 : crystal.requiredTime;
-        const newAccumulatedTime = crystal.accumulatedTime + deltaTime;
+        const effectiveDelta = deltaTime * hit.intensity;
+        const newAccumulatedTime = crystal.accumulatedTime + effectiveDelta;
+        const requiredTime = crystal.requiredTime;
 
         if (newAccumulatedTime >= requiredTime) {
           newlyLitIds.push(crystal.id);

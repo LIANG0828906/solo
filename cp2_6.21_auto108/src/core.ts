@@ -62,12 +62,6 @@ const COLOR_GREEN = '#32CD32';
 const COLOR_BLUE = '#1E90FF';
 const COLOR_WHITE = '#FFFFFF';
 
-function normalizeAngle(angle: number): number {
-  while (angle > Math.PI * 2) angle -= Math.PI * 2;
-  while (angle < 0) angle += Math.PI * 2;
-  return angle;
-}
-
 function distance(p1: Point, p2: Point): number {
   return Math.sqrt((p2.x - p1.x) ** 2 + (p2.y - p1.y) ** 2);
 }
@@ -372,18 +366,25 @@ export function calcRefraction(
 
     if (!ray.hasPassedPrism) {
       for (const prism of prisms) {
-        const traceResult = traceRayThroughPrism(
-          ray.position,
-          ray.direction,
-          prism,
-          REFRACTIVE_INDEX_GREEN
-        );
-        if (traceResult) {
-          const dist = distance(ray.position, traceResult.entryPoint);
-          if (dist > 0.1 && (!closestHit || dist < closestHit.distance)) {
+        const vertices = getTriangleVertices(prism);
+        let prismEntry: { point: Point; distance: number } | null = null;
+        for (let i = 0; i < 3; i++) {
+          const v1 = vertices[i];
+          const v2 = vertices[(i + 1) % 3];
+          const hit = raySegmentIntersection(ray.position, ray.direction, v1, v2);
+          if (hit) {
+            const dist = distance(ray.position, hit.point);
+            if (dist > 0.1 && (!prismEntry || dist < prismEntry.distance)) {
+              prismEntry = { point: hit.point, distance: dist };
+            }
+          }
+        }
+        if (prismEntry) {
+          const dist = prismEntry.distance;
+          if (!closestHit || dist < closestHit.distance) {
             closestHit = {
               type: 'prism',
-              point: traceResult.entryPoint,
+              point: prismEntry.point,
               distance: dist,
               prism
             };
@@ -391,23 +392,23 @@ export function calcRefraction(
         }
       }
     } else {
-        for (const prism of prisms) {
-          const vertices = getTriangleVertices(prism);
-          const hit = rayPolygonIntersection(ray.position, rayAngle, vertices, maxDist);
-          if (hit) {
-            const dist = distance(ray.position, hit.point);
-            if (dist > 0.1 && (!closestHit || dist < closestHit.distance)) {
-              closestHit = {
-                type: 'prism',
-                point: hit.point,
-                distance: dist,
-                prism,
-                normal: hit.normal
-              };
-            }
+      for (const prism of prisms) {
+        const vertices = getTriangleVertices(prism);
+        const hit = rayPolygonIntersection(ray.position, rayAngle, vertices, maxDist);
+        if (hit) {
+          const dist = distance(ray.position, hit.point);
+          if (dist > 0.1 && (!closestHit || dist < closestHit.distance)) {
+            closestHit = {
+              type: 'prism',
+              point: hit.point,
+              distance: dist,
+              prism,
+              normal: hit.normal
+            };
           }
         }
       }
+    }
 
     for (const obstacle of obstacles) {
       const vertices = getObstacleEdges(obstacle);

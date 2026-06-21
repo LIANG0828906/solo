@@ -60,8 +60,6 @@ const Game: React.FC = () => {
   useEffect(() => {
     const handleResize = () => {
       if (containerRef.current) {
-        const containerWidth = containerRef.current.clientWidth;
-        const scale = containerWidth / CANVAS_WIDTH;
         setCanvasSize({
           width: CANVAS_WIDTH,
           height: CANVAS_HEIGHT,
@@ -300,7 +298,7 @@ const Game: React.FC = () => {
     ctx.globalAlpha = 1;
   };
 
-  const drawHintPath = (ctx: CanvasRenderingContext2D, time: number) => {
+  const drawHintPath = (ctx: CanvasRenderingContext2D, _time: number) => {
     if (!showHint || hintAlpha <= 0) return;
     const recommended = getRecommendedPath({ prisms, lightSource, crystals });
     recommended.forEach(rec => {
@@ -349,8 +347,8 @@ const Game: React.FC = () => {
 
     let segments: LightSegment[] = [];
     let lastCalcTime = 0;
-    let lastParticleRenderTime = 0;
-    let lastFrameTime = 0;
+    let lastParticleUpdateTime = 0;
+    let lastParticleDrawTime = 0;
 
     const gameLoop = (currentTime: number) => {
       const deltaTime = currentTime - lastTimeRef.current;
@@ -358,10 +356,8 @@ const Game: React.FC = () => {
 
       const particleCount = particlesRef.current.length;
       const particleThreshold = 500;
-      const targetFPS = particleCount > particleThreshold ? 30 : 60;
-      const frameInterval = 1000 / targetFPS;
-
-      const shouldRenderThisFrame = currentTime - lastFrameTime >= frameInterval - 1;
+      const particleUpdateInterval = particleCount > particleThreshold ? 33 : 16;
+      const particleDrawInterval = particleCount > particleThreshold ? 33 : 16;
 
       if (currentTime - lastCalcTime > 16) {
         const startTime = performance.now();
@@ -390,26 +386,25 @@ const Game: React.FC = () => {
 
       updateTransition(deltaTime);
 
-      const particleUpdateInterval = particleCount > particleThreshold ? 33 : 16;
-      if (currentTime - lastParticleRenderTime >= particleUpdateInterval) {
+      if (currentTime - lastParticleUpdateTime >= particleUpdateInterval) {
         updateParticles();
-        lastParticleRenderTime = currentTime;
+        lastParticleUpdateTime = currentTime;
       }
 
-      if (shouldRenderThisFrame) {
-        drawBackground(ctx);
-        segments.forEach(s => drawLightSegment(ctx, s));
-        obstacles.forEach(o => drawObstacle(ctx, o));
-        crystals.forEach(c => drawCrystal(ctx, c, currentTime));
-        prisms.forEach(p => drawPrism(ctx, p));
-        drawLightSource(ctx);
-        drawHintPath(ctx, currentTime);
-        if (particleCount <= particleThreshold || Math.floor(currentTime / 33) % 2 === 0) {
-          drawParticles(ctx);
-        }
-        drawTransition(ctx);
-        lastFrameTime = currentTime;
+      drawBackground(ctx);
+      segments.forEach(s => drawLightSegment(ctx, s));
+      obstacles.forEach(o => drawObstacle(ctx, o));
+      crystals.forEach(c => drawCrystal(ctx, c, currentTime));
+      prisms.forEach(p => drawPrism(ctx, p));
+      drawLightSource(ctx);
+      drawHintPath(ctx, currentTime);
+
+      if (particleCount <= particleThreshold || currentTime - lastParticleDrawTime >= particleDrawInterval) {
+        drawParticles(ctx);
+        lastParticleDrawTime = currentTime;
       }
+
+      drawTransition(ctx);
 
       animationRef.current = requestAnimationFrame(gameLoop);
     };
