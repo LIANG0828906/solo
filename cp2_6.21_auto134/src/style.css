@@ -1,0 +1,188 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #1a1a2e;
+  min-height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 40px;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+  max-width: 100%;
+}
+
+.app-title {
+  color: #e94560;
+  font-size: 24px;
+  font-weight: 600;
+  margin-bottom: 30px;
+  text-align: center;
+}
+
+.main-content {
+  display: flex;
+  flex-direction: row;
+  gap: 30px;
+  align-items: flex-start;
+}
+
+#pendulumCanvas {
+  background-color: #1a1a2e;
+  border-radius: 8px;
+  cursor: default;
+}
+
+.control-panel {
+  width: 240px;
+  background-color: rgba(233, 69, 96, 0.08);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.group-title {
+  color: #e94560;
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.control-btn {
+  width: 100%;
+  padding: 10px 16px;
+  border: none;
+  border-radius: 8px;
+  background-color: #2d2d44;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.control-btn:hover {
+  background-color: #e94560;
+  box-shadow: 0 4px 15px rgba(233, 69, 96, 0.4);
+  transform: translateY(-2px);
+}
+
+.control-btn:active {
+  transform: scale(0.95);
+}
+
+.control-btn.primary {
+  background-color: #e94560;
+}
+
+.control-btn.primary:hover {
+  background-color: #ff8a80;
+  box-shadow: 0 4px 15px rgba(255, 138, 128, 0.4);
+}
+
+.control-btn.active {
+  background-color: #e94560;
+}
+
+.slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.slider-container label {
+  color: #ffffff;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.slider-container label span {
+  color: #e94560;
+  font-weight: 600;
+}
+
+#speedSlider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #2d2d44;
+  outline: none;
+  cursor: pointer;
+}
+
+#speedSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e94560;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+#speedSlider::-webkit-slider-thumb:hover {
+  background: #ff8a80;
+  transform: scale(1.1);
+}
+
+#speedSlider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #e94560;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s ease;
+}
+
+#speedSlider::-moz-range-thumb:hover {
+  background: #ff8a80;
+  transform: scale(1.1);
+}
+
+@media (max-width: 768px) {
+  body {
+    padding: 20px;
+  }
+
+  .main-content {
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+  }
+
+  #pendulumCanvas {
+    max-width: 100%;
+    height: auto;
+  }
+
+  .control-panel {
+    width: 100%;
+    max-width: 400px;
+  }
+}
