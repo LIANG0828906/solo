@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>星系碰撞模拟器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 50%, #0d0d2b 100%);
+    }
+
+    #canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+
+    #canvas-container canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .control-panel {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      width: 280px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      background: rgba(20, 20, 50, 0.4);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(100, 150, 255, 0.2);
+      border-radius: 16px;
+      padding: 20px;
+      z-index: 100;
+      color: #e0e8ff;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    .control-panel h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: #80b0ff;
+      text-shadow: 0 0 10px rgba(100, 150, 255, 0.5);
+      letter-spacing: 1px;
+    }
+
+    .control-group {
+      margin-bottom: 16px;
+    }
+
+    .control-group label {
+      display: block;
+      font-size: 12px;
+      color: #a0b8d0;
+      margin-bottom: 6px;
+      letter-spacing: 0.5px;
+    }
+
+    .slider-container {
+      position: relative;
+    }
+
+    .slider-container input[type="range"] {
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: linear-gradient(to right, rgba(60, 80, 140, 0.5), rgba(100, 150, 255, 0.3));
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .slider-container input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6090ff, #a070ff);
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(100, 150, 255, 0.8),
+                  0 0 20px rgba(160, 100, 255, 0.4);
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .slider-container input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 15px rgba(100, 150, 255, 1),
+                  0 0 30px rgba(160, 100, 255, 0.6);
+    }
+
+    .slider-value {
+      position: absolute;
+      right: 0;
+      top: -20px;
+      font-size: 11px;
+      color: #80b0ff;
+      font-family: 'Consolas', monospace;
+    }
+
+    .info-panel {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 200px;
+      background: rgba(20, 20, 50, 0.4);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(100, 150, 255, 0.2);
+      border-radius: 12px;
+      padding: 16px;
+      z-index: 100;
+      color: #e0e8ff;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    .info-panel h3 {
+      font-size: 14px;
+      margin-bottom: 12px;
+      color: #80b0ff;
+      text-shadow: 0 0 8px rgba(100, 150, 255, 0.4);
+    }
+
+    .info-item {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 8px;
+      font-size: 12px;
+    }
+
+    .info-item .label {
+      color: #a0b8d0;
+    }
+
+    .info-item .value {
+      color: #ffc060;
+      font-family: 'Consolas', monospace;
+      font-weight: bold;
+    }
+
+    .timeline-container {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60%;
+      max-width: 800px;
+      background: rgba(20, 20, 50, 0.5);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(100, 150, 255, 0.2);
+      border-radius: 16px;
+      padding: 16px 24px;
+      z-index: 100;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4),
+                  inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    }
+
+    .timeline-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .btn {
+      background: linear-gradient(135deg, rgba(80, 120, 200, 0.6), rgba(120, 80, 180, 0.6));
+      border: 1px solid rgba(150, 180, 255, 0.3);
+      color: #e0e8ff;
+      padding: 8px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.3s;
+      box-shadow: 0 0 0 rgba(100, 150, 255, 0);
+    }
+
+    .btn:hover {
+      background: linear-gradient(135deg, rgba(100, 140, 220, 0.8), rgba(140, 100, 200, 0.8));
+      box-shadow: 0 0 20px rgba(100, 150, 255, 0.5),
+                  0 0 40px rgba(160, 100, 255, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .btn.play-btn {
+      width: 40px;
+      height: 40px;
+      padding: 0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+    }
+
+    .speed-buttons {
+      display: flex;
+      gap: 4px;
+      margin-left: auto;
+    }
+
+    .speed-btn {
+      padding: 4px 10px;
+      font-size: 11px;
+      border-radius: 6px;
+      background: rgba(60, 80, 140, 0.4);
+      border: 1px solid rgba(100, 150, 255, 0.2);
+      color: #a0b8d0;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .speed-btn.active {
+      background: linear-gradient(135deg, rgba(100, 150, 255, 0.6), rgba(160, 100, 255, 0.6));
+      color: #fff;
+      box-shadow: 0 0 10px rgba(100, 150, 255, 0.5);
+    }
+
+    .speed-btn:hover {
+      background: rgba(80, 120, 200, 0.5);
+      color: #e0e8ff;
+    }
+
+    .timeline-slider {
+      position: relative;
+    }
+
+    .timeline-slider input[type="range"] {
+      width: 100%;
+      height: 8px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: linear-gradient(to right, 
+        rgba(100, 150, 255, 0.3) 0%,
+        rgba(160, 100, 255, 0.3) 50%,
+        rgba(255, 100, 150, 0.3) 100%);
+      border-radius: 4px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .timeline-slider input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6090ff, #c070ff);
+      cursor: pointer;
+      box-shadow: 0 0 15px rgba(100, 150, 255, 0.8),
+                  0 0 30px rgba(190, 100, 255, 0.4);
+      transition: transform 0.2s;
+    }
+
+    .timeline-slider input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .time-display {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      font-size: 11px;
+      color: #80b0ff;
+      font-family: 'Consolas', monospace;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: rgba(20, 20, 50, 0.3);
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: linear-gradient(135deg, rgba(100, 150, 255, 0.5), rgba(160, 100, 255, 0.5));
+      border-radius: 3px;
+    }
+
+    @media (max-width: 768px) {
+      .control-panel {
+        width: 200px;
+        left: 10px;
+        top: 10px;
+        padding: 12px;
+      }
+
+      .info-panel {
+        width: 150px;
+        right: 10px;
+        top: 10px;
+        padding: 10px;
+      }
+
+      .timeline-container {
+        width: 90%;
+        bottom: 15px;
+        padding: 10px 16px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .control-panel {
+        width: calc(100% - 20px);
+        left: 10px;
+        top: 10px;
+        max-height: 40vh;
+      }
+
+      .info-panel {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div class="control-panel">
+    <h2>✦ 星系碰撞模拟器</h2>
+    
+    <div class="control-group">
+      <label>星系1质量
+        <span class="slider-value" id="mass1-value">1.0</span>
+      </label>
+      <div class="slider-container">
+        <input type="range" id="mass1" min="0.5" max="3" step="0.1" value="1">
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>星系2质量
+        <span class="slider-value" id="mass2-value">0.8</span>
+      </label>
+      <div class="slider-container">
+        <input type="range" id="mass2" min="0.3" max="2" step="0.1" value="0.8">
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>初始距离
+        <span class="slider-value" id="distance-value">150</span>
+      </label>
+      <div class="slider-container">
+        <input type="range" id="distance" min="80" max="300" step="10" value="150">
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>碰撞角度
+        <span class="slider-value" id="angle-value">30°</span>
+      </label>
+      <div class="slider-container">
+        <input type="range" id="angle" min="0" max="180" step="5" value="30">
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>速度倍数
+        <span class="slider-value" id="velocity-value">1.0x</span>
+      </label>
+      <div class="slider-container">
+        <input type="range" id="velocity" min="0.5" max="3" step="0.1" value="1">
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>粒子数量
+        <span class="slider-value" id="particles-value">5000</span>
+      </label>
+      <div class="slider-container">
+        <input type="range" id="particles" min="1000" max="15000" step="500" value="5000">
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>热力图强度
+        <span class="slider-value" id="heatmap-value">0.5</span>
+      </label>
+      <div class="slider-container">
+        <input type="range" id="heatmap" min="0" max="1" step="0.05" value="0.5">
+      </div>
+    </div>
+  </div>
+
+  <div class="info-panel">
+    <h3>⚡ 能量监测</h3>
+    <div class="info-item">
+      <span class="label">动能</span>
+      <span class="value" id="kinetic-energy">0.00</span>
+    </div>
+    <div class="info-item">
+      <span class="label">势能</span>
+      <span class="value" id="potential-energy">0.00</span>
+    </div>
+    <div class="info-item">
+      <span class="label">总能量</span>
+      <span class="value" id="total-energy">0.00</span>
+    </div>
+    <div class="info-item" style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(100, 150, 255, 0.2);">
+      <span class="label">FPS</span>
+      <span class="value" id="fps-display">60</span>
+    </div>
+    <div class="info-item">
+      <span class="label">粒子数</span>
+      <span class="value" id="particle-count">0</span>
+    </div>
+  </div>
+
+  <div class="timeline-container">
+    <div class="timeline-controls">
+      <button class="btn play-btn" id="play-btn">▶</button>
+      <button class="btn" id="reset-btn">重置</button>
+      <div class="speed-buttons">
+        <button class="speed-btn" data-speed="0.5">0.5x</button>
+        <button class="speed-btn active" data-speed="1">1x</button>
+        <button class="speed-btn" data-speed="2">2x</button>
+        <button class="speed-btn" data-speed="4">4x</button>
+      </div>
+    </div>
+    <div class="timeline-slider">
+      <input type="range" id="timeline" min="0" max="1000" step="1" value="0">
+    </div>
+    <div class="time-display">
+      <span id="current-time">0.0 Gyr</span>
+      <span id="total-time">2.0 Gyr</span>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
