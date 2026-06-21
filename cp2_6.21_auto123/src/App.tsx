@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { Menu, X, Code2, Plus, Minimize2 } from 'lucide-react';
 import SnippetForm from './components/SnippetForm';
 import SnippetList from './components/SnippetList';
+import StatsPanel from './components/StatsPanel';
+import Toast from './components/Toast';
 import { useSnippetStore } from './store';
 import * as api from './api';
 import type { Snippet, SnippetCreate, TagCount } from './types';
@@ -44,6 +46,7 @@ export default function App() {
   const [tags, setTags] = useState<TagCount[]>([]);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showForm, setShowForm] = useState(true);
+  const [toastVisible, setToastVisible] = useState(false);
 
   useEffect(() => {
     fetchSnippets();
@@ -71,6 +74,7 @@ export default function App() {
           addSnippet(newSnippet);
         }
         loadTags();
+        setToastVisible(true);
       } catch (error) {
         console.error('Failed to save snippet:', error);
       }
@@ -223,6 +227,8 @@ export default function App() {
         </header>
 
         <div className="flex-1 p-4 md:p-6 overflow-y-auto">
+          <StatsPanel snippets={snippets} />
+
           {showForm && (
             <div
               className="mb-6 animate-fadeIn"
@@ -265,6 +271,12 @@ export default function App() {
           }
         }
       `}</style>
+
+      <Toast
+        message="保存成功"
+        visible={toastVisible}
+        onClose={() => setToastVisible(false)}
+      />
     </div>
   );
 }

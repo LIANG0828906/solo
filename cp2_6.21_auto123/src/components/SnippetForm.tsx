@@ -22,7 +22,7 @@ const LANGUAGES = [
 ] as const;
 
 interface SnippetFormProps {
-  onSubmit: (data: SnippetCreate) => void;
+  onSubmit: (data: SnippetCreate) => Promise<void>;
   editingSnippet?: Snippet | null;
   onCancel?: () => void;
 }
@@ -40,6 +40,7 @@ export default function SnippetForm({
   const [tagColors, setTagColors] = useState<Map<string, string>>(new Map());
   const [tagInput, setTagInput] = useState('');
   const [errors, setErrors] = useState<{ title?: string; code?: string }>({});
+  const [submitting, setSubmitting] = useState(false);
   const [leftWidth, setLeftWidth] = useState(30);
   const [isDragging, setIsDragging] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -149,18 +150,31 @@ export default function SnippetForm({
   }, [title, code]);
 
   const handleSubmit = useCallback(
-    (e: React.FormEvent) => {
+    async (e: React.FormEvent) => {
       e.preventDefault();
       if (validate()) {
-        onSubmit({
-          title: title.trim(),
-          language,
-          code: code.trim(),
-          tags,
-        });
+        setSubmitting(true);
+        try {
+          await onSubmit({
+            title: title.trim(),
+            language,
+            code: code.trim(),
+            tags,
+          });
+          if (!editingSnippet) {
+            setTitle('');
+            setLanguage('javascript');
+            setCode('');
+            setTags([]);
+            setTagColors(new Map());
+            setTagInput('');
+          }
+        } finally {
+          setSubmitting(false);
+        }
       }
     },
-    [validate, onSubmit, title, language, code, tags]
+    [validate, onSubmit, title, language, code, tags, editingSnippet]
   );
 
   const handleCancel = useCallback(() => {
@@ -332,8 +346,8 @@ export default function SnippetForm({
           </div>
 
           <div className="flex gap-2 pt-2">
-            <button type="submit" className="flex-1">
-              {editingSnippet ? '保存修改' : '提交'}
+            <button type="submit" className="flex-1" disabled={submitting}>
+              {submitting ? '提交中...' : editingSnippet ? '保存修改' : '提交'}
             </button>
             {editingSnippet && onCancel && (
               <button
