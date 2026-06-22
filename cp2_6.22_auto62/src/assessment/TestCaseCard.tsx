@@ -1,73 +1,136 @@
-import { CheckCircle2, XCircle } from 'lucide-react'
-import type { TestCaseResult } from '@/assessment/types'
+import { CheckCircle2, XCircle, Circle, Loader2 } from 'lucide-react'
+import type { TrackedTestCase } from '@/assessment/types'
 
 interface TestCaseCardProps {
-  result: TestCaseResult
+  tc: TrackedTestCase
   index: number
   style?: React.CSSProperties
 }
 
-export default function TestCaseCard({ result, index, style }: TestCaseCardProps) {
-  const failed = !result.passed
+const statusConfig = {
+  pending: {
+    icon: Circle,
+    iconColor: '#cbd5e1',
+    labelBg: '#f1f5f9',
+    labelColor: '#64748b',
+    label: '等待中',
+    borderColor: '#e2e8f0',
+    cardBg: '#ffffff',
+  },
+  running: {
+    icon: Loader2,
+    iconColor: '#2563eb',
+    labelBg: '#eff6ff',
+    labelColor: '#2563eb',
+    label: '执行中',
+    borderColor: '#93c5fd',
+    cardBg: 'linear-gradient(135deg, #eff6ff 0%, #ffffff 100%)',
+  },
+  passed: {
+    icon: CheckCircle2,
+    iconColor: '#16a34a',
+    labelBg: '#f0fdf4',
+    labelColor: '#16a34a',
+    label: '已通过',
+    borderColor: '#bbf7d0',
+    cardBg: '#ffffff',
+  },
+  failed: {
+    icon: XCircle,
+    iconColor: '#dc2626',
+    labelBg: '#fef2f2',
+    labelColor: '#dc2626',
+    label: '未通过',
+    borderColor: '#fecaca',
+    cardBg: 'linear-gradient(135deg, #fff5f5 0%, #ffffff 100%)',
+  },
+} as const
+
+export default function TestCaseCard({ tc, index, style }: TestCaseCardProps) {
+  const cfg = statusConfig[tc.status]
+  const finished = tc.status === 'passed' || tc.status === 'failed'
+  const failed = tc.status === 'failed'
+  const Icon = cfg.icon
 
   return (
     <div
       className={`animate-slide-in ${failed ? 'animate-shake' : ''}`}
       style={{
-        animationDelay: `${index * 0.15}s`,
+        animationDelay: tc.status === 'pending' ? '0s' : `${index * 0.08}s`,
         animationFillMode: 'both',
         ...style,
       }}
     >
       <div
-        className={`rounded-lg border p-3 ${
-          failed
-            ? 'border-red-200'
-            : 'border-gray-200'
-        }`}
+        className="rounded-lg border p-3.5 transition-all duration-300"
         style={{
-          background: failed
-            ? 'linear-gradient(135deg, #fff5f5 0%, #ffffff 100%)'
-            : '#ffffff',
+          borderColor: cfg.borderColor,
+          background: cfg.cardBg,
+          boxShadow: tc.status === 'running' ? '0 0 0 3px rgba(37, 99, 235, 0.08)' : 'none',
         }}
       >
-        <div className="flex items-center gap-2">
-          {failed ? (
-            <XCircle className="h-5 w-5 text-red-500 shrink-0" />
-          ) : (
-            <CheckCircle2 className="h-5 w-5 text-green-500 shrink-0" />
-          )}
-          <span className="font-medium text-sm text-gray-800 flex-1 truncate">
-            {result.name}
-          </span>
-          <span className="text-xs text-gray-400">{result.executionTime.toFixed(1)}ms</span>
+        <div className="flex items-center gap-3">
+          <div className="shrink-0 flex items-center justify-center">
+            <Icon
+              className={`h-5 w-5 ${tc.status === 'running' ? 'animate-spin' : ''}`}
+              style={{ color: cfg.iconColor }}
+            />
+          </div>
+
+          <div className="flex-1 min-w-0 flex items-center gap-2">
+            <span className="font-medium text-sm text-gray-800 truncate flex-1">
+              {tc.name}
+            </span>
+            <span
+              className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0"
+              style={{ background: cfg.labelBg, color: cfg.labelColor }}
+            >
+              {cfg.label}
+            </span>
+          </div>
+
+          <div className="shrink-0 text-right">
+            {finished ? (
+              <span className="text-xs font-mono text-gray-500 tabular-nums">
+                {tc.executionTime.toFixed(1)}
+                <span className="text-gray-400 ml-0.5">ms</span>
+              </span>
+            ) : tc.status === 'running' ? (
+              <span className="inline-flex items-center gap-1 text-xs" style={{ color: '#2563eb' }}>
+                <span className="inline-block w-1 h-1 rounded-full animate-pulse" style={{ background: '#2563eb' }} />
+                执行中...
+              </span>
+            ) : (
+              <span className="text-xs text-gray-300">-- ms</span>
+            )}
+          </div>
         </div>
 
-        {failed && (
-          <div className="mt-3 space-y-1.5 text-xs font-mono border-t border-red-100 pt-2">
+        {failed && tc.actual !== undefined && (
+          <div className="mt-3 space-y-1.5 text-xs font-mono border-t border-red-100 pt-2.5">
             <div className="flex gap-2">
-              <span className="text-gray-500 w-16 shrink-0">输入:</span>
-              <span className="text-gray-800">{result.input}</span>
+              <span className="text-gray-500 w-14 shrink-0">输入:</span>
+              <span className="text-gray-800">{tc.input}</span>
             </div>
             <div className="flex gap-2">
-              <span className="text-gray-500 w-16 shrink-0">期望:</span>
-              <span className="text-green-700">{result.expected}</span>
+              <span className="text-gray-500 w-14 shrink-0">期望:</span>
+              <span className="text-green-700">{tc.expected}</span>
             </div>
             <div className="flex gap-2">
-              <span className="text-gray-500 w-16 shrink-0">实际:</span>
-              <span className="text-red-700">{result.actual}</span>
+              <span className="text-gray-500 w-14 shrink-0">实际:</span>
+              <span className="text-red-700 break-all">{tc.actual}</span>
             </div>
-            {result.error && (
+            {tc.error && (
               <div className="flex gap-2">
-                <span className="text-gray-500 w-16 shrink-0">错误:</span>
-                <span className="text-red-600">{result.error}</span>
+                <span className="text-gray-500 w-14 shrink-0">错误:</span>
+                <span className="text-red-600">{tc.error}</span>
               </div>
             )}
-            {result.stackTrace && (
+            {tc.stackTrace && (
               <div className="flex gap-2">
-                <span className="text-gray-500 w-16 shrink-0">堆栈:</span>
-                <pre className="text-red-500 whitespace-pre-wrap text-[10px] leading-tight">
-                  {result.stackTrace}
+                <span className="text-gray-500 w-14 shrink-0">堆栈:</span>
+                <pre className="text-red-500 whitespace-pre-wrap text-[10px] leading-tight break-all max-h-20 overflow-auto">
+                  {tc.stackTrace}
                 </pre>
               </div>
             )}
