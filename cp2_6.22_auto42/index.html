@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>三维台风模拟与灾情可视化</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body { width: 100%; height: 100%; overflow: hidden; }
+    body {
+      background: radial-gradient(ellipse at top, #0a0a2e 0%, #1a1a3e 60%, #0d0d24 100%);
+      color: #e0e7ff;
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      font-feature-settings: "cv11" 0, "ss01" 0, "ss03" 0;
+      position: relative;
+    }
+    #starfield {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 0;
+      overflow: hidden;
+    }
+    #starfield span {
+      position: absolute;
+      width: 2px;
+      height: 2px;
+      background: #ffffff;
+      border-radius: 50%;
+      opacity: 0;
+      animation: twinkle 4s ease-in-out infinite;
+      box-shadow: 0 0 6px rgba(255,255,255,0.6);
+    }
+    @keyframes twinkle {
+      0%, 100% { opacity: 0.15; transform: scale(0.8); }
+      50% { opacity: 0.9; transform: scale(1.2); }
+    }
+    #app {
+      position: fixed;
+      inset: 0;
+      z-index: 1;
+    }
+    #scene-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    /* 顶部标题 */
+    .app-header {
+      position: fixed;
+      top: 24px;
+      left: 32px;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .app-title {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      background: linear-gradient(135deg, #00b4d8 0%, #90e0ef 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-shadow: 0 0 40px rgba(0, 180, 216, 0.3);
+    }
+    .app-subtitle {
+      margin-top: 4px;
+      font-size: 12px;
+      color: rgba(180, 200, 255, 0.55);
+      letter-spacing: 1px;
+    }
+    /* 响应式 */
+    @media (max-width: 1200px) {
+      .app-header { left: 20px; top: 16px; }
+      .app-title { font-size: 18px; }
+    }
+    @media (max-width: 768px) {
+      .app-header { left: 16px; top: 12px; }
+      .app-title { font-size: 15px; letter-spacing: 1px; }
+      .app-subtitle { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="starfield"></div>
+  <header class="app-header">
+    <div class="app-title">三维台风模拟与灾情可视化</div>
+    <div class="app-subtitle">3D TYPHOON SIMULATION · MAPPING THE STORM</div>
+  </header>
+  <div id="app">
+    <canvas id="scene-canvas"></canvas>
+  </div>
+
+  <script>
+    // 生成星空
+    (function generateStars() {
+      const field = document.getElementById('starfield');
+      if (!field) return;
+      const N = 140;
+      for (let i = 0; i < N; i++) {
+        const s = document.createElement('span');
+        const x = Math.random() * 100;
+        const y = Math.random() * 100;
+        const size = Math.random() * 1.8 + 0.6;
+        const delay = Math.random() * 4;
+        const duration = 3 + Math.random() * 4;
+        s.style.left = x + '%';
+        s.style.top = y + '%';
+        s.style.width = size + 'px';
+        s.style.height = size + 'px';
+        s.style.animationDelay = delay + 's';
+        s.style.animationDuration = duration + 's';
+        field.appendChild(s);
+      }
+    })();
+  </script>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
