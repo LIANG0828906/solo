@@ -226,9 +226,9 @@ export function createGalaxy(
     const randY = Math.pow(Math.random(), randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * randomness * r * 0.3;
     const randZ = Math.pow(Math.random(), randomnessPower) * (Math.random() < 0.5 ? 1 : -1) * randomness * r;
     
-    positions[i3] = position.x + Math.cos(angle) * r + randX;
-    positions[i3 + 1] = position.y + randY;
-    positions[i3 + 2] = position.z + Math.sin(angle) * r + randZ;
+    positions[i3] = Math.cos(angle) * r + randX;
+    positions[i3 + 1] = randY;
+    positions[i3 + 2] = Math.sin(angle) * r + randZ;
     
     const rand = Math.random();
     let starType: number;

@@ -44,28 +44,32 @@ export function computeEnergy(
     kinetic += 0.5 * galaxy2.masses[i] * (vx * vx + vy * vy + vz * vz);
   }
 
-  const dx = galaxy2.corePosition.x - galaxy1.corePosition.x;
-  const dy = galaxy2.corePosition.y - galaxy1.corePosition.y;
-  const dz = galaxy2.corePosition.z - galaxy1.corePosition.z;
-  const interDist = Math.sqrt(dx * dx + dy * dy + dz * dz + SOFTENING * SOFTENING);
-  potential -= G * galaxy1.mass * galaxy2.mass / interDist;
+  const interDist = galaxy1.corePosition.distanceTo(galaxy2.corePosition);
+  const interDistSoftened = Math.sqrt(interDist * interDist + SOFTENING * SOFTENING);
+  potential -= G * galaxy1.mass * galaxy2.mass / interDistSoftened;
 
   for (let i = 0; i < count1; i++) {
     const i3 = i * 3;
-    const rdx = galaxy1.positions[i3];
-    const rdy = galaxy1.positions[i3 + 1];
-    const rdz = galaxy1.positions[i3 + 2];
-    const rDist = Math.sqrt(rdx * rdx + rdy * rdy + rdz * rdz + SOFTENING * SOFTENING);
-    potential -= G * galaxy1.mass * galaxy1.masses[i] / rDist;
+    const rx = galaxy1.positions[i3];
+    const ry = galaxy1.positions[i3 + 1];
+    const rz = galaxy1.positions[i3 + 2];
+    const rSq = rx * rx + ry * ry + rz * rz;
+    const r = Math.sqrt(rSq + SOFTENING * SOFTENING);
+    const innerMassRatio = Math.min(1, Math.sqrt(rSq) / 40);
+    const effectiveMass = galaxy1.mass * innerMassRatio * innerMassRatio;
+    potential -= G * effectiveMass * galaxy1.masses[i] / r;
   }
 
   for (let i = 0; i < count2; i++) {
     const i3 = i * 3;
-    const rdx = galaxy2.positions[i3];
-    const rdy = galaxy2.positions[i3 + 1];
-    const rdz = galaxy2.positions[i3 + 2];
-    const rDist = Math.sqrt(rdx * rdx + rdy * rdy + rdz * rdz + SOFTENING * SOFTENING);
-    potential -= G * galaxy2.mass * galaxy2.masses[i] / rDist;
+    const rx = galaxy2.positions[i3];
+    const ry = galaxy2.positions[i3 + 1];
+    const rz = galaxy2.positions[i3 + 2];
+    const rSq = rx * rx + ry * ry + rz * rz;
+    const r = Math.sqrt(rSq + SOFTENING * SOFTENING);
+    const innerMassRatio = Math.min(1, Math.sqrt(rSq) / 40);
+    const effectiveMass = galaxy2.mass * innerMassRatio * innerMassRatio;
+    potential -= G * effectiveMass * galaxy2.masses[i] / r;
   }
 
   return {

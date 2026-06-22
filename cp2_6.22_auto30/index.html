@@ -326,84 +326,138 @@
 
     @media (max-width: 768px) {
       .control-panel {
+        position: absolute;
         width: calc(100% - 20px);
-        max-height: 35vh;
+        max-height: 38vh;
         top: 10px;
         left: 10px;
-        padding: 14px;
+        padding: 12px 14px;
         -webkit-overflow-scrolling: touch;
         overscroll-behavior: contain;
+        z-index: 20;
       }
 
       .slider {
-        height: 8px;
+        height: 10px;
       }
 
       .slider::-webkit-slider-thumb {
-        width: 22px;
-        height: 22px;
+        width: 26px;
+        height: 26px;
       }
 
       .slider::-moz-range-thumb {
-        width: 24px;
-        height: 24px;
+        width: 28px;
+        height: 28px;
       }
 
       .btn {
-        padding: 12px 14px;
-        font-size: 13px;
+        padding: 14px 16px;
+        font-size: 14px;
+        min-width: 80px;
       }
 
       .stats-panel {
+        position: absolute;
         top: auto;
-        bottom: 120px;
+        bottom: 80px;
         right: 10px;
-        left: auto;
-        min-width: 150px;
-        padding: 12px 14px;
+        left: 10px;
+        width: calc(100% - 20px);
+        min-width: auto;
+        padding: 10px 14px;
+        z-index: 15;
+      }
+
+      .stats-panel .stats-title {
+        display: none;
+      }
+
+      .stats-panel {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 4px 12px;
+      }
+
+      .stats-panel .stat-item {
+        margin: 4px 0;
       }
 
       .timeline-container {
+        position: absolute;
         width: calc(100% - 20px);
         bottom: 10px;
         left: 10px;
         transform: none;
-        padding: 10px 14px;
+        padding: 10px 12px;
+        z-index: 20;
       }
 
       .timeline-controls {
         flex-wrap: wrap;
         gap: 8px;
+        row-gap: 6px;
+      }
+
+      .timeline-btn {
+        width: 42px;
+        height: 42px;
+        font-size: 16px;
+        flex-shrink: 0;
       }
 
       .time-display {
-        min-width: 80px;
-        font-size: 11px;
+        min-width: 70px;
+        font-size: 12px;
+        flex-shrink: 0;
+      }
+
+      .timeline-slider {
+        order: 10;
+        flex-basis: 100%;
+        width: 100%;
       }
 
       .speed-btns {
         width: 100%;
         justify-content: center;
+        order: 11;
       }
 
       .speed-btn {
-        padding: 6px 10px;
-        font-size: 12px;
+        padding: 8px 14px;
+        font-size: 13px;
+        flex: 1;
       }
 
       .panel-title {
-        font-size: 16px;
+        font-size: 15px;
+        margin-bottom: 14px;
       }
 
       .section-title {
+        font-size: 11px;
+        margin: 12px 0 8px;
+      }
+
+      .control-group {
+        margin-bottom: 12px;
+      }
+
+      .control-label {
+        font-size: 12px;
+        margin-bottom: 8px;
+      }
+
+      .stat-item {
         font-size: 12px;
       }
     }
 
     @media (max-width: 480px) {
       .control-panel {
-        max-height: 30vh;
-        padding: 10px;
+        max-height: 34vh;
+        padding: 10px 12px;
       }
 
       .control-label {
@@ -412,6 +466,20 @@
 
       .stat-item {
         font-size: 11px;
+      }
+
+      .timeline-container {
+        padding: 8px 10px;
+      }
+
+      .timeline-btn {
+        width: 40px;
+        height: 40px;
+      }
+
+      .time-display {
+        font-size: 11px;
+        min-width: 60px;
       }
     }
   </style>

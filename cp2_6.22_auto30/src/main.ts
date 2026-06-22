@@ -55,6 +55,7 @@ class GalaxySimulator {
   private lastKeyframeTime: number = -Infinity;
   private maxKeyframes: number = 20;
   private isSeeking: boolean = false;
+  private controlsTarget: THREE.Vector3 = new THREE.Vector3(0, 0, 0);
 
   private initialGalaxy1Pos!: Float32Array;
   private initialGalaxy1Vel!: Float32Array;
@@ -96,6 +97,7 @@ class GalaxySimulator {
     this.controls.dampingFactor = 0.05;
     this.controls.minDistance = 30;
     this.controls.maxDistance = 500;
+    this.controls.target.copy(this.controlsTarget);
     this.controls.touches = {
       ONE: THREE.TOUCH.ROTATE,
       TWO: THREE.TOUCH.DOLLY_PAN
@@ -444,12 +446,10 @@ class GalaxySimulator {
     const panel = document.getElementById('control-panel');
     if (!panel) return;
 
-    let touchStartY = 0;
     let isTouchingPanel = false;
 
     panel.addEventListener('touchstart', (e) => {
       isTouchingPanel = true;
-      touchStartY = e.touches[0].clientY;
       e.stopPropagation();
     }, { passive: true });
 
@@ -463,6 +463,10 @@ class GalaxySimulator {
       isTouchingPanel = false;
     }, { passive: true });
 
+    panel.addEventListener('touchcancel', () => {
+      isTouchingPanel = false;
+    }, { passive: true });
+
     const sliders = panel.querySelectorAll('.slider');
     sliders.forEach(slider => {
       slider.addEventListener('touchstart', (e) => {
@@ -471,39 +475,107 @@ class GalaxySimulator {
       slider.addEventListener('touchmove', (e) => {
         e.stopPropagation();
       }, { passive: true });
+      slider.addEventListener('touchend', (e) => {
+        e.stopPropagation();
+      }, { passive: true });
     });
+
+    const btns = panel.querySelectorAll('button');
+    btns.forEach(btn => {
+      btn.addEventListener('touchstart', (e) => {
+        e.stopPropagation();
+      }, { passive: true });
+    });
+
+    const timeline = document.querySelector('.timeline-container');
+    if (timeline) {
+      timeline.addEventListener('touchstart', (e) => {
+        e.stopPropagation();
+      }, { passive: true });
+      timeline.addEventListener('touchmove', (e) => {
+        e.stopPropagation();
+      }, { passive: true });
+
+      const timelineSliders = timeline.querySelectorAll('.slider');
+      timelineSliders.forEach(slider => {
+        slider.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+        slider.addEventListener('touchmove', (e) => e.stopPropagation(), { passive: true });
+      });
+
+      const timelineBtns = timeline.querySelectorAll('button');
+      timelineBtns.forEach(btn => {
+        btn.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+      });
+    }
 
     const canvas = this.renderer.domElement;
     canvas.style.touchAction = 'none';
 
-    let pinchStartDist = 0;
-    let pinchStartZoom = 0;
+    let lastTouchX = 0;
+    let lastTouchY = 0;
+    let lastPinchDist = 0;
+    let pinchStartCameraDist = 0;
+
+    const updateTargetFromGalaxies = () => {
+      const midX = (this.galaxy1.corePosition.x + this.galaxy2.corePosition.x) * 0.5;
+      const midY = (this.galaxy1.corePosition.y + this.galaxy2.corePosition.y) * 0.5;
+      const midZ = (this.galaxy1.corePosition.z + this.galaxy2.corePosition.z) * 0.5;
+      this.controlsTarget.set(midX, midY, midZ);
+      this.controls.target.lerp(this.controlsTarget, 0.05);
+    };
 
     canvas.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 2) {
+      if (e.touches.length === 1) {
+        lastTouchX = e.touches[0].clientX;
+        lastTouchY = e.touches[0].clientY;
+      } else if (e.touches.length === 2) {
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
-        pinchStartDist = Math.sqrt(dx * dx + dy * dy);
-        pinchStartZoom = this.camera.position.length();
+        lastPinchDist = Math.sqrt(dx * dx + dy * dy);
+        pinchStartCameraDist = this.camera.position.length();
       }
+      updateTargetFromGalaxies();
     }, { passive: true });
 
     canvas.addEventListener('touchmove', (e) => {
-      if (e.touches.length === 2) {
+      if (e.touches.length === 1) {
+        const dx = e.touches[0].clientX - lastTouchX;
+        const dy = e.touches[0].clientY - lastTouchY;
+        lastTouchX = e.touches[0].clientX;
+        lastTouchY = e.touches[0].clientY;
+
+        const rotSpeed = 0.005;
+        const spherical = new THREE.Spherical();
+        spherical.setFromVector3(this.camera.position.clone().sub(this.controls.target));
+        spherical.theta -= dx * rotSpeed;
+        spherical.phi -= dy * rotSpeed;
+        spherical.phi = Math.max(0.05, Math.min(Math.PI - 0.05, spherical.phi));
+        const newPos = new THREE.Vector3().setFromSpherical(spherical).add(this.controls.target);
+        this.camera.position.copy(newPos);
+        this.camera.lookAt(this.controls.target);
+        this.controls.update();
+      } else if (e.touches.length === 2) {
         const dx = e.touches[0].clientX - e.touches[1].clientX;
         const dy = e.touches[0].clientY - e.touches[1].clientY;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        if (pinchStartDist > 0) {
-          const scale = pinchStartDist / dist;
-          const newDist = pinchStartZoom * scale;
+        if (lastPinchDist > 0) {
+          const scale = lastPinchDist / dist;
+          const newDist = pinchStartCameraDist * scale;
           const clampedDist = Math.max(30, Math.min(500, newDist));
-          this.camera.position.normalize().multiplyScalar(clampedDist);
+          const dir = this.camera.position.clone().sub(this.controls.target).normalize();
+          this.camera.position.copy(this.controls.target.clone().add(dir.multiplyScalar(clampedDist)));
+          this.camera.lookAt(this.controls.target);
+          this.controls.update();
         }
       }
     }, { passive: true });
 
     canvas.addEventListener('touchend', () => {
-      pinchStartDist = 0;
+      lastPinchDist = 0;
+    }, { passive: true });
+
+    canvas.addEventListener('touchcancel', () => {
+      lastPinchDist = 0;
     }, { passive: true });
   }
 
@@ -549,8 +621,16 @@ class GalaxySimulator {
     }
 
     this.heatmapFrameCounter++;
-    if (this.heatmapFrameCounter % 6 === 0) {
+    if (this.heatmapFrameCounter % 3 === 0) {
       this.updateDynamicVisuals();
+    }
+
+    if (!this.isSeeking) {
+      const midX = (this.galaxy1.corePosition.x + this.galaxy2.corePosition.x) * 0.5;
+      const midY = (this.galaxy1.corePosition.y + this.galaxy2.corePosition.y) * 0.5;
+      const midZ = (this.galaxy1.corePosition.z + this.galaxy2.corePosition.z) * 0.5;
+      this.controlsTarget.set(midX, midY, midZ);
+      this.controls.target.lerp(this.controlsTarget, 0.02);
     }
 
     const stats: EnergyStats = computeEnergy(this.galaxy1, this.galaxy2);
