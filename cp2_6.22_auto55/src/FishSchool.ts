@@ -29,13 +29,15 @@ export class FishSchool {
   public activeRegionInfo: RegionInfo | null = null;
   private infoTimer = 0;
   private selectedFishIdx = -1;
-  private readonly BOUNDS = 80;
+  private readonly BOUNDS_XZ = 75;
   private readonly GROUND_CLEARANCE = 1.5;
   private readonly CEILING = 22;
   private tmpV1 = new THREE.Vector3();
   private tmpV2 = new THREE.Vector3();
   private tmpV3 = new THREE.Vector3();
   private tmpV4 = new THREE.Vector3();
+  private tmpV5 = new THREE.Vector3();
+  private tmpV6 = new THREE.Vector3();
   private raycaster = new THREE.Raycaster();
 
   constructor(scene: THREE.Scene, count: number, corals: CoralData[]) {
@@ -49,9 +51,9 @@ export class FishSchool {
     for (let i = 0; i < this.count; i++) {
       const species = i % 5;
       const pos = new THREE.Vector3(
-        (Math.random() - 0.5) * this.BOUNDS * 1.2,
+        (Math.random() - 0.5) * this.BOUNDS_XZ * 1.1,
         3 + Math.random() * 12,
-        (Math.random() - 0.5) * this.BOUNDS * 1.2,
+        (Math.random() - 0.5) * this.BOUNDS_XZ * 1.1,
       );
       const dir = new THREE.Vector3(
         Math.random() - 0.5,
@@ -93,55 +95,122 @@ export class FishSchool {
 
   private buildFish(species: number, color: THREE.Color): THREE.Group {
     const g = new THREE.Group();
-    const bodyGeo = species === 3
-      ? new THREE.SphereGeometry(0.32, 12, 8)
-      : species === 1
-        ? new THREE.SphereGeometry(0.28, 10, 7)
-        : new THREE.ConeGeometry(0.22, 0.7, 8);
-    if (species !== 3 && species !== 1) bodyGeo.rotateY(Math.PI / 2);
     const bodyMat = new THREE.MeshStandardMaterial({ color, roughness: 0.35, metalness: 0.1 });
-    const body = new THREE.Mesh(bodyGeo, bodyMat);
-    if (species === 3) body.scale.set(1.6, 0.9, 1);
-    else if (species === 1) body.scale.set(1.3, 0.85, 1);
-    body.castShadow = true;
-    g.add(body);
 
-    const tailGeo = new THREE.ConeGeometry(0.22, 0.35, 4);
+    switch (species) {
+      case 0: {
+        const bodyGeo = new THREE.ConeGeometry(0.22, 0.75, 8);
+        bodyGeo.rotateY(Math.PI / 2);
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.castShadow = true;
+        g.add(body);
+        break;
+      }
+      case 1: {
+        const bodyGeo = new THREE.SphereGeometry(0.3, 12, 8);
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.scale.set(1.35, 0.82, 1);
+        body.castShadow = true;
+        g.add(body);
+        const stripeColor = new THREE.Color(0xffffff);
+        const stripeMat = new THREE.MeshStandardMaterial({ color: stripeColor, roughness: 0.4 });
+        for (let i = 0; i < 4; i++) {
+          const r = 0.24 - i * 0.035;
+          const stripe = new THREE.Mesh(
+            new THREE.TorusGeometry(r, 0.028, 6, 12),
+            stripeMat,
+          );
+          stripe.rotation.y = Math.PI / 2;
+          stripe.position.x = -0.18 + i * 0.085;
+          g.add(stripe);
+        }
+        break;
+      }
+      case 2: {
+        const bodyGeo = new THREE.ConeGeometry(0.2, 0.8, 8);
+        bodyGeo.rotateY(Math.PI / 2);
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.scale.set(1, 0.85, 0.75);
+        body.castShadow = true;
+        g.add(body);
+        const stripeColor = new THREE.Color(0x1a5570);
+        const stripeMat = new THREE.MeshStandardMaterial({ color: stripeColor, roughness: 0.4 });
+        for (let i = 0; i < 3; i++) {
+          const sg = new THREE.BoxGeometry(0.02, 0.42, 0.02);
+          const stripe = new THREE.Mesh(sg, stripeMat);
+          stripe.position.set(-0.05 + i * 0.08, 0, 0.2);
+          g.add(stripe);
+          const stripe2 = stripe.clone();
+          stripe2.position.z = -0.2;
+          g.add(stripe2);
+        }
+        break;
+      }
+      case 3: {
+        const bodyGeo = new THREE.SphereGeometry(0.33, 14, 10);
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.scale.set(1.55, 0.9, 1.05);
+        body.castShadow = true;
+        g.add(body);
+        const stripeColor = new THREE.Color(0xffffff);
+        const stripeMat = new THREE.MeshStandardMaterial({ color: stripeColor, roughness: 0.4 });
+        for (let i = 0; i < 5; i++) {
+          const r = 0.29 - i * 0.042;
+          const stripe = new THREE.Mesh(
+            new THREE.TorusGeometry(r, 0.026, 6, 12),
+            stripeMat,
+          );
+          stripe.rotation.y = Math.PI / 2;
+          stripe.position.x = -0.2 + i * 0.105;
+          g.add(stripe);
+        }
+        break;
+      }
+      case 4: {
+        const bodyGeo = new THREE.ConeGeometry(0.24, 0.68, 6);
+        bodyGeo.rotateY(Math.PI / 2);
+        const body = new THREE.Mesh(bodyGeo, bodyMat);
+        body.scale.set(1, 1.1, 0.8);
+        body.castShadow = true;
+        g.add(body);
+        break;
+      }
+    }
+
+    const tailGeo = new THREE.ConeGeometry(0.24, 0.38, 4);
     tailGeo.rotateZ(Math.PI / 2);
     const tail = new THREE.Mesh(tailGeo, bodyMat);
-    tail.position.x = -0.35 - (species === 3 ? 0.15 : 0);
+    tail.position.x = -0.38 - (species === 3 ? 0.18 : species === 1 ? 0.1 : 0);
     tail.name = 'tail';
     tail.castShadow = true;
     g.add(tail);
 
-    if (species === 1 || species === 3) {
-      const stripeColor = new THREE.Color(0xffffff);
-      for (let i = 0; i < (species === 1 ? 4 : 5); i++) {
-        const stripe = new THREE.Mesh(
-          new THREE.TorusGeometry(species === 3 ? 0.28 - i * 0.04 : 0.24 - i * 0.03, 0.025, 5, 10),
-          new THREE.MeshStandardMaterial({ color: stripeColor, roughness: 0.4 }),
-        );
-        stripe.rotation.y = Math.PI / 2;
-        stripe.position.x = -0.15 + i * (species === 3 ? 0.1 : 0.08);
-        g.add(stripe);
-      }
-    }
-
-    const eyeGeo = new THREE.SphereGeometry(0.03, 6, 5);
+    const eyeGeo = new THREE.SphereGeometry(0.032, 7, 6);
     const eyeMat = new THREE.MeshBasicMaterial({ color: 0x0a0a0a });
     const eye1 = new THREE.Mesh(eyeGeo, eyeMat);
     const eye2 = new THREE.Mesh(eyeGeo, eyeMat);
-    eye1.position.set(0.2, 0.08, 0.12);
-    eye2.position.set(0.2, 0.08, -0.12);
+    eye1.position.set(0.22, 0.09, 0.13);
+    eye2.position.set(0.22, 0.09, -0.13);
     g.add(eye1);
     g.add(eye2);
 
-    const finGeo = new THREE.ConeGeometry(0.12, 0.25, 4);
+    const finGeo = new THREE.ConeGeometry(0.13, 0.28, 4);
     const topFin = new THREE.Mesh(finGeo, bodyMat);
     topFin.rotation.z = -Math.PI / 6;
-    topFin.position.set(-0.02, 0.22, 0);
+    topFin.position.set(-0.03, 0.24, 0);
     topFin.castShadow = true;
     g.add(topFin);
+
+    const sideFinGeo = new THREE.ConeGeometry(0.09, 0.2, 3);
+    const sideFin1 = new THREE.Mesh(sideFinGeo, bodyMat);
+    sideFin1.rotation.set(Math.PI / 3, 0, -Math.PI / 2.5);
+    sideFin1.position.set(-0.05, 0.02, 0.18);
+    sideFin1.castShadow = true;
+    g.add(sideFin1);
+    const sideFin2 = sideFin1.clone();
+    sideFin2.rotation.set(-Math.PI / 3, 0, Math.PI / 2.5);
+    sideFin2.position.z = -0.18;
+    g.add(sideFin2);
 
     return g;
   }
@@ -177,9 +246,10 @@ export class FishSchool {
       if (of.position.distanceTo(center) < scatterRadius) {
         of.scattering = true;
         of.scatterTimer = Math.max(of.scatterTimer, 0.8 + Math.random() * 1.0);
-        const away = of.position.clone().sub(center).normalize();
-        if (away.lengthSq() < 0.001) away.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5).normalize();
-        of.acceleration.add(away.multiplyScalar(18 + Math.random() * 10));
+        const away = of.position.clone().sub(center);
+        if (away.lengthSq() < 0.001) away.set(Math.random() - 0.5, Math.random() - 0.5, Math.random() - 0.5);
+        away.normalize();
+        of.acceleration.add(away.multiplyScalar(20 + Math.random() * 8));
       }
     }
     const regionInfo = this.computeRegionInfo(center);
@@ -196,9 +266,11 @@ export class FishSchool {
     }
     const area = Math.PI * sampleRadius * sampleRadius;
     const density = (nearCorals / area) * 1000;
+    const depth = this.CEILING - pos.y;
+    const depthFactor = depth / this.CEILING;
     const baseTemp = 22.5;
-    const temp = baseTemp + (pos.y - 10) * 0.15 + Math.sin(pos.x * 0.05) * 0.6 + Math.cos(pos.z * 0.07) * 0.4;
-    const nutri = 40 + (1 - Math.min(1, pos.y / 20)) * 40 + Math.sin(pos.x * 0.03 + pos.z * 0.02) * 15;
+    const temp = baseTemp + depthFactor * 2.8 + Math.sin(pos.x * 0.05) * 0.6 + Math.cos(pos.z * 0.07) * 0.4;
+    const nutri = 40 + depthFactor * 35 + Math.sin(pos.x * 0.03 + pos.z * 0.02) * 15;
     return {
       coralDensity: Math.max(0, density),
       temperature: Math.round(temp * 10) / 10,
@@ -212,11 +284,11 @@ export class FishSchool {
       this.infoTimer -= dt;
       if (this.infoTimer <= 0) this.activeRegionInfo = null;
     }
-    const speedMul = 0.5 + (params.currentSpeed / 5) * 1.6;
+
     const sepR = 3.0;
     const alignR = 5.5;
     const cohR = 6.5;
-    const maxSpeed = (4.5 + params.currentSpeed * 0.7) * speedMul * 0.55;
+    const maxSpeed = 4.5 + params.currentSpeed * 0.7;
     const maxForce = 2.8;
 
     for (let i = 0; i < this.fishes.length; i++) {
@@ -231,8 +303,8 @@ export class FishSchool {
         const o = this.fishes[j];
         const d = f.position.distanceTo(o.position);
         if (d < sepR && d > 0.0001) {
-          const diff = f.position.clone().sub(o.position).normalize().divideScalar(d);
-          this.tmpV1.add(diff);
+          this.tmpV4.copy(f.position).sub(o.position);
+          this.tmpV1.add(this.tmpV4);
           sepCount++;
         }
         if (d < alignR) {
@@ -245,13 +317,35 @@ export class FishSchool {
         }
       }
 
-      const finalSep = sepCount > 0 ? this.tmpV1.divideScalar(sepCount) : new THREE.Vector3();
-      const finalAlign = alignCount > 0 ? this.tmpV2.divideScalar(alignCount).sub(f.velocity) : new THREE.Vector3();
-      const finalCoh = cohCount > 0 ? this.tmpV3.divideScalar(cohCount).sub(f.position) : new THREE.Vector3();
+      const finalSep = new THREE.Vector3();
+      if (sepCount > 0) {
+        this.tmpV1.divideScalar(sepCount);
+        if (this.tmpV1.lengthSq() > 0) {
+          this.tmpV1.normalize().multiplyScalar(maxSpeed).sub(f.velocity);
+          this.tmpV1.clampLength(0, maxForce * 1.4);
+          finalSep.copy(this.tmpV1);
+        }
+      }
 
-      if (finalSep.lengthSq() > 0) finalSep.normalize().multiplyScalar(maxSpeed).sub(f.velocity).clampLength(0, maxForce * 1.4);
-      if (finalAlign.lengthSq() > 0) finalAlign.normalize().multiplyScalar(maxSpeed).sub(f.velocity).clampLength(0, maxForce * 0.9);
-      if (finalCoh.lengthSq() > 0) finalCoh.normalize().multiplyScalar(maxSpeed).sub(f.velocity).clampLength(0, maxForce * 0.85);
+      const finalAlign = new THREE.Vector3();
+      if (alignCount > 0) {
+        this.tmpV2.divideScalar(alignCount).sub(f.velocity);
+        if (this.tmpV2.lengthSq() > 0) {
+          this.tmpV2.normalize().multiplyScalar(maxSpeed).sub(f.velocity);
+          this.tmpV2.clampLength(0, maxForce);
+          finalAlign.copy(this.tmpV2);
+        }
+      }
+
+      const finalCoh = new THREE.Vector3();
+      if (cohCount > 0) {
+        this.tmpV3.divideScalar(cohCount).sub(f.position);
+        if (this.tmpV3.lengthSq() > 0) {
+          this.tmpV3.normalize().multiplyScalar(maxSpeed).sub(f.velocity);
+          this.tmpV3.clampLength(0, maxForce);
+          finalCoh.copy(this.tmpV3);
+        }
+      }
 
       const sepW = f.scattering ? 2.8 : 1.6;
       const alignW = f.scattering ? 0.2 : 1.0;
@@ -281,8 +375,8 @@ export class FishSchool {
       f.mesh.position.copy(f.position);
 
       if (f.velocity.lengthSq() > 0.001) {
-        const lookAt = f.position.clone().add(f.velocity);
-        f.mesh.lookAt(lookAt);
+        this.tmpV6.copy(f.position).add(f.velocity);
+        f.mesh.lookAt(this.tmpV6);
       }
 
       const tail = f.mesh.getObjectByName('tail');
@@ -318,11 +412,11 @@ export class FishSchool {
   private boundaryForce(f: Fish): THREE.Vector3 {
     const force = new THREE.Vector3();
     const margin = 5;
-    const inner = this.BOUNDS - margin;
-    if (f.position.x > inner) force.x = -(f.position.x - inner) * 1.5;
-    if (f.position.x < -inner) force.x = -(f.position.x + inner) * 1.5;
-    if (f.position.z > inner) force.z = -(f.position.z - inner) * 1.5;
-    if (f.position.z < -inner) force.z = -(f.position.z + inner) * 1.5;
+    const innerXZ = this.BOUNDS_XZ - margin;
+    if (f.position.x > innerXZ) force.x = -(f.position.x - innerXZ) * 1.5;
+    if (f.position.x < -innerXZ) force.x = -(f.position.x + innerXZ) * 1.5;
+    if (f.position.z > innerXZ) force.z = -(f.position.z - innerXZ) * 1.5;
+    if (f.position.z < -innerXZ) force.z = -(f.position.z + innerXZ) * 1.5;
     if (f.position.y > this.CEILING - margin) force.y = -(f.position.y - (this.CEILING - margin)) * 1.5;
     if (f.position.y < this.GROUND_CLEARANCE + margin) force.y = (this.GROUND_CLEARANCE + margin - f.position.y) * 2.0;
     return force;

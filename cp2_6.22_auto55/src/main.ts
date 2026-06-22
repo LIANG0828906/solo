@@ -33,11 +33,7 @@ class App {
   private init(): void {
     const container = document.getElementById('canvas-container')!;
 
-    this.renderer = new THREE.WebGLRenderer({
-      antialias: true,
-      alpha: false,
-      powerPreference: 'high-performance',
-    });
+    this.renderer = new THREE.WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.shadowMap.enabled = true;
@@ -105,8 +101,10 @@ class App {
   }
 
   private onPointerDown(event: PointerEvent): void {
-    this.pointer.x = (event.clientX / window.innerWidth) * 2 - 1;
-    this.pointer.y = -(event.clientY / window.innerHeight) * 2 + 1;
+    const width = this.rendererSize.x;
+    const height = this.rendererSize.y;
+    this.pointer.x = (event.clientX / width) * 2 - 1;
+    this.pointer.y = -(event.clientY / height) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.camera);
     const intersects = this.raycaster.intersectObjects(this.fishClickables, false);
     if (intersects.length > 0) {
@@ -115,21 +113,21 @@ class App {
   }
 
   private smoothParams(dt: number): void {
-    const lerp = Math.min(1, dt * 2.2);
+    const lerpFactor = Math.min(1, dt * 2.2);
     this.smoothedParams.currentSpeed = THREE.MathUtils.lerp(
       this.smoothedParams.currentSpeed,
       this.DEFAULT_PARAMS.currentSpeed,
-      lerp,
+      lerpFactor,
     );
     this.smoothedParams.lightIntensity = THREE.MathUtils.lerp(
       this.smoothedParams.lightIntensity,
       this.DEFAULT_PARAMS.lightIntensity,
-      lerp,
+      lerpFactor,
     );
     this.smoothedParams.nutrientLevel = THREE.MathUtils.lerp(
       this.smoothedParams.nutrientLevel,
       this.DEFAULT_PARAMS.nutrientLevel,
-      lerp,
+      lerpFactor,
     );
   }
 
@@ -139,15 +137,15 @@ class App {
     const time = this.clock.elapsedTime;
 
     this.smoothParams(dt);
-    const p = this.smoothedParams;
+    const params = this.smoothedParams;
 
     this.controls.update();
-    this.sceneInit.updateParticles(time, p.currentSpeed);
-    this.sceneInit.updateLighting(p);
-    this.coralGen.update(time, p);
-    this.fishSchool.update(time, dt, p);
+    this.sceneInit.updateParticles(time, params.currentSpeed);
+    this.sceneInit.updateLighting(params);
+    this.coralGen.update(time, params);
+    this.fishSchool.update(time, dt, params);
     this.controlPanel.updateScore(dt);
-    this.controlPanel.setFPS(1 / Math.max(0.0001, dt));
+    this.controlPanel.setFPS(1 / dt);
     this.controlPanel.updateInfoPanel(
       this.fishSchool.activeRegionInfo,
       this.camera,
