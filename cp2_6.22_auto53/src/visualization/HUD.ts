@@ -68,11 +68,49 @@ export class HUD {
   private orbitParams: OrbitParams | null = null;
   private orbitPos: OrbitPosition | null = null;
   private frameVisible = false;
+  private resizeObserver: ResizeObserver | null = null;
+  private warningTimeout: number | null = null;
+
+  private styleObjToString(obj: Record<string, string>): string {
+    return Object.entries(obj)
+      .map(([key, value]) => {
+        const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+        return `${cssKey}: ${value};`;
+      })
+      .join(' ');
+  }
+
+  private setStyle(el: HTMLElement, styles: Record<string, string>): void {
+    for (const key in styles) {
+      (el.style as any)[key] = styles[key];
+    }
+  }
+
+  private setupCanvasResize(canvas: HTMLCanvasElement, container: HTMLElement): void {
+    const updateCanvasSize = () => {
+      const dpr = window.devicePixelRatio || 1;
+      const rect = container.getBoundingClientRect();
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      (canvas as any).cssWidth = rect.width;
+      (canvas as any).cssHeight = rect.height;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.scale(dpr, dpr);
+      }
+    };
+    updateCanvasSize();
+    const observer = new ResizeObserver(updateCanvasSize);
+    observer.observe(container);
+    if (!this.resizeObserver) {
+      this.resizeObserver = observer;
+    }
+  }
 
   constructor(rootContainer: HTMLElement) {
     this.container = rootContainer;
     this.hudContainer = document.createElement('div');
-    Object.assign(this.hudContainer.style, {
+    this.setStyle(this.hudContainer, {
       position: 'fixed',
       top: '0', left: '0',
       width: '100%', height: '100%',
@@ -83,7 +121,7 @@ export class HUD {
     });
 
     const topBar = document.createElement('div');
-    Object.assign(topBar.style, {
+    this.setStyle(topBar, {
       position: 'absolute',
       top: '16px', left: '50%',
       transform: 'translateX(-50%)',
@@ -96,8 +134,6 @@ export class HUD {
 
     this.distanceEl = document.createElement('div');
     this.distanceGauge = document.createElement('canvas');
-    this.distanceGauge.width = 120;
-    this.distanceGauge.height = 70;
     this.distanceCtx = this.distanceGauge.getContext('2d')!;
 
     this.velocityEl = document.createElement('div');
@@ -106,14 +142,10 @@ export class HUD {
 
     this.axialEl = document.createElement('div');
     this.axialGauge = document.createElement('canvas');
-    this.axialGauge.width = 120;
-    this.axialGauge.height = 70;
     this.axialCtx = this.axialGauge.getContext('2d')!;
 
     this.rollEl = document.createElement('div');
     this.rollGauge = document.createElement('canvas');
-    this.rollGauge.width = 120;
-    this.rollGauge.height = 70;
     this.rollCtx = this.rollGauge.getContext('2d')!;
 
     const distanceCard = this.createGaugeCard(
@@ -138,10 +170,9 @@ export class HUD {
     topBar.appendChild(axialCard);
     topBar.appendChild(rollCard);
     this.hudContainer.appendChild(topBar);
-    console.log('[DEBUG] topBar created, 4 cards added');
 
     this.dockingFrame = document.createElement('div');
-    Object.assign(this.dockingFrame.style, {
+    this.setStyle(this.dockingFrame, {
       position: 'absolute',
       top: '50%', left: '50%',
       transform: 'translate(-50%, -50%)',
@@ -161,7 +192,7 @@ export class HUD {
       if (pos === 'topRight') { s.top = '0'; s.right = '0'; s.borderLeft = 'none'; s.borderBottom = 'none'; }
       if (pos === 'bottomLeft') { s.bottom = '0'; s.left = '0'; s.borderRight = 'none'; s.borderTop = 'none'; }
       if (pos === 'bottomRight') { s.bottom = '0'; s.right = '0'; s.borderLeft = 'none'; s.borderTop = 'none'; }
-      Object.assign(el.style, s);
+      this.setStyle(el, s);
       return el;
     };
 
@@ -173,17 +204,16 @@ export class HUD {
     this.dockingFrame.appendChild(this.frameTopRight);
     this.dockingFrame.appendChild(this.frameBottomLeft);
     this.dockingFrame.appendChild(this.frameBottomRight);
-    console.log('[DEBUG] corners created, about to create scale labels');
 
     this.frameScaleBgTL = document.createElement('div');
-    Object.assign(this.frameScaleBgTL.style, {
+    this.setStyle(this.frameScaleBgTL, Object.assign({}, {
       position: 'absolute',
       top: '-28px', left: '-12px',
       padding: '4px 10px',
       pointerEvents: 'none'
-    }, darkBgStyle);
+    }, darkBgStyle));
     this.frameScaleLabelTL = document.createElement('div');
-    Object.assign(this.frameScaleLabelTL.style, {
+    this.setStyle(this.frameScaleLabelTL, {
       fontSize: '12px',
       color: '#fff',
       fontFamily: 'monospace',
@@ -197,15 +227,14 @@ export class HUD {
     this.dockingFrame.appendChild(this.frameScaleBgTL);
 
     this.frameScaleBgBR = document.createElement('div');
-    Object.assign(this.frameScaleBgBR.style, {
+    this.setStyle(this.frameScaleBgBR, Object.assign({}, {
       position: 'absolute',
       bottom: '-28px', right: '-12px',
       padding: '4px 10px',
-      ...darkBgStyle,
       pointerEvents: 'none'
-    });
+    }, darkBgStyle));
     this.frameScaleLabelBR = document.createElement('div');
-    Object.assign(this.frameScaleLabelBR.style, {
+    this.setStyle(this.frameScaleLabelBR, {
       fontSize: '12px',
       color: '#fff',
       fontFamily: 'monospace',
@@ -246,14 +275,14 @@ export class HUD {
       if (side === 'right') { s.right = '-4px'; s.top = offset + '%'; s.transform = 'translateY(-50%)'; }
       if (side === 'top') { s.top = '-2px'; s.left = offset + '%'; s.transform = 'translateX(-50%)'; }
       if (side === 'bottom') { s.bottom = '-2px'; s.left = offset + '%'; s.transform = 'translateX(-50%)'; }
-      Object.assign(tick.style, s);
+      this.setStyle(tick, s);
       tick.textContent = label;
       this.frameTickMarks.push(tick);
       this.dockingFrame.appendChild(tick);
     });
 
     this.guideLine = document.createElement('div');
-    Object.assign(this.guideLine.style, {
+    this.setStyle(this.guideLine, {
       position: 'absolute',
       top: '50%', left: '50%',
       width: '3px', height: '0',
@@ -264,7 +293,7 @@ export class HUD {
       boxShadow: '0 0 10px rgba(0,255,157,0.9)'
     });
     this.guideArrow = document.createElement('div');
-    Object.assign(this.guideArrow.style, {
+    this.setStyle(this.guideArrow, {
       position: 'absolute',
       width: '0', height: '0',
       borderLeft: '8px solid transparent',
@@ -277,7 +306,7 @@ export class HUD {
     this.hudContainer.appendChild(this.dockingFrame);
 
     this.warningOverlay = document.createElement('div');
-    Object.assign(this.warningOverlay.style, {
+    this.setStyle(this.warningOverlay, {
       position: 'absolute',
       inset: '0',
       border: '7px solid #ff4757',
@@ -290,17 +319,16 @@ export class HUD {
     this.hudContainer.appendChild(this.warningOverlay);
 
     this.orbitPanel = document.createElement('div');
-    Object.assign(this.orbitPanel.style, {
+    this.setStyle(this.orbitPanel, Object.assign({}, {
       position: 'absolute',
       right: '18px', bottom: '78px',
       width: '340px',
       padding: '18px',
-      ...glassStyle,
       pointerEvents: 'none'
-    });
+    }, glassStyle));
     const orbitTitle = document.createElement('div');
     orbitTitle.textContent = '◈ 轨道参数 ORBITAL DATA';
-    Object.assign(orbitTitle.style, {
+    this.setStyle(orbitTitle, {
       fontSize: '13px',
       letterSpacing: '2px',
       color: '#8fd0ff',
@@ -311,7 +339,7 @@ export class HUD {
     this.orbitPanel.appendChild(orbitTitle);
 
     const paramTable = document.createElement('div');
-    Object.assign(paramTable.style, {
+    this.setStyle(paramTable, {
       display: 'grid',
       gridTemplateColumns: '1.1fr 1fr',
       gap: '7px 12px',
@@ -345,7 +373,7 @@ export class HUD {
     this.orbitPanel.appendChild(paramTable);
 
     const canvasWrap = document.createElement('div');
-    Object.assign(canvasWrap.style, {
+    this.setStyle(canvasWrap, {
       position: 'relative',
       width: '100%',
       aspectRatio: '1',
@@ -356,17 +384,16 @@ export class HUD {
       boxShadow: 'inset 0 0 30px rgba(0,0,0,0.5)'
     });
     this.orbitCanvas = document.createElement('canvas');
-    this.orbitCanvas.width = 304;
-    this.orbitCanvas.height = 304;
-    Object.assign(this.orbitCanvas.style, {
+    this.setStyle(this.orbitCanvas, {
       display: 'block',
       width: '100%',
       height: '100%'
     });
     this.orbitCtx = this.orbitCanvas.getContext('2d')!;
     canvasWrap.appendChild(this.orbitCanvas);
+    this.setupCanvasResize(this.orbitCanvas, canvasWrap);
     const orbitLegend = document.createElement('div');
-    Object.assign(orbitLegend.style, {
+    this.setStyle(orbitLegend, {
       position: 'absolute',
       top: '10px', left: '10px',
       fontSize: '11px',
@@ -387,7 +414,7 @@ export class HUD {
     this.hudContainer.appendChild(this.orbitPanel);
 
     this.trajectoryOverlay = document.createElement('canvas');
-    Object.assign(this.trajectoryOverlay.style, {
+    this.setStyle(this.trajectoryOverlay, {
       position: 'absolute',
       inset: '0',
       pointerEvents: 'none',
@@ -400,7 +427,7 @@ export class HUD {
     this.hudContainer.appendChild(this.trajectoryOverlay);
 
     this.successBanner = document.createElement('div');
-    Object.assign(this.successBanner.style, {
+    this.setStyle(this.successBanner, {
       position: 'absolute',
       top: '38%', left: '50%',
       transform: 'translate(-50%, -50%) scale(0.5)',
@@ -422,12 +449,11 @@ export class HUD {
     this.hudContainer.appendChild(this.successBanner);
 
     this.helpBar = document.createElement('div');
-    Object.assign(this.helpBar.style, {
+    this.setStyle(this.helpBar, Object.assign({}, {
       position: 'absolute',
       bottom: '14px', left: '50%',
       transform: 'translateX(-50%)',
       padding: '11px 24px',
-      ...glassStyle,
       fontSize: '12px',
       fontFamily: 'monospace',
       letterSpacing: '0.5px',
@@ -436,7 +462,7 @@ export class HUD {
       gap: '22px',
       pointerEvents: 'none',
       whiteSpace: 'nowrap'
-    });
+    }, glassStyle));
     this.helpBar.innerHTML = `
       <span>📷 <b style="color:#7cd8ff; text-shadow:0 0 4px #7cd8ff88">WASD</b> 平移视角 · 拖拽旋转</span>
       <span>🚀 <b style="color:#ffd166; text-shadow:0 0 4px #ffd16688">IJKL</b> 飞船平移</span>
@@ -473,13 +499,13 @@ export class HUD {
     valueEl: HTMLElement, gaugeCanvas: HTMLCanvasElement
   ): HTMLDivElement {
     const card = document.createElement('div');
-    card.style.cssText = glassStyle + `
-      padding: 12px 16px 14px;
-      text-align: center;
-    `;
+    this.setStyle(card, Object.assign({}, glassStyle, {
+      padding: '12px 16px 14px',
+      textAlign: 'center'
+    }));
     const labelEl = document.createElement('div');
     labelEl.textContent = label;
-    Object.assign(labelEl.style, {
+    this.setStyle(labelEl, {
       fontSize: '11px',
       letterSpacing: '2px',
       textTransform: 'uppercase',
@@ -489,7 +515,7 @@ export class HUD {
     });
 
     const valWrap = document.createElement('div');
-    Object.assign(valWrap.style, {
+    this.setStyle(valWrap, {
       display: 'flex',
       alignItems: 'baseline',
       justifyContent: 'center',
@@ -497,7 +523,7 @@ export class HUD {
       marginBottom: '4px'
     });
     valueEl.textContent = '0.00';
-    Object.assign(valueEl.style, {
+    this.setStyle(valueEl, {
       fontSize: '26px',
       fontWeight: '700',
       color,
@@ -508,23 +534,30 @@ export class HUD {
     });
     const unitEl = document.createElement('div');
     unitEl.textContent = unit;
-    Object.assign(unitEl.style, {
+    this.setStyle(unitEl, {
       fontSize: '11px',
       color: 'rgba(200,220,255,0.75)'
     });
     valWrap.appendChild(valueEl);
     valWrap.appendChild(unitEl);
 
-    Object.assign(gaugeCanvas.style, {
-      display: 'block',
+    const canvasWrap = document.createElement('div');
+    this.setStyle(canvasWrap, {
       width: '100%',
       height: '50px',
       margin: '0 auto'
     });
+    this.setStyle(gaugeCanvas, {
+      display: 'block',
+      width: '100%',
+      height: '100%'
+    });
+    canvasWrap.appendChild(gaugeCanvas);
+    this.setupCanvasResize(gaugeCanvas, canvasWrap);
 
     card.appendChild(labelEl);
     card.appendChild(valWrap);
-    card.appendChild(gaugeCanvas);
+    card.appendChild(canvasWrap);
     return card;
   }
 
@@ -533,13 +566,13 @@ export class HUD {
     valueEl: HTMLElement, barContainer: HTMLDivElement, fill: HTMLDivElement
   ): HTMLDivElement {
     const card = document.createElement('div');
-    card.style.cssText = glassStyle + `
-      padding: 12px 16px 14px;
-      text-align: center;
-    `;
+    this.setStyle(card, Object.assign({}, glassStyle, {
+      padding: '12px 16px 14px',
+      textAlign: 'center'
+    }));
     const labelEl = document.createElement('div');
     labelEl.textContent = label;
-    Object.assign(labelEl.style, {
+    this.setStyle(labelEl, {
       fontSize: '11px',
       letterSpacing: '2px',
       textTransform: 'uppercase',
@@ -549,7 +582,7 @@ export class HUD {
     });
 
     const valWrap = document.createElement('div');
-    Object.assign(valWrap.style, {
+    this.setStyle(valWrap, {
       display: 'flex',
       alignItems: 'baseline',
       justifyContent: 'center',
@@ -557,7 +590,7 @@ export class HUD {
       marginBottom: '10px'
     });
     valueEl.textContent = '0.000';
-    Object.assign(valueEl.style, {
+    this.setStyle(valueEl, {
       fontSize: '26px',
       fontWeight: '700',
       color,
@@ -568,14 +601,14 @@ export class HUD {
     });
     const unitEl = document.createElement('div');
     unitEl.textContent = unit;
-    Object.assign(unitEl.style, {
+    this.setStyle(unitEl, {
       fontSize: '11px',
       color: 'rgba(200,220,255,0.75)'
     });
     valWrap.appendChild(valueEl);
     valWrap.appendChild(unitEl);
 
-    Object.assign(barContainer.style, {
+    this.setStyle(barContainer, {
       position: 'relative',
       width: '100%',
       height: '16px',
@@ -585,7 +618,7 @@ export class HUD {
       border: '1px solid rgba(120,180,255,0.25)',
       boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.5)'
     });
-    Object.assign(fill.style, {
+    this.setStyle(fill, {
       position: 'absolute',
       left: '0', top: '0',
       height: '100%',
@@ -598,7 +631,7 @@ export class HUD {
     barContainer.appendChild(fill);
 
     const scaleMarks = document.createElement('div');
-    Object.assign(scaleMarks.style, {
+    this.setStyle(scaleMarks, {
       display: 'flex',
       justifyContent: 'space-between',
       marginTop: '4px',
@@ -621,13 +654,13 @@ export class HUD {
     min: number, max: number
   ): HTMLDivElement {
     const card = document.createElement('div');
-    card.style.cssText = glassStyle + `
-      padding: 12px 16px 14px;
-      text-align: center;
-    `;
+    this.setStyle(card, Object.assign({}, glassStyle, {
+      padding: '12px 16px 14px',
+      textAlign: 'center'
+    }));
     const labelEl = document.createElement('div');
     labelEl.textContent = label;
-    Object.assign(labelEl.style, {
+    this.setStyle(labelEl, {
       fontSize: '11px',
       letterSpacing: '2px',
       textTransform: 'uppercase',
@@ -637,7 +670,7 @@ export class HUD {
     });
 
     const valWrap = document.createElement('div');
-    Object.assign(valWrap.style, {
+    this.setStyle(valWrap, {
       display: 'flex',
       alignItems: 'baseline',
       justifyContent: 'center',
@@ -645,7 +678,7 @@ export class HUD {
       marginBottom: '4px'
     });
     valueEl.textContent = '0.00';
-    Object.assign(valueEl.style, {
+    this.setStyle(valueEl, {
       fontSize: '26px',
       fontWeight: '700',
       color,
@@ -656,23 +689,30 @@ export class HUD {
     });
     const unitEl = document.createElement('div');
     unitEl.textContent = unit;
-    Object.assign(unitEl.style, {
+    this.setStyle(unitEl, {
       fontSize: '11px',
       color: 'rgba(200,220,255,0.75)'
     });
     valWrap.appendChild(valueEl);
     valWrap.appendChild(unitEl);
 
-    Object.assign(gaugeCanvas.style, {
-      display: 'block',
+    const canvasWrap = document.createElement('div');
+    this.setStyle(canvasWrap, {
       width: '100%',
       height: '50px',
       margin: '0 auto'
     });
+    this.setStyle(gaugeCanvas, {
+      display: 'block',
+      width: '100%',
+      height: '100%'
+    });
+    canvasWrap.appendChild(gaugeCanvas);
+    this.setupCanvasResize(gaugeCanvas, canvasWrap);
 
     card.appendChild(labelEl);
     card.appendChild(valWrap);
-    card.appendChild(gaugeCanvas);
+    card.appendChild(canvasWrap);
     return card;
   }
 
@@ -931,14 +971,21 @@ export class HUD {
   }
 
   flashWarning(active: boolean): void {
-    if (active === this.warningActive) return;
-    this.warningActive = active;
-    if (active) {
-      (this.warningOverlay.style as any).animation = 'warnFlashFast 0.25s ease-in-out infinite';
-    } else {
-      (this.warningOverlay.style as any).animation = 'none';
-      this.warningOverlay.style.opacity = '0';
+    if (this.warningTimeout) {
+      window.clearTimeout(this.warningTimeout);
+      this.warningTimeout = null;
     }
+    this.warningTimeout = window.setTimeout(() => {
+      if (active === this.warningActive) return;
+      this.warningActive = active;
+      if (active) {
+        (this.warningOverlay.style as any).animation = 'warnFlashFast 0.25s ease-in-out infinite';
+      } else {
+        (this.warningOverlay.style as any).animation = 'none';
+        this.warningOverlay.style.opacity = '0';
+      }
+      this.warningTimeout = null;
+    }, 50);
   }
 
   updateOrbitView(params: OrbitParams | null, pos: OrbitPosition | null): void {
