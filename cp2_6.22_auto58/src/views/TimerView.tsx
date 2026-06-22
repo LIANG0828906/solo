@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useAppContext } from '../App';
 import { timerService } from '../services/timerService';
+import { taskService } from '../services/taskService';
 import '../styles/TimerView.css';
 
 const TIMER_PRESETS = [
@@ -11,6 +12,7 @@ const TIMER_PRESETS = [
 
 const STORAGE_KEY = 'focus_timer_state';
 const BREAK_DURATION = 5 * 60;
+const FOCUS_PERIOD_FOR_BREAK = 25 * 60;
 
 interface SavedTimerState {
   duration: number;
@@ -19,6 +21,7 @@ interface SavedTimerState {
   taskId: string | null;
   isPaused: boolean;
   pausedTime: number;
+  accumulatedFocus: number;
 }
 
 function TimerView() {
@@ -33,11 +36,48 @@ function TimerView() {
   const [showBreakModal, setShowBreakModal] = useState(false);
   const [breakTimeLeft, setBreakTimeLeft] = useState(BREAK_DURATION);
   const [isBreakActive, setIsBreakActive] = useState(false);
+  const [accumulatedFocus, setAccumulatedFocus] = useState(0);
   
   const startTimeRef = useRef<Date | null>(null);
   const intervalRef = useRef<number | null>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const isCompletingRef = useRef(false);
+  const startTimerIntervalCallback = useRef<(() => void) | null>(null);
+
+  const startTimerInterval = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+    
+    intervalRef.current = window.setInterval(() => {
+      setRemainingTime(prev => {
+        if (prev <= 1) {
+          clearInterval(intervalRef.current!);
+          intervalRef.current = null;
+          return 0;
+        }
+        return prev - 1;
+      });
+      setAccumulatedFocus(prev => prev + 1);
+    }, 1000);
+  }, []);
+
+  useEffect(() => {
+    startTimerIntervalCallback.current = startTimerInterval;
+  }, [startTimerInterval]);
+
+  useEffect(() => {
+    if (remainingTime === 0 && isRunning) {
+      handleTimerComplete();
+    }
+  }, [remainingTime, isRunning]);
+
+  useEffect(() => {
+    if (accumulatedFocus > 0 && accumulatedFocus % FOCUS_PERIOD_FOR_BREAK === 0 && isRunning && !isPaused) {
+      handlePause();
+      showAutoBreakReminder();
+    }
+  }, [accumulatedFocus]);
 
   useEffect(() => {
     const saved = localStorage.getItem(STORAGE_KEY);
@@ -48,6 +88,7 @@ function TimerView() {
           setDuration(state.duration);
           setRemainingTime(state.remainingTime);
           setSelectedTaskId(state.taskId);
+          setAccumulatedFocus(state.accumulatedFocus || 0);
           
           if (!state.isPaused && state.startTime) {
             const elapsed = Math.floor((Date.now() - new Date(state.startTime).getTime()) / 1000);
@@ -71,7 +112,7 @@ function TimerView() {
         console.error('Failed to restore timer state:', e);
       }
     }
-  }, []);
+  }, [startTimerInterval]);
 
   useEffect(() => {
     if (isRunning && !isPaused) {
@@ -82,6 +123,7 @@ function TimerView() {
         taskId: selectedTaskId,
         isPaused: false,
         pausedTime: 0,
+        accumulatedFocus,
       }));
     } else if (isPaused) {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({
@@ -91,29 +133,12 @@ function TimerView() {
         taskId: selectedTaskId,
         isPaused: true,
         pausedTime: remainingTime,
+        accumulatedFocus,
       }));
     }
-  }, [isRunning, isPaused, remainingTime, duration, selectedTaskId]);
+  }, [isRunning, isPaused, remainingTime, duration, selectedTaskId, accumulatedFocus]);
 
-  const startTimerInterval = useCallback(() => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-    }
-    
-    intervalRef.current = window.setInterval(() => {
-      setRemainingTime(prev => {
-        if (prev <= 1) {
-          clearInterval(intervalRef.current!);
-          intervalRef.current = null;
-          handleTimerComplete();
-          return 0;
-        }
-        return prev - 1;
-      });
-    }, 1000);
-  }, []);
-
-  const playSound = useCallback(() => {
+  const playSound = useCallback((type: 'complete' | 'tick' | 'break' = 'complete') => {
     try {
       if (!audioContextRef.current) {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -127,43 +152,41 @@ function TimerView() {
       gainNode.connect(ctx.destination);
       
       oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(523.25, ctx.currentTime);
-      oscillator.frequency.setValueAtTime(659.25, ctx.currentTime + 0.15);
-      oscillator.frequency.setValueAtTime(783.99, ctx.currentTime + 0.3);
       
-      gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
-      
-      oscillator.start(ctx.currentTime);
-      oscillator.stop(ctx.currentTime + 0.6);
+      if (type === 'complete') {
+        oscillator.frequency.setValueAtTime(523.25, ctx.currentTime);
+        oscillator.frequency.setValueAtTime(659.25, ctx.currentTime + 0.15);
+        oscillator.frequency.setValueAtTime(783.99, ctx.currentTime + 0.3);
+        gainNode.gain.setValueAtTime(0.3, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.6);
+      } else if (type === 'tick') {
+        oscillator.frequency.setValueAtTime(800, ctx.currentTime);
+        gainNode.gain.setValueAtTime(0.05, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.05);
+      } else if (type === 'break') {
+        oscillator.frequency.setValueAtTime(440, ctx.currentTime);
+        oscillator.frequency.setValueAtTime(523.25, ctx.currentTime + 0.2);
+        gainNode.gain.setValueAtTime(0.25, ctx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
+        oscillator.start(ctx.currentTime);
+        oscillator.stop(ctx.currentTime + 0.5);
+      }
     } catch (e) {
       console.error('Audio playback failed:', e);
     }
   }, []);
 
-  const playTickingSound = useCallback(() => {
-    try {
-      if (!audioContextRef.current) {
-        audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      }
-      
-      const ctx = audioContextRef.current;
-      const oscillator = ctx.createOscillator();
-      const gainNode = ctx.createGain();
-      
-      oscillator.connect(gainNode);
-      gainNode.connect(ctx.destination);
-      
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(800, ctx.currentTime);
-      
-      gainNode.gain.setValueAtTime(0.05, ctx.currentTime);
-      gainNode.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.05);
-      
-      oscillator.start(ctx.currentTime);
-      oscillator.stop(ctx.currentTime + 0.05);
-    } catch (e) {
+  const clearTimerState = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
     }
+    localStorage.removeItem(STORAGE_KEY);
+    startTimeRef.current = null;
   }, []);
 
   const handleTimerComplete = useCallback(async () => {
@@ -172,7 +195,7 @@ function TimerView() {
 
     setIsRunning(false);
     setIsPaused(false);
-    playSound();
+    playSound('complete');
     setShowCompleteModal(true);
 
     const totalFocusTime = duration;
@@ -180,13 +203,16 @@ function TimerView() {
     const endTime = new Date().toISOString();
 
     try {
-      await timerService.submitRecord({
-        taskId: selectedTaskId,
-        duration: totalFocusTime,
-        startTime,
-        endTime,
-        status: 'completed',
-      });
+      await Promise.all([
+        timerService.submitRecord({
+          taskId: selectedTaskId,
+          duration: totalFocusTime,
+          startTime,
+          endTime,
+          status: 'completed',
+        }),
+        selectedTaskId ? taskService.incrementFocusCount(selectedTaskId) : Promise.resolve(),
+      ]);
       await refreshTasks();
     } catch (e) {
       console.error('Failed to save focus record:', e);
@@ -194,15 +220,13 @@ function TimerView() {
 
     clearTimerState();
     isCompletingRef.current = false;
-  }, [duration, selectedTaskId, playSound, refreshTasks]);
+  }, [duration, selectedTaskId, playSound, refreshTasks, clearTimerState]);
 
-  const clearTimerState = () => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-    localStorage.removeItem(STORAGE_KEY);
-    startTimeRef.current = null;
+  const showAutoBreakReminder = () => {
+    playSound('break');
+    setShowBreakModal(true);
+    setIsBreakActive(true);
+    setBreakTimeLeft(BREAK_DURATION);
   };
 
   const handleStart = () => {
@@ -212,7 +236,7 @@ function TimerView() {
     setIsPaused(false);
     startTimeRef.current = new Date();
     startTimerInterval();
-    playTickingSound();
+    playSound('tick');
   };
 
   const handlePause = () => {
@@ -235,10 +259,25 @@ function TimerView() {
   const handleStop = () => {
     if (!isRunning && remainingTime === duration) return;
     
+    if (isRunning && remainingTime < duration) {
+      const elapsed = duration - remainingTime;
+      if (elapsed > 60) {
+        const startTime = startTimeRef.current?.toISOString() || new Date(Date.now() - elapsed * 1000).toISOString();
+        timerService.submitRecord({
+          taskId: selectedTaskId,
+          duration: elapsed,
+          startTime,
+          endTime: new Date().toISOString(),
+          status: 'interrupted',
+        }).catch(e => console.error('Failed to save interrupted record:', e));
+      }
+    }
+    
     clearTimerState();
     setIsRunning(false);
     setIsPaused(false);
     setRemainingTime(duration);
+    setAccumulatedFocus(0);
   };
 
   const handlePresetChange = (minutes: number) => {
@@ -247,6 +286,7 @@ function TimerView() {
     setSelectedPreset(minutes);
     setDuration(minutes * 60);
     setRemainingTime(minutes * 60);
+    setAccumulatedFocus(0);
   };
 
   const handleStartBreak = () => {
@@ -265,7 +305,8 @@ function TimerView() {
           clearInterval(breakInterval);
           setIsBreakActive(false);
           setShowBreakModal(false);
-          playSound();
+          playSound('break');
+          setAccumulatedFocus(0);
           return 0;
         }
         return prev - 1;
@@ -279,6 +320,11 @@ function TimerView() {
     setIsBreakActive(false);
     setShowBreakModal(false);
     setBreakTimeLeft(BREAK_DURATION);
+    if (!isRunning) {
+      handleStart();
+    } else if (isPaused) {
+      handleResume();
+    }
   };
 
   const formatTime = (seconds: number) => {
@@ -463,7 +509,7 @@ function TimerView() {
               className="btn btn-secondary skip-break-btn"
               onClick={handleSkipBreak}
             >
-              跳过休息
+              跳过休息，继续专注
             </button>
           </div>
         </div>

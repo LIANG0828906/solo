@@ -71,10 +71,16 @@
 }
 
 .task-card.dragging {
-  opacity: 0.5;
+  opacity: 0.8;
   transform: rotate(2deg) scale(1.02);
   box-shadow: var(--shadow-lg);
   z-index: 10;
+}
+
+.drag-overlay-card {
+  opacity: 0.9;
+  transform: rotate(3deg);
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.4));
 }
 
 .task-card.drag-over {

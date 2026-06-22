@@ -1,14 +1,31 @@
-import { useState, useMemo } from 'react';
-import TodoList from '../components/TodoList';
+import { useState, useMemo, useCallback } from 'react';
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+  DragOverlay,
+  DragStartEvent,
+  DragOverEvent,
+} from '@dnd-kit/core';
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  arrayMove,
+} from '@dnd-kit/sortable';
+import TodoList, { TaskCard } from '../components/TodoList';
 import { useAppContext } from '../App';
 import { taskService } from '../services/taskService';
-import { TaskStatus, Priority } from '../types';
+import { Task, TaskStatus, Priority } from '../types';
 import '../styles/DashboardView.css';
 
 function DashboardView() {
-  const { tasks, setTasks, refreshTasks } = useAppContext();
+  const { tasks, setTasks } = useAppContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
+  const [activeTask, setActiveTask] = useState<Task | null>(null);
   const [newTask, setNewTask] = useState({
     title: '',
     priority: 'medium' as Priority,
@@ -16,6 +33,14 @@ function DashboardView() {
     status: 'todo' as TaskStatus,
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, {
+      activationConstraint: {
+        distance: 8,
+      },
+    })
+  );
 
   const filteredTasks = useMemo(() => {
     if (!searchQuery.trim()) return tasks;
@@ -25,72 +50,141 @@ function DashboardView() {
     );
   }, [tasks, searchQuery]);
 
-  const handleTaskMove = async (taskId: string, newStatus: TaskStatus, newOrder: number) => {
-    const task = tasks.find(t => t.id === taskId);
-    if (!task) return;
-
-    const prevTasks = [...tasks];
-    const updatedTasks = tasks.map(t => 
-      t.id === taskId ? { ...t, status: newStatus, order: newOrder } : t
-    );
-    setTasks(updatedTasks);
-
-    try {
-      await taskService.updateTaskStatus(taskId, newStatus, newOrder);
-    } catch (error) {
-      console.error('Failed to update task status:', error);
-      setTasks(prevTasks);
-    }
-  };
-
-  const handleTaskReorder = async (taskId: string, newOrder: number, status: TaskStatus) => {
-    const columnTasks = tasks
+  const getSortedColumnTasks = useCallback((status: TaskStatus, taskList: Task[]) => {
+    return taskList
       .filter(t => t.status === status)
       .sort((a, b) => {
-        const priorityOrder = { 'high': 0, 'medium': 1, 'low': 2 };
+        const priorityOrder: Record<Priority, number> = { 'high': 0, 'medium': 1, 'low': 2 };
         if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
           return priorityOrder[a.priority] - priorityOrder[b.priority];
         }
         return a.order - b.order;
       });
-    
-    const fromIndex = columnTasks.findIndex(t => t.id === taskId);
-    if (fromIndex === -1 || fromIndex === newOrder) return;
+  }, []);
 
-    const prevTasks = [...tasks];
-    const newTasks = [...tasks];
-    
-    const reorderedTask = newTasks.find(t => t.id === taskId);
-    if (!reorderedTask) return;
+  const todoTasks = useMemo(() => getSortedColumnTasks('todo', filteredTasks), [filteredTasks, getSortedColumnTasks]);
+  const inProgressTasks = useMemo(() => getSortedColumnTasks('in-progress', filteredTasks), [filteredTasks, getSortedColumnTasks]);
+  const doneTasks = useMemo(() => getSortedColumnTasks('done', filteredTasks), [filteredTasks, getSortedColumnTasks]);
 
-    const samePriorityTasks = columnTasks.filter(
-      t => t.priority === reorderedTask.priority && t.id !== taskId
+  const getColumnTasks = (status: TaskStatus) => {
+    switch (status) {
+      case 'todo': return todoTasks;
+      case 'in-progress': return inProgressTasks;
+      case 'done': return doneTasks;
+    }
+  };
+
+  const getTaskStatus = (taskId: string): TaskStatus | null => {
+    if (todoTasks.find(t => t.id === taskId)) return 'todo';
+    if (inProgressTasks.find(t => t.id === taskId)) return 'in-progress';
+    if (doneTasks.find(t => t.id === taskId)) return 'done';
+    return null;
+  };
+
+  const handleDragStart = (event: DragStartEvent) => {
+    const { active } = event;
+    const task = tasks.find(t => t.id === active.id);
+    if (task) {
+      setActiveTask(task);
+    }
+  };
+
+  const handleDragOver = (event: DragOverEvent) => {
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    const activeStatus = getTaskStatus(activeId);
+    if (!activeStatus) return;
+
+    let overStatus: TaskStatus | null = getTaskStatus(overId);
+    if (!overStatus) {
+      if (overId === 'todo' || overId === 'in-progress' || overId === 'done') {
+        overStatus = overId as TaskStatus;
+      }
+    }
+
+    if (!overStatus || activeStatus === overStatus) return;
+
+    const activeTaskItem = tasks.find(t => t.id === activeId);
+    if (!activeTaskItem) return;
+
+    const sourceColumn = getColumnTasks(activeStatus);
+    const destColumn = getColumnTasks(overStatus);
+    const overIndex = destColumn.findIndex(t => t.id === overId);
+
+    const newTasks = tasks.filter(t => t.id !== activeId);
+    const newActiveTask = { ...activeTaskItem, status: overStatus };
+
+    const samePriorityTasks = destColumn.filter(
+      t => t.priority === newActiveTask.priority
     );
-    
-    const targetOrder = newOrder >= samePriorityTasks.length 
-      ? samePriorityTasks.length 
-      : newOrder;
 
-    reorderedTask.order = targetOrder;
+    let insertIndex = overIndex;
+    if (overIndex === -1) {
+      insertIndex = destColumn.length;
+    }
 
-    samePriorityTasks.forEach((task, idx) => {
-      const taskInNew = newTasks.find(t => t.id === task.id);
-      if (taskInNew) {
-        if (idx < targetOrder) {
-          taskInNew.order = idx;
-        } else {
-          taskInNew.order = idx + 1;
+    let priorityIndex = samePriorityTasks.length;
+    for (let i = 0; i <= insertIndex && i < destColumn.length; i++) {
+      if (destColumn[i].priority === newActiveTask.priority) {
+        priorityIndex = samePriorityTasks.indexOf(destColumn[i]) + 1;
+      }
+    }
+
+    newActiveTask.order = priorityIndex;
+    newTasks.push(newActiveTask);
+    setTasks(newTasks);
+  };
+
+  const handleDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event;
+    setActiveTask(null);
+
+    if (!over) return;
+
+    const activeId = active.id as string;
+    const overId = over.id as string;
+
+    const activeTaskItem = tasks.find(t => t.id === activeId);
+    if (!activeTaskItem) return;
+
+    const activeStatus = getTaskStatus(activeId);
+    const overStatus = getTaskStatus(overId);
+
+    if (activeStatus === overStatus && activeStatus) {
+      const columnTasks = getColumnTasks(activeStatus);
+      const oldIndex = columnTasks.findIndex(t => t.id === activeId);
+      const newIndex = columnTasks.findIndex(t => t.id === overId);
+
+      if (oldIndex !== newIndex) {
+        const reordered = arrayMove(columnTasks, oldIndex, newIndex);
+        const samePriority = reordered.filter(t => t.priority === activeTaskItem.priority);
+        const newOrder = samePriority.findIndex(t => t.id === activeId);
+
+        if (newOrder !== activeTaskItem.order) {
+          const prevTasks = [...tasks];
+          try {
+            await taskService.updateTaskStatus(activeId, activeStatus, newOrder);
+          } catch (error) {
+            console.error('Failed to reorder task:', error);
+            setTasks(prevTasks);
+          }
         }
       }
-    });
-
-    setTasks(newTasks);
-
-    try {
-      await taskService.updateTaskStatus(taskId, status, targetOrder);
-    } catch (error) {
-      console.error('Failed to reorder task:', error);
-      setTasks(prevTasks);
+    } else {
+      const prevTasks = [...tasks];
+      try {
+        const targetStatus = overStatus || activeStatus;
+        if (targetStatus) {
+          await taskService.updateTaskStatus(activeId, targetStatus);
+        }
+      } catch (error) {
+        console.error('Failed to move task:', error);
+        setTasks(prevTasks);
+      }
     }
   };
 
@@ -168,31 +262,51 @@ function DashboardView() {
         </div>
       </div>
 
-      <div className="kanban-board">
-        <TodoList
-          tasks={filteredTasks}
-          status="todo"
-          title="待办"
-          onTaskMove={handleTaskMove}
-          onTaskReorder={handleTaskReorder}
-        />
-        <div className="column-divider" />
-        <TodoList
-          tasks={filteredTasks}
-          status="in-progress"
-          title="进行中"
-          onTaskMove={handleTaskMove}
-          onTaskReorder={handleTaskReorder}
-        />
-        <div className="column-divider" />
-        <TodoList
-          tasks={filteredTasks}
-          status="done"
-          title="已完成"
-          onTaskMove={handleTaskMove}
-          onTaskReorder={handleTaskReorder}
-        />
-      </div>
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
+        <div className="kanban-board">
+          <SortableContext items={todoTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+            <TodoList
+              tasks={filteredTasks}
+              status="todo"
+              title="待办"
+            />
+          </SortableContext>
+          
+          <div className="column-divider" />
+          
+          <SortableContext items={inProgressTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+            <TodoList
+              tasks={filteredTasks}
+              status="in-progress"
+              title="进行中"
+            />
+          </SortableContext>
+          
+          <div className="column-divider" />
+          
+          <SortableContext items={doneTasks.map(t => t.id)} strategy={verticalListSortingStrategy}>
+            <TodoList
+              tasks={filteredTasks}
+              status="done"
+              title="已完成"
+            />
+          </SortableContext>
+        </div>
+
+        <DragOverlay>
+          {activeTask ? (
+            <div className="drag-overlay-card">
+              <TaskCard task={activeTask} />
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
 
       {showAddModal && (
         <div className="modal-overlay" onClick={handleCloseModal}>
