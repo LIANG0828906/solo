@@ -18,7 +18,46 @@ export class UIController {
     this.bindDecalUpload();
     this.bindShareButton();
     this.bindDrawerToggle();
+
+    this.configurator.addConfigChangeListener((newConfig) => {
+      this.config = { ...newConfig };
+      this.updateSummaryCard();
+    });
+
+    this.syncUIWithConfig();
     this.updateSummaryCard();
+  }
+
+  private syncUIWithConfig(): void {
+    const parts: PartName[] = ['upper', 'sole', 'lace', 'logo'];
+    parts.forEach((part) => {
+      const colorKey = `${part}Color` as keyof ShoeConfig;
+      const materialKey = `${part}Material` as keyof ShoeConfig;
+
+      const colorInput = document.getElementById(`color-${part}`) as HTMLInputElement | null;
+      if (colorInput) {
+        colorInput.value = this.config[colorKey] as string;
+      }
+      const hexSpan = document.getElementById(`hex-${part}`);
+      if (hexSpan) {
+        hexSpan.textContent = this.config[colorKey] as string;
+      }
+
+      const materialSelect = document.getElementById(`material-${part}`) as HTMLSelectElement | null;
+      if (materialSelect) {
+        materialSelect.value = this.config[materialKey] as string;
+      }
+    });
+
+    const cards = document.querySelectorAll('.shoe-card');
+    cards.forEach((card) => {
+      const id = parseInt((card as HTMLElement).dataset.shoe || '0', 10);
+      if (id === this.config.shoeModel) {
+        card.classList.add('active');
+      } else {
+        card.classList.remove('active');
+      }
+    });
   }
 
   private bindShoeSelector(): void {
@@ -33,7 +72,6 @@ export class UIController {
         this.config.shoeModel = shoeId;
         this.configurator.switchShoeModel(shoeId);
         this.reapplyConfig();
-        this.updateSummaryCard();
       });
     });
   }
@@ -49,6 +87,7 @@ export class UIController {
 
     if (this.config.decalImage) {
       const img = new Image();
+      img.crossOrigin = 'anonymous';
       img.src = this.config.decalImage;
       img.onload = () => {
         this.configurator.updateTexture(img);
@@ -65,13 +104,12 @@ export class UIController {
       el.addEventListener('input', () => {
         const color = el.value;
         const colorKey = `${part}Color` as keyof ShoeConfig;
-        this.config[colorKey] = color;
+        (this.config as any)[colorKey] = color;
 
         const hexSpan = document.getElementById(`hex-${part}`);
         if (hexSpan) hexSpan.textContent = color;
 
         this.configurator.updateColor(part, color);
-        this.updateSummaryCard();
       });
     });
   }
@@ -85,10 +123,9 @@ export class UIController {
       el.addEventListener('change', () => {
         const materialType = el.value as MaterialType;
         const materialKey = `${part}Material` as keyof ShoeConfig;
-        this.config[materialKey] = materialType;
+        (this.config as any)[materialKey] = materialType;
 
         this.configurator.updateMaterial(part, materialType);
-        this.updateSummaryCard();
       });
     });
   }
@@ -115,7 +152,6 @@ export class UIController {
           img.onload = () => {
             this.configurator.updateTexture(img);
             this.config.decalImage = dataUrl;
-            this.updateSummaryCard();
           };
         };
         reader.readAsDataURL(file);
@@ -128,7 +164,6 @@ export class UIController {
         this.config.decalImage = null;
         preview.classList.remove('visible');
         if (fileInput) fileInput.value = '';
-        this.updateSummaryCard();
       });
     }
   }
@@ -210,8 +245,10 @@ export class UIController {
     const r = parseInt(primaryColor.slice(1, 3), 16);
     const g = parseInt(primaryColor.slice(3, 5), 16);
     const b = parseInt(primaryColor.slice(5, 7), 16);
-    card.style.backgroundColor = `rgba(${r}, ${g}, ${b}, 0.15)`;
-    card.style.boxShadow = `0 0 30px rgba(${r}, ${g}, ${b}, 0.1), inset 0 0 20px rgba(${r}, ${g}, ${b}, 0.03)`;
+    card.style.backgroundColor = `rgba(${r}, ${g}, ${b}, 0.18)`;
+    card.style.boxShadow = `0 0 36px rgba(${r}, ${g}, ${b}, 0.18), inset 0 0 24px rgba(${r}, ${g}, ${b}, 0.05), 0 8px 32px rgba(0,0,0,0.35)`;
+    card.style.borderColor = `rgba(${r}, ${g}, ${b}, 0.3)`;
+    card.style.transition = 'background-color 0.5s cubic-bezier(0.4,0,0.2,1), box-shadow 0.5s cubic-bezier(0.4,0,0.2,1), border-color 0.5s cubic-bezier(0.4,0,0.2,1)';
   }
 
   dispose(): void {}

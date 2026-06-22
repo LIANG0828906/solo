@@ -1,3 +1,5 @@
+import * as THREE from 'three';
+
 export type MaterialType = 'matte' | 'glossy' | 'suede' | 'mesh';
 
 export interface ShoeConfig {
