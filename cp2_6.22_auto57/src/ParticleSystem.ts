@@ -76,21 +76,41 @@ export class ParticleSystem {
   }
 
   spawnTrapEffect(x: number, y: number): void {
-    for (let i = 0; i < 15; i++) {
+    for (let i = 0; i < 16; i++) {
       const particle = this.getParticle();
       if (!particle) break;
 
       const angle = Math.random() * Math.PI * 2;
-      const speed = 40 + Math.random() * 40;
+      const speed = 45 + Math.random() * 55;
 
       particle.x = x + TILE_SIZE / 2;
       particle.y = y + TILE_SIZE / 2;
       particle.vx = Math.cos(angle) * speed;
-      particle.vy = Math.sin(angle) * speed;
-      particle.life = 0.4 + Math.random() * 0.4;
+      particle.vy = Math.sin(angle) * speed - 20;
+      particle.life = 0.5 + Math.random() * 0.5;
       particle.maxLife = particle.life;
       particle.color = 0xff2222;
       particle.size = 3 + Math.random() * 3;
+    }
+  }
+
+  spawnTrapDebris(x: number, y: number): void {
+    const debrisColors = [0x1a1a2e, 0x22223a, 0x2a2a44, 0x333350];
+    for (let i = 0; i < 14; i++) {
+      const particle = this.getParticle();
+      if (!particle) break;
+
+      const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 0.85;
+      const speed = 55 + Math.random() * 140;
+
+      particle.x = x + TILE_SIZE / 2 + (Math.random() - 0.5) * TILE_SIZE * 0.65;
+      particle.y = y + TILE_SIZE / 2 + (Math.random() - 0.5) * TILE_SIZE * 0.3;
+      particle.vx = Math.cos(angle) * speed + (Math.random() - 0.5) * 35;
+      particle.vy = Math.sin(angle) * speed - Math.random() * 35;
+      particle.life = 0.75 + Math.random() * 0.6;
+      particle.maxLife = particle.life;
+      particle.color = debrisColors[Math.floor(Math.random() * debrisColors.length)];
+      particle.size = 2 + Math.random() * 4;
     }
   }
 

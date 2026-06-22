@@ -38,13 +38,15 @@ export class GameRenderer {
   private damageFlash: { alpha: number; duration: number } = { alpha: 0, duration: 0 };
   private damageVignette: PIXI.Graphics;
 
-  private trapFlashTimers: Map<string, { timer: number; cracks: boolean }> = new Map();
+  private trapFlashTimers: Map<string, { timer: number; cracks: boolean; phase: number }> = new Map();
 
   private camera: { x: number; y: number } = { x: 0, y: 0 };
   private scale: number = 2;
 
   private wallTextures: PIXI.Texture[] = [];
   private floorTextures: PIXI.Texture[] = [];
+
+  private readonly EXPLORED_DIM = 0.28;
 
   constructor(app: PIXI.Application) {
     this.app = app;
@@ -160,11 +162,9 @@ export class GameRenderer {
         if (tile.type === TileType.WALL) {
           const texIndex = (x * 7 + y * 13) % this.wallTextures.length;
           sprite.texture = this.wallTextures[texIndex];
-          sprite.tint = 0xffffff;
         } else {
           const texIndex = (x * 5 + y * 11) % this.floorTextures.length;
           sprite.texture = this.floorTextures[texIndex];
-          sprite.tint = 0xffffff;
         }
       }
     }
@@ -175,35 +175,107 @@ export class GameRenderer {
       for (let x = 0; x < MAP_WIDTH; x++) {
         const tile = map[y][x];
         const fog = this.fogSprites[y][x];
+        const sprite = this.tileSprites[y][x];
 
         fog.clear();
 
         if (!tile.explored) {
+          sprite.tint = 0x000000;
           fog.beginFill(0x000000, 1);
           fog.drawRect(0, 0, TILE_SIZE, TILE_SIZE);
           fog.endFill();
         } else if (!tile.visible) {
-          fog.beginFill(0x000000, 0.55);
+          this.applyExploredTint(tile, sprite);
+          fog.beginFill(0x000000, 0.22);
           fog.drawRect(0, 0, TILE_SIZE, TILE_SIZE);
           fog.endFill();
         } else {
-          const distFactor = this.getVisibilityFactor(x, y);
-          if (distFactor < 1) {
-            fog.beginFill(0x000000, (1 - distFactor) * 0.3);
+          const visFactor = this.getVisibilityFalloff(x, y, map);
+          if (visFactor < 1) {
+            this.applyVisibleTint(tile, sprite, visFactor);
+            fog.beginFill(0x000000, (1 - visFactor) * 0.35);
             fog.drawRect(0, 0, TILE_SIZE, TILE_SIZE);
             fog.endFill();
+          } else {
+            this.applyVisibleTint(tile, sprite, 1);
           }
         }
       }
     }
   }
 
-  private getVisibilityFactor(x: number, y: number): number {
-    const centerX = MAP_WIDTH / 2;
-    const centerY = MAP_HEIGHT / 2;
-    const dist = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
-    const maxDist = Math.sqrt(centerX ** 2 + centerY ** 2);
-    return Math.max(0, 1 - dist / maxDist * 0.3);
+  private applyExploredTint(tile: Tile, sprite: PIXI.Sprite): void {
+    const dim = this.EXPLORED_DIM;
+
+    if (tile.type === TileType.WALL) {
+      sprite.tint = PIXI.utils.rgb2hex([0x2a * dim, 0x2a * dim, 0x3e * dim]);
+    } else if (tile.type === TileType.TRAP) {
+      if (tile.trapTriggered) {
+        sprite.tint = PIXI.utils.rgb2hex([0x44 * dim, 0x22 * dim, 0x22 * dim]);
+      } else {
+        sprite.tint = PIXI.utils.rgb2hex([0x4a * dim, 0x3a * dim, 0x3e * dim]);
+      }
+    } else if (tile.type === TileType.CRYSTAL && !tile.collected) {
+      sprite.tint = PIXI.utils.rgb2hex([0x22 * dim, 0x44 * dim, 0x5a * dim]);
+    } else if (tile.type === TileType.ORE && !tile.collected) {
+      sprite.tint = PIXI.utils.rgb2hex([0x5a * dim, 0x44 * dim, 0x22 * dim]);
+    } else if (tile.type === TileType.EXIT) {
+      sprite.tint = PIXI.utils.rgb2hex([0x22 * dim, 0x3a * dim, 0x5a * dim]);
+    } else {
+      sprite.tint = PIXI.utils.rgb2hex([0x33 * dim, 0x3a * dim, 0x50 * dim]);
+    }
+  }
+
+  private applyVisibleTint(tile: Tile, sprite: PIXI.Sprite, brightness: number): void {
+    const b = Math.max(0.45, brightness);
+
+    if (tile.type === TileType.WALL) {
+      sprite.tint = PIXI.utils.rgb2hex([b, b, b]);
+    } else if (tile.type === TileType.TRAP && tile.trapTriggered) {
+      sprite.tint = 0x553333;
+    } else if (tile.type === TileType.CRYSTAL && !tile.collected) {
+      const time = performance.now() / 400;
+      const glow = (Math.sin(time) * 0.2 + 0.8) * b;
+      sprite.tint = PIXI.utils.rgb2hex([glow * 0.6, glow, glow * 1.2]);
+    } else if (tile.type === TileType.ORE && !tile.collected) {
+      const time = performance.now() / 400;
+      const glow = (Math.sin(time) * 0.2 + 0.8) * b;
+      sprite.tint = PIXI.utils.rgb2hex([glow * 1.2, glow * 0.8, glow * 0.4]);
+    } else if (tile.type === TileType.EXIT) {
+      const time = performance.now() / 500;
+      const glow = (Math.sin(time) * 0.3 + 0.7) * b;
+      sprite.tint = PIXI.utils.rgb2hex([glow * 0.5, glow, glow * 1.2]);
+    } else {
+      sprite.tint = PIXI.utils.rgb2hex([b, b, b]);
+    }
+  }
+
+  private getVisibilityFalloff(x: number, y: number, map: Tile[][]): number {
+    const playerX = this.findPlayerX(map);
+    const playerY = this.findPlayerY(map);
+    if (playerX < 0) return 1;
+
+    const dist = Math.sqrt((x - playerX) ** 2 + (y - playerY) ** 2);
+    if (dist <= VISION_RADIUS * 0.6) return 1;
+
+    const outer = VISION_RADIUS;
+    const inner = VISION_RADIUS * 0.6;
+    const t = (dist - inner) / (outer - inner);
+    return Math.max(0, 1 - t * 0.7);
+  }
+
+  private cachedPlayerPos: { x: number; y: number } = { x: -1, y: -1 };
+
+  setCachedPlayerPos(x: number, y: number): void {
+    this.cachedPlayerPos = { x, y };
+  }
+
+  private findPlayerX(_map: Tile[][]): number {
+    return this.cachedPlayerPos.x;
+  }
+
+  private findPlayerY(_map: Tile[][]): number {
+    return this.cachedPlayerPos.y;
   }
 
   updatePlayer(player: PlayerController): void {
@@ -266,13 +338,13 @@ export class GameRenderer {
     const targetX = playerPos.x * TILE_SIZE + TILE_SIZE / 2 - viewWidth / (2 * this.scale);
     const targetY = playerPos.y * TILE_SIZE + TILE_SIZE / 2 - viewHeight / (2 * this.scale);
 
-    this.camera.x += (targetX - this.camera.x) * 0.1;
-    this.camera.y += (targetY - this.camera.y) * 0.1;
+    this.camera.x += (targetX - this.camera.x) * 0.15;
+    this.camera.y += (targetY - this.camera.y) * 0.15;
 
     const maxX = MAP_WIDTH * TILE_SIZE - viewWidth / this.scale;
     const maxY = MAP_HEIGHT * TILE_SIZE - viewHeight / this.scale;
-    this.camera.x = Math.max(0, Math.min(maxX, this.camera.x));
-    this.camera.y = Math.max(0, Math.min(maxY, this.camera.y));
+    this.camera.x = Math.max(0, Math.min(Math.max(0, maxX), this.camera.x));
+    this.camera.y = Math.max(0, Math.min(Math.max(0, maxY), this.camera.y));
 
     let shakeX = 0;
     let shakeY = 0;
@@ -307,13 +379,13 @@ export class GameRenderer {
     this.screenShake.duration = duration;
   }
 
-  triggerDamageFlash(duration: number = 0.3): void {
-    this.damageFlash.alpha = 0.8;
+  triggerDamageFlash(duration: number = 0.4): void {
+    this.damageFlash.alpha = 1;
     this.damageFlash.duration = duration;
   }
 
   addTrapFlash(x: number, y: number): void {
-    this.trapFlashTimers.set(`${x},${y}`, { timer: 0.8, cracks: true });
+    this.trapFlashTimers.set(`${x},${y}`, { timer: 1.0, cracks: true, phase: 0 });
 
     const overlay = new PIXI.Graphics();
     overlay.x = x * TILE_SIZE;
@@ -323,19 +395,22 @@ export class GameRenderer {
   }
 
   update(deltaTime: number, map: Tile[][], playerPos: Position): void {
+    this.setCachedPlayerPos(playerPos.x, playerPos.y);
+
     if (this.screenShake.duration > 0) {
       this.screenShake.duration -= deltaTime;
-      this.screenShake.intensity *= 0.92;
+      this.screenShake.intensity *= 0.9;
     }
 
     if (this.damageFlash.duration > 0) {
       this.damageFlash.duration -= deltaTime;
-      this.damageFlash.alpha = Math.max(0, this.damageFlash.alpha - deltaTime * 2);
+      this.damageFlash.alpha = Math.max(0, this.damageFlash.alpha - deltaTime * 2.5);
       this.updateDamageVignette();
     }
 
     for (const [key, data] of this.trapFlashTimers) {
       data.timer -= deltaTime;
+      data.phase = 1 - data.timer / 1.0;
       if (data.timer <= 0) {
         this.trapFlashTimers.delete(key);
         const overlay = this.trapOverlays.get(key);
@@ -344,17 +419,14 @@ export class GameRenderer {
           this.trapOverlays.delete(key);
         }
       } else {
-        const [sx, sy] = key.split(',').map(Number);
         const overlay = this.trapOverlays.get(key);
         if (overlay) {
-          this.drawTrapCracks(overlay, data.timer);
+          this.drawTrapCracks(overlay, data.timer, data.phase);
         }
       }
     }
 
     this.updateTrapHighlights(map, playerPos);
-    this.updateExitGlow(map);
-    this.updateResourceGlow(map);
   }
 
   private updateDamageVignette(): void {
@@ -363,70 +435,172 @@ export class GameRenderer {
     const w = this.app.screen.width;
     const h = this.app.screen.height;
 
-    const gradient = this.damageVignette;
-
     const alpha = this.damageFlash.alpha;
-    const borderSize = Math.min(w, h) * 0.18;
+    const borderSize = Math.min(w, h) * 0.22;
 
-    gradient.beginFill(0xff0000, 0);
-    gradient.drawRect(0, 0, w, h);
-    gradient.endFill();
+    this.damageVignette.lineStyle(0);
+    this.damageVignette.beginFill(0xff1111, alpha * 0.75);
+    this.damageVignette.drawRect(0, 0, w, borderSize);
+    this.damageVignette.drawRect(0, h - borderSize, w, borderSize);
+    this.damageVignette.drawRect(0, 0, borderSize, h);
+    this.damageVignette.drawRect(w - borderSize, 0, borderSize, h);
+    this.damageVignette.endFill();
 
-    gradient.lineStyle(0);
-    gradient.beginFill(0xff0000, alpha * 0.6);
-    gradient.drawRect(0, 0, w, borderSize);
-    gradient.drawRect(0, h - borderSize, w, borderSize);
-    gradient.drawRect(0, 0, borderSize, h);
-    gradient.drawRect(w - borderSize, 0, borderSize, h);
-    gradient.endFill();
-
-    if (alpha > 0.3) {
-      gradient.beginFill(0xff3333, (alpha - 0.3) * 0.3);
-      gradient.drawRect(0, 0, w, h);
-      gradient.endFill();
+    if (alpha > 0.25) {
+      const innerAlpha = (alpha - 0.25) * 0.5;
+      this.damageVignette.beginFill(0xff2222, innerAlpha);
+      this.damageVignette.drawRect(0, 0, w, h);
+      this.damageVignette.endFill();
     }
   }
 
-  private drawTrapCracks(graphics: PIXI.Graphics, timer: number): void {
+  private drawTrapCracks(graphics: PIXI.Graphics, timer: number, phase: number): void {
     graphics.clear();
 
-    const progress = 1 - timer / 0.8;
-    const flashIntensity = Math.sin(timer * 25) * 0.5 + 0.5;
+    const flashWave = Math.sin(timer * 30) * 0.5 + 0.5;
+    const flashAlpha = Math.max(0, Math.min(1, timer * 1.5)) * (0.5 + flashWave * 0.5);
 
-    graphics.beginFill(0xff3333, flashIntensity * 0.7);
+    graphics.beginFill(0xff2222, flashAlpha * 0.8);
     graphics.drawRect(0, 0, TILE_SIZE, TILE_SIZE);
     graphics.endFill();
 
-    if (progress > 0.1) {
-      const crackAlpha = Math.min(1, progress * 2);
-      graphics.lineStyle(1.5, 0x000000, crackAlpha);
+    const cx = TILE_SIZE / 2;
+    const cy = TILE_SIZE / 2;
 
-      graphics.moveTo(TILE_SIZE * 0.2, 0);
-      graphics.lineTo(TILE_SIZE * 0.35, TILE_SIZE * 0.4);
-      graphics.lineTo(TILE_SIZE * 0.25, TILE_SIZE * 0.6);
-      graphics.lineTo(TILE_SIZE * 0.45, TILE_SIZE);
+    const crackProgress = Math.min(1, phase * 1.6);
 
-      graphics.moveTo(TILE_SIZE * 0.8, 0);
-      graphics.lineTo(TILE_SIZE * 0.65, TILE_SIZE * 0.3);
-      graphics.lineTo(TILE_SIZE * 0.85, TILE_SIZE * 0.55);
-      graphics.lineTo(TILE_SIZE * 0.55, TILE_SIZE);
+    if (crackProgress > 0) {
+      const lines: Array<Array<{ x: number; y: number }>> = [
+        [
+          { x: cx, y: cy },
+          { x: cx + 1.5, y: cy - 2 },
+          { x: cx - 0.5, y: cy - 5 },
+          { x: cx + 2, y: 0 }
+        ],
+        [
+          { x: cx, y: cy },
+          { x: cx + 3, y: cy + 1.5 },
+          { x: cx + 6, y: cy + 4 },
+          { x: TILE_SIZE, y: cy + 6 }
+        ],
+        [
+          { x: cx, y: cy },
+          { x: cx - 2, y: cy + 2.5 },
+          { x: cx - 5, y: cy + 1 },
+          { x: 0, y: cy + 3 }
+        ],
+        [
+          { x: cx, y: cy },
+          { x: cx + 0.5, y: cy + 3 },
+          { x: cx - 2, y: cy + 6 },
+          { x: cx + 1, y: TILE_SIZE }
+        ],
+        [
+          { x: cx - 3, y: cy - 2 },
+          { x: cx, y: cy },
+          { x: cx + 4, y: cy - 3 },
+          { x: TILE_SIZE - 1, y: cy - 6 }
+        ],
+        [
+          { x: cx - 1, y: cy + 5 },
+          { x: cx, y: cy },
+          { x: cx - 5, y: cy - 4 },
+          { x: cx - 7, y: 2 }
+        ]
+      ];
 
-      graphics.moveTo(0, TILE_SIZE * 0.7);
-      graphics.lineTo(TILE_SIZE * 0.4, TILE_SIZE * 0.5);
-      graphics.lineTo(TILE_SIZE, TILE_SIZE * 0.65);
+      const numLines = Math.min(lines.length, Math.ceil(crackProgress * lines.length));
+      for (let i = 0; i < numLines; i++) {
+        const line = lines[i];
+        const lineProgress = Math.min(1, (crackProgress * lines.length - i) * 1.5);
 
-      graphics.moveTo(TILE_SIZE * 0.1, TILE_SIZE * 0.1);
-      graphics.lineTo(TILE_SIZE * 0.9, TILE_SIZE * 0.9);
+        let alpha: number;
+        if (i === 0) alpha = 1;
+        else if (i <= 2) alpha = 0.9;
+        else alpha = 0.75;
+
+        alpha *= Math.max(0.3, 1 - phase * 0.6);
+
+        graphics.lineStyle(1.5 + i * 0.15, 0x000000, alpha);
+
+        const numPts = Math.min(line.length, Math.max(2, Math.ceil(lineProgress * line.length)));
+        if (numPts < 2) continue;
+
+        graphics.moveTo(line[0].x, line[0].y);
+        for (let j = 1; j < numPts; j++) {
+          let endPt: { x: number; y: number };
+          if (j === numPts - 1 && lineProgress < 1) {
+            const t = lineProgress * line.length - Math.floor(lineProgress * line.length);
+            const prev = line[j - 1];
+            const next = line[j];
+            endPt = {
+              x: prev.x + (next.x - prev.x) * t,
+              y: prev.y + (next.y - prev.y) * t
+            };
+          } else {
+            endPt = line[j];
+          }
+          graphics.lineTo(endPt.x, endPt.y);
+        }
+      }
     }
 
-    if (progress > 0.5) {
-      const pieceAlpha = (progress - 0.5) * 2;
-      graphics.lineStyle(0);
-      graphics.beginFill(0x1a1a2e, pieceAlpha * 0.8);
-      graphics.drawRect(TILE_SIZE * 0.1, TILE_SIZE * 0.1, TILE_SIZE * 0.25, TILE_SIZE * 0.2);
-      graphics.drawRect(TILE_SIZE * 0.6, TILE_SIZE * 0.3, TILE_SIZE * 0.25, TILE_SIZE * 0.25);
-      graphics.drawRect(TILE_SIZE * 0.2, TILE_SIZE * 0.6, TILE_SIZE * 0.3, TILE_SIZE * 0.2);
-      graphics.endFill();
+    if (phase > 0.45) {
+      const piecePhase = (phase - 0.45) / 0.55;
+      const fall = piecePhase * TILE_SIZE * 0.8;
+      const rot = piecePhase * 0.6;
+
+      const drawPiece = (px: number, py: number, pw: number, ph: number, offsetX: number, offsetY: number) => {
+        const pcx = px + pw / 2;
+        const pcy = py + ph / 2;
+        const cosR = Math.cos(rot);
+        const sinR = Math.sin(rot);
+        const rx = (x: number, y: number) => pcx + (x - pcx) * cosR - (y - pcy) * sinR;
+        const ry = (x: number, y: number) => pcy + (x - pcx) * sinR + (y - pcy) * cosR;
+
+        const corners = [
+          { x: px, y: py },
+          { x: px + pw, y: py },
+          { x: px + pw, y: py + ph },
+          { x: px, y: py + ph }
+        ].map(c => ({ x: rx(c.x, c.y) + offsetX, y: ry(c.y, c.y) + offsetY + fall }));
+
+        const alpha = Math.max(0, 1 - piecePhase * 0.7);
+        graphics.lineStyle(0);
+        graphics.beginFill(0x1a1a2e, alpha);
+        graphics.moveTo(corners[0].x, corners[0].y);
+        for (let k = 1; k < corners.length; k++) {
+          graphics.lineTo(corners[k].x, corners[k].y);
+        }
+        graphics.closePath();
+        graphics.endFill();
+
+        graphics.lineStyle(1, 0x000000, alpha * 0.7);
+        graphics.moveTo(corners[0].x, corners[0].y);
+        for (let k = 1; k < corners.length; k++) {
+          graphics.lineTo(corners[k].x, corners[k].y);
+        }
+        graphics.closePath();
+      };
+
+      drawPiece(TILE_SIZE * 0.08, TILE_SIZE * 0.12, TILE_SIZE * 0.22, TILE_SIZE * 0.18, -piecePhase * 4, piecePhase * 2);
+      drawPiece(TILE_SIZE * 0.58, TILE_SIZE * 0.30, TILE_SIZE * 0.24, TILE_SIZE * 0.22, piecePhase * 5, piecePhase * 1);
+      drawPiece(TILE_SIZE * 0.18, TILE_SIZE * 0.62, TILE_SIZE * 0.28, TILE_SIZE * 0.20, -piecePhase * 2, piecePhase * 6);
+      drawPiece(TILE_SIZE * 0.60, TILE_SIZE * 0.65, TILE_SIZE * 0.20, TILE_SIZE * 0.18, piecePhase * 3, piecePhase * 4);
+    }
+
+    if (phase > 0.25 && phase < 0.9) {
+      const dustPhase = (phase - 0.25) / 0.65;
+      const dustAlpha = Math.sin(dustPhase * Math.PI) * 0.5;
+      for (let i = 0; i < 5; i++) {
+        const dustX = cx + Math.cos(i * 1.3 + phase * 4) * (TILE_SIZE * 0.3 * dustPhase);
+        const dustY = cy + Math.sin(i * 1.3 + phase * 4) * (TILE_SIZE * 0.25 * dustPhase) - dustPhase * TILE_SIZE * 0.2;
+        const dustSize = 1.5 + Math.sin(i * 2.7) * 1;
+        graphics.lineStyle(0);
+        graphics.beginFill(0x5a4a3a, dustAlpha);
+        graphics.drawRect(dustX - dustSize / 2, dustY - dustSize / 2, dustSize, dustSize);
+        graphics.endFill();
+      }
     }
   }
 
@@ -436,60 +610,26 @@ export class GameRenderer {
         const tile = map[y][x];
         const sprite = this.tileSprites[y][x];
 
-        if (tile.type === TileType.TRAP && tile.visible && !tile.trapTriggered) {
+        if (!tile.visible && tile.explored) {
+          continue;
+        }
+        if (!tile.visible) continue;
+
+        if (tile.type === TileType.TRAP && !tile.trapTriggered) {
           const dist = Math.abs(x - playerPos.x) + Math.abs(y - playerPos.y);
 
           if (dist <= TRAP_VISION_RADIUS) {
-            const flashTimer = this.trapFlashTimers.get(`${x},${y}`);
-            if (flashTimer !== undefined) {
-              const flashIntensity = Math.sin(flashTimer.timer * 25) * 0.5 + 0.5;
-              const r = 1;
-              const g = flashIntensity * 0.3;
-              const b = flashIntensity * 0.3;
-              sprite.tint = PIXI.utils.rgb2hex([r, g, b]);
+            const flashData = this.trapFlashTimers.get(`${x},${y}`);
+            if (flashData !== undefined) {
+              const fi = Math.sin(flashData.timer * 30) * 0.5 + 0.5;
+              sprite.tint = PIXI.utils.rgb2hex([1, 0.15 + fi * 0.3, 0.15 + fi * 0.3]);
             } else {
               const distFactor = 1 - dist / (TRAP_VISION_RADIUS + 1);
-              sprite.tint = PIXI.utils.rgb2hex([1, 0.4 + distFactor * 0.2, 0.4 + distFactor * 0.2]);
+              const r = 1;
+              const g = 0.35 + distFactor * 0.2;
+              const b = 0.35 + distFactor * 0.2;
+              sprite.tint = PIXI.utils.rgb2hex([r, g, b]);
             }
-          } else {
-            sprite.tint = 0xffffff;
-          }
-        } else if (tile.type === TileType.TRAP && tile.trapTriggered) {
-          sprite.tint = 0x553333;
-        } else if (tile.type !== TileType.WALL) {
-          sprite.tint = 0xffffff;
-        }
-      }
-    }
-  }
-
-  private updateExitGlow(map: Tile[][]): void {
-    for (let y = 0; y < MAP_HEIGHT; y++) {
-      for (let x = 0; x < MAP_WIDTH; x++) {
-        const tile = map[y][x];
-        if (tile.type === TileType.EXIT && tile.visible) {
-          const sprite = this.tileSprites[y][x];
-          const time = performance.now() / 500;
-          const glow = Math.sin(time) * 0.3 + 0.7;
-          sprite.tint = PIXI.utils.rgb2hex([glow * 0.5, glow, glow * 1.2]);
-        }
-      }
-    }
-  }
-
-  private updateResourceGlow(map: Tile[][]): void {
-    for (let y = 0; y < MAP_HEIGHT; y++) {
-      for (let x = 0; x < MAP_WIDTH; x++) {
-        const tile = map[y][x];
-        if (tile.visible && (tile.type === TileType.CRYSTAL || tile.type === TileType.ORE)) {
-          const sprite = this.tileSprites[y][x];
-          const time = performance.now() / 400 + x * 0.5 + y * 0.3;
-          const glow = Math.sin(time) * 0.2 + 0.8;
-
-          if (tile.type === TileType.CRYSTAL) {
-            sprite.tint = PIXI.utils.rgb2hex([glow * 0.6, glow, glow * 1.2]);
-          } else {
-            sprite.tint = PIXI.utils.rgb2hex([glow * 1.2, glow * 0.8, glow * 0.4]);
           }
         }
       }

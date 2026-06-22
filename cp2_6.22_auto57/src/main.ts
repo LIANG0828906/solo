@@ -27,7 +27,12 @@ class Game {
   }> = [];
 
   private joystickMoveTimer: number = 0;
-  private readonly JOYSTICK_MOVE_INTERVAL = 0.12;
+  private readonly JOYSTICK_MOVE_INTERVAL = 0.06;
+
+  private readonly FRAME_GUARD_THRESHOLD_MS = 400;
+  private _lastTickerTime = 0;
+  private _rafFallbackId: number | null = null;
+  private _rafLastTime = 0;
 
   constructor() {
     this.app = new PIXI.Application({
@@ -36,7 +41,8 @@ class Game {
       backgroundColor: 0x0a0a12,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
-      antialias: false
+      antialias: false,
+      autoStart: true
     });
 
     const container = document.getElementById('game-container');
@@ -56,10 +62,82 @@ class Game {
     this.setupCallbacks();
     this.setupInput();
     this.setupResize();
+    this.setupVisibilityGuard();
 
-    const boundGameLoop = (delta: number) => this.gameLoop(delta);
+    this._lastTickerTime = performance.now();
+    this._rafLastTime = this._lastTickerTime;
+
+    const self = this;
+    const boundGameLoop = (delta: number) => {
+      self._lastTickerTime = performance.now();
+      self.gameLoop(delta);
+    };
     this.app.ticker.add(boundGameLoop);
-    this.app.ticker.start();
+
+    this.setupFrameGuard();
+
+    window.addEventListener('load', () => {
+      if (!this.app.ticker.started) {
+        try { this.app.ticker.start(); } catch (_e) {}
+      }
+      this._lastTickerTime = performance.now();
+    });
+  }
+
+  private setupFrameGuard(): void {
+    const self = this;
+
+    const guardLoop = (now: number) => {
+      self._rAF(guardLoop);
+
+      if (document.hidden) return;
+
+      const elapsed = now - self._lastTickerTime;
+      if (elapsed > self.FRAME_GUARD_THRESHOLD_MS) {
+        try {
+          if (!self.app.ticker.started) {
+            self.app.ticker.start();
+          }
+        } catch (_e) { /* ignore */ }
+
+        const deltaMs = now - self._rafLastTime;
+        if (deltaMs > 4) {
+          const deltaFrames = Math.min(3, deltaMs / (1000 / 60));
+          self._rafLastTime = now;
+          self._lastTickerTime = now;
+          self.gameLoop(deltaFrames);
+        }
+      }
+    };
+
+    this._rAF(guardLoop);
+  }
+
+  private _rAF(cb: FrameRequestCallback): number {
+    const fn = window.requestAnimationFrame ||
+      (window as any).webkitRequestAnimationFrame ||
+      (window as any).mozRequestAnimationFrame ||
+      ((cb: FrameRequestCallback) => window.setTimeout(cb, 16));
+    return fn.call(window, cb);
+  }
+
+  private setupVisibilityGuard(): void {
+    const resumeTicker = () => {
+      if (document.hidden) return;
+      this._lastTickerTime = performance.now();
+      this._rafLastTime = this._lastTickerTime;
+      try {
+        if (!this.app.ticker.started) {
+          this.app.ticker.start();
+        }
+      } catch (_e) {
+        // ignore
+      }
+    };
+    document.addEventListener('visibilitychange', resumeTicker);
+    window.addEventListener('focus', resumeTicker);
+    window.addEventListener('resize', resumeTicker);
+    document.addEventListener('DOMContentLoaded', resumeTicker);
   }
 
   private setupCallbacks(): void {
@@ -72,10 +150,11 @@ class Game {
     });
 
     this.playerController.onTrapTriggered((x, y) => {
-      this.gameRenderer.triggerScreenShake(8, 0.3);
-      this.gameRenderer.triggerDamageFlash(0.3);
+      this.gameRenderer.triggerScreenShake(10, 0.35);
+      this.gameRenderer.triggerDamageFlash(0.4);
       this.gameRenderer.addTrapFlash(x, y);
       this.particleSystem.spawnTrapEffect(x * TILE_SIZE, y * TILE_SIZE);
+      this.particleSystem.spawnTrapDebris(x * TILE_SIZE, y * TILE_SIZE);
     });
 
     this.playerController.onResourceCollected((type, x, y) => {

@@ -12,18 +12,19 @@ export class PlayerController {
   private pixelPosition: { x: number; y: number } = { x: 0, y: 0 };
   private targetPosition: Position = { x: 0, y: 0 };
   private isMoving: boolean = false;
-  private moveSpeed: number = 14;
+
+  private readonly TIME_PER_TILE = 0.033;
+  private readonly TILES_PER_SECOND = 1 / this.TIME_PER_TILE;
   private moveProgress: number = 0;
 
   private keys: Set<string> = new Set();
-  private moveCooldown: number = 0;
-  private readonly MOVE_COOLDOWN = 0.04;
 
   private collectTimer: number = 0;
   private readonly COLLECT_INTERVAL = 0.3;
 
-  private bobTimer: number = 0;
+  private bobPhase: number = 0;
   private bobOffset: number = 0;
+  private readonly BOB_CYCLES_PER_TILE = 1.2;
 
   private mapManager: MapManager;
   private resourceSystem: ResourceSystem;
@@ -47,9 +48,8 @@ export class PlayerController {
     };
     this.isMoving = false;
     this.moveProgress = 0;
-    this.moveCooldown = 0;
     this.collectTimer = 0;
-    this.bobTimer = 0;
+    this.bobPhase = 0;
     this.bobOffset = 0;
 
     this.updateVisibility();
@@ -68,21 +68,27 @@ export class PlayerController {
       return;
     }
 
-    this.moveCooldown = Math.max(0, this.moveCooldown - deltaTime);
-
     if (this.isMoving) {
+      const prevProgress = this.moveProgress;
       this.updateMovement(deltaTime);
+      const progressDelta = this.moveProgress - prevProgress;
+      if (progressDelta > 0) {
+        this.bobPhase += progressDelta * Math.PI * 2 * this.BOB_CYCLES_PER_TILE;
+        this.bobOffset = Math.sin(this.bobPhase) * 2.5;
+      }
     } else {
+      this.bobOffset *= 0.85;
+      if (Math.abs(this.bobOffset) < 0.05) {
+        this.bobOffset = 0;
+        this.bobPhase = 0;
+      }
       this.handleInput();
     }
 
-    this.updateBob(deltaTime);
     this.updateCollect(deltaTime);
   }
 
   private handleInput(): void {
-    if (this.moveCooldown > 0) return;
-
     let dx = 0;
     let dy = 0;
 
@@ -105,11 +111,10 @@ export class PlayerController {
     this.targetPosition = { x, y };
     this.isMoving = true;
     this.moveProgress = 0;
-    this.moveCooldown = this.MOVE_COOLDOWN;
   }
 
   private updateMovement(deltaTime: number): void {
-    this.moveProgress += deltaTime * this.moveSpeed;
+    this.moveProgress += deltaTime * this.TILES_PER_SECOND;
 
     if (this.moveProgress >= 1) {
       this.moveProgress = 1;
@@ -124,29 +129,22 @@ export class PlayerController {
       this.onTileEntered();
       this.updateVisibility();
       this.notifyMove();
+
+      this.handleInput();
     } else {
       const startX = this.position.x * TILE_SIZE;
       const startY = this.position.y * TILE_SIZE;
       const endX = this.targetPosition.x * TILE_SIZE;
       const endY = this.targetPosition.y * TILE_SIZE;
 
-      this.pixelPosition.x = startX + (endX - startX) * this.easeOutQuad(this.moveProgress);
-      this.pixelPosition.y = startY + (endY - startY) * this.easeOutQuad(this.moveProgress);
+      const t = this.easeOutQuad(this.moveProgress);
+      this.pixelPosition.x = startX + (endX - startX) * t;
+      this.pixelPosition.y = startY + (endY - startY) * t;
     }
   }
 
   private easeOutQuad(t: number): number {
     return t * (2 - t);
-  }
-
-  private updateBob(deltaTime: number): void {
-    if (this.isMoving) {
-      this.bobTimer += deltaTime * 15;
-      this.bobOffset = Math.sin(this.bobTimer) * 2.5;
-    } else {
-      this.bobTimer = 0;
-      this.bobOffset *= 0.9;
-    }
   }
 
   private updateCollect(deltaTime: number): void {
@@ -279,6 +277,10 @@ export class PlayerController {
 
   isPlayerMoving(): boolean {
     return this.isMoving;
+  }
+
+  getTimePerTile(): number {
+    return this.TIME_PER_TILE;
   }
 
   onTrapTriggered(callback: TrapTriggeredCallback): void {
