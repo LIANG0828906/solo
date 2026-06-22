@@ -30,18 +30,6 @@ export const useGalleryStore = defineStore('gallery', () => {
   const selectedTags = ref<string[]>([])
   const searchHistory = ref<string[]>(loadFromStorage<string[]>(HISTORY_KEY, []))
 
-  const allTags = computed<TagCount[]>(() => {
-    const tagMap = new Map<string, number>()
-    images.value.forEach((img: ImageItem): void => {
-      img.tags.forEach((tag: string): void => {
-        tagMap.set(tag, (tagMap.get(tag) || 0) + 1)
-      })
-    })
-    return Array.from(tagMap.entries())
-      .map(([name, count]: [string, number]) => ({ name, count }))
-      .sort((a: TagCount, b: TagCount): number => a.name.localeCompare(b.name))
-  })
-
   const filteredImages = computed<ImageItem[]>(() => {
     let result: ImageItem[] = images.value
 
@@ -61,6 +49,18 @@ export const useGalleryStore = defineStore('gallery', () => {
     }
 
     return result
+  })
+
+  const allTags = computed<TagCount[]>(() => {
+    const tagMap = new Map<string, number>()
+    filteredImages.value.forEach((img: ImageItem): void => {
+      img.tags.forEach((tag: string): void => {
+        tagMap.set(tag, (tagMap.get(tag) || 0) + 1)
+      })
+    })
+    return Array.from(tagMap.entries())
+      .map(([name, count]: [string, number]) => ({ name, count }))
+      .sort((a: TagCount, b: TagCount): number => a.name.localeCompare(b.name))
   })
 
   const favoriteImages = computed<ImageItem[]>(() => {
@@ -86,6 +86,18 @@ export const useGalleryStore = defineStore('gallery', () => {
     }
 
     return result
+  })
+
+  const favoriteTags = computed<TagCount[]>(() => {
+    const tagMap = new Map<string, number>()
+    filteredFavoriteImages.value.forEach((img: ImageItem): void => {
+      img.tags.forEach((tag: string): void => {
+        tagMap.set(tag, (tagMap.get(tag) || 0) + 1)
+      })
+    })
+    return Array.from(tagMap.entries())
+      .map(([name, count]: [string, number]) => ({ name, count }))
+      .sort((a: TagCount, b: TagCount): number => a.name.localeCompare(b.name))
   })
 
   const favoriteCount = computed<number>(() => favorites.value.length)
@@ -155,6 +167,7 @@ export const useGalleryStore = defineStore('gallery', () => {
     filteredImages,
     favoriteImages,
     filteredFavoriteImages,
+    favoriteTags,
     favoriteCount,
     toggleFavorite,
     isFavorite,

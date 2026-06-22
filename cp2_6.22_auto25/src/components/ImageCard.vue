@@ -11,6 +11,7 @@ interface Props {
 const props = defineProps<Props>()
 const emit = defineEmits<{
   (e: 'click'): void
+  (e: 'image-loaded', id: string): void
 }>()
 
 const store = useGalleryStore()
@@ -23,8 +24,9 @@ const isFavorite = computed<boolean>(() => store.isFavorite(props.image.id))
 const placeholderColor = computed<string>(() => getPlaceholderColor(props.image.id))
 const aspectRatio = computed<string>(() => `${props.image.width} / ${props.image.height}`)
 
-function handleLoad(): void {
+function handleLoad(_e: Event): void {
   isLoaded.value = true
+  emit('image-loaded', props.image.id)
 }
 
 function handleFavoriteClick(e: MouseEvent): void {

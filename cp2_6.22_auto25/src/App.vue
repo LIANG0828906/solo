@@ -16,7 +16,7 @@ const windowWidth = ref<number>(window.innerWidth)
 
 const isFavoritesView = computed<boolean>(() => route.name === 'favorites')
 
-function handleResize(): void {
+function handleResize(_e: Event): void {
   windowWidth.value = window.innerWidth
 }
 
@@ -28,11 +28,11 @@ function closeModal(): void {
   selectedImage.value = null
 }
 
-function toggleMobileFilter(): void {
+function toggleMobileFilter(_e: MouseEvent): void {
   isMobileFilterOpen.value = !isMobileFilterOpen.value
 }
 
-function toggleMobileSearch(): void {
+function toggleMobileSearch(_e: MouseEvent): void {
   isMobileSearchOpen.value = !isMobileSearchOpen.value
 }
 
@@ -108,7 +108,7 @@ onUnmounted((): void => {
 
     <div class="main-layout">
       <aside class="sidebar">
-        <FilterPanel @tag-toggled="handleTagToggled" />
+        <FilterPanel :is-favorites-view="isFavoritesView" @tag-toggled="handleTagToggled" />
       </aside>
 
       <main class="main-content">
@@ -121,13 +121,13 @@ onUnmounted((): void => {
         <div class="mobile-filter-drawer">
           <div class="drawer-header">
             <h3>标签筛选</h3>
-            <button class="icon-btn" @click="closeMobilePanels" aria-label="关闭">
+            <button class="icon-btn" @click="(_e: MouseEvent): void => closeMobilePanels()" aria-label="关闭">
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <path d="M18 6 6 18M6 6l12 12"></path>
               </svg>
             </button>
           </div>
-          <FilterPanel @tag-toggled="handleTagToggled" />
+          <FilterPanel :is-favorites-view="isFavoritesView" @tag-toggled="handleTagToggled" />
         </div>
       </div>
     </transition>

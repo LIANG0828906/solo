@@ -1,5 +1,14 @@
 <script setup lang="ts">
+import { computed } from 'vue'
 import { useGalleryStore } from '@/stores/galleryStore'
+
+interface Props {
+  isFavoritesView?: boolean
+}
+
+const props = withDefaults(defineProps<Props>(), {
+  isFavoritesView: false,
+})
 
 const emit = defineEmits<{
   (e: 'tag-toggled', tag: string): void
@@ -7,12 +16,16 @@ const emit = defineEmits<{
 
 const store = useGalleryStore()
 
-function handleTagClick(tag: string): void {
+const tags = computed(() => {
+  return props.isFavoritesView ? store.favoriteTags : store.allTags
+})
+
+function handleTagClick(_e: MouseEvent, tag: string): void {
   store.toggleTag(tag)
   emit('tag-toggled', tag)
 }
 
-function handleClearAll(): void {
+function handleClearAll(_e: MouseEvent): void {
   store.clearAllTags()
 }
 </script>
@@ -32,11 +45,11 @@ function handleClearAll(): void {
 
     <div class="tags-list">
       <button
-        v-for="tag in store.allTags"
+        v-for="tag in tags"
         :key="tag.name"
         class="tag-item"
         :class="{ active: store.isTagSelected(tag.name) }"
-        @click="handleTagClick(tag.name)"
+        @click="(e: MouseEvent): void => handleTagClick(e, tag.name)"
       >
         <span class="tag-name">{{ tag.name }}</span>
         <span class="tag-count">{{ tag.count }}</span>

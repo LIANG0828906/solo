@@ -20,7 +20,7 @@ let closeTimeoutId: number | null = null
 
 const isFavorite = (): boolean => store.isFavorite(props.image.id)
 
-function handleLoad(): void {
+function handleLoad(_e: Event): void {
   isLoaded.value = true
 }
 
@@ -73,51 +73,23 @@ onUnmounted((): void => {
 
 <template>
   <Teleport to="body">
-    <div
-      ref="modalRef"
-      class="modal-overlay"
-      :class="{ closing: isClosing }"
-      @click="handleOverlayClick"
-    >
+    <div ref="modalRef" class="modal-overlay" :class="{ closing: isClosing }" @click="handleOverlayClick">
       <div class="modal-content" :class="{ closing: isClosing }">
-        <button
-          class="close-btn"
-          @click="handleCloseBtnClick"
-          aria-label="关闭"
-        >
+        <button class="close-btn" @click="handleCloseBtnClick" aria-label="关闭">
           <span class="close-icon">×</span>
         </button>
-
         <div class="image-wrapper">
           <div class="image-placeholder"></div>
-          <img
-            :src="image.url"
-            :alt="image.title"
-            class="modal-image"
-            :class="{ loaded: isLoaded }"
-            @load="handleLoad"
-          />
+          <img :src="image.url" :alt="image.title" class="modal-image" :class="{ loaded: isLoaded }" @load="handleLoad" />
         </div>
-
         <div class="modal-footer">
           <div class="image-info">
             <h2 class="image-title">{{ image.title }}</h2>
             <div class="image-tags">
-              <span
-                v-for="tag in image.tags"
-                :key="tag"
-                class="tag-chip"
-              >
-                {{ tag }}
-              </span>
+              <span v-for="tag in image.tags" :key="tag" class="tag-chip">{{ tag }}</span>
             </div>
           </div>
-
-          <button
-            class="favorite-btn-large"
-            :class="{ active: isFavorite() }"
-            @click="handleFavoriteClick"
-          >
+          <button class="favorite-btn-large" :class="{ active: isFavorite() }" @click="handleFavoriteClick">
             <span class="heart">♥</span>
             <span>{{ isFavorite() ? '已收藏' : '收藏' }}</span>
           </button>
@@ -158,14 +130,23 @@ onUnmounted((): void => {
   display: flex;
   flex-direction: column;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
-  transform: scale(1);
+  transform: scale(0.8);
   transition: transform 0.3s ease-out, opacity 0.3s ease-out;
-  opacity: 1;
+  opacity: 0;
+  animation: modalIn 0.3s ease-out forwards;
+}
+
+@keyframes modalIn {
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
 }
 
 .modal-content.closing {
-  transform: scale(0.85);
-  opacity: 0.8;
+  transform: scale(0.8);
+  opacity: 0;
+  animation: none;
 }
 
 .close-btn {
@@ -182,3 +163,112 @@ onUnmounted((): void => {
   color: var(--text-primary);
   z-index: 10;
   transition: all var(--transition-fast);
+}
+
+.close-btn:hover {
+  background: white;
+  transform: scale(1.1);
+}
+
+.close-icon {
+  font-size: 24px;
+  line-height: 1;
+}
+
+.image-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-secondary);
+  min-height: 300px;
+}
+
+.image-placeholder {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-secondary);
+}
+
+.modal-image {
+  max-width: 100%;
+  max-height: 70vh;
+  object-fit: contain;
+  display: block;
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+  position: relative;
+  z-index: 1;
+}
+
+.modal-image.loaded {
+  opacity: 1;
+}
+
+.modal-footer {
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--bg-secondary);
+}
+
+.image-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.image-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.image-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.tag-chip {
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.favorite-btn-large {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: 24px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-weight: 500;
+  font-size: 14px;
+  transition: all var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.favorite-btn-large:hover {
+  background: var(--bg-primary);
+  box-shadow: var(--shadow-sm);
+}
+
+.favorite-btn-large.active {
+  background: linear-gradient(135deg, var(--favorite-start), var(--favorite-end));
+  color: white;
+}
+
+.favorite-btn-large .heart {
+  font-size: 18px;
+  line-height: 1;
+}
+</style>

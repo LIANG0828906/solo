@@ -8,6 +8,7 @@ const emit = defineEmits<{
 
 const store = useGalleryStore()
 const inputValue = ref('')
+const lastInputValue = ref('')
 const showHistory = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
 const containerRef = ref<HTMLDivElement | null>(null)
@@ -46,10 +47,22 @@ function handleInput(e: Event): void {
     debounceTimer = null
   }
 
-  if (!value.trim()) {
+  const isDeleting: boolean = value.length < lastInputValue.value.length
+  const isNowEmpty: boolean = !value.trim()
+
+  if (isNowEmpty) {
     inputValue.value = ''
     store.clearSearchQuery()
     suggestions.value = []
+    lastInputValue.value = ''
+    return
+  }
+
+  lastInputValue.value = value
+
+  if (isDeleting) {
+    store.setSearchQuery(inputValue.value)
+    updateSuggestions(inputValue.value)
     return
   }
 

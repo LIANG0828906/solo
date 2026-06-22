@@ -23,6 +23,7 @@ const emit = defineEmits<{
 const containerRef = ref<HTMLElement | null>(null)
 const windowWidth = ref(window.innerWidth)
 const containerWidth = ref(0)
+const loadedImages = ref<Set<string>>(new Set())
 let resizeObserver: ResizeObserver | null = null
 
 const columnCount = computed((): number => {
@@ -76,7 +77,7 @@ const containerHeight = computed((): number => {
   return Math.max(...columns, 0)
 })
 
-function handleWindowResize(): void {
+function handleWindowResize(_e: Event): void {
   windowWidth.value = window.innerWidth
 }
 
@@ -88,6 +89,13 @@ function measureContainer(): void {
 
 function handleCardClick(image: ImageItem): void {
   emit('open-modal', image)
+}
+
+function handleImageLoaded(id: string): void {
+  loadedImages.value.add(id)
+  nextTick((): void => {
+    measureContainer()
+  })
 }
 
 onMounted((): void => {
@@ -141,7 +149,8 @@ watch(
         >
           <ImageCard
             :image="item.image"
-            @click="handleCardClick(item.image)"
+            @click="(): void => handleCardClick(item.image)"
+            @image-loaded="(id: string): void => handleImageLoaded(id)"
           />
         </div>
       </TransitionGroup>
