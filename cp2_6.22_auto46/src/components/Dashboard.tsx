@@ -104,6 +104,9 @@ function Dashboard({ onProductClick }: DashboardProps) {
 
     try {
       const response = await submitFeedback(productId, type);
+      const newPositiveRate = response.feedbackCount > 0
+        ? Math.round((response.positiveFeedback / response.feedbackCount) * 100)
+        : 0;
       
       setProducts(prev => prev.map(p => 
         p.id === productId 
@@ -111,7 +114,8 @@ function Dashboard({ onProductClick }: DashboardProps) {
               ...p, 
               feedbackCount: response.feedbackCount,
               positiveFeedback: response.positiveFeedback,
-              hotScore: response.hotScore
+              hotScore: response.hotScore,
+              positiveRate: newPositiveRate
             } 
           : p
       ));
@@ -150,6 +154,12 @@ function Dashboard({ onProductClick }: DashboardProps) {
   const isLowStock = useCallback((product: Product) => {
     return (product.stock / product.maxStock) < 0.2;
   }, []);
+
+  const getFeedbackRateLevel = (rate: number): 'high' | 'medium' | 'low' => {
+    if (rate >= 70) return 'high';
+    if (rate >= 40) return 'medium';
+    return 'low';
+  };
 
   const displayProducts = useMemo(() => {
     if (sortBy === 'hotScore' && sortOrder === 'desc') {
@@ -296,23 +306,43 @@ function Dashboard({ onProductClick }: DashboardProps) {
 
               <div className="product-card-footer">
                 <button
-                  className={`feedback-btn like ${feedbackStates[product.id]?.type === 'like' && feedbackStates[product.id]?.showToast ? 'shake' : ''}`}
+                  className={`feedback-btn like ${feedbackStates[product.id]?.shaking && feedbackStates[product.id]?.type === 'like' ? 'shake' : ''}`}
                   onClick={(e) => handleFeedback(product.id, 'like', e)}
                 >
                   👍 点赞
                   {feedbackStates[product.id]?.showToast && feedbackStates[product.id]?.type === 'like' && (
-                    <span className="feedback-toast like">已点赞 +1</span>
+                    <span className={`feedback-toast like ${feedbackStates[product.id]?.showToast ? 'show' : ''}`}>已点赞 +1</span>
                   )}
                 </button>
                 <button
-                  className={`feedback-btn dislike ${feedbackStates[product.id]?.type === 'dislike' && feedbackStates[product.id]?.showToast ? 'shake' : ''}`}
+                  className={`feedback-btn dislike ${feedbackStates[product.id]?.shaking && feedbackStates[product.id]?.type === 'dislike' ? 'shake' : ''}`}
                   onClick={(e) => handleFeedback(product.id, 'dislike', e)}
                 >
                   👎 点踩
                   {feedbackStates[product.id]?.showToast && feedbackStates[product.id]?.type === 'dislike' && (
-                    <span className="feedback-toast dislike">已点踩</span>
+                    <span className={`feedback-toast dislike ${feedbackStates[product.id]?.showToast ? 'show' : ''}`}>已点踩</span>
                   )}
                 </button>
+              </div>
+
+              <div className="feedback-rate">
+                <div className="feedback-rate-header">
+                  <span className="feedback-rate-label">用户反馈</span>
+                  <span className={`feedback-rate-value ${getFeedbackRateLevel(product.positiveRate)}`}>
+                    {product.feedbackCount > 0 ? `${product.positiveRate}% 好评` : '暂无反馈'}
+                  </span>
+                </div>
+                <div className="feedback-rate-bar">
+                  <div 
+                    className={`feedback-rate-fill ${getFeedbackRateLevel(product.positiveRate)}`}
+                    style={{ width: product.feedbackCount > 0 ? `${product.positiveRate}%` : '0%' }}
+                  />
+                </div>
+                {product.feedbackCount > 0 && (
+                  <div className="feedback-rate-count">
+                    共 {product.feedbackCount} 条反馈
+                  </div>
+                )}
               </div>
             </div>
           ))}

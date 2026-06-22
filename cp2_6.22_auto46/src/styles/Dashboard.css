@@ -130,8 +130,9 @@
 }
 
 .products-grid {
-  column-count: 3;
-  column-gap: 20px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px;
   position: relative;
   transition: opacity 0.3s ease, transform 0.3s ease;
 }
@@ -155,8 +156,6 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  break-inside: avoid;
-  margin-bottom: 20px;
 }
 
 .product-card:hover {
@@ -377,6 +376,74 @@
   background: var(--color-accent);
 }
 
+.feedback-rate {
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.feedback-rate-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.feedback-rate-label {
+  font-size: 12px;
+  color: var(--color-gray-400);
+  font-weight: 500;
+}
+
+.feedback-rate-value {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.feedback-rate-value.high {
+  color: #2ecc71;
+}
+
+.feedback-rate-value.medium {
+  color: #f39c12;
+}
+
+.feedback-rate-value.low {
+  color: #e74c3c;
+}
+
+.feedback-rate-bar {
+  height: 6px;
+  background: var(--color-gray-100);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.feedback-rate-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease, background 0.3s ease;
+}
+
+.feedback-rate-fill.high {
+  background: linear-gradient(90deg, #2ecc71, #27ae60);
+}
+
+.feedback-rate-fill.medium {
+  background: linear-gradient(90deg, #f39c12, #e67e22);
+}
+
+.feedback-rate-fill.low {
+  background: linear-gradient(90deg, #e74c3c, #c0392b);
+}
+
+.feedback-rate-count {
+  font-size: 11px;
+  color: var(--color-gray-300);
+  text-align: right;
+}
+
 .loading,
 .empty {
   text-align: center;
@@ -401,6 +468,12 @@
 .stats-count strong {
   color: var(--color-primary);
   font-weight: 600;
+}
+
+@media (max-width: 1200px) {
+  .products-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
 }
 
 @media (max-width: 768px) {
@@ -433,8 +506,8 @@
   }
 
   .products-grid {
-    column-count: 1;
-    column-gap: 0;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
   }
 
   .product-card-image {

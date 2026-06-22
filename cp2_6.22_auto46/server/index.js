@@ -215,20 +215,27 @@ function filterProducts(query) {
 app.get('/api/products', (req, res) => {
   const filtered = filterProducts(req.query);
   
-  const result = filtered.map(p => ({
-    id: p.id,
-    name: p.name,
-    category: p.category,
-    price: p.price,
-    rating: p.rating,
-    totalSales: p.totalSales,
-    stock: p.stock,
-    maxStock: p.maxStock,
-    hotScore: p.hotScore,
-    profitPercent: p.profitPercent,
-    feedbackCount: p.feedbackCount,
-    positiveFeedback: p.positiveFeedback
-  }));
+  const result = filtered.map(p => {
+    const positiveRate = p.feedbackCount > 0
+      ? Math.round((p.positiveFeedback / p.feedbackCount) * 100)
+      : 0;
+    
+    return {
+      id: p.id,
+      name: p.name,
+      category: p.category,
+      price: p.price,
+      rating: p.rating,
+      totalSales: p.totalSales,
+      stock: p.stock,
+      maxStock: p.maxStock,
+      hotScore: p.hotScore,
+      profitPercent: p.profitPercent,
+      feedbackCount: p.feedbackCount,
+      positiveFeedback: p.positiveFeedback,
+      positiveRate
+    };
+  });
   
   res.json({
     total: result.length,

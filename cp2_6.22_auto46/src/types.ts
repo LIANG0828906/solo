@@ -11,6 +11,7 @@ export interface Product {
   profitPercent: number;
   feedbackCount: number;
   positiveFeedback: number;
+  positiveRate: number;
 }
 
 export interface ProductDetail extends Product {
