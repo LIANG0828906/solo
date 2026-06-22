@@ -1,0 +1,134 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  font-family: "Microsoft YaHei", "微软雅黑", -apple-system, BlinkMacSystemFont, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+input[type='range'] {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  background: #d1d5db;
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #6366f1;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.15s ease;
+}
+
+input[type='range']::-webkit-slider-thumb:hover {
+  background: #4f46e5;
+}
+
+input[type='range']::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #6366f1;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.15s ease;
+}
+
+input[type='range']::-moz-range-thumb:hover {
+  background: #4f46e5;
+}
+
+input[type='range']::-ms-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #6366f1;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.15s ease;
+}
+
+input[type='range']::-ms-thumb:hover {
+  background: #4f46e5;
+}
+
+input[type='range']::-moz-range-track {
+  height: 6px;
+  background: #d1d5db;
+  border-radius: 3px;
+  border: none;
+}
+
+input[type='range']::-ms-track {
+  height: 6px;
+  background: #d1d5db;
+  border-radius: 3px;
+  border: none;
+  color: transparent;
+}
+
+input[type='range']::-ms-fill-lower,
+input[type='range']::-ms-fill-upper {
+  background: #d1d5db;
+  border-radius: 3px;
+}
+
+select {
+  font-family: inherit;
+  outline: none;
+}
+
+select:focus {
+  border-color: #6366f1;
+}
+
+button {
+  font-family: inherit;
+}
+
+input[type='number'] {
+  font-family: inherit;
+  outline: none;
+}
+
+input[type='number']:focus {
+  border-color: #6366f1;
+}
+
+input[type='color'] {
+  cursor: pointer;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}

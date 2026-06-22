@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/controlpanel.tsx","./src/components/scenecanvas.tsx","./src/modules/scenecontroller.ts","./src/modules/screenshottool.ts"],"errors":true,"version":"5.8.3"}
