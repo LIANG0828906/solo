@@ -1,0 +1,115 @@
+.rotationControl {
+  position: absolute;
+  top: -140px;
+  left: 50%;
+  transform: translateX(-50%);
+  cursor: grab;
+  user-select: none;
+  z-index: 1000;
+}
+
+.rotationControl.dragging {
+  cursor: grabbing;
+}
+
+.ring {
+  position: absolute;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+}
+
+.handle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.handleDot {
+  position: absolute;
+  top: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 14px;
+  height: 14px;
+  background: #6c63ff;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 8px rgba(108, 99, 255, 0.5);
+  pointer-events: auto;
+  cursor: grab;
+  transition: transform 0.2s ease-out;
+}
+
+.handleDot:hover {
+  transform: translateX(-50%) scale(1.2);
+}
+
+.dragging .handleDot {
+  cursor: grabbing;
+  transform: translateX(-50%) scale(1.2);
+}
+
+.centerDisplay {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  pointer-events: none;
+}
+
+.degreeValue {
+  display: block;
+  font-size: 20px;
+  font-weight: 700;
+  color: #e0e0e0;
+  font-family: 'Space Mono', monospace;
+}
+
+.stepIndicator {
+  font-size: 10px;
+  color: rgba(224, 224, 224, 0.5);
+  font-family: 'Space Mono', monospace;
+  margin-top: 2px;
+}
+
+.presetButtons {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  background: rgba(30, 30, 46, 0.9);
+  backdrop-filter: blur(20px);
+  padding: 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.presetBtn {
+  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  color: rgba(224, 224, 224, 0.7);
+  font-size: 10px;
+  font-family: 'Space Mono', monospace;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease-out;
+}
+
+.presetBtn:hover {
+  background: rgba(108, 99, 255, 0.3);
+  color: #fff;
+}
+
+.presetBtn.active {
+  background: #6c63ff;
+  color: #fff;
+}
