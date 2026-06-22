@@ -14,6 +14,9 @@ import {
   addSteps,
   addTags,
   isFavorited,
+  addFavorite,
+  removeFavorite,
+  getRatingStats,
 } from './db';
 import { register, login, getCurrentUser, authenticateToken, type AuthRequest } from './auth';
 
@@ -233,10 +236,86 @@ router.post('/api/recipes/:id/favorite', authenticateToken, (req: AuthRequest, r
       return;
     }
 
-    const result = toggleFavorite(req.user.id, id);
-    res.json({ favorited: result.favorited });
+    const added = addFavorite(req.user.id, id);
+    res.json({ favorited: true, already_existed: !added });
   } catch {
-    res.status(500).json({ error: '操作失败' });
+    res.status(500).json({ error: '收藏失败' });
+  }
+});
+
+router.delete('/api/recipes/:id/favorite', authenticateToken, (req: AuthRequest, res: Response): void => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) {
+    res.status(400).json({ error: '无效的食谱ID' });
+    return;
+  }
+
+  if (!req.user) {
+    res.status(401).json({ error: '未登录' });
+    return;
+  }
+
+  try {
+    const recipe = getRecipeById(id);
+    if (!recipe) {
+      res.status(404).json({ error: '食谱不存在' });
+      return;
+    }
+
+    const removed = removeFavorite(req.user.id, id);
+    res.json({ favorited: false, removed });
+  } catch {
+    res.status(500).json({ error: '取消收藏失败' });
+  }
+});
+
+router.get('/api/recipes/:id/favorite/status', authenticateToken, (req: AuthRequest, res: Response): void => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) {
+    res.status(400).json({ error: '无效的食谱ID' });
+    return;
+  }
+
+  if (!req.user) {
+    res.status(401).json({ error: '未登录' });
+    return;
+  }
+
+  try {
+    const recipe = getRecipeById(id);
+    if (!recipe) {
+      res.status(404).json({ error: '食谱不存在' });
+      return;
+    }
+
+    const favorited = isFavorited(req.user.id, id);
+    res.json({ favorited });
+  } catch {
+    res.status(500).json({ error: '获取收藏状态失败' });
+  }
+});
+
+router.get('/api/recipes/:id/rating', (req: Request, res: Response): void => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) {
+    res.status(400).json({ error: '无效的食谱ID' });
+    return;
+  }
+
+  try {
+    const recipe = getRecipeById(id);
+    if (!recipe) {
+      res.status(404).json({ error: '食谱不存在' });
+      return;
+    }
+
+    const stats = getRatingStats(id);
+    res.json({
+      avg_rating: stats.avg_rating,
+      rating_count: stats.rating_count,
+    });
+  } catch {
+    res.status(500).json({ error: '获取评分失败' });
   }
 });
 

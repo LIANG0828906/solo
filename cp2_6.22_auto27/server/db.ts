@@ -397,6 +397,36 @@ export const isFavorited = (userId: number, recipeId: number): boolean => {
   return !!row;
 };
 
+export const addFavorite = (userId: number, recipeId: number): boolean => {
+  const existing = db
+    .prepare('SELECT id FROM favorites WHERE user_id = ? AND recipe_id = ?')
+    .get(userId, recipeId) as { id: number } | undefined;
+  if (existing) return false;
+  db.prepare('INSERT INTO favorites (user_id, recipe_id) VALUES (?, ?)').run(userId, recipeId);
+  return true;
+};
+
+export const removeFavorite = (userId: number, recipeId: number): boolean => {
+  const result = db
+    .prepare('DELETE FROM favorites WHERE user_id = ? AND recipe_id = ?')
+    .run(userId, recipeId);
+  return result.changes > 0;
+};
+
+export const getRatingStats = (recipeId: number): { avg_rating: number; rating_count: number } => {
+  const row = db
+    .prepare(
+      `SELECT AVG(rating) as avg, COUNT(*) as count 
+       FROM comments 
+       WHERE recipe_id = ? AND rating IS NOT NULL AND rating > 0`
+    )
+    .get(recipeId) as { avg: number | null; count: number };
+  return {
+    avg_rating: row.avg ? Math.round(row.avg * 10) / 10 : 0,
+    rating_count: row.count || 0,
+  };
+};
+
 export const getAllTags = (): string[] => {
   const rows = db.prepare('SELECT DISTINCT tag FROM recipe_tags ORDER BY tag').all() as { tag: string }[];
   return rows.map((r) => r.tag);
