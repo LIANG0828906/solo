@@ -1,5 +1,5 @@
 import * as PIXI from 'pixi.js';
-import type { Vector2, Rect, PlayerState, PlatformConfig } from '../../types';
+import type { Vector2, Rect, PlayerState, PlatformConfig, SweptAABBResult } from '../../types';
 
 export class Player {
   public sprite: PIXI.Container;
@@ -9,6 +9,8 @@ export class Player {
   public isGrounded: boolean;
   public facing: 1 | -1;
   public isJumping: boolean;
+  public isDead: boolean;
+  public actionState: number;
   public width: number;
   public height: number;
 
@@ -16,7 +18,7 @@ export class Player {
   private readonly JUMP_FORCE = -650;
   private readonly MOVE_SPEED = 320;
   private readonly MAX_FALL_SPEED = 900;
-  private readonly COLLISION_PADDING = 0.5;
+  private readonly COLLISION_PADDING = 0.01;
 
   private keys: Set<string>;
   private trail: PIXI.Graphics[] = [];
@@ -30,6 +32,8 @@ export class Player {
     this.isGrounded = false;
     this.facing = 1;
     this.isJumping = false;
+    this.isDead = false;
+    this.actionState = 0;
     this.keys = new Set();
 
     this.sprite = new PIXI.Container();
@@ -85,7 +89,9 @@ export class Player {
       velocity: { ...this.velocity },
       isGrounded: this.isGrounded,
       facing: this.facing,
-      isJumping: this.isJumping
+      isJumping: this.isJumping,
+      isDead: this.isDead,
+      actionState: this.actionState
     };
   }
 
@@ -95,11 +101,13 @@ export class Player {
     this.isGrounded = state.isGrounded;
     this.facing = state.facing;
     this.isJumping = state.isJumping;
+    this.isDead = state.isDead || false;
+    this.actionState = state.actionState || 0;
     this.sprite.x = this.position.x;
     this.sprite.y = this.position.y;
   }
 
-  private aabbOverlap(a: Rect, b: Rect): boolean {
+  private aabbOverlap(a: Rect, b: { x: number; y: number; width: number; height: number }): boolean {
     return (
       a.x < b.x + b.width &&
       a.x + a.width > b.x &&
@@ -113,165 +121,288 @@ export class Player {
     deltaX: number,
     deltaY: number,
     platforms: PlatformConfig[]
-  ): { position: Vector2; hitX: boolean; hitY: boolean; hitGround: boolean } {
-    const result = {
+  ): SweptAABBResult {
+    const result: SweptAABBResult = {
       position: { ...startPos },
+      tHitX: 1,
+      tHitY: 1,
+      tFirst: 1,
+      hitNormal: false,
       hitX: false,
       hitY: false,
-      hitGround: false
+      hitGround: false,
+      hitCeiling: false,
+      hitLeft: false,
+      hitRight: false,
+      cornerCollision: false
     };
 
+    if (deltaX === 0 && deltaY === 0) {
+      return result;
+    }
+
+    const maxDistance = Math.max(Math.abs(deltaX), Math.abs(deltaY));
     const steps = Math.max(
-      Math.ceil(Math.abs(deltaX) / (this.height * 0.5)),
-      Math.ceil(Math.abs(deltaY) / (this.height * 0.5)),
+      Math.ceil(maxDistance / (Math.min(this.width, this.height) * 0.5)),
       1
     );
 
-    const stepX = deltaX / steps;
-    const stepY = deltaY / steps;
+    const stepDeltaX = deltaX / steps;
+    const stepDeltaY = deltaY / steps;
     let currentPos = { ...startPos };
 
-    for (let i = 0; i < steps; i++) {
-      let nextX = currentPos.x + stepX;
-      let nextY = currentPos.y + stepY;
+    for (let step = 0; step < steps; step++) {
+      const stepStartPos = { ...currentPos };
 
-      const testRectX: Rect = {
-        x: nextX - this.width / 2,
-        y: currentPos.y - this.height / 2,
-        width: this.width,
-        height: this.height
-      };
+      let localTHitX = 1;
+      let localTHitY = 1;
+      let localHitRight = false;
+      let localHitLeft = false;
+      let localHitGround = false;
+      let localHitCeiling = false;
+      let localCornerCollision = false;
+      let collidedPlatform: PlatformConfig | null = null;
 
-      let collidedX = false;
       for (const platform of platforms) {
-        if (this.aabbOverlap(testRectX, platform)) {
-          collidedX = true;
+        const pMinX = currentPos.x - this.width / 2;
+        const pMinY = currentPos.y - this.height / 2;
+        const pMaxX = currentPos.x + this.width / 2;
+        const pMaxY = currentPos.y + this.height / 2;
+
+        const bMinX = platform.x;
+        const bMinY = platform.y;
+        const bMaxX = platform.x + platform.width;
+        const bMaxY = platform.y + platform.height;
+
+        if (stepDeltaX !== 0) {
+          let txEntry: number;
+          let txExit: number;
+
+          if (stepDeltaX > 0) {
+            txEntry = (bMinX - pMaxX) / stepDeltaX;
+            txExit = (bMaxX - pMinX) / stepDeltaX;
+          } else {
+            txEntry = (bMaxX - pMinX) / stepDeltaX;
+            txExit = (bMinX - pMaxX) / stepDeltaX;
+          }
+
+          if (txEntry < 0) txEntry = 0;
+          if (txExit > 1) txExit = 1;
+
+          const yEntryCheck = Math.max(pMinY, bMinY);
+          const yExitCheck = Math.min(pMaxY, bMaxY);
+          const yOverlaps = yEntryCheck < yExitCheck;
+
+          if (txEntry >= 0 && txEntry <= 1 && txEntry < txExit && yOverlaps) {
+            if (txEntry < localTHitX) {
+              localTHitX = txEntry;
+              if (stepDeltaX > 0) {
+                localHitRight = true;
+                localHitLeft = false;
+              } else {
+                localHitLeft = true;
+                localHitRight = false;
+              }
+              collidedPlatform = platform;
+            }
+          }
+        }
+
+        if (stepDeltaY !== 0) {
+          let tyEntry: number;
+          let tyExit: number;
+
+          if (stepDeltaY > 0) {
+            tyEntry = (bMinY - pMaxY) / stepDeltaY;
+            tyExit = (bMaxY - pMinY) / stepDeltaY;
+          } else {
+            tyEntry = (bMaxY - pMinY) / stepDeltaY;
+            tyExit = (bMinY - pMaxY) / stepDeltaY;
+          }
+
+          if (tyEntry < 0) tyEntry = 0;
+          if (tyExit > 1) tyExit = 1;
+
+          const xEntryCheck = Math.max(pMinX, bMinX);
+          const xExitCheck = Math.min(pMaxX, bMaxX);
+          const xOverlaps = xEntryCheck < xExitCheck;
+
+          if (tyEntry >= 0 && tyEntry <= 1 && tyEntry < tyExit && xOverlaps) {
+            if (tyEntry < localTHitY) {
+              localTHitY = tyEntry;
+              if (stepDeltaY > 0) {
+                localHitGround = true;
+                localHitCeiling = false;
+              } else {
+                localHitCeiling = true;
+                localHitGround = false;
+              }
+              if (!collidedPlatform) {
+                collidedPlatform = platform;
+              }
+            }
+          }
+        }
+      }
+
+      const localTFirst = Math.min(localTHitX, localTHitY);
+
+      if (localTFirst < 1) {
+        const normalizedTHitX = localTHitX / Math.max(localTFirst, 0.0001);
+        const normalizedTHitY = localTHitY / Math.max(localTFirst, 0.0001);
+
+        if (Math.abs(localTHitX - localTHitY) < 0.05) {
+          localCornerCollision = true;
+        }
+
+        if (localCornerCollision) {
+          if (localHitGround || localHitCeiling) {
+            currentPos.x = stepStartPos.x + stepDeltaX * localTHitY;
+            currentPos.y = stepStartPos.y + stepDeltaY * localTHitY;
+            result.tHitY = Math.min(result.tHitY, (step + localTHitY) / steps);
+            result.hitY = true;
+            if (localHitGround) result.hitGround = true;
+            if (localHitCeiling) result.hitCeiling = true;
+
+            const testAfterX: Rect = {
+              x: currentPos.x + stepDeltaX * (1 - localTHitY) - this.width / 2,
+              y: currentPos.y - this.height / 2,
+              width: this.width,
+              height: this.height
+            };
+
+            let blockedAfterX = false;
+            for (const platform of platforms) {
+              if (this.aabbOverlap(testAfterX, platform)) {
+                blockedAfterX = true;
+                break;
+              }
+            }
+
+            if (blockedAfterX) {
+              result.tHitX = Math.min(result.tHitX, (step + localTHitY) / steps);
+              result.hitX = true;
+              if (localHitRight) result.hitRight = true;
+              if (localHitLeft) result.hitLeft = true;
+            } else {
+              currentPos.x = stepStartPos.x + stepDeltaX;
+            }
+          } else {
+            currentPos.x = stepStartPos.x + stepDeltaX * localTHitX;
+            currentPos.y = stepStartPos.y + stepDeltaY * localTHitX;
+            result.tHitX = Math.min(result.tHitX, (step + localTHitX) / steps);
+            result.hitX = true;
+            if (localHitRight) result.hitRight = true;
+            if (localHitLeft) result.hitLeft = true;
+
+            const testAfterY: Rect = {
+              x: currentPos.x - this.width / 2,
+              y: currentPos.y + stepDeltaY * (1 - localTHitX) - this.height / 2,
+              width: this.width,
+              height: this.height
+            };
+
+            let blockedAfterY = false;
+            for (const platform of platforms) {
+              if (this.aabbOverlap(testAfterY, platform)) {
+                blockedAfterY = true;
+                break;
+              }
+            }
+
+            if (blockedAfterY) {
+              result.tHitY = Math.min(result.tHitY, (step + localTHitX) / steps);
+              result.hitY = true;
+              if (localHitGround) result.hitGround = true;
+              if (localHitCeiling) result.hitCeiling = true;
+            } else {
+              currentPos.y = stepStartPos.y + stepDeltaY;
+            }
+          }
+          result.cornerCollision = true;
+        } else if (normalizedTHitX < normalizedTHitY) {
+          const safeT = Math.max(0, localTHitX - this.COLLISION_PADDING);
+          currentPos.x = stepStartPos.x + stepDeltaX * safeT;
+          currentPos.y = stepStartPos.y + stepDeltaY * safeT;
+
+          result.tHitX = Math.min(result.tHitX, (step + safeT) / steps);
           result.hitX = true;
-          break;
-        }
-      }
+          if (localHitRight) result.hitRight = true;
+          if (localHitLeft) result.hitLeft = true;
 
-      if (!collidedX) {
-        currentPos.x = nextX;
-      } else {
-        if (stepX > 0) {
+          const remainingT = 1 - safeT;
+          const testYPos = { ...currentPos };
+          testYPos.y += stepDeltaY * remainingT;
+          const testYRect: Rect = {
+            x: testYPos.x - this.width / 2,
+            y: testYPos.y - this.height / 2,
+            width: this.width,
+            height: this.height
+          };
+
+          let yBlocked = false;
           for (const platform of platforms) {
-            const testRect: Rect = {
-              x: currentPos.x - this.width / 2 + this.COLLISION_PADDING,
-              y: currentPos.y - this.height / 2,
-              width: this.width,
-              height: this.height
-            };
-            if (
-              currentPos.x + this.width / 2 <= platform.x &&
-              this.aabbOverlap(testRect, {
-                x: platform.x - this.width / 2 - 1,
-                y: platform.y,
-                width: this.width + 2,
-                height: platform.height
-              })
-            ) {
-              currentPos.x = platform.x - this.width / 2 - this.COLLISION_PADDING;
+            if (this.aabbOverlap(testYRect, platform)) {
+              yBlocked = true;
               break;
             }
           }
-        } else if (stepX < 0) {
-          for (const platform of platforms) {
-            const testRect: Rect = {
-              x: currentPos.x - this.width / 2 - this.COLLISION_PADDING,
-              y: currentPos.y - this.height / 2,
-              width: this.width,
-              height: this.height
-            };
-            if (
-              currentPos.x - this.width / 2 >= platform.x + platform.width &&
-              this.aabbOverlap(testRect, {
-                x: platform.x + platform.width - this.width / 2 + 1,
-                y: platform.y,
-                width: this.width + 2,
-                height: platform.height
-              })
-            ) {
-              currentPos.x = platform.x + platform.width + this.width / 2 + this.COLLISION_PADDING;
-              break;
-            }
+
+          if (!yBlocked) {
+            currentPos.y = testYPos.y;
+          } else {
+            result.tHitY = Math.min(result.tHitY, (step + safeT) / steps);
+            result.hitY = true;
           }
-        }
-      }
+        } else {
+          const safeT = Math.max(0, localTHitY - this.COLLISION_PADDING);
+          currentPos.x = stepStartPos.x + stepDeltaX * safeT;
+          currentPos.y = stepStartPos.y + stepDeltaY * safeT;
 
-      const testRectY: Rect = {
-        x: currentPos.x - this.width / 2,
-        y: nextY - this.height / 2,
-        width: this.width,
-        height: this.height
-      };
-
-      let collidedY = false;
-      for (const platform of platforms) {
-        if (this.aabbOverlap(testRectY, platform)) {
-          collidedY = true;
+          result.tHitY = Math.min(result.tHitY, (step + safeT) / steps);
           result.hitY = true;
-          if (stepY > 0) {
-            result.hitGround = true;
-          }
-          break;
-        }
-      }
+          if (localHitGround) result.hitGround = true;
+          if (localHitCeiling) result.hitCeiling = true;
 
-      if (!collidedY) {
-        currentPos.y = nextY;
-      } else {
-        if (stepY > 0) {
+          const remainingT = 1 - safeT;
+          const testXPos = { ...currentPos };
+          testXPos.x += stepDeltaX * remainingT;
+          const testXRect: Rect = {
+            x: testXPos.x - this.width / 2,
+            y: testXPos.y - this.height / 2,
+            width: this.width,
+            height: this.height
+          };
+
+          let xBlocked = false;
           for (const platform of platforms) {
-            if (
-              currentPos.y + this.height / 2 <= platform.y &&
-              this.aabbOverlap(
-                {
-                  x: currentPos.x - this.width / 2,
-                  y: currentPos.y - this.height / 2 + this.COLLISION_PADDING,
-                  width: this.width,
-                  height: this.height
-                },
-                {
-                  x: platform.x,
-                  y: platform.y - this.height / 2 - 1,
-                  width: platform.width,
-                  height: this.height + 2
-                }
-              )
-            ) {
-              currentPos.y = platform.y - this.height / 2 - this.COLLISION_PADDING;
+            if (this.aabbOverlap(testXRect, platform)) {
+              xBlocked = true;
               break;
             }
           }
-        } else if (stepY < 0) {
-          for (const platform of platforms) {
-            if (
-              currentPos.y - this.height / 2 >= platform.y + platform.height &&
-              this.aabbOverlap(
-                {
-                  x: currentPos.x - this.width / 2,
-                  y: currentPos.y - this.height / 2 - this.COLLISION_PADDING,
-                  width: this.width,
-                  height: this.height
-                },
-                {
-                  x: platform.x,
-                  y: platform.y + platform.height - this.height / 2 + 1,
-                  width: platform.width,
-                  height: this.height + 2
-                }
-              )
-            ) {
-              currentPos.y = platform.y + platform.height + this.height / 2 + this.COLLISION_PADDING;
-              break;
-            }
+
+          if (!xBlocked) {
+            currentPos.x = testXPos.x;
+          } else {
+            result.tHitX = Math.min(result.tHitX, (step + safeT) / steps);
+            result.hitX = true;
           }
         }
+
+        if (collidedPlatform) {
+          result.collidedPlatform = collidedPlatform;
+        }
+      } else {
+        currentPos.x = stepStartPos.x + stepDeltaX;
+        currentPos.y = stepStartPos.y + stepDeltaY;
       }
     }
 
     result.position = currentPos;
+    result.tFirst = Math.min(result.tHitX, result.tHitY);
+    result.hitNormal = result.hitX || result.hitY;
+
     return result;
   }
 
@@ -288,12 +419,23 @@ export class Player {
       this.facing = 1;
     }
 
+    const prevActionState = this.actionState;
+    if (moveX !== 0) {
+      this.actionState = 1;
+    } else {
+      this.actionState = 0;
+    }
+
     this.velocity.x = moveX * this.MOVE_SPEED;
 
+    const wasJumping = this.isJumping;
     if ((this.keys.has('ArrowUp') || this.keys.has('w') || this.keys.has('W') || this.keys.has(' ')) && this.isGrounded) {
       this.velocity.y = this.JUMP_FORCE;
       this.isGrounded = false;
       this.isJumping = true;
+      this.actionState = 2;
+    } else if (!wasJumping && this.isJumping && !this.isGrounded) {
+      this.actionState = 2;
     }
 
     this.velocity.y += this.GRAVITY * dt;
@@ -320,8 +462,15 @@ export class Player {
         this.isGrounded = true;
         this.isJumping = false;
       }
+      if (collisionResult.hitCeiling && !collisionResult.hitGround) {
+        this.isJumping = false;
+      }
     } else {
       this.isGrounded = false;
+    }
+
+    if (prevActionState !== this.actionState) {
+      // 状态变化会被 TimeRecorder 捕获
     }
 
     this.sprite.x = this.position.x;
@@ -350,6 +499,8 @@ export class Player {
     this.isGrounded = false;
     this.facing = 1;
     this.isJumping = false;
+    this.isDead = false;
+    this.actionState = 0;
     this.sprite.x = x;
     this.sprite.y = y;
     this.keys.clear();

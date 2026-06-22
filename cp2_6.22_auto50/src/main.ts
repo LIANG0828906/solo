@@ -49,7 +49,7 @@ class Game {
     this.player = new Player(100, 500);
     this.gameContainer.addChild(this.player.sprite);
 
-    this.timeRecorder = new TimeRecorder(2);
+    this.timeRecorder = new TimeRecorder({ sampleRate: 2 });
     this.uiManager = new UIManager(this.app);
     this.app.stage.addChild(this.uiManager.container);
 
@@ -355,7 +355,7 @@ class Game {
     return ghostRects;
   }
 
-  private gameLoop(delta: number): void {
+  private gameLoop(_delta: number): void {
     const now = performance.now();
     const deltaTime = (now - this.lastFrameTime) / 1000;
     this.lastFrameTime = now;

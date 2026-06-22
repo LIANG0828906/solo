@@ -1,4 +1,11 @@
-import type { FrameData, RecordingSegment, PlayerState, RecordingSnapshot } from '../../types';
+import * as PIXI from 'pixi.js';
+import type {
+  FrameData,
+  RecordingSegment,
+  PlayerState,
+  RecordingSnapshot,
+  TimeRecorderConfig
+} from '../../types';
 import { GhostPlayer } from './GhostPlayer';
 
 export class TimeRecorder {
@@ -13,18 +20,12 @@ export class TimeRecorder {
   private playbackTime: number = 0;
   private timeScale: number = 1;
 
-  private sampleRate: number = 2;
+  private config: TimeRecorderConfig;
   private frameCounter: number = 0;
   private lastSavedState: PlayerState | null = null;
 
-  private readonly STATE_CHANGE_THRESHOLD = {
-    position: 0.5,
-    velocity: 5
-  };
-
   private undoStack: RecordingSnapshot[] = [];
   private redoStack: RecordingSnapshot[] = [];
-  private readonly MAX_HISTORY = 50;
 
   private ghostColors: number[] = [0x00ffff, 0xffa500, 0xff00ff, 0x00ff00];
   private ghostPlayers: Map<string, GhostPlayer> = new Map();
@@ -32,8 +33,35 @@ export class TimeRecorder {
   public onSegmentCreated: ((segment: RecordingSegment) => void) | null = null;
   public onPlaybackComplete: (() => void) | null = null;
 
-  constructor(sampleRate: number = 2) {
-    this.sampleRate = Math.max(1, sampleRate);
+  constructor(config?: Partial<TimeRecorderConfig>) {
+    this.config = {
+      sampleRate: (config?.sampleRate !== undefined) ? Math.max(1, config.sampleRate) : 2,
+      positionThreshold: config?.positionThreshold ?? 0.5,
+      velocityThreshold: config?.velocityThreshold ?? 5,
+      maxUndoSteps: config?.maxUndoSteps ?? 50
+    };
+  }
+
+  public getConfig(): TimeRecorderConfig {
+    return { ...this.config };
+  }
+
+  public updateConfig(updates: Partial<TimeRecorderConfig>): void {
+    this.config = {
+      ...this.config,
+      ...updates
+    };
+    if (updates.sampleRate !== undefined) {
+      this.config.sampleRate = Math.max(1, this.config.sampleRate);
+    }
+  }
+
+  public getSampleRate(): number {
+    return this.config.sampleRate;
+  }
+
+  public setSampleRate(rate: number): void {
+    this.config.sampleRate = Math.max(1, rate);
   }
 
   public getSegments(): RecordingSegment[] {
@@ -93,7 +121,7 @@ export class TimeRecorder {
     return this.ghostPlayers;
   }
 
-  public startRecording(container: PIXI.Container): void {
+  public startRecording(_container: PIXI.Container): void {
     if (this.isRecording) return;
 
     this.saveSnapshot();
@@ -109,7 +137,8 @@ export class TimeRecorder {
       endTime: this.globalTime,
       color: this.ghostColors[colorIndex],
       keyframes: [],
-      loop: true
+      loop: true,
+      name: `录制 ${this.segments.length + 1}`
     };
   }
 
@@ -118,10 +147,11 @@ export class TimeRecorder {
 
     this.frameCounter++;
 
-    if (this.frameCounter % this.sampleRate !== 0 && this.currentSegment.keyframes.length > 0) {
-      if (!this.hasSignificantChange(state)) {
-        return;
-      }
+    const shouldSample = this.frameCounter % this.config.sampleRate === 0;
+    const hasChanges = this.hasSignificantChange(state);
+
+    if (!shouldSample && this.currentSegment.keyframes.length > 0 && !hasChanges) {
+      return;
     }
 
     const frameData: FrameData = {
@@ -136,6 +166,8 @@ export class TimeRecorder {
       frameData.isGrounded = state.isGrounded;
       frameData.facing = state.facing;
       frameData.isJumping = state.isJumping;
+      frameData.isDead = state.isDead;
+      frameData.actionState = state.actionState;
     } else {
       if (!lastFrame.position || this.hasPositionChanged(state.position, lastFrame.position)) {
         frameData.position = { ...state.position };
@@ -152,9 +184,27 @@ export class TimeRecorder {
       if (state.isJumping !== lastFrame.isJumping) {
         frameData.isJumping = state.isJumping;
       }
+      if (state.isDead !== lastFrame.isDead) {
+        frameData.isDead = state.isDead;
+      }
+      if (state.actionState !== lastFrame.actionState) {
+        frameData.actionState = state.actionState;
+      }
     }
 
-    this.currentSegment.keyframes.push(frameData);
+    const hasAnyField =
+      frameData.position !== undefined ||
+      frameData.velocity !== undefined ||
+      frameData.isGrounded !== undefined ||
+      frameData.facing !== undefined ||
+      frameData.isJumping !== undefined ||
+      frameData.isDead !== undefined ||
+      frameData.actionState !== undefined;
+
+    if (hasAnyField) {
+      this.currentSegment.keyframes.push(frameData);
+    }
+
     this.currentSegment.endTime = this.globalTime;
     this.lastSavedState = { ...state };
   }
@@ -167,21 +217,23 @@ export class TimeRecorder {
     if (state.isGrounded !== this.lastSavedState.isGrounded) return true;
     if (state.facing !== this.lastSavedState.facing) return true;
     if (state.isJumping !== this.lastSavedState.isJumping) return true;
+    if (state.isDead !== this.lastSavedState.isDead) return true;
+    if (state.actionState !== this.lastSavedState.actionState) return true;
 
     return false;
   }
 
   private hasPositionChanged(a: { x: number; y: number }, b: { x: number; y: number }): boolean {
     return (
-      Math.abs(a.x - b.x) > this.STATE_CHANGE_THRESHOLD.position ||
-      Math.abs(a.y - b.y) > this.STATE_CHANGE_THRESHOLD.position
+      Math.abs(a.x - b.x) > this.config.positionThreshold ||
+      Math.abs(a.y - b.y) > this.config.positionThreshold
     );
   }
 
   private hasVelocityChanged(a: { x: number; y: number }, b: { x: number; y: number }): boolean {
     return (
-      Math.abs(a.x - b.x) > this.STATE_CHANGE_THRESHOLD.velocity ||
-      Math.abs(a.y - b.y) > this.STATE_CHANGE_THRESHOLD.velocity
+      Math.abs(a.x - b.x) > this.config.velocityThreshold ||
+      Math.abs(a.y - b.y) > this.config.velocityThreshold
     );
   }
 
@@ -297,23 +349,13 @@ export class TimeRecorder {
 
     const absoluteTime = segment.startTime + localTime;
 
-    let prevIndex = -1;
-    let nextIndex = -1;
-
-    for (let i = 0; i < segment.keyframes.length; i++) {
-      if (segment.keyframes[i].timestamp <= absoluteTime) {
-        prevIndex = i;
-      } else {
-        nextIndex = i;
-        break;
-      }
-    }
+    const { prevIndex, nextIndex } = this.binarySearchKeyframes(segment.keyframes, absoluteTime);
 
     if (prevIndex === -1) {
       return this.expandFrame(segment.keyframes[0], null);
     }
 
-    if (nextIndex === -1) {
+    if (nextIndex === -1 || prevIndex === nextIndex) {
       return this.expandFrame(segment.keyframes[prevIndex], null);
     }
 
@@ -325,19 +367,66 @@ export class TimeRecorder {
       return this.expandFrame(prevFrame, null);
     }
 
-    const t = (absoluteTime - prevFrame.timestamp) / timeDiff;
+    const t = Math.max(0, Math.min(1, (absoluteTime - prevFrame.timestamp) / timeDiff));
     return this.interpolateBetweenFrames(prevFrame, nextFrame, t);
+  }
+
+  private binarySearchKeyframes(
+    keyframes: FrameData[],
+    time: number
+  ): { prevIndex: number; nextIndex: number } {
+    if (keyframes.length === 0) return { prevIndex: -1, nextIndex: -1 };
+    if (keyframes.length === 1) return { prevIndex: 0, nextIndex: -1 };
+
+    if (time <= keyframes[0].timestamp) {
+      return { prevIndex: 0, nextIndex: 1 };
+    }
+    if (time >= keyframes[keyframes.length - 1].timestamp) {
+      return { prevIndex: keyframes.length - 1, nextIndex: -1 };
+    }
+
+    let low = 0;
+    let high = keyframes.length - 1;
+
+    while (low <= high) {
+      const mid = Math.floor((low + high) / 2);
+      const midTime = keyframes[mid].timestamp;
+
+      if (midTime === time) {
+        return { prevIndex: mid, nextIndex: mid + 1 < keyframes.length ? mid + 1 : -1 };
+      }
+
+      if (midTime < time) {
+        if (mid + 1 < keyframes.length && keyframes[mid + 1].timestamp > time) {
+          return { prevIndex: mid, nextIndex: mid + 1 };
+        }
+        low = mid + 1;
+      } else {
+        if (mid - 1 >= 0 && keyframes[mid - 1].timestamp <= time) {
+          return { prevIndex: mid - 1, nextIndex: mid };
+        }
+        high = mid - 1;
+      }
+    }
+
+    return { prevIndex: 0, nextIndex: 1 };
   }
 
   private expandFrame(frame: FrameData, baseState: PlayerState | null): PlayerState {
     const result: PlayerState = baseState
-      ? { ...baseState }
+      ? {
+          ...baseState,
+          position: { ...baseState.position },
+          velocity: { ...baseState.velocity }
+        }
       : {
           position: { x: 0, y: 0 },
           velocity: { x: 0, y: 0 },
           isGrounded: false,
           facing: 1,
-          isJumping: false
+          isJumping: false,
+          isDead: false,
+          actionState: 0
         };
 
     if (frame.position) result.position = { ...frame.position };
@@ -345,6 +434,8 @@ export class TimeRecorder {
     if (frame.isGrounded !== undefined) result.isGrounded = frame.isGrounded;
     if (frame.facing !== undefined) result.facing = frame.facing;
     if (frame.isJumping !== undefined) result.isJumping = frame.isJumping;
+    if (frame.isDead !== undefined) result.isDead = frame.isDead;
+    if (frame.actionState !== undefined) result.actionState = frame.actionState;
 
     return result;
   }
@@ -353,10 +444,12 @@ export class TimeRecorder {
     const expandedPrev = this.expandFrame(prev, null);
     const expandedNext = this.expandFrame(next, expandedPrev);
 
+    const smoothT = t * t * (3 - 2 * t);
+
     return {
       position: {
-        x: this.lerp(expandedPrev.position.x, expandedNext.position.x, t),
-        y: this.lerp(expandedPrev.position.y, expandedNext.position.y, t)
+        x: this.lerp(expandedPrev.position.x, expandedNext.position.x, smoothT),
+        y: this.lerp(expandedPrev.position.y, expandedNext.position.y, smoothT)
       },
       velocity: {
         x: this.lerp(expandedPrev.velocity.x, expandedNext.velocity.x, t),
@@ -364,7 +457,9 @@ export class TimeRecorder {
       },
       isGrounded: t < 0.5 ? expandedPrev.isGrounded : expandedNext.isGrounded,
       facing: t < 0.5 ? expandedPrev.facing : expandedNext.facing,
-      isJumping: t < 0.5 ? expandedPrev.isJumping : expandedNext.isJumping
+      isJumping: t < 0.5 ? expandedPrev.isJumping : expandedNext.isJumping,
+      isDead: t < 0.5 ? expandedPrev.isDead : expandedNext.isDead,
+      actionState: t < 0.5 ? expandedPrev.actionState : expandedNext.actionState
     };
   }
 
@@ -415,12 +510,14 @@ export class TimeRecorder {
         velocity: { x: 0, y: 0 },
         isGrounded: false,
         facing: 1,
-        isJumping: false
+        isJumping: false,
+        isDead: false,
+        actionState: 0
       }
     };
 
     this.undoStack.push(snapshot);
-    if (this.undoStack.length > this.MAX_HISTORY) {
+    if (this.undoStack.length > this.config.maxUndoSteps) {
       this.undoStack.shift();
     }
     this.redoStack = [];
@@ -444,7 +541,9 @@ export class TimeRecorder {
         velocity: { x: 0, y: 0 },
         isGrounded: false,
         facing: 1,
-        isJumping: false
+        isJumping: false,
+        isDead: false,
+        actionState: 0
       }
     };
     this.redoStack.push(currentSnapshot);
@@ -472,7 +571,9 @@ export class TimeRecorder {
         velocity: { x: 0, y: 0 },
         isGrounded: false,
         facing: 1,
-        isJumping: false
+        isJumping: false,
+        isDead: false,
+        actionState: 0
       }
     };
     this.undoStack.push(currentSnapshot);
@@ -501,7 +602,13 @@ export class TimeRecorder {
       this.createGhostPlayer(segment, container);
     }
 
-    this.lastSavedState = snapshot.playerState ? { ...snapshot.playerState } : null;
+    this.lastSavedState = snapshot.playerState
+      ? {
+          ...snapshot.playerState,
+          position: { ...snapshot.playerState.position },
+          velocity: { ...snapshot.playerState.velocity }
+        }
+      : null;
   }
 
   public getUndoCount(): number {
@@ -517,7 +624,7 @@ export class TimeRecorder {
     for (const segment of this.segments) {
       totalFrames += segment.keyframes.length;
     }
-    return totalFrames * 64;
+    return totalFrames * 80;
   }
 
   public getTotalFrames(): number {

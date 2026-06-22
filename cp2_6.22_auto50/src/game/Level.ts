@@ -287,7 +287,6 @@ export class Level {
   ): void {
     for (const button of this.config.buttons) {
       const state = this.buttonStates.get(button.id)!;
-      const triggerWindow = button.triggerWindowMs || this.DEFAULT_TRIGGER_WINDOW;
 
       if (this.rectOverlap(playerRect, button)) {
         state.lastTriggerEvents.set('player', currentTime);
@@ -303,55 +302,170 @@ export class Level {
       }
     }
 
-    this.updateDoorStates(currentTime);
+    this.updateDoorStates(currentTime, segments);
   }
 
-  private isButtonPressed(buttonId: string, currentTime: number): boolean {
+  private getGhostLocalTime(
+    ghostId: string,
+    globalTime: number,
+    segments: RecordingSegment[]
+  ): { localTime: number; offset: number; duration: number } | null {
+    const segment = segments.find(s => s.id === ghostId);
+    if (!segment) return null;
+
+    const duration = Math.max(1, segment.endTime - segment.startTime);
+    let localTime = globalTime - segment.startTime;
+
+    if (segment.loop) {
+      localTime = ((localTime % duration) + duration) % duration;
+    } else {
+      localTime = Math.max(0, Math.min(localTime, duration));
+    }
+
+    return {
+      localTime,
+      offset: segment.startTime,
+      duration
+    };
+  }
+
+  private isTriggerActive(
+    sourceId: string,
+    triggerTime: number,
+    checkTime: number,
+    triggerWindow: number,
+    segments: RecordingSegment[]
+  ): boolean {
+    if (sourceId === 'player') {
+      return Math.abs(checkTime - triggerTime) <= triggerWindow;
+    }
+
+    const triggerInfo = this.getGhostLocalTime(sourceId, triggerTime, segments);
+    const checkInfo = this.getGhostLocalTime(sourceId, checkTime, segments);
+
+    if (!triggerInfo || !checkInfo) {
+      return Math.abs(checkTime - triggerTime) <= triggerWindow;
+    }
+
+    const timeDiff = Math.abs(checkInfo.localTime - triggerInfo.localTime);
+    const wrappedDiff = triggerInfo.duration - timeDiff;
+    const minDiff = Math.min(timeDiff, wrappedDiff);
+
+    return minDiff <= triggerWindow;
+  }
+
+  private hasAnyActiveTrigger(
+    buttonId: string,
+    currentTime: number,
+    triggerWindow: number,
+    segments: RecordingSegment[],
+    excludePlayer: boolean = false
+  ): { hasTrigger: boolean; activeSource: string | null } {
+    const state = this.buttonStates.get(buttonId);
+    if (!state) return { hasTrigger: false, activeSource: null };
+
+    for (const [sourceId, triggerTime] of state.lastTriggerEvents) {
+      if (excludePlayer && sourceId === 'player') continue;
+
+      if (this.isTriggerActive(sourceId, triggerTime, currentTime, triggerWindow, segments)) {
+        return { hasTrigger: true, activeSource: sourceId };
+      }
+    }
+
+    return { hasTrigger: false, activeSource: null };
+  }
+
+  private findAlignedTriggerTime(
+    buttonId: string,
+    targetSourceId: string,
+    targetTriggerTime: number,
+    _currentTime: number,
+    triggerWindow: number,
+    segments: RecordingSegment[]
+  ): number | null {
+    const state = this.buttonStates.get(buttonId);
+    if (!state) return null;
+
+    let bestMatch: number | null = null;
+    let bestDiff = Infinity;
+
+    for (const [sourceId, triggerTime] of state.lastTriggerEvents) {
+      if (sourceId === targetSourceId) continue;
+
+      if (targetSourceId === 'player' || sourceId === 'player') {
+        const diff = Math.abs(triggerTime - targetTriggerTime);
+        if (diff <= triggerWindow && diff < bestDiff) {
+          bestDiff = diff;
+          bestMatch = triggerTime;
+        }
+      } else {
+        const targetInfo = this.getGhostLocalTime(targetSourceId, targetTriggerTime, segments);
+        const sourceInfo = this.getGhostLocalTime(sourceId, triggerTime, segments);
+
+        if (targetInfo && sourceInfo) {
+          const timeDiff = Math.abs(sourceInfo.localTime - targetInfo.localTime);
+          const wrappedDiff = Math.min(sourceInfo.duration, targetInfo.duration) - timeDiff;
+          const minDiff = Math.min(timeDiff, wrappedDiff);
+
+          if (minDiff <= triggerWindow && minDiff < bestDiff) {
+            bestDiff = minDiff;
+            bestMatch = triggerTime;
+          }
+        }
+      }
+    }
+
+    return bestMatch;
+  }
+
+  private isButtonPressed(
+    buttonId: string,
+    currentTime: number,
+    segments: RecordingSegment[]
+  ): boolean {
     const button = this.config.buttons.find(b => b.id === buttonId);
     const state = this.buttonStates.get(buttonId);
     if (!button || !state) return false;
 
     const triggerWindow = button.triggerWindowMs || this.DEFAULT_TRIGGER_WINDOW;
 
-    let anyPressed = false;
-    for (const [, triggerTime] of state.lastTriggerEvents) {
-      if (currentTime - triggerTime <= triggerWindow) {
-        anyPressed = true;
-        break;
-      }
-    }
-
     if (!button.requiresSimultaneous || button.requiresSimultaneous.length === 0) {
-      return anyPressed;
+      const result = this.hasAnyActiveTrigger(buttonId, currentTime, triggerWindow, segments);
+      return result.hasTrigger;
     }
 
-    if (!anyPressed) return false;
+    const selfResult = this.hasAnyActiveTrigger(buttonId, currentTime, triggerWindow, segments);
+    if (!selfResult.hasTrigger || !selfResult.activeSource) return false;
+
+    const selfState = state.lastTriggerEvents.get(selfResult.activeSource);
+    if (selfState === undefined) return false;
 
     for (const requiredId of button.requiresSimultaneous) {
-      const requiredState = this.buttonStates.get(requiredId);
-      if (!requiredState) return false;
+      const alignedTime = this.findAlignedTriggerTime(
+        requiredId,
+        selfResult.activeSource,
+        selfState,
+        currentTime,
+        triggerWindow,
+        segments
+      );
 
-      let requiredPressed = false;
-      for (const [, triggerTime] of requiredState.lastTriggerEvents) {
-        if (currentTime - triggerTime <= triggerWindow) {
-          requiredPressed = true;
-          break;
-        }
+      if (alignedTime === null) {
+        return false;
       }
-      if (!requiredPressed) return false;
     }
 
     return true;
   }
 
-  private updateDoorStates(currentTime: number): void {
+  private updateDoorStates(currentTime: number, segments: RecordingSegment[]): void {
     for (const door of this.config.doors) {
       let shouldOpen: boolean;
 
       if (door.requiresAll) {
-        shouldOpen = door.triggeredBy.every(btnId => this.isButtonPressed(btnId, currentTime));
+        shouldOpen = door.triggeredBy.every(btnId => this.isButtonPressed(btnId, currentTime, segments));
       } else {
-        shouldOpen = door.triggeredBy.some(btnId => this.isButtonPressed(btnId, currentTime));
+        shouldOpen = door.triggeredBy.some(btnId => this.isButtonPressed(btnId, currentTime, segments));
       }
 
       const wasOpen = this.doorStates.get(door.id);
@@ -362,7 +476,7 @@ export class Level {
     }
 
     for (const button of this.config.buttons) {
-      const isPressed = this.isButtonPressed(button.id, currentTime);
+      const isPressed = this.isButtonPressed(button.id, currentTime, segments);
       const state = this.buttonStates.get(button.id)!;
       if (state.isPressed !== isPressed) {
         state.isPressed = isPressed;

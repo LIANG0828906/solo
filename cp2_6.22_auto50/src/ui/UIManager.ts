@@ -194,7 +194,7 @@ export class UIManager {
     return button;
   }
 
-  private drawButton(id: string, button: UIButton): void {
+  private drawButton(_id: string, button: UIButton): void {
     const { background, container } = button;
     const width = container.width || 80;
     const height = container.height || 40;
@@ -370,6 +370,11 @@ export class UIManager {
   }
 
   private drawTimelineSegments(): void {
+    const children = [...this.timelineSegmentsGraphics.children];
+    for (const child of children) {
+      (child as PIXI.Container).destroy();
+    }
+    this.timelineSegmentsGraphics.removeChildren();
     this.timelineSegmentsGraphics.clear();
 
     if (this.maxDuration <= 0) return;
@@ -382,41 +387,177 @@ export class UIManager {
 
       const isHighlighted = this.highlightedSegmentId === segment.id;
 
-      this.timelineSegmentsGraphics.beginFill(segment.color, isHighlighted ? 0.9 : 0.6);
+      if (isHighlighted) {
+        this.timelineSegmentsGraphics.lineStyle(4, 0xffff00, 1);
+        this.timelineSegmentsGraphics.beginFill(0xffff00, 0.15);
+        this.timelineSegmentsGraphics.drawRoundedRect(
+          startX - 3,
+          3,
+          segmentWidth + 6,
+          this.timelineHeight - 6,
+          5
+        );
+        this.timelineSegmentsGraphics.endFill();
+
+        this.timelineSegmentsGraphics.lineStyle(2, 0xffffff, 0.9);
+        for (let j = 0; j < 3; j++) {
+          const offset = j + 1;
+          this.timelineSegmentsGraphics.drawRoundedRect(
+            startX - 3 - offset,
+            3 - offset,
+            segmentWidth + 6 + offset * 2,
+            this.timelineHeight - 6 + offset * 2,
+            5 + offset
+          );
+        }
+      }
+
+      const fillAlpha = isHighlighted ? 0.95 : 0.65;
+      this.timelineSegmentsGraphics.lineStyle(2, segment.color, isHighlighted ? 1 : 0.8);
+      this.timelineSegmentsGraphics.beginFill(segment.color, fillAlpha);
       this.timelineSegmentsGraphics.drawRoundedRect(
         startX,
-        isHighlighted ? 5 : 8,
+        isHighlighted ? 6 : 10,
         segmentWidth,
-        isHighlighted ? this.timelineHeight - 10 : this.timelineHeight - 16,
-        3
+        isHighlighted ? this.timelineHeight - 12 : this.timelineHeight - 20,
+        4
       );
       this.timelineSegmentsGraphics.endFill();
 
-      if (i > 0) {
-        this.timelineSegmentsGraphics.lineStyle(2, 0xffffff, 0.6);
-        this.timelineSegmentsGraphics.moveTo(startX, 3);
-        this.timelineSegmentsGraphics.lineTo(startX, this.timelineHeight - 3);
+      if (segmentWidth > 8) {
+        const stripeCount = Math.min(Math.floor(segmentWidth / 12), 8);
+        this.timelineSegmentsGraphics.lineStyle(1, 0xffffff, isHighlighted ? 0.4 : 0.2);
+        for (let s = 1; s <= stripeCount; s++) {
+          const stripeX = startX + (segmentWidth / (stripeCount + 1)) * s;
+          this.timelineSegmentsGraphics.moveTo(stripeX, isHighlighted ? 8 : 12);
+          this.timelineSegmentsGraphics.lineTo(stripeX, isHighlighted ? this.timelineHeight - 8 : this.timelineHeight - 12);
+        }
       }
 
-      if (segmentWidth > 40) {
-        const labelText = `#${i + 1}`;
+      if (i > 0) {
+        this.timelineSegmentsGraphics.lineStyle(0);
+        this.timelineSegmentsGraphics.beginFill(0xffffff, 0.9);
+        this.timelineSegmentsGraphics.drawRect(startX - 1, 2, 3, this.timelineHeight - 4);
+        this.timelineSegmentsGraphics.endFill();
+
+        const dividerLabel = new PIXI.Text(`|${i}`, {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: 7,
+          fill: 0xcccccc
+        });
+        dividerLabel.x = startX - dividerLabel.width / 2;
+        dividerLabel.y = -12;
+        this.timelineSegmentsGraphics.addChild(dividerLabel);
+      }
+
+      if (segmentWidth >= 50) {
+        const colorName = segment.color === 0x00ffff ? '青' : segment.color === 0xffa500 ? '橙' : segment.color === 0xff00ff ? '紫' : '绿';
+        const labelText = `${segment.name || '录制'} #${i + 1} [${colorName}]`;
         const label = new PIXI.Text(labelText, {
           fontFamily: '"Press Start 2P", monospace',
           fontSize: 8,
-          fill: 0xffffff
+          fill: 0xffffff,
+          stroke: 0x000000,
+          strokeThickness: 3
         });
+        label.resolution = 2;
         label.x = startX + segmentWidth / 2 - label.width / 2;
         label.y = this.timelineHeight / 2 - label.height / 2;
         this.timelineSegmentsGraphics.addChild(label);
+      } else if (segmentWidth >= 28) {
+        const shortLabel = new PIXI.Text(`#${i + 1}`, {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: 9,
+          fill: 0xffffff,
+          fontWeight: 'bold',
+          stroke: 0x000000,
+          strokeThickness: 3
+        });
+        shortLabel.resolution = 2;
+        shortLabel.x = startX + segmentWidth / 2 - shortLabel.width / 2;
+        shortLabel.y = this.timelineHeight / 2 - shortLabel.height / 2;
+        this.timelineSegmentsGraphics.addChild(shortLabel);
       }
+
+      if (segmentWidth > 60) {
+        const durationMs = segment.endTime - segment.startTime;
+        const durationText = `${(durationMs / 1000).toFixed(1)}s`;
+        const durationLabel = new PIXI.Text(durationText, {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: 7,
+          fill: 0xffffcc,
+          stroke: 0x000000,
+          strokeThickness: 2
+        });
+        durationLabel.resolution = 2;
+        durationLabel.x = startX + segmentWidth / 2 - durationLabel.width / 2;
+        durationLabel.y = (isHighlighted ? 6 : 10) - durationLabel.height - 2;
+        this.timelineSegmentsGraphics.addChild(durationLabel);
+      }
+
+      const startMarker = new PIXI.Text(`▶${(segment.startTime / 1000).toFixed(1)}`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: 6,
+        fill: 0x88ff88
+      });
+      startMarker.x = startX;
+      startMarker.y = this.timelineHeight + 2;
+      this.timelineSegmentsGraphics.addChild(startMarker);
     }
 
     if (this.segments.length > 0) {
       const lastSegment = this.segments[this.segments.length - 1];
       const endX = (lastSegment.endTime / this.maxDuration) * this.timelineWidth;
-      this.timelineSegmentsGraphics.lineStyle(2, 0xff4444, 0.8);
-      this.timelineSegmentsGraphics.moveTo(endX, 3);
-      this.timelineSegmentsGraphics.lineTo(endX, this.timelineHeight - 3);
+
+      this.timelineSegmentsGraphics.lineStyle(0);
+      this.timelineSegmentsGraphics.beginFill(0xff4444, 1);
+      this.timelineSegmentsGraphics.drawRect(endX - 1, 0, 3, this.timelineHeight);
+      this.timelineSegmentsGraphics.endFill();
+
+      this.timelineSegmentsGraphics.beginFill(0xff4444, 1);
+      this.timelineSegmentsGraphics.moveTo(endX, 0);
+      this.timelineSegmentsGraphics.lineTo(endX - 5, 8);
+      this.timelineSegmentsGraphics.lineTo(endX + 5, 8);
+      this.timelineSegmentsGraphics.endFill();
+
+      const endLabel = new PIXI.Text(`END ${(lastSegment.endTime / 1000).toFixed(1)}s`, {
+        fontFamily: '"Press Start 2P", monospace',
+        fontSize: 7,
+        fill: 0xff8888
+      });
+      endLabel.x = Math.min(endX, this.timelineWidth - endLabel.width);
+      endLabel.y = this.timelineHeight + 2;
+      this.timelineSegmentsGraphics.addChild(endLabel);
+    }
+
+    if (this.highlightedSegmentId) {
+      const idx = this.segments.findIndex(s => s.id === this.highlightedSegmentId);
+      if (idx !== -1) {
+        const seg = this.segments[idx];
+        const hStartX = (seg.startTime / this.maxDuration) * this.timelineWidth;
+        const hEndX = (seg.endTime / this.maxDuration) * this.timelineWidth;
+        const hWidth = hEndX - hStartX;
+
+        const infoText = `当前: ${seg.name || '录制 ' + (idx + 1)} | ${((seg.endTime - seg.startTime) / 1000).toFixed(2)}秒 | ${seg.keyframes.length}帧`;
+        const hoverLabel = new PIXI.Text(infoText, {
+          fontFamily: '"Press Start 2P", monospace',
+          fontSize: 9,
+          fill: 0xffff00,
+          stroke: 0x000000,
+          strokeThickness: 4
+        });
+        hoverLabel.resolution = 2;
+        hoverLabel.x = Math.max(0, Math.min(hStartX + hWidth / 2 - hoverLabel.width / 2, this.timelineWidth - hoverLabel.width));
+        hoverLabel.y = -32;
+        this.timelineSegmentsGraphics.addChild(hoverLabel);
+
+        const labelBg = new PIXI.Graphics();
+        labelBg.lineStyle(1, 0xffff00, 0.8);
+        labelBg.beginFill(0x1a1a3e, 0.9);
+        labelBg.drawRoundedRect(hoverLabel.x - 6, hoverLabel.y - 4, hoverLabel.width + 12, hoverLabel.height + 8, 4);
+        labelBg.endFill();
+        this.timelineSegmentsGraphics.addChildAt(labelBg, 0);
+      }
     }
   }
 
@@ -719,7 +860,7 @@ export class UIManager {
     animate();
   }
 
-  public addHistoryItem(thumbnailData?: string): void {
+  public addHistoryItem(_thumbnailData?: string): void {
     const item = new PIXI.Container();
     const itemWidth = 80;
     const itemHeight = 60;
