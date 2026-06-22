@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/carditem.tsx","./src/cardwall.tsx","./src/controlpanel.tsx","./src/postcardeditor.tsx","./src/main.tsx","./src/types.ts","./src/utils.ts","./src/vite-env.d.ts"],"errors":true,"version":"5.8.3"}
