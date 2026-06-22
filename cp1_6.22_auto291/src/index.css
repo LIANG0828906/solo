@@ -1,0 +1,434 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #E2E8F0;
+  color: #1E293B;
+  overflow: hidden;
+}
+
+#root {
+  height: 100vh;
+  width: 100vw;
+}
+
+.app-container {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+  position: relative;
+}
+
+.left-panel, .right-panel {
+  width: 280px;
+  background-color: #F8FAFC;
+  border-right: 1px solid #E2E8F0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.right-panel {
+  border-right: none;
+  border-left: 1px solid #E2E8F0;
+  background-color: #F1F5F9;
+  padding: 16px;
+}
+
+.center-canvas {
+  flex: 1;
+  background-color: #E2E8F0;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.center-canvas > .react-flow,
+.center-canvas > .react-flow-renderer {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+}
+
+.panel-header {
+  padding: 16px;
+  border-bottom: 1px solid #E2E8F0;
+  font-weight: 600;
+  font-size: 14px;
+  color: #334155;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.upload-btn {
+  background-color: #3B82F6;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.upload-btn:hover {
+  background-color: #2563EB;
+}
+
+.upload-btn:active {
+  transform: scale(0.95);
+}
+
+.file-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.file-item {
+  display: flex;
+  align-items: center;
+  padding: 10px 16px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  border-left: 3px solid transparent;
+  position: relative;
+}
+
+.file-item:hover {
+  background-color: #E2E8F0;
+  border-left-color: #3B82F6;
+}
+
+.file-item.selected {
+  background-color: #DBEAFE;
+  border-left-color: #3B82F6;
+}
+
+.file-icon {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  margin-right: 10px;
+  flex-shrink: 0;
+}
+
+.file-icon.txt {
+  background-color: #3B82F6;
+}
+
+.file-icon.md {
+  background-color: #10B981;
+}
+
+.file-name {
+  flex: 1;
+  font-size: 13px;
+  color: #334155;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-expand {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94A3B8;
+  transition: transform 0.2s ease;
+}
+
+.file-expand.expanded {
+  transform: rotate(90deg);
+}
+
+.version-history {
+  background-color: #F1F5F9;
+  padding: 4px 0;
+}
+
+.version-item {
+  padding: 8px 16px 8px 42px;
+  font-size: 12px;
+  color: #64748B;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.version-item:hover {
+  background-color: #E2E8F0;
+}
+
+.version-time {
+  font-size: 11px;
+  color: #94A3B8;
+  margin-top: 2px;
+}
+
+.detail-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1E293B;
+  margin-bottom: 16px;
+  word-break: break-all;
+}
+
+.detail-section {
+  margin-bottom: 20px;
+}
+
+.detail-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #64748B;
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.detail-value {
+  font-size: 13px;
+  color: #334155;
+  word-break: break-all;
+}
+
+.detail-content-preview {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.6;
+  background-color: #F8FAFC;
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid #E2E8F0;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.link {
+  color: #3B82F6;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.link:hover {
+  color: #2563EB;
+}
+
+.descendant-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.descendant-item:last-child {
+  border-bottom: none;
+}
+
+.similarity-badge {
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background-color: #DBEAFE;
+  color: #1D4ED8;
+}
+
+.compare-btn {
+  width: 100%;
+  background-color: #F59E0B;
+  color: white;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+  margin-top: 8px;
+}
+
+.compare-btn:hover {
+  background-color: #D97706;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: #94A3B8;
+  font-size: 13px;
+}
+
+.empty-state-icon {
+  font-size: 32px;
+  margin-bottom: 8px;
+  opacity: 0.5;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-content {
+  background-color: #FFFFFF;
+  border-radius: 12px;
+  width: 800px;
+  height: 600px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #E2E8F0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.modal-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1E293B;
+}
+
+.modal-close {
+  background: none;
+  border: none;
+  font-size: 24px;
+  cursor: pointer;
+  color: #94A3B8;
+  line-height: 1;
+}
+
+.modal-close:hover {
+  color: #64748B;
+}
+
+.diff-container {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.diff-panel {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.diff-panel.left {
+  border-right: 1px solid #E2E8F0;
+}
+
+.diff-line {
+  padding: 2px 8px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.diff-line.added {
+  background-color: #DCFCE7;
+}
+
+.diff-line.removed {
+  background-color: #FEE2E2;
+}
+
+.diff-line.unchanged {
+  color: #475569;
+}
+
+.diff-panel-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748B;
+  margin-bottom: 8px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #E2E8F0;
+}
+
+.react-flow__node {
+  animation: nodeEnter 0.3s ease-out;
+}
+
+@keyframes nodeEnter {
+  from {
+    opacity: 0.5;
+    transform: scale(0.5);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.genealogy-node {
+  width: 180px;
+  height: 50px;
+  background-color: #F8FAFC;
+  border: 1px solid #CBD5E1;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease;
+}
+
+.genealogy-node:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.genealogy-node.selected {
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+}
+
+.generation-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #1E293B;
+}
