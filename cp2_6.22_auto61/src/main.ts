@@ -75,16 +75,16 @@ class EcosystemApp {
       width: window.innerWidth,
       height: window.innerHeight,
       antialias: true,
-      transparent: false,
       backgroundColor: 0x0a1628,
       resolution: window.devicePixelRatio || 1,
       autoDensity: true,
     });
 
-    this.app.view.style.display = 'block';
-    this.app.view.style.width = '100%';
-    this.app.view.style.height = '100%';
-    container.appendChild(this.app.view as HTMLCanvasElement);
+    const view = this.app.view as unknown as HTMLCanvasElement;
+    view.style.display = 'block';
+    view.style.width = '100%';
+    view.style.height = '100%';
+    container.appendChild(view);
 
     this.graphicsPool = new ObjectPool<PIXI.Graphics>(() => new PIXI.Graphics(), 50);
     this.trailPool = new ObjectPool<PIXI.Graphics>(() => new PIXI.Graphics(), 200);
@@ -136,8 +136,9 @@ class EcosystemApp {
   private setupEventListeners(): void {
     window.addEventListener('resize', this.resize.bind(this));
 
-    this.app.view.addEventListener('click', (e: MouseEvent) => {
-      const rect = this.app.view.getBoundingClientRect();
+    const view = this.app.view as unknown as HTMLCanvasElement;
+    view.addEventListener('click', (e: MouseEvent) => {
+      const rect = view.getBoundingClientRect();
       const x = (e.clientX - rect.left) * (this.app.renderer.width / rect.width) / this.scale;
       const y = (e.clientY - rect.top) * (this.app.renderer.height / rect.height) / this.scale;
 
@@ -371,17 +372,57 @@ class EcosystemApp {
   }
 
   private drawRoundedTriangle(g: PIXI.Graphics, size: number): void {
-    const r = size * 0.3;
     const h = size * 1.2;
     const w = size;
+    const cornerRadius = Math.max(2, size * 0.1);
 
-    g.moveTo(0, -h / 2 + r);
-    g.quadraticCurveTo(0, -h / 2, r, -h / 2 + r * 0.5);
-    g.lineTo(w / 2 - r * 0.5, h / 2 - r);
-    g.quadraticCurveTo(w / 2, h / 2, w / 2 - r, h / 2);
-    g.lineTo(-w / 2 + r, h / 2);
-    g.quadraticCurveTo(-w / 2, h / 2, -w / 2 + r * 0.5, h / 2 - r);
-    g.closePath();
+    const top = { x: 0, y: -h / 2 };
+    const br = { x: w / 2, y: h / 2 };
+    const bl = { x: -w / 2, y: h / 2 };
+
+    const dirTopRight = { x: (br.x - top.x), y: (br.y - top.y) };
+    const lenTopRight = Math.sqrt(dirTopRight.x * dirTopRight.x + dirTopRight.y * dirTopRight.y);
+    dirTopRight.x /= lenTopRight;
+    dirTopRight.y /= lenTopRight;
+    const dirTopLeft = { x: (bl.x - top.x), y: (bl.y - top.y) };
+    const lenTopLeft = Math.sqrt(dirTopLeft.x * dirTopLeft.x + dirTopLeft.y * dirTopLeft.y);
+    dirTopLeft.x /= lenTopLeft;
+    dirTopLeft.y /= lenTopLeft;
+
+    const p1 = { x: top.x + dirTopRight.x * cornerRadius, y: top.y + dirTopRight.y * cornerRadius };
+    const p2 = { x: top.x + dirTopLeft.x * cornerRadius, y: top.y + dirTopLeft.y * cornerRadius };
+
+    const dirRightUp = { x: (top.x - br.x), y: (top.y - br.y) };
+    const lenRightUp = Math.sqrt(dirRightUp.x * dirRightUp.x + dirRightUp.y * dirRightUp.y);
+    dirRightUp.x /= lenRightUp;
+    dirRightUp.y /= lenRightUp;
+    const dirRightLeft = { x: (bl.x - br.x), y: (bl.y - br.y) };
+    const lenRightLeft = Math.sqrt(dirRightLeft.x * dirRightLeft.x + dirRightLeft.y * dirRightLeft.y);
+    dirRightLeft.x /= lenRightLeft;
+    dirRightLeft.y /= lenRightLeft;
+
+    const p3 = { x: br.x + dirRightUp.x * cornerRadius, y: br.y + dirRightUp.y * cornerRadius };
+    const p4 = { x: br.x + dirRightLeft.x * cornerRadius, y: br.y + dirRightLeft.y * cornerRadius };
+
+    const dirLeftRight = { x: (br.x - bl.x), y: (br.y - bl.y) };
+    const lenLeftRight = Math.sqrt(dirLeftRight.x * dirLeftRight.x + dirLeftRight.y * dirLeftRight.y);
+    dirLeftRight.x /= lenLeftRight;
+    dirLeftRight.y /= lenLeftRight;
+    const dirLeftUp = { x: (top.x - bl.x), y: (top.y - bl.y) };
+    const lenLeftUp = Math.sqrt(dirLeftUp.x * dirLeftUp.x + dirLeftUp.y * dirLeftUp.y);
+    dirLeftUp.x /= lenLeftUp;
+    dirLeftUp.y /= lenLeftUp;
+
+    const p5 = { x: bl.x + dirLeftRight.x * cornerRadius, y: bl.y + dirLeftRight.y * cornerRadius };
+    const p6 = { x: bl.x + dirLeftUp.x * cornerRadius, y: bl.y + dirLeftUp.y * cornerRadius };
+
+    g.moveTo(p1.x, p1.y);
+    g.quadraticCurveTo(top.x, top.y, p2.x, p2.y);
+    g.lineTo(p6.x, p6.y);
+    g.quadraticCurveTo(bl.x, bl.y, p5.x, p5.y);
+    g.lineTo(p4.x, p4.y);
+    g.quadraticCurveTo(br.x, br.y, p3.x, p3.y);
+    g.lineTo(p1.x, p1.y);
   }
 
   private updateCreaturePosition(creature: Creature, sprite: CreatureSprite): void {
@@ -398,15 +439,17 @@ class EcosystemApp {
   private updateCreatureTrail(creature: Creature, sprite: CreatureSprite): void {
     const color = new PIXI.Color(creature.getColorHsl());
     const trailData = creature.trail;
+    const trailLen = trailData.length;
 
     for (let i = 0; i < sprite.trails.length; i++) {
       const trail = sprite.trails[i];
       trail.clear();
 
-      if (i < trailData.length) {
+      if (i < trailLen && trailLen > 0) {
         const point = trailData[i];
-        const alpha = point.alpha * 0.6;
-        const size = 4 * point.alpha;
+        const progress = i / Math.max(1, trailLen - 1);
+        const alpha = 0.1 + progress * 0.4;
+        const size = 2 + progress * 4;
 
         if (size > 0.5) {
           trail.beginFill(color.toNumber(), alpha);
@@ -419,6 +462,7 @@ class EcosystemApp {
 
   private updateBattleEffects(): void {
     const effects = this.world.simulator.collectBattleEffects();
+    const elapsedTime = this.app.ticker.lastTime / 1000;
 
     for (const effect of effects) {
       const circle = this.graphicsPool.acquire();
@@ -438,15 +482,18 @@ class EcosystemApp {
       const effect = this.battleEffectSprites[i];
       effect.duration -= this.app.ticker.deltaTime;
 
-      const alpha = effect.duration / effect.maxDuration;
-      const size = 15 * (1 - alpha * 0.5);
+      const progress = 1 - effect.duration / effect.maxDuration;
+      const flickerAlpha = Math.sin(elapsedTime * 25) * 0.3 + 0.5;
+      const fadeAlpha = effect.duration / effect.maxDuration;
+      const alpha = Math.max(0, flickerAlpha * fadeAlpha);
+      const size = 15 * (1 - progress * 0.3);
 
       effect.circle.clear();
       effect.circle.lineStyle(2, 0xef4444, alpha);
       effect.circle.drawCircle(0, 0, size);
 
-      if (Math.floor(effect.duration / 4) % 2 === 0) {
-        effect.circle.beginFill(0xef4444, alpha * 0.3);
+      if (Math.sin(elapsedTime * 20) > 0) {
+        effect.circle.beginFill(0xef4444, alpha * 0.25);
         effect.circle.drawCircle(0, 0, size * 0.7);
         effect.circle.endFill();
       }

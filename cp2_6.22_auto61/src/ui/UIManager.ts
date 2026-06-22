@@ -55,14 +55,15 @@ export class UIManager {
     const style = document.createElement('style');
     style.textContent = `
       .glass-panel {
-        background: rgba(10, 22, 40, 0.7);
-        -webkit-backdrop-filter: blur(10px);
-        backdrop-filter: blur(10px);
-        background-image: linear-gradient(135deg, rgba(10, 22, 40, 0.7), rgba(13, 40, 24, 0.6));
+        background-color: rgba(15, 30, 50, 0.75);
+        background-image: linear-gradient(135deg, rgba(10, 22, 40, 0.8), rgba(13, 40, 24, 0.7));
+        -webkit-backdrop-filter: blur(10px) saturate(180%);
+        backdrop-filter: blur(10px) saturate(180%);
       }
       @supports not ((backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))) {
         .glass-panel {
-          background: rgba(10, 22, 40, 0.92);
+          background-color: rgba(10, 22, 40, 0.92);
+          background-image: linear-gradient(135deg, rgba(10, 22, 40, 0.95), rgba(13, 40, 24, 0.9));
         }
       }
     `;
@@ -76,8 +77,8 @@ export class UIManager {
       width: 280px;
       padding: 20px;
       border-radius: 12px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
       color: #fff;
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
       z-index: 100;

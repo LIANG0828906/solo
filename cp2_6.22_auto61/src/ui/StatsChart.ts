@@ -56,12 +56,21 @@ export class StatsChart {
 
     ctx.clearRect(0, 0, width, height);
 
-    if (this.populationData.length < 2 || this.energyData.length < 2) {
+    const totalPop = this.populationData.reduce((a, b) => a + (isFinite(b) ? b : 0), 0);
+    const totalEnergy = this.energyData.reduce((a, b) => a + (isFinite(b) ? b : 0), 0);
+
+    if (this.populationData.length < 2 || this.energyData.length < 2 ||
+        totalPop <= 0 && totalEnergy <= 0) {
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+      ctx.font = '12px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('等待数据...', width / 2, height / 2);
       return;
     }
 
-    const maxPopulation = Math.max(...this.populationData, 1);
-    const maxEnergy = Math.max(...this.energyData, 1);
+    const maxPopulation = Math.max(...this.populationData.filter(v => isFinite(v) && v > 0), 1);
+    const maxEnergy = Math.max(...this.energyData.filter(v => isFinite(v) && v > 0), 1);
     const yMax = Math.max(maxPopulation, maxEnergy) * 1.1;
     const yMin = 0;
 
@@ -142,18 +151,34 @@ export class StatsChart {
       return;
     }
 
+    const safeYMin = Math.max(0, yMin);
+    const safeYMax = Math.max(safeYMin + 1, yMax);
+    const safeYRange = safeYMax - safeYMin;
+
     const points: { x: number; y: number }[] = [];
     const startIndex = this.maxDataPoints > data.length ? this.maxDataPoints - data.length : 0;
 
     for (let i = 0; i < data.length; i++) {
       const x = offsetX + (startIndex + i) * xStep;
       const value = data[i];
-      const normalizedY = isFinite(value) ? (value - yMin) / yRange : 0;
+      const safeValue = isFinite(value) ? Math.max(0, value) : 0;
+      const normalizedY = safeYRange > 0 ? (safeValue - safeYMin) / safeYRange : 0;
       const y = offsetY + chartHeight - Math.max(0, Math.min(1, normalizedY)) * chartHeight;
-      points.push({ x, y });
+
+      if (isFinite(x) && isFinite(y) && x >= 0 && y >= 0) {
+        points.push({ x, y });
+      }
     }
 
-    if (points.length < 2) return;
+    if (!points || points.length < 2) {
+      return;
+    }
+
+    for (const p of points) {
+      if (!isFinite(p.x) || !isFinite(p.y) || p.x < 0 || p.y < 0) {
+        return;
+      }
+    }
 
     if (fillGradient) {
       const gradient = ctx.createLinearGradient(0, offsetY, 0, offsetY + chartHeight);
