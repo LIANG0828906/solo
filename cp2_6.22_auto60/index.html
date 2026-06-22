@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>音乐可视化编辑器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-deep: #0a0a0f;
+      --bg-card: rgba(15, 15, 25, 0.7);
+      --neon-magenta: #ff0080;
+      --neon-cyan: #00ffff;
+      --neon-lime: #aaff00;
+      --glass-bg: rgba(20, 20, 35, 0.6);
+      --glass-border: rgba(255, 255, 255, 0.08);
+      --text-primary: #e0e0e8;
+      --text-secondary: #888899;
+      --transition-speed: 0.25s;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-deep);
+      color: var(--text-primary);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    .upload-overlay {
+      position: absolute;
+      inset: 0;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(10, 10, 15, 0.95);
+      backdrop-filter: blur(20px);
+      transition: opacity var(--transition-speed) ease, visibility var(--transition-speed) ease;
+    }
+
+    .upload-overlay.hidden {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+
+    .upload-box {
+      width: 480px;
+      max-width: 90vw;
+      padding: 60px 40px;
+      border: 2px dashed rgba(255, 0, 128, 0.4);
+      border-radius: 16px;
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
+      text-align: center;
+      cursor: pointer;
+      transition: border-color var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+    }
+
+    .upload-box:hover {
+      border-color: var(--neon-magenta);
+      box-shadow: 0 0 30px rgba(255, 0, 128, 0.2), inset 0 0 30px rgba(255, 0, 128, 0.05);
+    }
+
+    .upload-box.drag-over {
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 40px rgba(0, 255, 255, 0.3), inset 0 0 40px rgba(0, 255, 255, 0.08);
+    }
+
+    .upload-icon {
+      font-size: 48px;
+      margin-bottom: 20px;
+      background: linear-gradient(135deg, var(--neon-magenta), var(--neon-cyan));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .upload-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 20px;
+      font-weight: 700;
+      margin-bottom: 12px;
+      background: linear-gradient(90deg, var(--neon-magenta), var(--neon-cyan), var(--neon-lime));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .upload-subtitle {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    .waveform-section {
+      position: relative;
+      width: 100%;
+      height: 80px;
+      flex-shrink: 0;
+      background: rgba(10, 10, 18, 0.8);
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    .waveform-section canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .timecode {
+      position: absolute;
+      top: 8px;
+      right: 16px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--neon-cyan);
+      text-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .visualizer-section {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .visualizer-section canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .beat-section {
+      position: relative;
+      width: 100%;
+      height: 60px;
+      flex-shrink: 0;
+      background: rgba(10, 10, 18, 0.9);
+      border-top: 1px solid var(--glass-border);
+      border-bottom: 1px solid var(--glass-border);
+    }
+
+    .beat-section canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      cursor: crosshair;
+    }
+
+    .beat-zoom {
+      position: absolute;
+      top: 4px;
+      right: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 10;
+    }
+
+    .beat-zoom button {
+      width: 24px;
+      height: 24px;
+      border: 1px solid var(--glass-border);
+      border-radius: 4px;
+      background: var(--glass-bg);
+      color: var(--text-primary);
+      font-size: 14px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition-speed) ease;
+    }
+
+    .beat-zoom button:hover {
+      border-color: var(--neon-cyan);
+      box-shadow: 0 0 8px rgba(0, 255, 255, 0.3);
+    }
+
+    .beat-zoom span {
+      font-size: 10px;
+      color: var(--text-secondary);
+    }
+
+    .control-section {
+      width: 100%;
+      flex-shrink: 0;
+      background: var(--glass-bg);
+      backdrop-filter: blur(12px);
+      border-top: 1px solid var(--glass-border);
+      padding: 12px 20px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    .transport-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .transport-btn {
+      width: 36px;
+      height: 36px;
+      border: 1px solid var(--glass-border);
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-primary);
+      font-size: 16px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all var(--transition-speed) ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .transport-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 8px;
+      opacity: 0;
+      transition: opacity var(--transition-speed) ease;
+    }
+
+    .transport-btn.play-btn::before {
+      background: linear-gradient(135deg, rgba(255, 0, 128, 0.15), rgba(0, 255, 255, 0.15));
+    }
+
+    .transport-btn:hover {
+      border-color: var(--neon-magenta);
+      box-shadow: 0 0 12px rgba(255, 0, 128, 0.25);
+    }
+
+    .transport-btn:hover::before {
+      opacity: 1;
+    }
+
+    .transport-btn.playing {
+      border-color: var(--neon-magenta);
+      box-shadow: 0 0 12px rgba(255, 0, 128, 0.3);
+    }
+
+    .transport-btn.playing::before {
+      opacity: 1;
+    }
+
+    .mode-switcher {
+      display: flex;
+      gap: 4px;
+      flex-shrink: 0;
+    }
+
+    .mode-btn {
+      padding: 6px 14px;
+      border: 1px solid var(--glass-border);
+      border-radius: 6px;
+      background: transparent;
+      color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all var(--transition-speed) ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .mode-btn:hover {
+      color: var(--text-primary);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .mode-btn.active {
+      color: var(--bg-deep);
+      border-color: transparent;
+    }
+
+    .mode-btn.active[data-mode="particles"] {
+      background: linear-gradient(135deg, var(--neon-magenta), #cc0066);
+      box-shadow: 0 0 16px rgba(255, 0, 128, 0.4);
+    }
+
+    .mode-btn.active[data-mode="bars"] {
+      background: linear-gradient(135deg, var(--neon-cyan), #009999);
+      box-shadow: 0 0 16px rgba(0, 255, 255, 0.4);
+    }
+
+    .mode-btn.active[data-mode="stars"] {
+      background: linear-gradient(135deg, var(--neon-lime), #77aa00);
+      box-shadow: 0 0 16px rgba(170, 255, 0, 0.4);
+    }
+
+    .param-group {
+      display: flex;
+      gap: 12px;
+      flex: 1;
+      align-items: center;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .param-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      min-width: 120px;
+    }
+
+    .param-label {
+      font-size: 10px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+      min-width: 48px;
+      text-align: right;
+    }
+
+    .param-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 80px;
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.08);
+      outline: none;
+      transition: background var(--transition-speed) ease;
+    }
+
+    .param-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: var(--neon-cyan);
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(0, 255, 255, 0.5);
+      transition: transform var(--transition-speed) ease, box-shadow var(--transition-speed) ease;
+    }
+
+    .param-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 14px rgba(0, 255, 255, 0.7);
+    }
+
+    .param-value {
+      font-size: 10px;
+      color: var(--neon-cyan);
+      min-width: 24px;
+      text-align: center;
+    }
+
+    .mouse-color-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-shrink: 0;
+    }
+
+    .mouse-color-toggle label {
+      font-size: 10px;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: color var(--transition-speed) ease;
+    }
+
+    .mouse-color-toggle label:hover {
+      color: var(--text-primary);
+    }
+
+    .toggle-switch {
+      position: relative;
+      width: 36px;
+      height: 18px;
+      border-radius: 9px;
+      background: rgba(255, 255, 255, 0.08);
+      cursor: pointer;
+      transition: background var(--transition-speed) ease;
+    }
+
+    .toggle-switch.active {
+      background: linear-gradient(90deg, var(--neon-magenta), var(--neon-cyan));
+      box-shadow: 0 0 8px rgba(255, 0, 128, 0.3);
+    }
+
+    .toggle-switch::after {
+      content: '';
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #fff;
+      transition: transform var(--transition-speed) ease;
+    }
+
+    .toggle-switch.active::after {
+      transform: translateX(18px);
+    }
+
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 8px rgba(255, 0, 128, 0.2); }
+      50% { box-shadow: 0 0 20px rgba(255, 0, 128, 0.5); }
+    }
+
+    .transport-btn.playing {
+      animation: pulse-glow 1.5s ease-in-out infinite;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="upload-overlay" id="uploadOverlay">
+      <div class="upload-box" id="uploadBox">
+        <div class="upload-icon">&#9835;</div>
+        <div class="upload-title">MUSIC VISUALIZER</div>
+        <div class="upload-subtitle">
+          拖拽音频文件到此处，或点击选择文件<br/>
+          支持 MP3 / WAV / OGG / FLAC 格式
+        </div>
+      </div>
+      <input type="file" id="fileInput" accept="audio/*" style="display:none" />
+    </div>
+
+    <div class="waveform-section">
+      <canvas id="waveformCanvas"></canvas>
+      <div class="timecode" id="timecode">00:00.000</div>
+    </div>
+
+    <div class="visualizer-section">
+      <canvas id="mainCanvas"></canvas>
+    </div>
+
+    <div class="beat-section">
+      <canvas id="beatCanvas"></canvas>
+      <div class="beat-zoom">
+        <button id="zoomIn">+</button>
+        <span id="zoomLevel">1.0x</span>
+        <button id="zoomOut">-</button>
+      </div>
+    </div>
+
+    <div class="control-section">
+      <div class="transport-controls">
+        <button class="transport-btn play-btn" id="playBtn" title="播放/暂停">&#9654;</button>
+        <button class="transport-btn" id="stopBtn" title="停止">&#9632;</button>
+      </div>
+
+      <div class="mode-switcher">
+        <button class="mode-btn active" data-mode="particles">粒子</button>
+        <button class="mode-btn" data-mode="bars">条纹</button>
+        <button class="mode-btn" data-mode="stars">星空</button>
+      </div>
+
+      <div class="param-group" id="paramGroup">
+        <div class="param-item">
+          <span class="param-label">数量</span>
+          <input type="range" class="param-slider" id="paramCount" min="50" max="800" value="300" />
+          <span class="param-value" id="valCount">300</span>
+        </div>
+        <div class="param-item">
+          <span class="param-label">大小</span>
+          <input type="range" class="param-slider" id="paramSize" min="1" max="10" value="3" step="0.5" />
+          <span class="param-value" id="valSize">3</span>
+        </div>
+        <div class="param-item">
+          <span class="param-label">速度</span>
+          <input type="range" class="param-slider" id="paramSpeed" min="0.1" max="3" value="1" step="0.1" />
+          <span class="param-value" id="valSpeed">1.0</span>
+        </div>
+        <div class="param-item">
+          <span class="param-label">饱和度</span>
+          <input type="range" class="param-slider" id="paramSat" min="20" max="100" value="80" />
+          <span class="param-value" id="valSat">80</span>
+        </div>
+        <div class="param-item">
+          <span class="param-label">模糊</span>
+          <input type="range" class="param-slider" id="paramBlur" min="0" max="20" value="4" step="1" />
+          <span class="param-value" id="valBlur">4</span>
+        </div>
+      </div>
+
+      <div class="mouse-color-toggle">
+        <label>鼠标控色</label>
+        <div class="toggle-switch" id="mouseColorToggle"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
