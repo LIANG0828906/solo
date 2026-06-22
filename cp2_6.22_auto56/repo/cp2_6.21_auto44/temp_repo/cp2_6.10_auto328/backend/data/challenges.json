@@ -1,0 +1,218 @@
+[
+  {
+    "id": 1,
+    "name": "智能植物浇水器",
+    "description": "为你的植物朋友打造一个智能浇水系统，让它们永远不会口渴。",
+    "requiredFragments": [
+      "bulb",
+      "leaf",
+      "gear"
+    ],
+    "points": 100,
+    "timeLimit": 90
+  },
+  {
+    "id": 2,
+    "name": "音乐调色画框",
+    "description": "一个会根据音乐节奏变换颜色的神奇画框。",
+    "requiredFragments": [
+      "note",
+      "palette",
+      "bulb"
+    ],
+    "points": 120,
+    "timeLimit": 90
+  },
+  {
+    "id": 3,
+    "name": "机械花园",
+    "description": "用齿轮驱动的自动旋转花园，让每朵花都能享受阳光。",
+    "requiredFragments": [
+      "gear",
+      "leaf",
+      "palette"
+    ],
+    "points": 110,
+    "timeLimit": 90
+  },
+  {
+    "id": 4,
+    "name": "灯光音乐会",
+    "description": "灯光随着音乐节拍舞动的迷你音乐会装置。",
+    "requiredFragments": [
+      "bulb",
+      "note",
+      "gear"
+    ],
+    "points": 130,
+    "timeLimit": 90
+  },
+  {
+    "id": 5,
+    "name": "调色板加湿器",
+    "description": "喷出彩色雾气的艺术加湿器，为房间增添梦幻氛围。",
+    "requiredFragments": [
+      "palette",
+      "leaf",
+      "bulb"
+    ],
+    "points": 115,
+    "timeLimit": 90
+  },
+  {
+    "id": 6,
+    "name": "音符风铃",
+    "description": "风吹过时会演奏优美旋律的机械风铃。",
+    "requiredFragments": [
+      "note",
+      "gear",
+      "leaf"
+    ],
+    "points": 105,
+    "timeLimit": 90
+  },
+  {
+    "id": 7,
+    "name": "绿叶空气净化器",
+    "description": "模拟植物光合作用的智能空气净化器。",
+    "requiredFragments": [
+      "leaf",
+      "bulb",
+      "gear"
+    ],
+    "points": 125,
+    "timeLimit": 90
+  },
+  {
+    "id": 8,
+    "name": "调色板时钟",
+    "description": "每个小时变换一种颜色的艺术时钟。",
+    "requiredFragments": [
+      "palette",
+      "gear",
+      "bulb"
+    ],
+    "points": 110,
+    "timeLimit": 90
+  },
+  {
+    "id": 9,
+    "name": "音乐花盆",
+    "description": "植物生长时会播放轻音乐的魔法花盆。",
+    "requiredFragments": [
+      "note",
+      "leaf",
+      "palette"
+    ],
+    "points": 120,
+    "timeLimit": 90
+  },
+  {
+    "id": 10,
+    "name": "齿轮八音盒",
+    "description": "可自定义旋律的精密机械八音盒。",
+    "requiredFragments": [
+      "gear",
+      "note",
+      "bulb"
+    ],
+    "points": 135,
+    "timeLimit": 90
+  },
+  {
+    "id": 11,
+    "name": "彩虹生成器",
+    "description": "利用光线和水滴在室内制造美丽彩虹的装置。",
+    "requiredFragments": [
+      "bulb",
+      "palette",
+      "leaf"
+    ],
+    "points": 140,
+    "timeLimit": 90
+  },
+  {
+    "id": 12,
+    "name": "自然白噪音机",
+    "description": "模拟大自然声音的助眠白噪音机。",
+    "requiredFragments": [
+      "leaf",
+      "note",
+      "gear"
+    ],
+    "points": 100,
+    "timeLimit": 90
+  },
+  {
+    "id": 13,
+    "name": "调色板温度计",
+    "description": "根据温度变化颜色的创意温度计。",
+    "requiredFragments": [
+      "palette",
+      "bulb",
+      "gear"
+    ],
+    "points": 105,
+    "timeLimit": 90
+  },
+  {
+    "id": 14,
+    "name": "音乐感应灯",
+    "description": "会随着环境音乐自动调节亮度和颜色的智能灯。",
+    "requiredFragments": [
+      "note",
+      "bulb",
+      "palette"
+    ],
+    "points": 125,
+    "timeLimit": 90
+  },
+  {
+    "id": 15,
+    "name": "机械蝴蝶",
+    "description": "翅膀会随音乐扇动的机械蝴蝶装饰品。",
+    "requiredFragments": [
+      "gear",
+      "palette",
+      "note"
+    ],
+    "points": 130,
+    "timeLimit": 90
+  },
+  {
+    "id": 16,
+    "name": "光合作用台灯",
+    "description": "既能照明又能帮助植物生长的多功能台灯。",
+    "requiredFragments": [
+      "bulb",
+      "leaf",
+      "palette"
+    ],
+    "points": 115,
+    "timeLimit": 90
+  },
+  {
+    "id": 17,
+    "name": "旋律风车",
+    "description": "转动时会发出不同音符的创意风车。",
+    "requiredFragments": [
+      "gear",
+      "note",
+      "leaf"
+    ],
+    "points": 105,
+    "timeLimit": 90
+  },
+  {
+    "id": 18,
+    "name": "色彩音乐转换器",
+    "description": "可以将颜色转换成对应旋律的神奇装置。",
+    "requiredFragments": [
+      "palette",
+      "note",
+      "gear"
+    ],
+    "points": 145,
+    "timeLimit": 90
+  }
+]

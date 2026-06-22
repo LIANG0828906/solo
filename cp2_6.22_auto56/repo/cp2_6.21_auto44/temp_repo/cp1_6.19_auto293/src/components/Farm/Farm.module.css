@@ -1,0 +1,127 @@
+:root {
+  --farm-bg: #3d2c1b;
+  --farm-grid-line: rgba(255, 255, 255, 0.15);
+  --farm-cell-hover: rgba(255, 255, 255, 0.1);
+  --farm-cell-size: 64px;
+  --farm-cell-size-mobile: 48px;
+}
+
+.farmContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+}
+
+.coinDisplay {
+  font-size: 18px;
+  font-weight: bold;
+  color: #ffd700;
+  text-shadow: 2px 2px 0 #000;
+  letter-spacing: 1px;
+}
+
+.farmGrid {
+  display: grid;
+  grid-template-columns: repeat(9, var(--farm-cell-size));
+  grid-template-rows: repeat(9, var(--farm-cell-size));
+  gap: 1px;
+  background-color: var(--farm-grid-line);
+  padding: 1px;
+  border: 4px solid #2a1f12;
+  box-shadow: 
+    inset 0 0 0 2px #5a4028,
+    0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.farmCell {
+  width: var(--farm-cell-size);
+  height: var(--farm-cell-size);
+  background-color: var(--farm-bg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: background-color 0.15s ease;
+  image-rendering: pixelated;
+}
+
+.farmCell:hover {
+  background-color: var(--farm-cell-hover);
+}
+
+.farmCell.empty::before {
+  content: '';
+  position: absolute;
+  width: 80%;
+  height: 80%;
+  background: 
+    radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.03) 0%, transparent 50%),
+    radial-gradient(circle at 70% 70%, rgba(0, 0, 0, 0.1) 0%, transparent 50%);
+}
+
+.crop {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.cropSprite {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.particleContainer {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.particle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  pointer-events: none;
+  box-shadow: 0 0 6px currentColor;
+}
+
+.particle.golden {
+  background: linear-gradient(135deg, #ffd700, #ffaa00);
+  box-shadow: 0 0 10px #ffd700, 0 0 20px #ffaa00;
+}
+
+.particle.spiral {
+  border-radius: 50%;
+  box-shadow: 0 0 8px currentColor, 0 0 16px currentColor;
+}
+
+@media (max-width: 768px) {
+  .farmGrid {
+    grid-template-columns: repeat(9, var(--farm-cell-size-mobile));
+    grid-template-rows: repeat(9, var(--farm-cell-size-mobile));
+  }
+
+  .farmCell {
+    width: var(--farm-cell-size-mobile);
+    height: var(--farm-cell-size-mobile);
+  }
+
+  .crop {
+    width: 32px;
+    height: 32px;
+  }
+
+  .coinDisplay {
+    font-size: 16px;
+  }
+}

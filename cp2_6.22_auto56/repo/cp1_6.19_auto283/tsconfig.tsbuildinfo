@@ -1,0 +1,1 @@
+{"root":["./src/main.tsx","./src/vite-env.d.ts","./src/components/controlpanel.tsx","./src/components/coralmodel.tsx","./src/components/datachart.tsx","./src/components/scene.tsx","./src/store/coralstore.ts"],"errors":true,"version":"5.8.3"}

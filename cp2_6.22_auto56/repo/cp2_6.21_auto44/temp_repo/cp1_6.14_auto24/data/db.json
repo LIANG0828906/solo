@@ -1,0 +1,218 @@
+{
+  "users": [
+    {
+      "id": "user-demo-1",
+      "username": "书虫小明",
+      "password": "123456"
+    },
+    {
+      "id": "user-demo-2",
+      "username": "爱读书的猫",
+      "password": "123456"
+    }
+  ],
+  "books": [
+    {
+      "id": "a24c604a-6342-44a9-a302-6f8aa8ba6b37",
+      "title": "百年孤独",
+      "author": "加西亚·马尔克斯",
+      "isbn": "9787544253994",
+      "publishYear": 2011,
+      "description": "魔幻现实主义文学的代表作，描写了布恩迪亚家族七代人的传奇故事，以及加勒比海沿岸小镇马孔多的百年兴衰。",
+      "coverUrl": "https://images.unsplash.com/photo-1544947950-fa07a98d237f?w=800&h=1200&fit=crop",
+      "dropPointId": "dp-1",
+      "ownerId": "user-demo-1",
+      "status": "available",
+      "currentBorrowerId": null,
+      "borrowCount": 10,
+      "totalRating": 34,
+      "ratingCount": 7
+    },
+    {
+      "id": "e92a5ccc-98fb-4aa0-b5fa-8150012ca7a6",
+      "title": "三体",
+      "author": "刘慈欣",
+      "isbn": "9787536692930",
+      "publishYear": 2008,
+      "description": "中国科幻文学的里程碑之作，讲述了地球文明和三体文明在宇宙中的相遇、交流与对抗。",
+      "coverUrl": "https://images.unsplash.com/photo-1614544048536-0d28caf77e4b?w=800&h=1200&fit=crop",
+      "dropPointId": "dp-1",
+      "ownerId": "user-demo-2",
+      "status": "available",
+      "currentBorrowerId": null,
+      "borrowCount": 2,
+      "totalRating": 19,
+      "ratingCount": 6
+    },
+    {
+      "id": "f9f45a8c-da00-4994-8587-9094c14f8e0c",
+      "title": "活着",
+      "author": "余华",
+      "isbn": "9787506365437",
+      "publishYear": 2012,
+      "description": "讲述了农村人福贵悲惨的人生遭遇，一个历尽世间沧桑和磨难的老人的人生感言。",
+      "coverUrl": "https://images.unsplash.com/photo-1589998059171-988d887df646?w=800&h=1200&fit=crop",
+      "dropPointId": "dp-2",
+      "ownerId": "user-demo-1",
+      "status": "available",
+      "currentBorrowerId": null,
+      "borrowCount": 9,
+      "totalRating": 20,
+      "ratingCount": 3
+    },
+    {
+      "id": "663963f4-7b27-432c-84e4-392ed8ce271f",
+      "title": "小王子",
+      "author": "安托万·德·圣-埃克苏佩里",
+      "isbn": "9787020042494",
+      "publishYear": 2003,
+      "description": "一个来自B-612星球的小王子的星际旅行故事，一部关于爱与责任的童话。",
+      "coverUrl": "https://images.unsplash.com/photo-1512820790803-83ca734da794?w=800&h=1200&fit=crop",
+      "dropPointId": "dp-3",
+      "ownerId": "user-demo-2",
+      "status": "available",
+      "currentBorrowerId": null,
+      "borrowCount": 8,
+      "totalRating": 18,
+      "ratingCount": 6
+    },
+    {
+      "id": "a100a3f5-7ebf-4c53-9219-3106ee6784c8",
+      "title": "人类简史",
+      "author": "尤瓦尔·赫拉利",
+      "isbn": "9787508647357",
+      "publishYear": 2014,
+      "description": "从认知革命、农业革命到科学革命，讲述了智人如何从非洲草原上的普通动物演变成地球的主宰。",
+      "coverUrl": "https://images.unsplash.com/photo-1543002588-bfa74002ed7e?w=800&h=1200&fit=crop",
+      "dropPointId": "dp-2",
+      "ownerId": "user-demo-2",
+      "status": "available",
+      "currentBorrowerId": null,
+      "borrowCount": 2,
+      "totalRating": 18,
+      "ratingCount": 7
+    },
+    {
+      "id": "33650227-284a-451b-8739-b08dbb6cd362",
+      "title": "围城",
+      "author": "钱钟书",
+      "isbn": "9787020024759",
+      "publishYear": 1991,
+      "description": "一部新\"儒林外史\"，讽刺了当时社会上的各种丑恶现象，被誉为\"新儒林外史\"。",
+      "coverUrl": "https://images.unsplash.com/photo-1495640388908-05fa85288e61?w=800&h=1200&fit=crop",
+      "dropPointId": "dp-4",
+      "ownerId": "user-demo-1",
+      "status": "available",
+      "currentBorrowerId": null,
+      "borrowCount": 10,
+      "totalRating": 24,
+      "ratingCount": 3
+    },
+    {
+      "id": "844a54c1-11b7-4354-bdb8-29a62e0a42b0",
+      "title": "平凡的世界",
+      "author": "路遥",
+      "isbn": "9787530212004",
+      "publishYear": 2012,
+      "description": "通过复杂的矛盾纠葛，以孙少安和孙少平两兄弟为中心，刻画了当时社会各阶层众多普通人的形象。",
+      "coverUrl": "https://images.unsplash.com/photo-1491841550275-ad7854e35ca6?w=800&h=1200&fit=crop",
+      "dropPointId": "dp-5",
+      "ownerId": "user-demo-2",
+      "status": "available",
+      "currentBorrowerId": null,
+      "borrowCount": 1,
+      "totalRating": 16,
+      "ratingCount": 5
+    },
+    {
+      "id": "70caf851-73dc-4719-8f5e-0054f7cd1ce1",
+      "title": "挪威的森林",
+      "author": "村上春树",
+      "isbn": "9787532742929",
+      "publishYear": 2007,
+      "description": "以青春和爱情为主题的小说，讲述了主人公渡边在青春的迷茫与爱情的纠葛中成长的故事。",
+      "coverUrl": "https://images.unsplash.com/photo-1519682337058-a94d519337bc?w=800&h=1200&fit=crop",
+      "dropPointId": "dp-1",
+      "ownerId": "user-demo-1",
+      "status": "available",
+      "currentBorrowerId": null,
+      "borrowCount": 4,
+      "totalRating": 28,
+      "ratingCount": 6
+    }
+  ],
+  "dropPoints": [
+    {
+      "id": "dp-1",
+      "name": "城市书房·朝阳店",
+      "lat": 39.9087,
+      "lng": 116.4074,
+      "address": "北京市朝阳区建国路88号"
+    },
+    {
+      "id": "dp-2",
+      "name": "西西弗书店·国贸店",
+      "lat": 39.9137,
+      "lng": 116.4554,
+      "address": "北京市朝阳区建国门外大街1号"
+    },
+    {
+      "id": "dp-3",
+      "name": "Page One·三里屯",
+      "lat": 39.9367,
+      "lng": 116.4484,
+      "address": "北京市朝阳区三里屯路19号"
+    },
+    {
+      "id": "dp-4",
+      "name": "万圣书园·五道口",
+      "lat": 39.9927,
+      "lng": 116.3404,
+      "address": "北京市海淀区成府路27号"
+    },
+    {
+      "id": "dp-5",
+      "name": "单向空间·朝阳大悦城",
+      "lat": 39.9247,
+      "lng": 116.5124,
+      "address": "北京市朝阳区朝阳北路101号"
+    },
+    {
+      "id": "dp-6",
+      "name": "模范书局·杨梅竹",
+      "lat": 39.8957,
+      "lng": 116.3934,
+      "address": "北京市西城区杨梅竹斜街31号"
+    }
+  ],
+  "driftLogs": [
+    {
+      "id": "dbf64b3f-2cbd-4277-8d3b-b991fd11cdc9",
+      "bookId": "a24c604a-6342-44a9-a302-6f8aa8ba6b37",
+      "userId": "user-demo-2",
+      "username": "爱读书的猫",
+      "content": "第三次读《百年孤独》了，每次都有新的感悟。马尔克斯用魔幻现实主义的笔法，把一个家族的兴衰写得如此荡气回肠。孤独是每个人的宿命，但书中人物对命运的抗争让我动容。推荐给所有喜欢深度阅读的朋友！",
+      "rating": 5,
+      "createdAt": "2026-05-22T19:30:50.866Z"
+    },
+    {
+      "id": "20489931-2f55-476c-92e5-a36cfecc9023",
+      "bookId": "e92a5ccc-98fb-4aa0-b5fa-8150012ca7a6",
+      "userId": "user-demo-1",
+      "username": "书虫小明",
+      "content": "刘慈欣的想象力太惊人了！黑暗森林法则让人细思极恐。这不仅是一本科幻小说，更是对人类文明的深刻反思。读完后仰望星空，感觉宇宙都变得不一样了。期待更多优秀的中国科幻作品！",
+      "rating": 5,
+      "createdAt": "2026-06-02T10:38:44.839Z"
+    },
+    {
+      "id": "347f64d1-9fa6-4b21-9f2a-795beb971f26",
+      "bookId": "f9f45a8c-da00-4994-8587-9094c14f8e0c",
+      "userId": "user-demo-2",
+      "username": "爱读书的猫",
+      "content": "余华的文字总是那么朴素却有力量。福贵的一生经历了太多苦难，但他依然选择活着。这本书让我更加珍惜当下的生活，也让我对生命有了更深的思考。值得每个年轻人读一读。",
+      "rating": 4,
+      "createdAt": "2026-06-10T13:32:59.709Z"
+    }
+  ],
+  "chatMessages": []
+}

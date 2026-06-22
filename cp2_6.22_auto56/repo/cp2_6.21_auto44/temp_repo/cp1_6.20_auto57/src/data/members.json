@@ -1,0 +1,5 @@
+[
+  { "id": "m1", "nickname": "小明", "avatar": "https://api.dicebear.com/7.x/adventurer/svg?seed=ming" },
+  { "id": "m2", "nickname": "小红", "avatar": "https://api.dicebear.com/7.x/adventurer/svg?seed=hong" },
+  { "id": "m3", "nickname": "小华", "avatar": "https://api.dicebear.com/7.x/adventurer/svg?seed=hua" }
+]

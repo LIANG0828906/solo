@@ -1,0 +1,196 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+}
+
+body {
+  font-family: 'Noto Sans SC', sans-serif;
+  background-color: #1a1a2e;
+  color: #e5e7eb;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.font-display {
+  font-family: 'Cinzel', serif;
+  letter-spacing: 0.02em;
+}
+
+/* 自定义滚动条 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #16213e;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #3d2a5c;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #9c27b0;
+}
+
+/* 输入框底部动画 */
+.input-field {
+  position: relative;
+}
+
+.input-field input,
+.input-field select,
+.input-field textarea {
+  background: transparent;
+  border: none;
+  border-bottom: 1.5px solid #4b5563;
+  padding: 8px 0;
+  width: 100%;
+  color: #e5e7eb;
+  outline: none;
+  transition: border-color 0.2s ease-out;
+  font-size: 14px;
+}
+
+.input-field input::placeholder,
+.input-field textarea::placeholder {
+  color: #6b7280;
+}
+
+.input-field::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 1.5px;
+  background: #9c27b0;
+  transition: all 0.2s ease-out;
+  transform: translateX(-50%);
+}
+
+.input-field:focus-within::after {
+  width: 100%;
+}
+
+.input-field:focus-within input,
+.input-field:focus-within select,
+.input-field:focus-within textarea {
+  border-bottom-color: transparent;
+}
+
+/* 按钮通用样式 */
+.btn-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 18px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  border: none;
+  white-space: nowrap;
+}
+
+.btn-base:hover {
+  transform: scale(1.05);
+}
+
+.btn-primary {
+  background: #9c27b0;
+  color: #fff;
+}
+
+.btn-primary:hover {
+  background: #7b1fa2;
+}
+
+.btn-secondary {
+  background: #ff6f61;
+  color: #fff;
+}
+
+.btn-secondary:hover {
+  background: #e55a4d;
+}
+
+.btn-ghost {
+  background: rgba(255, 255, 255, 0.08);
+  color: #e5e7eb;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.btn-ghost:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.btn-base:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* 卡片通用 */
+.card {
+  background: #16213e;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* 导航栏毛玻璃 */
+.nav-glass {
+  background: rgba(22, 33, 62, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-bottom: 1px solid rgba(156, 39, 176, 0.2);
+}
+
+/* 拖拽预览 */
+.drag-preview {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+  width: 160px;
+  height: 120px;
+  border-radius: 8px;
+  opacity: 0.85;
+  overflow: hidden;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
+  transform: translate(-50%, -50%);
+}
+
+.drag-preview img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* 低库存警告闪烁 */
+.low-stock-card {
+  border: 1.5px solid #d32f2f !important;
+  animation: borderPulse 0.3s ease-in-out infinite;
+}
+
+/* 列表元素进入动画 */
+.list-enter {
+  animation: fadeIn 0.3s ease-in-out both;
+}

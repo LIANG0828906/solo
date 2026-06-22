@@ -1,0 +1,278 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #1A1A2E;
+  color: #e0e0e0;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+.app-header {
+  flex-shrink: 0;
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #0F3460, #1A1A2E);
+  border-bottom: 1px solid #2D2D44;
+}
+
+.app-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #e0e0e0;
+  letter-spacing: 1px;
+}
+
+.app-body {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  overflow: auto;
+}
+
+.tool-panel {
+  width: 220px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+  background: rgba(26, 26, 46, 0.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-right: 1px solid #2D2D44;
+  overflow-y: auto;
+  height: 100%;
+}
+
+.tool-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tool-section-title {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: #888;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #2D2D44;
+}
+
+.tool-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tool-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border: 1px solid #2D2D44;
+  border-radius: 20px;
+  background: rgba(45, 45, 68, 0.5);
+  color: #ccc;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.tool-btn:hover:not(:disabled) {
+  background: rgba(45, 45, 68, 0.9);
+  transform: translateY(-2px);
+  color: #fff;
+  border-color: #4A90D9;
+}
+
+.tool-btn.active {
+  background: rgba(74, 144, 217, 0.25);
+  border-color: #4A90D9;
+  color: #4A90D9;
+  font-weight: 600;
+}
+
+.tool-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.tool-icon {
+  font-size: 16px;
+}
+
+.tool-label {
+  font-size: 13px;
+}
+
+.control-btn {
+  width: 100%;
+  padding: 10px 16px;
+  border: 1px solid #2ECC71;
+  border-radius: 20px;
+  background: rgba(46, 204, 113, 0.15);
+  color: #2ECC71;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.control-btn:hover {
+  background: rgba(46, 204, 113, 0.3);
+  transform: translateY(-2px);
+}
+
+.control-btn.running {
+  border-color: #E74C3C;
+  background: rgba(231, 76, 60, 0.15);
+  color: #E74C3C;
+}
+
+.control-btn.running:hover {
+  background: rgba(231, 76, 60, 0.3);
+}
+
+.reset-btn {
+  border-color: #888;
+  background: rgba(136, 136, 136, 0.1);
+  color: #888;
+  margin-top: 6px;
+}
+
+.reset-btn:hover {
+  background: rgba(136, 136, 136, 0.25);
+  color: #ccc;
+}
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 4px;
+  background: rgba(45, 45, 68, 0.4);
+  border-radius: 8px;
+  border: 1px solid #2D2D44;
+}
+
+.stat-label {
+  font-size: 10px;
+  color: #888;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #F1C40F;
+  margin-top: 2px;
+}
+
+.info-text {
+  font-size: 12px;
+  color: #888;
+  line-height: 1.6;
+}
+
+.info-hint {
+  font-size: 11px;
+  color: #666;
+}
+
+@media (max-width: 767px) {
+  .app-body {
+    flex-direction: column;
+  }
+
+  .tool-panel {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    height: auto;
+    max-height: 180px;
+    border-right: none;
+    border-top: 1px solid #2D2D44;
+    border-bottom: 1px solid #2D2D44;
+    order: 2;
+    padding: 8px 12px;
+    gap: 8px;
+    overflow-y: auto;
+  }
+
+  .app-main {
+    order: 1;
+  }
+
+  .tool-section {
+    min-width: 140px;
+    flex: 1;
+  }
+
+  .tool-grid {
+    flex-direction: row;
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  .tool-btn {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .stats-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 4px;
+  }
+
+  .stat-item {
+    padding: 4px;
+  }
+
+  .stat-value {
+    font-size: 14px;
+  }
+
+  .app-header {
+    padding: 8px 16px;
+  }
+
+  .app-title {
+    font-size: 16px;
+  }
+
+  .info-text {
+    display: none;
+  }
+}

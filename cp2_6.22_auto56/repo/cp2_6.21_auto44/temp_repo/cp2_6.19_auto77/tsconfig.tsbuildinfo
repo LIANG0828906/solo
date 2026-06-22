@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/store.ts","./src/types.ts","./src/components/addhabitmodal.tsx","./src/components/celebration.tsx","./src/components/habitcard.tsx","./src/components/habitdetail.tsx","./src/components/habitlist.tsx","./src/components/todaylist.tsx"],"version":"5.8.3"}

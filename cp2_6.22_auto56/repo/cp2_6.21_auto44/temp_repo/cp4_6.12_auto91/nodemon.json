@@ -1,0 +1,9 @@
+{
+  "watch": ["server"],
+  "ext": "ts",
+  "exec": "tsx server/index.ts",
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "delay": 1000
+}

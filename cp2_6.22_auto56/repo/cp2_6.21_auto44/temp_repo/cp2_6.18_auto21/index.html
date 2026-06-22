@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>细胞分裂与分化 3D 可视化</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #0A0A1A; font-family: 'Segoe UI', system-ui, sans-serif; }
+    #app { display: flex; width: 100%; height: 100%; }
+    #scene-container { flex: 1; min-width: 0; position: relative; }
+    #scene-container canvas { display: block; }
+    #control-panel { width: 340px; flex-shrink: 0; }
+    @media (max-width: 767px) {
+      #app { flex-direction: column; }
+      #scene-container { flex: none; height: 55vh; }
+      #control-panel { width: 100%; flex: 1; overflow-y: auto; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="scene-container"></div>
+    <div id="control-panel"></div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

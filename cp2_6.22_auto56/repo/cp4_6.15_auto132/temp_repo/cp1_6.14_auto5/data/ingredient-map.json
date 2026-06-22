@@ -1,0 +1,251 @@
+{
+  "US": {
+    "老抽": {
+      "translation": "dark soy sauce",
+      "replacements": [
+        { "name": "Kikkoman Dark Soy Sauce", "reason": "美国亚洲超市最常见的日本品牌老抽，风味接近" },
+        { "name": "Lee Kum Kee Dark Soy Sauce", "reason": "香港品牌，美国华人超市常备，味道最接近原版" },
+        { "name": "reduced-sodium tamari", "reason": "无小麦替代品，适合麸质过敏人群" }
+      ]
+    },
+    "生抽": {
+      "translation": "light soy sauce",
+      "replacements": [
+        { "name": "Kikkoman Light Soy Sauce", "reason": "最常见的日式生抽，咸味适中" },
+        { "name": "Pearl River Bridge Light Soy Sauce", "reason": "粤式生抽，风味最地道" },
+        { "name": "coconut aminos", "reason": "无大豆无麸质的健康替代品" }
+      ]
+    },
+    "蚝油": {
+      "translation": "oyster sauce",
+      "replacements": [
+        { "name": "Lee Kum Kee Premium Oyster Sauce", "reason": "美国市场最主流的蚝油品牌" },
+        { "name": "vegetarian oyster sauce (mushroom sauce)", "reason": "素食替代品，以蘑菇为原料" }
+      ]
+    },
+    "料酒": {
+      "translation": "Chinese cooking wine",
+      "replacements": [
+        { "name": "Shaoxing wine (imported)", "reason": "绍兴黄酒，最正宗的料酒选择" },
+        { "name": "dry sherry", "reason": "最易获得的西方替代品，风味接近" },
+        { "name": "mirin + a pinch of salt", "reason": "日式味醂加盐，可替代甜味料酒" }
+      ]
+    },
+    "香醋": {
+      "translation": "black vinegar",
+      "replacements": [
+        { "name": "Chinkiang black vinegar", "reason": "镇江香醋，最地道的选择" },
+        { "name": "balsamic vinegar (reduced)", "reason": "浓缩意大利黑醋，颜色和酸度相近" },
+        { "name": "apple cider vinegar + a touch of soy sauce", "reason": "家常替代品" }
+      ]
+    },
+    "豆瓣酱": {
+      "translation": "doubanjiang (spicy bean paste)",
+      "replacements": [
+        { "name": "Pixian Doubanjiang", "reason": "郫县豆瓣酱，川菜灵魂" },
+        { "name": "toban djan (Japanese version)", "reason": "日本版辣酱豆瓣酱，较易买到" },
+        { "name": "gochujang + miso paste", "reason": "韩式辣酱加味噌的混合替代" }
+      ]
+    },
+    "豆豉": {
+      "translation": "fermented black beans",
+      "replacements": [
+        { "name": "Yang Jiang dried black beans", "reason": "阳江豆豉，最经典" },
+        { "name": "black bean sauce (jarred)", "reason": "罐装即食豆豉酱，更方便" }
+      ]
+    },
+    "五香粉": {
+      "translation": "Chinese five-spice powder",
+      "replacements": [
+        { "name": "McCormick Chinese Five-Spice", "reason": "美国主流超市能买到的五香粉" },
+        { "name": "star anise + cloves + cinnamon + fennel + Sichuan peppercorn", "reason": "可按比例自行调配" }
+      ]
+    },
+    "花椒": {
+      "translation": "Sichuan peppercorns",
+      "replacements": [
+        { "name": "Sichuan red peppercorns (imported)", "reason": "正宗四川汉源花椒" },
+        { "name": "Sansho pepper (Japanese)", "reason": "日式山椒，麻味较轻" },
+        { "name": "lemon pepper", "reason": "模拟清新麻感的西式替代" }
+      ]
+    },
+    "芝麻油": {
+      "translation": "toasted sesame oil",
+      "replacements": [
+        { "name": "Kadoya pure sesame oil", "reason": "日本角屋，最常用的优质芝麻油" },
+        { "name": "Ottogi roasted sesame oil", "reason": "韩式烤芝麻油，香气浓郁" }
+      ]
+    },
+    "米饭": {
+      "translation": "steamed jasmine rice",
+      "replacements": [
+        { "name": "jasmine rice", "reason": "泰国香米，口感接近南方米饭" },
+        { "name": "Calrose rice", "reason": "加州产短粒米，口感软糯" },
+        { "name": "cauliflower rice", "reason": "低碳水替代品" }
+      ]
+    },
+    "豆腐": {
+      "translation": "tofu",
+      "replacements": [
+        { "name": "firm tofu", "reason": "老豆腐，适合煎炒红烧" },
+        { "name": "silken tofu", "reason": "嫩豆腐，适合煮汤和凉拌" }
+      ]
+    },
+    "腐竹": {
+      "translation": "yuba (tofu skin)",
+      "replacements": [
+        { "name": "dried yuba sticks", "reason": "干腐竹，美国亚洲超市干货区有售" },
+        { "name": "fried tofu puffs", "reason": "油豆腐，吸汁性类似" }
+      ]
+    },
+    "冬菇": {
+      "translation": "dried shiitake mushrooms",
+      "replacements": [
+        { "name": "dried shiitake mushrooms", "reason": "干香菇，美国主流超市有售" },
+        { "name": "fresh cremini mushrooms", "reason": "新鲜褐菇，香气略淡但易得" }
+      ]
+    },
+    "木耳": {
+      "translation": "wood ear mushrooms",
+      "replacements": [
+        { "name": "dried black fungus", "reason": "干黑木耳，亚洲超市干货区" },
+        { "name": "cloud ear mushrooms", "reason": "毛木耳，口感更厚实" }
+      ]
+    },
+    "粉丝": {
+      "translation": "glass noodles (mung bean starch)",
+      "replacements": [
+        { "name": "cellophane noodles (mung bean)", "reason": "绿豆粉丝，最正宗" },
+        { "name": "sweet potato noodles", "reason": "红薯粉条，口感更Q弹" },
+        { "name": "rice vermicelli", "reason": "米粉，替代口感" }
+      ]
+    },
+    "中式火腿": {
+      "translation": "Chinese cured ham",
+      "replacements": [
+        { "name": "Jinhua ham (imported)", "reason": "金华火腿，最上等选择" },
+        { "name": "Prosciutto di Parma", "reason": "意大利帕尔马火腿，咸香风味接近" },
+        { "name": "smoked bacon (diced, rendered)", "reason": "煎香切丁培根，家常替代" }
+      ]
+    },
+    "小葱": {
+      "translation": "scallions",
+      "replacements": [
+        { "name": "green onions", "reason": "美国超市标注的green onions即为小葱" },
+        { "name": "chives", "reason": "细香葱，作为点缀可用" }
+      ]
+    },
+    "大蒜": {
+      "translation": "garlic",
+      "replacements": [
+        { "name": "fresh garlic cloves", "reason": "鲜蒜，全球通用" },
+        { "name": "garlic powder", "reason": "蒜粉，方便储存" }
+      ]
+    },
+    "生姜": {
+      "translation": "ginger",
+      "replacements": [
+        { "name": "fresh ginger root", "reason": "鲜姜，全美超市均有销售" },
+        { "name": "ground ginger", "reason": "姜粉，适合炖煮" }
+      ]
+    },
+    "大白菜": {
+      "translation": "Napa cabbage",
+      "replacements": [
+        { "name": "Napa cabbage", "reason": "美国主流超市能买到的大白菜" },
+        { "name": "bok choy (Shanghai)", "reason": "上海青，可替代做炒菜" },
+        { "name": "green cabbage", "reason": "绿甘蓝，炖煮时可替代" }
+      ]
+    },
+    "豆芽": {
+      "translation": "bean sprouts",
+      "replacements": [
+        { "name": "mung bean sprouts", "reason": "绿豆芽，美国超市普遍有售" },
+        { "name": "soybean sprouts", "reason": "黄豆芽，口感更粗壮" }
+      ]
+    },
+    "猪肉": {
+      "translation": "pork",
+      "replacements": [
+        { "name": "pork shoulder (Boston butt)", "reason": "猪肩肉，适合红烧炖煮" },
+        { "name": "pork tenderloin", "reason": "猪里脊，适合快炒" },
+        { "name": "pork belly", "reason": "五花肉，肥瘦相间" }
+      ]
+    },
+    "牛肉": {
+      "translation": "beef",
+      "replacements": [
+        { "name": "chuck roast", "reason": "牛肩肉，适合炖煮" },
+        { "name": "sirloin steak", "reason": "西冷牛排，适合快炒" },
+        { "name": "ground beef 80/20", "reason": "80/20牛肉馅，适合做丸子" }
+      ]
+    },
+    "鸡肉": {
+      "translation": "chicken",
+      "replacements": [
+        { "name": "bone-in chicken thighs", "reason": "带骨鸡腿肉，鲜嫩多汁" },
+        { "name": "chicken breast", "reason": "鸡胸肉，低脂健康" }
+      ]
+    }
+  },
+  "UK": {
+    "老抽": {
+      "translation": "dark soy sauce",
+      "replacements": [
+        { "name": "Lee Kum Kee Dark Soy Sauce", "reason": "英国中国超市最易购得的老抽品牌" },
+        { "name": "soy sauce + a splash of molasses", "reason": "生抽加少量糖蜜调制的简易替代" }
+      ]
+    },
+    "生抽": {
+      "translation": "light soy sauce",
+      "replacements": [
+        { "name": "Kikkoman Naturally Brewed Soy Sauce", "reason": "Tesco等主流超市可买到" },
+        { "name": "Amoy Light Soy Sauce", "reason": "淘大生抽，中国城常备" }
+      ]
+    },
+    "蚝油": {
+      "translation": "oyster sauce",
+      "replacements": [
+        { "name": "Lee Kum Kee Oyster Sauce", "reason": "英国各大超市亚洲区均售" },
+        { "name": "Shiitake mushroom sauce", "reason": "素蚝油替代品，Waitrose有售" }
+      ]
+    },
+    "米饭": {
+      "translation": "boiled jasmine rice",
+      "replacements": [
+        { "name": "Thai jasmine rice", "reason": "泰米，英国超市主流选择" },
+        { "name": "Basmati rice", "reason": "印度香米，长粒替代" }
+      ]
+    }
+  },
+  "JP": {
+    "老抽": {
+      "translation": "濃口醤油",
+      "replacements": [
+        { "name": "キッコーマン こいくちしょうゆ", "reason": "日本最主流的浓口酱油，80%家庭使用" },
+        { "name": "したじめ 濃口醤油", "reason": "下立酱油，风味更浓厚" }
+      ]
+    },
+    "生抽": {
+      "translation": "薄口醤油",
+      "replacements": [
+        { "name": "キッコーマン うすくちしょうゆ", "reason": "万字淡口酱油，适合浅色料理" },
+        { "name": "白醤油", "reason": "白酱油，颜色更淡，用于高级怀石料理" }
+      ]
+    },
+    "蚝油": {
+      "translation": "オイスターソース",
+      "replacements": [
+        { "name": "李錦記 オイスターソース", "reason": "李锦记蚝油，日本业务超市有售" },
+        { "name": "ユウキ オイスターソース", "reason": "日本本土品牌" }
+      ]
+    },
+    "米饭": {
+      "translation": "ご飯（白米）",
+      "replacements": [
+        { "name": "コシヒカリ米", "reason": "越光米，日本第一品牌" },
+        { "name": "あきたこまち", "reason": "秋田小町，口感软糯" }
+      ]
+    }
+  }
+}

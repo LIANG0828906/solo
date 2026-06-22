@@ -1,0 +1,11 @@
+{
+  "playlists": [
+    {
+      "id": "a5bb3518-f883-4d68-ac45-cfd8adfe1458",
+      "name": "我喜欢的音乐",
+      "coverGradient": "linear-gradient(135deg, #fa709a 0%, #fee140 100%)",
+      "songs": [],
+      "createdAt": "2026-06-19T16:59:20.991Z"
+    }
+  ]
+}

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>太空陨石采集</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      font-family: monospace;
+      overflow: hidden;
+    }
+    #gameContainer {
+      position: relative;
+      box-shadow: 0 0 50px rgba(0, 100, 255, 0.3);
+      border: 1px solid #1a3a5c;
+    }
+    canvas {
+      display: block;
+    }
+    #instructions {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(100, 180, 255, 0.6);
+      font-size: 12px;
+      text-align: center;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="instructions">WASD 移动 | 空格 发射激光 | 传送门恢复燃料</div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

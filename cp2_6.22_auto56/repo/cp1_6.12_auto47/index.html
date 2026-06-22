@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>城市空气质量3D可视化监控平台</title>
+  <style>
+    :root {
+      --bg-primary: #0a0e1a;
+      --bg-panel: rgba(0, 0, 0, 0.7);
+      --bg-hover: rgba(255, 255, 255, 0.92);
+      --text-primary: #ffffff;
+      --text-secondary: rgba(255, 255, 255, 0.7);
+      --accent-green: #00e400;
+      --accent-yellow: #ffff00;
+      --accent-orange: #ff7e00;
+      --accent-red: #ff0000;
+      --accent-purple: #8f3f97;
+      --border-radius: 8px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+    }
+
+    #app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+    }
+
+    #scene-container {
+      flex: 1;
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    #scene-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    #left-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 260px;
+      padding: 20px;
+      background: var(--bg-panel);
+      border-radius: var(--border-radius);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 10;
+      transition: opacity 0.3s ease;
+    }
+
+    #left-panel h2 {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      padding-bottom: 10px;
+    }
+
+    .info-item {
+      margin-bottom: 14px;
+      opacity: 0;
+      animation: fadeIn 0.3s ease forwards;
+    }
+
+    .info-item.updated {
+      animation: fadeIn 0.3s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .info-label {
+      font-size: 12px;
+      color: var(--text-secondary);
+      margin-bottom: 4px;
+    }
+
+    .info-value {
+      font-size: 24px;
+      font-weight: 700;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.5px;
+    }
+
+    .info-value.aqi-good { color: var(--accent-green); }
+    .info-value.aqi-moderate { color: var(--accent-yellow); }
+    .info-value.aqi-unhealthy-sensitive { color: var(--accent-orange); }
+    .info-value.aqi-unhealthy { color: var(--accent-red); }
+    .info-value.aqi-hazardous { color: var(--accent-purple); }
+
+    #right-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 360px;
+      padding: 16px;
+      background: var(--bg-panel);
+      border-radius: var(--border-radius);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      z-index: 10;
+    }
+
+    #right-panel h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    #chart-title-mode {
+      font-size: 11px;
+      padding: 3px 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      font-weight: 400;
+      color: var(--text-secondary);
+    }
+
+    #chart-canvas {
+      width: 100%;
+      height: 200px;
+      display: block;
+    }
+
+    #hover-panel {
+      position: absolute;
+      pointer-events: none;
+      padding: 14px 18px;
+      background: var(--bg-hover);
+      border-radius: var(--border-radius);
+      color: #1a1a2e;
+      font-size: 13px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 0.2s ease, transform 0.2s ease;
+      z-index: 20;
+      min-width: 220px;
+    }
+
+    #hover-panel.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    #hover-panel .station-name {
+      font-size: 15px;
+      font-weight: 700;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.08);
+    }
+
+    #hover-panel .pollutant-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 4px 0;
+    }
+
+    #hover-panel .pollutant-label {
+      color: #555;
+    }
+
+    #hover-panel .pollutant-value {
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    #hover-panel .aqi-badge {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 4px;
+      color: white;
+      font-weight: 600;
+      font-size: 12px;
+    }
+
+    #hover-panel .update-time {
+      margin-top: 10px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(0, 0, 0, 0.08);
+      font-size: 11px;
+      color: #777;
+    }
+
+    #mobile-tabs {
+      display: none;
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: var(--bg-panel);
+      backdrop-filter: blur(10px);
+      z-index: 15;
+    }
+
+    .tab-buttons {
+      display: flex;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 14px;
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      font-size: 13px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      border-bottom: 2px solid transparent;
+    }
+
+    .tab-btn.active {
+      color: var(--text-primary);
+      border-bottom-color: var(--accent-green);
+    }
+
+    .tab-content {
+      display: none;
+      width: 100%;
+      height: 260px;
+    }
+
+    .tab-content.active {
+      display: block;
+    }
+
+    #connection-status {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 6px 14px;
+      background: var(--bg-panel);
+      border-radius: 20px;
+      font-size: 12px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 10;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #666;
+      animation: pulse 2s infinite;
+    }
+
+    .status-dot.connected {
+      background: var(--accent-green);
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    @media (max-width: 768px) {
+      #left-panel {
+        width: calc(100% - 40px);
+        top: 60px;
+        padding: 14px;
+      }
+
+      #left-panel h2 {
+        font-size: 14px;
+        margin-bottom: 12px;
+      }
+
+      .info-value {
+        font-size: 20px;
+      }
+
+      #right-panel {
+        display: none;
+      }
+
+      #mobile-tabs {
+        display: block;
+      }
+
+      #scene-container {
+        height: calc(100% - 300px);
+      }
+
+      #chart-canvas-mobile {
+        width: 100%;
+        height: 220px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="scene-container">
+      <canvas id="scene-canvas"></canvas>
+    </div>
+
+    <div id="connection-status">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-text">连接中...</span>
+    </div>
+
+    <div id="left-panel">
+      <h2>空气质量实时监控</h2>
+      <div class="info-item" id="avg-aqi-item">
+        <div class="info-label">全局平均AQI</div>
+        <div class="info-value" id="avg-aqi-value">--</div>
+      </div>
+      <div class="info-item" id="active-stations-item">
+        <div class="info-label">活跃监测站</div>
+        <div class="info-value" id="active-stations-value">--</div>
+      </div>
+      <div class="info-item" id="last-update-item">
+        <div class="info-label">最近更新时间</div>
+        <div class="info-value" style="font-size: 14px;" id="last-update-value">--</div>
+      </div>
+    </div>
+
+    <div id="right-panel">
+      <h3>
+        <span>AQI 趋势 (24小时)</span>
+        <span id="chart-title-mode">全局视图</span>
+      </h3>
+      <canvas id="chart-canvas"></canvas>
+    </div>
+
+    <div id="hover-panel">
+      <div class="station-name" id="hp-name">--</div>
+      <div class="pollutant-row">
+        <span class="pollutant-label">AQI 指数</span>
+        <span class="pollutant-value"><span id="hp-aqi">--</span> <span class="aqi-badge" id="hp-level">--</span></span>
+      </div>
+      <div class="pollutant-row">
+        <span class="pollutant-label">PM2.5</span>
+        <span class="pollutant-value" id="hp-pm25">-- μg/m³</span>
+      </div>
+      <div class="pollutant-row">
+        <span class="pollutant-label">PM10</span>
+        <span class="pollutant-value" id="hp-pm10">-- μg/m³</span>
+      </div>
+      <div class="pollutant-row">
+        <span class="pollutant-label">O₃</span>
+        <span class="pollutant-value" id="hp-o3">-- μg/m³</span>
+      </div>
+      <div class="update-time" id="hp-time">更新于 --</div>
+    </div>
+
+    <div id="mobile-tabs">
+      <div class="tab-buttons">
+        <button class="tab-btn active" data-tab="3d">3D 场景</button>
+        <button class="tab-btn" data-tab="chart">趋势图表</button>
+      </div>
+      <div class="tab-content active" id="tab-3d">
+        <canvas id="scene-canvas-mobile" style="display:none;"></canvas>
+      </div>
+      <div class="tab-content" id="tab-chart">
+        <canvas id="chart-canvas-mobile"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

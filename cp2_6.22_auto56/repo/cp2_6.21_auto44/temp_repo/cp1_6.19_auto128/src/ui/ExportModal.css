@@ -1,0 +1,232 @@
+.export-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1100;
+  backdrop-filter: blur(4px);
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.export-modal {
+  background: #2D2D44;
+  border-radius: 16px;
+  border: 1px solid #3A3A5C;
+  width: 90vw;
+  max-width: 420px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: slideUp 0.3s ease;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.export-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 24px;
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2) 0%, transparent 100%);
+  border-bottom: 1px solid #3A3A5C;
+}
+
+.export-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #EAEAEA;
+}
+
+.export-header .close-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: transparent;
+  color: #9CA3AF;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  font-size: 18px;
+}
+
+.export-header .close-btn:hover {
+  background: rgba(239, 68, 68, 0.2);
+  color: #EF4444;
+}
+
+.export-body {
+  padding: 24px;
+}
+
+.export-progress-section {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #EAEAEA;
+  font-weight: 500;
+}
+
+.progress-percent {
+  font-family: 'JetBrains Mono', monospace;
+  color: #8B5CF6;
+  font-weight: 600;
+}
+
+.progress-bar-wrapper {
+  height: 8px;
+  background: #3A3A5C;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #8B5CF6 0%, #A78BFA 100%);
+  border-radius: 4px;
+  transition: width 0.5s ease-in-out;
+  position: relative;
+}
+
+.progress-bar-fill::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, transparent 50%);
+}
+
+.track-info {
+  font-size: 12px;
+  color: #6B6B8A;
+  margin: 0;
+}
+
+.export-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.export-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  padding: 14px 24px;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  transition: all 0.15s ease;
+}
+
+.download-btn {
+  background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+  color: white;
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
+}
+
+.download-btn:hover {
+  transform: scale(0.98);
+  box-shadow: 0 6px 20px rgba(139, 92, 246, 0.6);
+}
+
+.download-btn:active {
+  transform: scale(0.95);
+}
+
+.share-section {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.share-label {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+  color: #9CA3AF;
+  margin-bottom: 8px;
+}
+
+.share-input-wrapper {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.share-input {
+  flex: 1;
+  padding: 10px 12px;
+  background: #1E1E2E;
+  border: 1px solid #3A3A5C;
+  border-radius: 6px;
+  color: #EAEAEA;
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.share-input:focus {
+  border-color: #8B5CF6;
+}
+
+.copy-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  background: #3A3A5C;
+  color: #EAEAEA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.copy-btn:hover {
+  background: #8B5CF6;
+  color: white;
+}
+
+.copy-btn.copied {
+  background: #10B981;
+  color: white;
+}
+
+.share-hint {
+  font-size: 11px;
+  color: #6B6B8A;
+  margin: 0;
+}

@@ -1,0 +1,277 @@
+{
+  "trips": [
+    {
+      "id": "id-1782090749108-aarln6qfs",
+      "title": "???????",
+      "destination": "?????",
+      "startDate": "2025-12-20",
+      "endDate": "2025-12-27",
+      "coverImage": "",
+      "description": "?????????",
+      "days": []
+    },
+    {
+      "id": "trip-001",
+      "title": "东京五日游",
+      "destination": "日本东京",
+      "startDate": "2025-07-01",
+      "endDate": "2025-07-05",
+      "coverImage": "https://images.unsplash.com/photo-1540959733332-eab4deabeeaf?w=600&h=400&fit=crop",
+      "description": "探索东京的传统与现代融合之美",
+      "days": [
+        {
+          "date": "2025-07-01",
+          "activities": [
+            {
+              "id": "act-001",
+              "time": "09:00",
+              "place": "成田国际机场",
+              "description": "抵达东京，机场接机",
+              "notes": "T2航站楼到达",
+              "lat": 35.772,
+              "lng": 140.3929
+            },
+            {
+              "id": "act-002",
+              "time": "14:00",
+              "place": "浅草寺",
+              "description": "参观浅草寺，感受传统日本文化",
+              "notes": "可以购买御守",
+              "lat": 35.7148,
+              "lng": 139.7967
+            },
+            {
+              "id": "act-003",
+              "time": "18:00",
+              "place": "晴空塔",
+              "description": "登塔欣赏东京夜景",
+              "notes": "建议网上提前购票",
+              "lat": 35.7101,
+              "lng": 139.8107
+            }
+          ]
+        },
+        {
+          "date": "2025-07-02",
+          "activities": [
+            {
+              "id": "act-004",
+              "time": "10:00",
+              "place": "明治神宫",
+              "description": "参观明治神宫，漫步森林步道",
+              "notes": "免费入场",
+              "lat": 35.6764,
+              "lng": 139.6993
+            },
+            {
+              "id": "act-005",
+              "time": "13:00",
+              "place": "原宿竹下通",
+              "description": "逛街购物，品尝网红美食",
+              "notes": "可丽饼必尝",
+              "lat": 35.6717,
+              "lng": 139.7033
+            },
+            {
+              "id": "act-006",
+              "time": "16:00",
+              "place": "涩谷十字路口",
+              "description": "世界最繁忙的十字路口",
+              "notes": "星巴克二楼观景位",
+              "lat": 35.6595,
+              "lng": 139.7004
+            }
+          ]
+        },
+        {
+          "date": "2025-07-03",
+          "activities": [
+            {
+              "id": "act-007",
+              "time": "09:00",
+              "place": "东京迪士尼乐园",
+              "description": "全天游玩迪士尼乐园",
+              "notes": "建议购买快速通行证",
+              "lat": 35.6329,
+              "lng": 139.8804
+            }
+          ]
+        },
+        {
+          "date": "2025-07-04",
+          "activities": [
+            {
+              "id": "act-008",
+              "time": "10:00",
+              "place": "秋叶原",
+              "description": "电器街购物，动漫文化体验",
+              "notes": "注意免税店",
+              "lat": 35.6984,
+              "lng": 139.7731
+            },
+            {
+              "id": "act-009",
+              "time": "14:00",
+              "place": "银座",
+              "description": "高端购物区逛街",
+              "notes": "周末有步行者天国",
+              "lat": 35.6721,
+              "lng": 139.7636
+            }
+          ]
+        },
+        {
+          "date": "2025-07-05",
+          "activities": [
+            {
+              "id": "act-010",
+              "time": "11:00",
+              "place": "东京塔",
+              "description": "最后参观东京塔",
+              "notes": "",
+              "lat": 35.6586,
+              "lng": 139.7454
+            },
+            {
+              "id": "act-011",
+              "time": "16:00",
+              "place": "成田国际机场",
+              "description": "返程航班",
+              "notes": "提前3小时到机场",
+              "lat": 35.772,
+              "lng": 140.3929
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trip-002",
+      "title": "巴厘岛度假",
+      "destination": "印度尼西亚巴厘岛",
+      "startDate": "2025-08-10",
+      "endDate": "2025-08-17",
+      "coverImage": "https://images.unsplash.com/photo-1537996194471-e657df975ab4?w=600&h=400&fit=crop",
+      "description": "享受阳光沙滩与热带风情",
+      "days": [
+        {
+          "date": "2025-08-10",
+          "activities": [
+            {
+              "id": "act-101",
+              "time": "14:00",
+              "place": "登巴萨国际机场",
+              "description": "抵达巴厘岛",
+              "notes": "",
+              "lat": -8.7482,
+              "lng": 115.1672
+            },
+            {
+              "id": "act-102",
+              "time": "16:00",
+              "place": "库塔海滩",
+              "description": "酒店入住，海滩漫步",
+              "notes": "看日落",
+              "lat": -8.721,
+              "lng": 115.1666
+            }
+          ]
+        },
+        {
+          "date": "2025-08-11",
+          "activities": [
+            {
+              "id": "act-103",
+              "time": "09:00",
+              "place": "海神庙",
+              "description": "参观海神庙",
+              "notes": "最佳拍摄时间日落",
+              "lat": -8.6214,
+              "lng": 115.0868
+            },
+            {
+              "id": "act-104",
+              "time": "14:00",
+              "place": "乌布皇宫",
+              "description": "参观乌布皇宫",
+              "notes": "",
+              "lat": -8.5062,
+              "lng": 115.2624
+            }
+          ]
+        },
+        {
+          "date": "2025-08-12",
+          "activities": [
+            {
+              "id": "act-105",
+              "time": "07:00",
+              "place": "巴杜尔火山",
+              "description": "火山日出徒步",
+              "notes": "需凌晨出发",
+              "lat": -8.2379,
+              "lng": 115.3775
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "trip-003",
+      "title": "北京周末游",
+      "destination": "中国北京",
+      "startDate": "2025-06-15",
+      "endDate": "2025-06-16",
+      "coverImage": "https://images.unsplash.com/photo-1508804185872-d7badad00f7d?w=600&h=400&fit=crop",
+      "description": "感受古都历史文化",
+      "days": [
+        {
+          "date": "2025-06-15",
+          "activities": [
+            {
+              "id": "act-201",
+              "time": "09:00",
+              "place": "故宫",
+              "description": "参观故宫博物院",
+              "notes": "需提前预约",
+              "lat": 39.9163,
+              "lng": 116.3972
+            },
+            {
+              "id": "act-202",
+              "time": "14:00",
+              "place": "天安门广场",
+              "description": "天安门广场游览",
+              "notes": "",
+              "lat": 39.9055,
+              "lng": 116.3976
+            }
+          ]
+        },
+        {
+          "date": "2025-06-16",
+          "activities": [
+            {
+              "id": "act-203",
+              "time": "08:00",
+              "place": "八达岭长城",
+              "description": "登长城",
+              "notes": "建议穿舒适鞋子",
+              "lat": 40.3576,
+              "lng": 116.0199
+            },
+            {
+              "id": "act-204",
+              "time": "18:00",
+              "place": "王府井",
+              "description": "王府井小吃街",
+              "notes": "",
+              "lat": 39.9147,
+              "lng": 116.4104
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

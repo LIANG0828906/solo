@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>文明演化 - Civilization Evolution</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+    #app { position: relative; width: 100vw; height: 100vh; background: linear-gradient(180deg, #87CEEB 0%, #FFF8DC 100%); }
+    #gameCanvas { display: block; width: 100%; height: 100%; cursor: grab; }
+    #gameCanvas:active { cursor: grabbing; }
+    
+    #uiContainer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+    #uiContainer > * { pointer-events: auto; }
+    
+    .topBar { position: absolute; top: 0; left: 0; right: 0; height: 56px; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; background: rgba(92, 64, 51, 0.85); backdrop-filter: blur(10px); border-bottom: 3px solid #D4A373; z-index: 10; }
+    .eraBadge { background: #D4A373; color: #5C4033; padding: 6px 16px; border-radius: 20px; font-weight: 700; font-size: 14px; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+    .turnInfo { color: #FAEDCD; font-size: 15px; font-weight: 600; display: flex; gap: 20px; align-items: center; }
+    .turnBtn { background: #D4A373; color: #5C4033; border: none; padding: 8px 18px; border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer; transition: all 0.15s; box-shadow: 0 3px 0 #8B6F47; }
+    .turnBtn:hover { transform: translateY(-2px); box-shadow: 0 5px 12px rgba(0,0,0,0.25); }
+    .turnBtn:active { transform: translateY(1px); box-shadow: 0 2px 0 #8B6F47; }
+    
+    .resourcePanel { position: absolute; bottom: 20px; right: 20px; background: rgba(250, 237, 205, 0.95); backdrop-filter: blur(10px); border: 3px solid #5C4033; border-radius: 16px; padding: 14px 18px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); min-width: 200px; z-index: 10; }
+    .resourceItem { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-size: 15px; font-weight: 600; color: #5C4033; }
+    .resourceIcon { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+    .resourceName { flex: 1; }
+    .resourceValue { min-width: 50px; text-align: right; transition: all 0.3s; font-variant-numeric: tabular-nums; }
+    .resourceValue.bounce-up { animation: bounceUp 0.5s; color: #2E8B57; }
+    .resourceValue.bounce-down { animation: bounceDown 0.5s; color: #CD5C5C; }
+    @keyframes bounceUp { 0%,100% { transform: scale(1); } 40% { transform: scale(1.35); } }
+    @keyframes bounceDown { 0%,100% { transform: scale(1); } 40% { transform: scale(1.35); } }
+    
+    .sideBar { position: absolute; top: 68px; left: 20px; width: 260px; max-height: calc(100vh - 160px); overflow-y: auto; background: rgba(250, 237, 205, 0.95); backdrop-filter: blur(10px); border: 3px solid #5C4033; border-radius: 16px; padding: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); z-index: 10; }
+    .sideBar::-webkit-scrollbar { width: 6px; }
+    .sideBar::-webkit-scrollbar-thumb { background: #D4A373; border-radius: 3px; }
+    .sideBarTitle { color: #5C4033; font-weight: 700; font-size: 15px; margin-bottom: 10px; padding-bottom: 8px; border-bottom: 2px solid #D4A373; }
+    .saveSlot { background: #fff; border: 2px solid #D4A373; border-radius: 10px; padding: 10px; margin-bottom: 8px; cursor: pointer; transition: all 0.15s; }
+    .saveSlot:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-color: #5C4033; }
+    .saveSlot.empty { opacity: 0.6; cursor: default; }
+    .saveSlot.empty:hover { transform: none; box-shadow: none; border-color: #D4A373; }
+    .saveSlotName { font-weight: 700; color: #5C4033; font-size: 13px; margin-bottom: 4px; }
+    .saveSlotInfo { font-size: 11px; color: #8B6F47; }
+    .saveActions { display: flex; gap: 6px; margin-top: 8px; }
+    .btn { flex: 1; border: none; padding: 7px 10px; border-radius: 8px; font-weight: 600; font-size: 12px; cursor: pointer; transition: all 0.12s; }
+    .btn-save { background: #D4A373; color: #5C4033; }
+    .btn-save:hover { background: #C49060; }
+    .btn-load { background: #5C4033; color: #FAEDCD; }
+    .btn-load:hover { background: #4A3228; }
+    .btn:active { transform: scale(0.96); }
+    
+    .modalOverlay { position: absolute; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: center; justify-content: center; z-index: 100; animation: fadeIn 0.2s; }
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+    .eventModal { width: 480px; max-width: 92vw; background: rgba(250, 237, 205, 0.97); backdrop-filter: blur(20px); border: 4px solid #5C4033; border-radius: 20px; padding: 28px; box-shadow: 0 20px 60px rgba(0,0,0,0.4); animation: modalIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    .eventModal.closing { animation: modalOut 0.25s forwards; }
+    @keyframes modalIn { from { transform: scale(0.7) rotate(-3deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
+    @keyframes modalOut { from { transform: scale(1); opacity: 1; } to { transform: scale(0.5) translateY(30px); opacity: 0; } }
+    .eventTypeBadge { display: inline-block; background: #D4A373; color: #5C4033; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 700; margin-bottom: 12px; }
+    .eventTitle { font-size: 22px; font-weight: 800; color: #5C4033; margin-bottom: 12px; line-height: 1.3; }
+    .eventDesc { font-size: 14px; color: #6B5344; line-height: 1.6; margin-bottom: 22px; }
+    .eventOptions { display: flex; flex-direction: column; gap: 10px; }
+    .eventOption { background: #fff; border: 2px solid #D4A373; border-radius: 12px; padding: 12px 16px; font-size: 14px; font-weight: 600; color: #5C4033; text-align: left; cursor: pointer; transition: all 0.15s; }
+    .eventOption:hover { background: #FFF0D4; border-color: #5C4033; transform: translateX(4px); }
+    .eventOption:active { transform: scale(0.98); }
+    
+    .techScroll { width: 560px; max-width: 92vw; background: linear-gradient(180deg, #FAEDCD 0%, #F5DEB3 50%, #FAEDCD 100%); border: 4px solid #8B6F47; border-radius: 10px; padding: 32px 36px; box-shadow: 0 20px 60px rgba(0,0,0,0.4), inset 0 0 40px rgba(139,111,71,0.1); position: relative; animation: scrollIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    @keyframes scrollIn { from { transform: scaleY(0) translateY(-100px); opacity: 0; } to { transform: scaleY(1) translateY(0); opacity: 1; } }
+    .techScroll::before, .techScroll::after { content: ''; position: absolute; left: -8px; right: -8px; height: 24px; background: #8B6F47; border-radius: 6px; }
+    .techScroll::before { top: -12px; }
+    .techScroll::after { bottom: -12px; }
+    .eraName { text-align: center; font-size: 30px; font-weight: 900; color: #5C4033; letter-spacing: 4px; margin-bottom: 8px; }
+    .eraSub { text-align: center; font-size: 14px; color: #8B6F47; margin-bottom: 20px; font-style: italic; }
+    .unlockList { list-style: none; display: flex; flex-direction: column; gap: 10px; }
+    .unlockItem { display: flex; align-items: center; gap: 12px; background: rgba(212, 163, 115, 0.3); padding: 10px 14px; border-radius: 10px; border-left: 4px solid #5C4033; }
+    .unlockIcon { width: 36px; height: 36px; background: #5C4033; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; color: #FAEDCD; }
+    .unlockInfo { flex: 1; }
+    .unlockName { font-weight: 700; color: #5C4033; font-size: 15px; }
+    .unlockDesc { font-size: 12px; color: #8B6F47; }
+    .scrollClose { margin-top: 20px; width: 100%; background: #5C4033; color: #FAEDCD; border: none; padding: 12px; border-radius: 10px; font-weight: 700; font-size: 15px; cursor: pointer; transition: all 0.15s; }
+    .scrollClose:hover { background: #4A3228; transform: translateY(-2px); }
+    .scrollClose:active { transform: scale(0.98); }
+    
+    .buildMenu { position: absolute; background: rgba(250, 237, 205, 0.98); backdrop-filter: blur(12px); border: 3px solid #5C4033; border-radius: 14px; padding: 12px; box-shadow: 0 12px 32px rgba(0,0,0,0.3); z-index: 50; min-width: 180px; animation: buildIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1); transform-origin: top left; }
+    @keyframes buildIn { from { transform: scale(0.3); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    .buildMenuTitle { font-weight: 700; color: #5C4033; font-size: 13px; margin-bottom: 8px; padding-bottom: 6px; border-bottom: 2px solid #D4A373; }
+    .buildItem { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border-radius: 8px; cursor: pointer; transition: all 0.12s; margin-bottom: 4px; }
+    .buildItem:hover { background: #FFF0D4; transform: translateX(2px); }
+    .buildItem.locked { opacity: 0.4; cursor: not-allowed; }
+    .buildItem.locked:hover { background: transparent; transform: none; }
+    .buildItemIcon { width: 30px; height: 30px; border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+    .buildItemInfo { flex: 1; }
+    .buildItemName { font-size: 13px; font-weight: 700; color: #5C4033; }
+    .buildItemCost { font-size: 11px; color: #8B6F47; }
+    
+    .floatText { position: absolute; font-weight: 800; font-size: 18px; pointer-events: none; animation: floatUp 1.4s forwards; z-index: 200; text-shadow: 2px 2px 0 rgba(0,0,0,0.25); }
+    .floatText.good { color: #2E8B57; }
+    .floatText.bad { color: #CD5C5C; }
+    .floatText.info { color: #4169E1; }
+    @keyframes floatUp { 0% { opacity: 0; transform: translate(-50%, 0) scale(0.6); } 20% { opacity: 1; transform: translate(-50%, -20px) scale(1.1); } 100% { opacity: 0; transform: translate(-50%, -80px) scale(0.9); } }
+    
+    .bottomNav { display: none; position: absolute; bottom: 0; left: 0; right: 0; height: 70px; background: rgba(92, 64, 51, 0.95); border-top: 3px solid #D4A373; z-index: 30; }
+    .navItem { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: #FAEDCD; font-size: 11px; font-weight: 600; cursor: pointer; }
+    .navItemIcon { font-size: 22px; }
+    
+    @media (max-width: 768px) {
+      .sideBar { display: none; width: 92vw; left: 4vw; right: 4vw; top: 72px; }
+      .sideBar.open { display: block; }
+      .resourcePanel { bottom: 80px; right: 10px; left: 10px; min-width: auto; flex-direction: row; flex-wrap: wrap; justify-content: center; }
+      .resourceItem { flex: 1 1 40%; }
+      .topBar { padding: 0 12px; }
+      .eraBadge { padding: 5px 12px; font-size: 12px; }
+      .turnInfo { font-size: 13px; gap: 10px; }
+      .bottomNav { display: flex; }
+      .buildMenu { min-width: 160px; }
+    }
+    
+    .shake { animation: shake 0.4s; }
+    @keyframes shake { 0%,100% { transform: translate(0,0); } 20% { transform: translate(-8px, 4px); } 40% { transform: translate(8px, -4px); } 60% { transform: translate(-6px, 2px); } 80% { transform: translate(6px, -2px); } }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <canvas id="gameCanvas"></canvas>
+    <div id="uiContainer"></div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

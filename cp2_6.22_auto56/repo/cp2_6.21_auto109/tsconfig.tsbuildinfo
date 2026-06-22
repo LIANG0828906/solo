@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/highlightengine.ts","./src/main.tsx","./src/store.ts","./src/syncmanager.ts","./src/types.ts","./src/vite-env.d.ts","./src/components/editor.tsx"],"version":"5.6.3"}

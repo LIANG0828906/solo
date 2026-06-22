@@ -1,0 +1,47 @@
+[
+  {
+    "id": "1",
+    "title": "防抖函数",
+    "language": "javascript",
+    "description": "一个常用的防抖函数实现，用于限制高频触发事件的执行频率",
+    "code": "function debounce(fn, delay = 300) {\n  let timer = null;\n  return function (...args) {\n    if (timer) clearTimeout(timer);\n    timer = setTimeout(() => {\n      fn.apply(this, args);\n    }, delay);\n  };\n}",
+    "folderId": "1",
+    "createdAt": "2026-06-10T08:00:00.000Z"
+  },
+  {
+    "id": "2",
+    "title": "快速排序",
+    "language": "python",
+    "description": "Python实现的快速排序算法，简洁优雅",
+    "code": "def quick_sort(arr):\n    if len(arr) <= 1:\n        return arr\n    pivot = arr[len(arr) // 2]\n    left = [x for x in arr if x < pivot]\n    middle = [x for x in arr if x == pivot]\n    right = [x for x in arr if x > pivot]\n    return quick_sort(left) + middle + quick_sort(right)",
+    "folderId": "1",
+    "createdAt": "2026-06-10T09:00:00.000Z"
+  },
+  {
+    "id": "3",
+    "title": "响应式网格布局",
+    "language": "html",
+    "description": "使用CSS Grid实现的响应式网格布局模板",
+    "code": "<div class=\"grid-container\">\n  <div class=\"grid-item\">1</div>\n  <div class=\"grid-item\">2</div>\n  <div class=\"grid-item\">3</div>\n  <div class=\"grid-item\">4</div>\n</div>\n\n<style>\n.grid-container {\n  display: grid;\n  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));\n  gap: 16px;\n  padding: 16px;\n}\n.grid-item {\n  background: #fff;\n  border-radius: 8px;\n  padding: 24px;\n  box-shadow: 0 2px 8px rgba(0,0,0,0.1);\n}\n</style>",
+    "folderId": "2",
+    "createdAt": "2026-06-11T10:00:00.000Z"
+  },
+  {
+    "id": "4",
+    "title": "深拷贝对象",
+    "language": "javascript",
+    "description": "递归实现深拷贝，支持对象、数组、日期等类型",
+    "code": "function deepClone(obj, map = new WeakMap()) {\n  if (obj === null || typeof obj !== 'object') return obj;\n  if (map.has(obj)) return map.get(obj);\n  \n  if (obj instanceof Date) {\n    return new Date(obj);\n  }\n  if (obj instanceof RegExp) {\n    return new RegExp(obj);\n  }\n  \n  const clone = Array.isArray(obj) ? [] : {};\n  map.set(obj, clone);\n  \n  for (const key of Object.keys(obj)) {\n    clone[key] = deepClone(obj[key], map);\n  }\n  return clone;\n}",
+    "folderId": "2",
+    "createdAt": "2026-06-11T14:00:00.000Z"
+  },
+  {
+    "id": "5",
+    "title": "Fetch封装",
+    "language": "javascript",
+    "description": "带错误处理和重试机制的fetch请求封装",
+    "code": "async function request(url, options = {}, retries = 3) {\n  try {\n    const response = await fetch(url, {\n      headers: {\n        'Content-Type': 'application/json',\n        ...options.headers,\n      },\n      ...options,\n    });\n    if (!response.ok) {\n      throw new Error(`HTTP ${response.status}`);\n    }\n    return await response.json();\n  } catch (error) {\n    if (retries > 0) {\n      await new Promise(r => setTimeout(r, 1000));\n      return request(url, options, retries - 1);\n    }\n    throw error;\n  }\n}",
+    "folderId": "1",
+    "createdAt": "2026-06-12T08:00:00.000Z"
+  }
+]

@@ -1,0 +1,58 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  min-height: 100vh;
+  background-color: #1E1E2E;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+button {
+  font-family: inherit;
+}
+
+input, select {
+  font-family: inherit;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    flex-direction: column !important;
+  }
+  
+  .sidebar {
+    width: 100% !important;
+  }
+  
+  .cards-container {
+    justify-content: center;
+  }
+  
+  .filter-bar {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+  }
+  
+  .add-button {
+    margin-left: 0 !important;
+    align-self: stretch !important;
+  }
+}
+
+button:hover {
+  filter: brightness(1.1);
+}
+
+button:active {
+  filter: brightness(0.9);
+}
+
+input:focus, select:focus {
+  border-color: #6366F1 !important;
+}

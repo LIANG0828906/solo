@@ -1,0 +1,179 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #4A90D9;
+  --primary-light: #E8F2FB;
+  --secondary: #F5F7FA;
+  --success: #4CAF50;
+  --error: #F56C6C;
+  --text-primary: #2C3E50;
+  --text-secondary: #7F8C8D;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--secondary);
+  color: var(--text-primary);
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+@keyframes slideInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.02);
+  }
+}
+
+.animate-slide-in-up {
+  animation: slideInUp 0.4s ease forwards;
+  opacity: 0;
+}
+
+.animate-slide-in-down {
+  animation: slideInDown 0.3s ease forwards;
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.animate-pulse-once {
+  animation: pulse 0.3s ease;
+}
+
+.dragging {
+  opacity: 0.8 !important;
+  transform: rotate(2deg) scale(1.05);
+  cursor: grabbing !important;
+  box-shadow: 0 10px 30px rgba(74, 144, 217, 0.3) !important;
+  z-index: 1000;
+}
+
+.drag-ghost {
+  opacity: 0.4;
+  pointer-events: none;
+}
+
+.drop-highlight {
+  border-color: var(--primary) !important;
+  border-style: solid !important;
+  background-color: var(--primary-light) !important;
+  transform: scale(1.02);
+  transition: all 0.2s ease;
+}
+
+.option-card {
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  will-change: transform;
+}
+
+.option-card:active {
+  cursor: grabbing;
+}
+
+.drop-zone {
+  transition: all 0.2s ease;
+  will-change: border-color, background-color;
+}
+
+.question-card {
+  will-change: transform, opacity;
+}
+
+.result-overlay {
+  backdrop-filter: blur(4px);
+}
+
+.correct-border {
+  border-color: var(--success) !important;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+}
+
+.wrong-border {
+  border-color: var(--error) !important;
+  box-shadow: 0 0 0 2px rgba(245, 108, 108, 0.2);
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+  transition: all 0.2s ease;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: #3a7bc8;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(74, 144, 217, 0.3);
+}
+
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background-color: white;
+  border: 2px solid var(--primary);
+  color: var(--primary);
+  transition: all 0.2s ease;
+}
+
+.btn-secondary:hover {
+  background-color: var(--primary-light);
+}
+
+@media (max-width: 768px) {
+  .mobile-touch-friendly {
+    min-height: 44px;
+    min-width: 44px;
+  }
+}

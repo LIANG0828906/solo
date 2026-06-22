@@ -1,0 +1,62 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: "Noto Sans SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  line-height: 1.6;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  color: #5D4037;
+  background-color: #FFF8F0;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+}
+
+h1, h2, h3, h4 {
+  font-family: "Noto Serif SC", serif;
+}
+
+@layer components {
+  .btn-ripple {
+    @apply relative overflow-hidden;
+  }
+
+  .btn-ripple::after {
+    content: '';
+    @apply absolute rounded-full bg-white/30 pointer-events-none;
+    width: 100%;
+    height: 100%;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0);
+    opacity: 0;
+  }
+
+  .btn-ripple:active::after {
+    animation: ripple 0.3s ease-out;
+  }
+
+  .section-fade-in {
+    opacity: 0;
+    transform: translateY(24px);
+    transition: opacity 0.3s ease-out, transform 0.3s ease-out;
+  }
+
+  .section-fade-in.visible {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .step-circle {
+    @apply w-10 h-10 rounded-full flex items-center justify-center text-white font-sans font-semibold text-sm;
+    background: linear-gradient(145deg, #A1887F 0%, #8D6E63 100%);
+    box-shadow: 0 2px 6px rgba(93, 64, 55, 0.2), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  }
+}

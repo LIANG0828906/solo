@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>流体艺术生成器 | Fluid Art Generator</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #000000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      overflow: hidden;
+      color: #FFFFFF;
+    }
+
+    #app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #canvas-container {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #main-canvas {
+      display: block;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      cursor: crosshair;
+    }
+
+    #fps-counter {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      font-size: 14px;
+      font-weight: 600;
+      color: #FFFFFF;
+      z-index: 100;
+      letter-spacing: 0.5px;
+      text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+      user-select: none;
+    }
+
+    #fps-counter.warning {
+      color: #FF4444;
+      animation: fpsBlink 0.5s ease-in-out infinite alternate;
+    }
+
+    @keyframes fpsBlink {
+      from { opacity: 1; }
+      to { opacity: 0.4; }
+    }
+
+    #control-panel {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 240px;
+      height: 100%;
+      background: rgba(30, 30, 30, 0.9);
+      padding: 12px;
+      z-index: 50;
+      overflow-y: auto;
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.3);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    #control-panel::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    #control-panel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    #control-panel::-webkit-scrollbar-thumb {
+      background: rgba(0, 212, 255, 0.3);
+      border-radius: 2px;
+    }
+
+    .panel-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #00D4FF;
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(0, 212, 255, 0.2);
+      letter-spacing: 0.5px;
+    }
+
+    .control-group {
+      margin-bottom: 14px;
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: #CCCCCC;
+      margin-bottom: 6px;
+    }
+
+    .control-value {
+      color: #00D4FF;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: #333333;
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #00D4FF;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      box-shadow: 0 0 6px rgba(0, 212, 255, 0.5);
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      background: #66E0FF;
+      box-shadow: 0 0 10px rgba(102, 224, 255, 0.7);
+      transform: scale(1.15);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #00D4FF;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s ease;
+      box-shadow: 0 0 6px rgba(0, 212, 255, 0.5);
+    }
+
+    input[type="range"]::-moz-range-thumb:hover {
+      background: #66E0FF;
+      box-shadow: 0 0 10px rgba(102, 224, 255, 0.7);
+      transform: scale(1.15);
+    }
+
+    .button-group {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 20px;
+    }
+
+    .btn {
+      padding: 10px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #00D4FF;
+      background: transparent;
+      border: 1px solid #00D4FF;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      letter-spacing: 0.3px;
+    }
+
+    .btn:hover {
+      background: rgba(0, 212, 255, 0.1);
+      box-shadow: 0 0 10px rgba(0, 212, 255, 0.3);
+    }
+
+    .btn:active {
+      transform: scale(0.97);
+    }
+
+    .hint-text {
+      margin-top: 16px;
+      padding: 10px;
+      background: rgba(0, 212, 255, 0.05);
+      border-left: 2px solid rgba(0, 212, 255, 0.3);
+      border-radius: 0 4px 4px 0;
+      font-size: 11px;
+      color: #888888;
+      line-height: 1.6;
+    }
+
+    .hint-text strong {
+      color: #00D4FF;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container">
+      <canvas id="main-canvas"></canvas>
+    </div>
+    <div id="fps-counter">FPS: --</div>
+    <div id="control-panel">
+      <div class="panel-title">✦ 控制面板</div>
+      
+      <div class="control-group">
+        <div class="control-label">
+          <span>速度倍率</span>
+          <span class="control-value" id="speed-value">1.00</span>
+        </div>
+        <input type="range" id="speed-slider" min="0.1" max="3.0" step="0.05" value="1.0" />
+      </div>
+
+      <div class="control-group">
+        <div class="control-label">
+          <span>色相滚动速度</span>
+          <span class="control-value" id="hue-value">1.00</span>
+        </div>
+        <input type="range" id="hue-slider" min="0" max="5" step="0.1" value="1" />
+      </div>
+
+      <div class="control-group">
+        <div class="control-label">
+          <span>粒子大小 (px)</span>
+          <span class="control-value" id="size-value">2</span>
+        </div>
+        <input type="range" id="size-slider" min="1" max="5" step="0.5" value="2" />
+      </div>
+
+      <div class="control-group">
+        <div class="control-label">
+          <span>鼠标力场强度</span>
+          <span class="control-value" id="force-value">50</span>
+        </div>
+        <input type="range" id="force-slider" min="0" max="100" step="1" value="50" />
+      </div>
+
+      <div class="button-group">
+        <button class="btn" id="reset-btn">重置流场</button>
+        <button class="btn" id="save-btn">保存图像 (1920×1080)</button>
+      </div>
+
+      <div class="hint-text">
+        <strong>操作提示：</strong><br/>
+        • 拖拽画布：搅动流体<br/>
+        • 单击画布：产生漩涡
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

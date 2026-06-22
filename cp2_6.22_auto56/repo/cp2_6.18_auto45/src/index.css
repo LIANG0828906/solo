@@ -1,0 +1,239 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #F0F4F8;
+  --text-primary: #1E293B;
+  --text-secondary: #64748B;
+  --green: #10B981;
+  --green-dark: #059669;
+  --orange: #F97316;
+  --blue: #3B82F6;
+  --card-bg: #F9FAFB;
+  --card-border: #E5E7EB;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+    Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.spinner {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-card {
+  animation: fadeIn 0.4s ease-out forwards;
+  opacity: 0;
+}
+
+.task-grid {
+  column-count: 3;
+  column-gap: 20px;
+}
+
+@media (max-width: 1023px) {
+  .task-grid {
+    column-count: 2;
+  }
+}
+
+@media (max-width: 767px) {
+  .task-grid {
+    column-count: 1;
+  }
+}
+
+.task-card {
+  width: 100%;
+  max-width: 320px;
+  background-color: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+  cursor: default;
+  overflow: hidden;
+  break-inside: avoid;
+  margin: 0 auto 20px auto;
+  display: inline-block;
+}
+
+.task-card:hover:not(.task-card-disabled) {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.task-card-disabled {
+  opacity: 0.6;
+  filter: grayscale(30%);
+}
+
+.task-card-inner {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.claim-btn {
+  background-color: var(--green);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.claim-btn:hover {
+  background-color: var(--green-dark);
+}
+
+.status-badge-claimed {
+  background-color: #9CA3AF;
+  color: white;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.status-badge-completed {
+  background-color: #F59E0B;
+  color: white;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.status-badge-reviewed {
+  background-color: var(--blue);
+  color: white;
+  border-radius: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.publish-form {
+  background-color: white;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.drawer-enter {
+  transform: translateX(-100%);
+}
+
+.drawer-active {
+  transform: translateX(0);
+  transition: transform 0.3s ease;
+}
+
+.search-box {
+  width: 100%;
+  max-width: 480px;
+  border-radius: 24px;
+  border: 1px solid #E5E7EB;
+  background: white;
+  padding: 10px 16px 10px 42px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.search-box:focus {
+  border-color: #3B82F6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F1F5F9;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}
+
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+}

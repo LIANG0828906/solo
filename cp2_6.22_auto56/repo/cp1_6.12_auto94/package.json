@@ -1,0 +1,33 @@
+{
+  "name": "brainstorm-voting-tool",
+  "version": "1.0.0",
+  "description": "Online team brainstorming and voting ranking tool",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "ts-node --project tsconfig.server.json src/server/app.ts",
+    "client": "vite"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.20.0",
+    "socket.io-client": "^4.7.2",
+    "axios": "^1.6.2",
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "socket.io": "^4.7.2",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.37",
+    "@types/react-dom": "^18.2.15",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.16",
+    "@types/uuid": "^9.0.7",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "ts-node": "^10.9.1",
+    "concurrently": "^8.2.2"
+  }
+}

@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>古风书法临摹</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&display=swap');
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #F5E6C8;
+      font-family: 'Noto Serif SC', 'KaiTi', '楷体', STKaiti, serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.1;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+      background-size: 256px 256px;
+    }
+
+    h1 {
+      font-family: 'Noto Serif SC', 'KaiTi', '楷体', STKaiti, serif;
+      font-size: 36px;
+      color: #1A1A1A;
+      margin: 24px 0 20px;
+      letter-spacing: 12px;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .main-area {
+      display: flex;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .canvas-wrapper {
+      position: relative;
+    }
+
+    .canvas-container {
+      position: relative;
+      width: 800px;
+      height: 600px;
+      border: 3px solid #5C3A21;
+      clip-path: url(#torn-edge);
+      background-color: #F5E6C8;
+    }
+
+    #canvas {
+      display: block;
+      width: 800px;
+      height: 600px;
+      cursor: crosshair;
+    }
+
+    #texture-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 800px;
+      height: 600px;
+      pointer-events: none;
+      opacity: 0.1;
+    }
+
+    .palette {
+      width: 240px;
+      background: rgba(245, 230, 200, 0.9);
+      border: 2px solid #5C3A21;
+      border-radius: 8px;
+      padding: 20px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .palette-section-title {
+      font-size: 16px;
+      color: #5C3A21;
+      text-align: center;
+      margin-bottom: 12px;
+      letter-spacing: 4px;
+    }
+
+    .palette-row {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .palette-item {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      cursor: pointer;
+      position: relative;
+      transition: transform 0.2s ease;
+    }
+
+    .palette-item:hover {
+      transform: scale(1.2);
+    }
+
+    .palette-item.selected::after {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: -4px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid #FFD700;
+      animation: goldenPulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes goldenPulse {
+      0%, 100% {
+        box-shadow: 0 0 4px 1px rgba(255, 215, 0, 0.4);
+        opacity: 1;
+      }
+      50% {
+        box-shadow: 0 0 10px 3px rgba(255, 215, 0, 0.7);
+        opacity: 0.8;
+      }
+    }
+
+    .ink-0 { background-color: #0A0A0A; }
+    .ink-1 { background-color: #1E1E1E; }
+    .ink-2 { background-color: #333333; }
+    .ink-3 { background-color: #505050; }
+    .ink-4 { background-color: #707070; }
+
+    .brush-item {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      cursor: pointer;
+      position: relative;
+      background-color: #1A1A1A;
+      transition: transform 0.2s ease;
+    }
+
+    .brush-item:hover {
+      transform: scale(1.2);
+    }
+
+    .brush-item.selected::after {
+      content: '';
+      position: absolute;
+      top: -4px;
+      left: -4px;
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      border: 2px solid #FFD700;
+      animation: goldenPulse 1.5s ease-in-out infinite;
+    }
+
+    .brush-0 { width: 6px; height: 6px; }
+    .brush-1 { width: 12px; height: 12px; }
+    .brush-2 { width: 18px; height: 18px; }
+
+    .brush-label {
+      font-size: 12px;
+      color: #5C3A21;
+      text-align: center;
+    }
+
+    .controls {
+      display: flex;
+      gap: 16px;
+      margin: 20px 0;
+    }
+
+    .controls button {
+      font-family: 'Noto Serif SC', 'KaiTi', '楷体', STKaiti, serif;
+      font-size: 16px;
+      padding: 10px 28px;
+      background-color: #C23B22;
+      color: #F5E6C8;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      letter-spacing: 4px;
+      transition: background-color 0.2s ease;
+    }
+
+    .controls button:hover {
+      background-color: #A03020;
+    }
+
+    .controls button:active {
+      transform: scale(0.97);
+    }
+
+    .controls button:disabled {
+      background-color: #8a8a8a;
+      cursor: not-allowed;
+    }
+
+    .score-area {
+      display: flex;
+      align-items: center;
+      gap: 32px;
+      margin: 12px 0 20px;
+      min-height: 200px;
+    }
+
+    .score-text {
+      font-size: 18px;
+      color: #1A1A1A;
+      line-height: 2;
+    }
+
+    .score-percentage {
+      font-size: 48px;
+      font-weight: 700;
+      color: #5C3A21;
+    }
+
+    .score-stars {
+      font-size: 28px;
+      color: #FFD700;
+      letter-spacing: 4px;
+    }
+
+    .score-detail {
+      font-size: 14px;
+      color: #5C3A21;
+    }
+
+    #radar-canvas {
+      display: block;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .char-selector {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 8px;
+      justify-content: center;
+    }
+
+    .char-btn {
+      font-family: 'Noto Serif SC', 'KaiTi', '楷体', STKaiti, serif;
+      font-size: 20px;
+      width: 40px;
+      height: 40px;
+      background: transparent;
+      border: 2px solid #5C3A21;
+      border-radius: 4px;
+      color: #1A1A1A;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .char-btn:hover, .char-btn.active {
+      background-color: #5C3A21;
+      color: #F5E6C8;
+    }
+
+    .status-text {
+      font-size: 14px;
+      color: #5C3A21;
+      text-align: center;
+      margin-bottom: 8px;
+      min-height: 20px;
+    }
+  </style>
+</head>
+<body>
+
+  <svg width="0" height="0" style="position:absolute">
+    <defs>
+      <clipPath id="torn-edge" clipPathUnits="objectBoundingBox">
+        <path d="M 0.006,0.008 L 0.03,0.013 L 0.06,0.005 L 0.09,0.011 L 0.12,0.004 L 0.15,0.012 L 0.18,0.006 L 0.21,0.014 L 0.24,0.003 L 0.27,0.01 L 0.3,0.007 L 0.33,0.013 L 0.36,0.005 L 0.39,0.011 L 0.42,0.008 L 0.45,0.014 L 0.48,0.004 L 0.51,0.012 L 0.54,0.006 L 0.57,0.01 L 0.6,0.007 L 0.63,0.013 L 0.66,0.005 L 0.69,0.011 L 0.72,0.008 L 0.75,0.014 L 0.78,0.004 L 0.81,0.012 L 0.84,0.006 L 0.87,0.01 L 0.9,0.007 L 0.93,0.013 L 0.96,0.005 L 0.99,0.009 L 0.994,0.04 L 0.988,0.08 L 0.995,0.12 L 0.99,0.16 L 0.996,0.2 L 0.991,0.24 L 0.997,0.28 L 0.992,0.32 L 0.995,0.36 L 0.989,0.4 L 0.994,0.44 L 0.99,0.48 L 0.996,0.52 L 0.991,0.56 L 0.995,0.6 L 0.989,0.64 L 0.994,0.68 L 0.99,0.72 L 0.996,0.76 L 0.991,0.8 L 0.995,0.84 L 0.989,0.88 L 0.994,0.92 L 0.99,0.96 L 0.996,0.99 L 0.96,0.994 L 0.93,0.988 L 0.9,0.995 L 0.87,0.99 L 0.84,0.996 L 0.81,0.991 L 0.78,0.997 L 0.75,0.992 L 0.72,0.995 L 0.69,0.989 L 0.66,0.994 L 0.63,0.99 L 0.6,0.996 L 0.57,0.991 L 0.54,0.995 L 0.51,0.989 L 0.48,0.994 L 0.45,0.99 L 0.42,0.996 L 0.39,0.991 L 0.36,0.995 L 0.33,0.989 L 0.3,0.994 L 0.27,0.99 L 0.24,0.996 L 0.21,0.991 L 0.18,0.995 L 0.15,0.989 L 0.12,0.994 L 0.09,0.99 L 0.06,0.996 L 0.03,0.991 L 0.005,0.994 L 0.008,0.96 L 0.013,0.93 L 0.005,0.9 L 0.011,0.87 L 0.004,0.84 L 0.012,0.81 L 0.006,0.78 L 0.014,0.75 L 0.003,0.72 L 0.01,0.69 L 0.007,0.66 L 0.013,0.63 L 0.005,0.6 L 0.011,0.57 L 0.008,0.54 L 0.014,0.51 L 0.004,0.48 L 0.012,0.45 L 0.006,0.42 L 0.01,0.39 L 0.007,0.36 L 0.013,0.33 L 0.005,0.3 L 0.011,0.27 L 0.008,0.24 L 0.014,0.21 L 0.004,0.18 L 0.012,0.15 L 0.006,0.12 L 0.01,0.09 L 0.007,0.06 L 0.013,0.03 L 0.006,0.008 Z"/>
+      </clipPath>
+    </defs>
+  </svg>
+
+  <h1>古风书法临摹</h1>
+
+  <div class="status-text" id="status">请点击「开始临摹」进入书写模式</div>
+
+  <div class="main-area">
+    <div class="canvas-wrapper">
+      <div class="canvas-container">
+        <canvas id="canvas" width="800" height="600"></canvas>
+        <canvas id="texture-canvas" width="800" height="600"></canvas>
+      </div>
+    </div>
+
+    <div class="palette">
+      <div>
+        <div class="palette-section-title">墨色浓淡</div>
+        <div class="palette-row" id="ink-palette">
+          <div class="palette-item ink-0 selected" data-ink="0" title="焦墨"></div>
+          <div class="palette-item ink-1" data-ink="1" title="浓墨"></div>
+          <div class="palette-item ink-2" data-ink="2" title="重墨"></div>
+          <div class="palette-item ink-3" data-ink="3" title="淡墨"></div>
+          <div class="palette-item ink-4" data-ink="4" title="清墨"></div>
+        </div>
+      </div>
+
+      <div>
+        <div class="palette-section-title">笔触大小</div>
+        <div class="palette-row" id="brush-palette">
+          <div class="brush-item brush-0" data-brush="0" title="细笔 2px"></div>
+          <div class="brush-label">细笔</div>
+          <div class="brush-item brush-1 selected" data-brush="1" title="中笔 4px"></div>
+          <div class="brush-label">中笔</div>
+          <div class="brush-item brush-2" data-brush="2" title="粗笔 6px"></div>
+          <div class="brush-label">粗笔</div>
+        </div>
+      </div>
+
+      <div>
+        <div class="palette-section-title">范本选字</div>
+        <div class="char-selector">
+          <button class="char-btn active" data-char="永">永</button>
+          <button class="char-btn" data-char="和">和</button>
+          <button class="char-btn" data-char="风">风</button>
+          <button class="char-btn" data-char="雅">雅</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="btn-start">开始临摹</button>
+    <button id="btn-submit" disabled>提交评分</button>
+    <button id="btn-clear">清空重写</button>
+    <button id="btn-export" disabled>导出作品</button>
+  </div>
+
+  <div class="score-area hidden" id="score-area">
+    <div class="score-text">
+      <div class="score-percentage" id="score-percentage">0%</div>
+      <div class="score-stars" id="score-stars"></div>
+      <div class="score-detail" id="score-detail"></div>
+    </div>
+    <canvas id="radar-canvas" width="220" height="200"></canvas>
+  </div>
+
+  <script type="module" src="/src/App.ts"></script>
+</body>
+</html>

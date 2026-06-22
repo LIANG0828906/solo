@@ -1,0 +1,55 @@
+[
+  {
+    "id": "1",
+    "name": "英语单词入门",
+    "cards": [
+      {
+        "id": "c1",
+        "question": "What is the capital of France?",
+        "answer": "Paris",
+        "nextReview": "2024-01-15",
+        "interval": 1,
+        "easeFactor": 2.5,
+        "repetitions": 0
+      },
+      {
+        "id": "c2",
+        "question": "What does 'serendipity' mean?",
+        "answer": "The occurrence of happy or beneficial events by chance.",
+        "nextReview": "2024-01-14",
+        "interval": 2,
+        "easeFactor": 2.6,
+        "repetitions": 1
+      },
+      {
+        "id": "c3",
+        "question": "Translate 'beautiful' to Spanish",
+        "answer": "Bonito / Hermoso",
+        "nextReview": "2024-01-13",
+        "interval": 4,
+        "easeFactor": 2.5,
+        "repetitions": 2
+      },
+      {
+        "id": "c4",
+        "question": "What is the past tense of 'run'?",
+        "answer": "Ran",
+        "nextReview": "2024-01-16",
+        "interval": 1,
+        "easeFactor": 2.5,
+        "repetitions": 0
+      },
+      {
+        "id": "c5",
+        "question": "What is the plural form of 'child'?",
+        "answer": "Children",
+        "nextReview": "2024-01-12",
+        "interval": 7,
+        "easeFactor": 2.8,
+        "repetitions": 3
+      }
+    ],
+    "lastReviewed": "2024-01-10",
+    "createdAt": "2024-01-01"
+  }
+]

@@ -1,0 +1,125 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  color: #2d3748;
+  background-color: #f4f5f7;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: #f4f5f7;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+/* 滚动条样式 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e0;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #a0aec0;
+}
+
+/* 拖拽动画 - 弹性弹簧效果，阻尼系数0.7 */
+.draggable-item {
+  transition: transform 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.draggable-item.dragging {
+  transform: scale(1.03) rotate(1deg);
+  box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.25);
+  z-index: 1000;
+  transition: transform 0.15s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+/* 毛玻璃模态框背景 */
+.modal-backdrop {
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  background-color: rgba(26, 35, 126, 0.15);
+}
+
+/* 进度条绿色渐变 */
+.progress-gradient {
+  background: linear-gradient(90deg, #68d391 0%, #38a169 50%, #2f855a 100%);
+}
+
+/* Hover放大效果 */
+.hover-scale {
+  transition: transform 200ms ease, box-shadow 200ms ease;
+}
+
+.hover-scale:hover {
+  transform: scale(1.02);
+  box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.15);
+}
+
+/* 优先级左侧竖条 */
+.priority-urgent {
+  border-left: 4px solid #ef4444;
+}
+
+.priority-high {
+  border-left: 4px solid #f97316;
+}
+
+.priority-medium {
+  border-left: 4px solid #eab308;
+}
+
+.priority-low {
+  border-left: 4px solid #22c55e;
+}
+
+/* 热力图颜色 */
+.heatmap-0 { background-color: #f0fdf4; }
+.heatmap-1 { background-color: #bbf7d0; }
+.heatmap-2 { background-color: #86efac; }
+.heatmap-3 { background-color: #4ade80; }
+.heatmap-4 { background-color: #fbbf24; }
+.heatmap-5 { background-color: #f97316; }
+.heatmap-6 { background-color: #ef4444; }
+.heatmap-7 { background-color: #b91c1c; }
+
+/* 响应式断点 768px以下 */
+@media (max-width: 768px) {
+  .kanban-horizontal {
+    flex-direction: column !important;
+  }
+  
+  .kanban-lane {
+    width: 100% !important;
+    min-width: 100% !important;
+  }
+  
+  .task-card {
+    width: 100% !important;
+  }
+}

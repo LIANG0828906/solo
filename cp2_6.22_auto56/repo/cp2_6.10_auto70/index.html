@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>恒升当 - 清末当铺模拟器</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
+    <style>
+      :root {
+        --wood-dark: #6b4226;
+        --wood-main: #8b5e3c;
+        --wood-light: #a67c52;
+        --paper-yellow: #f5e6c8;
+        --paper-dark: #e8d5a3;
+        --cinnabar-red: #c04040;
+        --ink-black: #2a1f18;
+        --gold: #d4af37;
+      }
+      
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      html, body, #root {
+        height: 100%;
+        width: 100%;
+      }
+      
+      body {
+        font-family: 'Noto Serif SC', serif;
+        background-color: var(--ink-black);
+        color: var(--ink-black);
+        overflow: hidden;
+      }
+      
+      .font-title {
+        font-family: 'ZCOOL XiaoWei', 'Noto Serif SC', serif;
+      }
+      
+      .font-brush {
+        font-family: 'ZCOOL XiaoWei', serif;
+      }
+      
+      .coin-button {
+        position: relative;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(145deg, #b8860b, #d4af37, #b8860b);
+        border: 3px solid #8b6914;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      }
+      
+      .coin-button::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 18px;
+        height: 18px;
+        background: var(--ink-black);
+      }
+      
+      .coin-button:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.4);
+        background: linear-gradient(145deg, #d4af37, #f0d78c, #d4af37);
+      }
+      
+      .ink-transition {
+        animation: inkSpread 0.5s ease-out;
+      }
+      
+      @keyframes inkSpread {
+        0% {
+          opacity: 0;
+          filter: blur(10px);
+          box-shadow: 0 0 30px rgba(42, 31, 24, 0.8);
+        }
+        100% {
+          opacity: 1;
+          filter: blur(0);
+          box-shadow: 0 0 0 rgba(42, 31, 24, 0);
+        }
+      }
+      
+      @keyframes lampGlow {
+        0%, 100% {
+          box-shadow: 
+            0 0 60px 20px rgba(255, 200, 100, 0.4),
+            0 0 100px 40px rgba(255, 180, 80, 0.2);
+        }
+        50% {
+          box-shadow: 
+            0 0 80px 30px rgba(255, 200, 100, 0.6),
+            0 0 120px 50px rgba(255, 180, 80, 0.3);
+        }
+      }
+      
+      @keyframes scaleSwing {
+        0%, 100% { transform: rotate(-3deg); }
+        50% { transform: rotate(3deg); }
+      }
+      
+      @keyframes beadMove {
+        0% { transform: translateY(0); }
+        50% { transform: translateY(-8px); }
+        100% { transform: translateY(0); }
+      }
+      
+      .lamp-glow {
+        animation: lampGlow 3s ease-in-out infinite;
+      }
+    </style>
+    <script type="module">
+      if (import.meta.hot?.on) {
+        import.meta.hot.on('vite:error', (error) => {
+          if (error.err) {
+            console.error(
+              [error.err.message, error.err.frame].filter(Boolean).join('\n'),
+            );
+          }
+        });
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,32 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  background-color: #f5f7fa;
+  color: #2c3e50;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+:root {
+  --primary-color: #2ecc71;
+  --primary-dark: #27ae60;
+  --text-color: #2c3e50;
+  --text-light: #7f8c8d;
+  --bg-color: #f5f7fa;
+  --card-bg: #ffffff;
+  --expiring-bg: #fff9e2;
+  --expired-bg: #ffe0e0;
+  --warning-color: #f39c12;
+  --danger-color: #e74c3c;
+  --shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-hover: 0 8px 24px rgba(0, 0, 0, 0.12);
+  --transition: all 300ms ease-out;
+}

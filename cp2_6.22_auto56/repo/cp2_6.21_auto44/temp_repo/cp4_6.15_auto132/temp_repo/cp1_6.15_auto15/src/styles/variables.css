@@ -1,0 +1,43 @@
+:root {
+  --color-primary: #4CAF50;
+  --color-primary-dark: #388E3C;
+  --color-primary-light: #81C784;
+  --color-soil: #795548;
+  --color-sky: #87CEEB;
+  --color-sky-light: #B3E5FC;
+  --color-healthy: #4CAF50;
+  --color-normal: #FFC107;
+  --color-attention: #FF5722;
+  
+  --color-bg-gradient-start: #E8F5E9;
+  --color-bg-gradient-end: #E3F2FD;
+  --color-card-bg: rgba(255, 255, 255, 0.75);
+  --color-card-border: rgba(255, 255, 255, 0.3);
+  
+  --color-text-primary: #2E7D32;
+  --color-text-secondary: #5D4037;
+  --color-text-muted: #81C784;
+  
+  --shadow-sm: 0 2px 8px rgba(76, 175, 80, 0.1);
+  --shadow-md: 0 4px 16px rgba(76, 175, 80, 0.15);
+  --shadow-lg: 0 8px 32px rgba(76, 175, 80, 0.2);
+  
+  --radius-sm: 8px;
+  --radius-md: 16px;
+  --radius-lg: 24px;
+  --radius-pill: 999px;
+  
+  --font-handwriting: 'Ma Shan Zheng', cursive;
+  --font-sans: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+  
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+  
+  --blur-glass: 10px;
+  
+  --z-card: 1;
+  --z-dropdown: 10;
+  --z-modal: 100;
+  --z-overlay: 1000;
+}

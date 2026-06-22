@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/feedbackboard.tsx","./src/components/feedbackcapture.tsx","./src/components/trendchart.tsx","./src/services/trendcalculator.ts","./src/store/feedbackreducer.tsx"],"version":"5.8.3"}

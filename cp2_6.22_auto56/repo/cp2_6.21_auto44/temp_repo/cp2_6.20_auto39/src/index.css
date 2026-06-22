@@ -1,0 +1,115 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #1e3a8a;
+  --color-secondary: #0d9488;
+  --color-success: #22c55e;
+  --color-background: #faf6f0;
+  --color-card: #ffffff;
+  --color-timeline-line: #d1d5db;
+  --color-timeline-dot: #9ca3af;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #faf6f0;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-slide-in {
+  animation: slideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.timeline-line {
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    var(--color-timeline-line) 5%,
+    var(--color-timeline-line) 95%,
+    transparent 100%
+  );
+}
+
+.event-details {
+  will-change: max-height, opacity;
+  contain: layout style;
+}
+
+.event-card {
+  will-change: transform, box-shadow;
+  contain: layout style;
+}
+
+@media (max-width: 768px) {
+  .timeline-item {
+    justify-content: flex-start !important;
+  }
+
+  .event-card {
+    width: calc(100% - 32px) !important;
+    margin-left: 32px !important;
+    margin-right: 0 !important;
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+  }
+
+  .timeline-dot {
+    left: 16px !important;
+    transform: none !important;
+  }
+
+  .timeline-line {
+    left: 16px !important;
+    transform: none !important;
+  }
+
+  .year-marker {
+    left: 16px !important;
+    transform: none !important;
+  }
+
+  .event-card::before {
+    left: -8px !important;
+    right: auto !important;
+    border-right: 8px solid white !important;
+    border-left: none !important;
+  }
+}
+
+.event-card {
+  position: relative;
+}
+
+.event-card::before {
+  content: '';
+  position: absolute;
+  top: 24px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+}
+
+.event-card:hover {
+  transform: translateY(-4px);
+}

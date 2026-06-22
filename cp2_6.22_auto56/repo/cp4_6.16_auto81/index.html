@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>像素地下城 - Pixel Dungeon</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: #000;
+      overflow: hidden;
+      font-family: 'Press Start 2P', cursive;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    #game-container {
+      position: relative;
+      box-shadow: inset 0 0 60px rgba(0, 0, 0, 0.8);
+      border: 4px solid #3a3a3a;
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+    }
+    
+    #game-canvas {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: -moz-crisp-edges;
+      image-rendering: crisp-edges;
+    }
+    
+    #start-screen, #game-over-screen, #victory-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.9);
+      color: #d4af37;
+      z-index: 10;
+    }
+    
+    #start-screen h1, #game-over-screen h1, #victory-screen h1 {
+      font-size: 24px;
+      margin-bottom: 30px;
+      text-shadow: 3px 3px 0 #8b2500;
+    }
+    
+    #start-screen p, #game-over-screen p, #victory-screen p {
+      font-size: 10px;
+      color: #d4c8a8;
+      margin-bottom: 15px;
+      line-height: 2;
+      text-align: center;
+    }
+    
+    .pixel-btn {
+      font-family: 'Press Start 2P', cursive;
+      font-size: 12px;
+      padding: 12px 24px;
+      background: #3a3a3a;
+      color: #d4af37;
+      border: 3px solid #d4af37;
+      cursor: pointer;
+      margin-top: 20px;
+      transition: all 0.1s;
+      image-rendering: pixelated;
+    }
+    
+    .pixel-btn:hover {
+      background: #d4af37;
+      color: #3a3a3a;
+      transform: scale(1.05);
+    }
+    
+    .pixel-btn:active {
+      transform: scale(0.95);
+    }
+    
+    .hidden {
+      display: none !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas" width="480" height="480"></canvas>
+    
+    <div id="start-screen">
+      <h1>像素地下城</h1>
+      <p>WASD 移动<br>探索地下城<br>击败怪物<br>收集宝藏<br>找到出口</p>
+      <button class="pixel-btn" id="start-btn">开始游戏</button>
+    </div>
+    
+    <div id="game-over-screen" class="hidden">
+      <h1>游戏结束</h1>
+      <p id="final-stats">你被怪物击败了...</p>
+      <button class="pixel-btn" id="restart-btn">重新开始</button>
+    </div>
+    
+    <div id="victory-screen" class="hidden">
+      <h1>通关胜利！</h1>
+      <p id="victory-stats">你成功逃出了地下城！</p>
+      <button class="pixel-btn" id="play-again-btn">再玩一次</button>
+    </div>
+  </div>
+  
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

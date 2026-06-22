@@ -1,0 +1,250 @@
+.track-card {
+  background: #2D2D44;
+  border-radius: 12px;
+  padding: 16px;
+  border: 1px solid #3A3A5C;
+  border-left: 4px solid #8B5CF6;
+  transition: all 0.2s ease-out;
+  cursor: grab;
+  position: relative;
+  min-width: 280px;
+  flex: 1;
+}
+
+.track-card:hover {
+  border-color: #8B5CF6;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.27);
+  transform: translateY(-1px);
+}
+
+.track-card:active {
+  cursor: grabbing;
+}
+
+.track-card.dragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+}
+
+.track-card.muted {
+  opacity: 0.6;
+}
+
+.track-card-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.drag-handle {
+  color: #6B6B8A;
+  cursor: grab;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.drag-handle:hover {
+  color: #8B5CF6;
+}
+
+.track-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 18px;
+}
+
+.track-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.track-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #EAEAEA;
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.track-instrument {
+  font-size: 12px;
+  font-weight: 500;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.track-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.action-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: #3A3A5C;
+  color: #EAEAEA;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  font-size: 14px;
+}
+
+.action-btn:hover {
+  background: #8B5CF6;
+  color: white;
+  transform: scale(0.95);
+}
+
+.action-btn:active {
+  transform: scale(0.9);
+}
+
+.delete-btn:hover {
+  background: #EF4444;
+}
+
+.mute-btn.muted {
+  background: #EF4444;
+  color: white;
+}
+
+.track-waveform {
+  margin-bottom: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 6px;
+  padding: 8px;
+  overflow: hidden;
+}
+
+.track-controls {
+  margin-bottom: 12px;
+}
+
+.volume-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #9CA3AF;
+}
+
+.volume-control svg {
+  flex-shrink: 0;
+}
+
+.volume-slider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: #3A3A5C;
+  outline: none;
+  cursor: pointer;
+}
+
+.volume-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--slider-color, #8B5CF6);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
+}
+
+.volume-slider::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+}
+
+.volume-slider::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--slider-color, #8B5CF6);
+  cursor: pointer;
+  border: none;
+  box-shadow: 0 0 8px rgba(139, 92, 246, 0.4);
+}
+
+.volume-slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.volume-value {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  width: 36px;
+  text-align: right;
+  color: #9CA3AF;
+}
+
+.track-effects {
+  display: flex;
+  gap: 16px;
+}
+
+.effect-control {
+  flex: 1;
+}
+
+.effect-label {
+  display: block;
+  font-size: 11px;
+  color: #9CA3AF;
+  margin-bottom: 4px;
+}
+
+.effect-slider {
+  width: 100%;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 3px;
+  border-radius: 2px;
+  background: #3A3A5C;
+  outline: none;
+  cursor: pointer;
+}
+
+.effect-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #8B5CF6;
+  cursor: pointer;
+}
+
+.effect-slider::-moz-range-thumb {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: #8B5CF6;
+  cursor: pointer;
+  border: none;
+}
+
+.effect-slider:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .track-card {
+    min-width: auto;
+  }
+}

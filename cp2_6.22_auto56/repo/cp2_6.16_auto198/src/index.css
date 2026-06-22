@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    @apply w-full h-full m-0 p-0 overflow-hidden;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0D1117;
+    color: #E6EDF3;
+  }
+  
+  * {
+    @apply box-border;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply px-6 py-3 rounded-lg font-semibold transition-all duration-150
+           bg-gradient-to-r from-electric-blue to-electric-blue-dark
+           hover:from-electric-blue-dark hover:to-electric-blue
+           active:scale-95
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
+  .btn-secondary {
+    @apply px-6 py-3 rounded-lg font-semibold transition-all duration-150
+           bg-deep-blue hover:bg-deep-blue/80 active:scale-95
+           disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+  }
+
+  .card {
+    @apply bg-card-dark/90 backdrop-blur-md rounded-2xl border border-grid-line/50
+           shadow-2xl;
+  }
+
+  .input-field {
+    @apply w-full px-4 py-3 rounded-lg bg-deep-space/50 border border-grid-line
+           text-white placeholder-gray-500
+           focus:outline-none focus:border-electric-blue focus:ring-2 focus:ring-electric-blue/30
+           transition-all duration-200;
+  }
+
+  .grid-cell {
+    @apply transition-all duration-150 cursor-pointer
+           hover:bg-deep-blue/40 active:scale-90;
+  }
+
+  .glow-red {
+    box-shadow: 0 0 12px rgba(239, 68, 68, 0.6), 0 0 24px rgba(239, 68, 68, 0.3);
+  }
+
+  .glow-orange {
+    box-shadow: 0 0 12px rgba(249, 115, 22, 0.6), 0 0 24px rgba(249, 115, 22, 0.3);
+  }
+
+  .glow-yellow {
+    box-shadow: 0 0 12px rgba(250, 204, 21, 0.6), 0 0 24px rgba(250, 204, 21, 0.3);
+  }
+
+  .glow-blue {
+    box-shadow: 0 0 12px rgba(56, 189, 248, 0.6), 0 0 24px rgba(56, 189, 248, 0.3);
+  }
+}
+
+@keyframes starFloat {
+  0%, 100% { transform: translateY(0) translateX(0); opacity: 0.3; }
+  50% { transform: translateY(-20px) translateX(10px); opacity: 0.8; }
+}
+
+@keyframes ringPulse {
+  0% { transform: scale(0.8); opacity: 0.8; }
+  50% { transform: scale(1.2); opacity: 0.4; }
+  100% { transform: scale(0.8); opacity: 0.8; }
+}
+
+@keyframes cellBounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(0.9); }
+}
+
+.animate-ring-pulse {
+  animation: ringPulse 1.5s ease-in-out infinite;
+}
+
+.animate-cell-bounce {
+  animation: cellBounce 0.2s ease-out;
+}
+
+.sonar-ring {
+  animation: ringPulse 2s ease-in-out infinite;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0D1117;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #1E3A5F;
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #38BDF8;
+}

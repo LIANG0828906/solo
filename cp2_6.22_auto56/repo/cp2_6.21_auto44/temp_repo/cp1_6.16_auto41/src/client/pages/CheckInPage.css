@@ -1,0 +1,344 @@
+.checkin-page {
+  max-width: 500px;
+  margin: 0 auto;
+  padding-bottom: 40px;
+}
+
+.page-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.streak-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 24px;
+  background: linear-gradient(135deg, var(--accent-primary), #ff8787);
+  border-radius: 20px;
+  color: white;
+  margin-bottom: 24px;
+  box-shadow: 0 8px 25px rgba(255, 107, 107, 0.3);
+}
+
+.streak-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.streak-label {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.streak-count {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.streak-number {
+  font-size: 48px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.streak-unit {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.streak-icon {
+  font-size: 56px;
+  animation: flame 1s ease-in-out infinite;
+}
+
+@keyframes flame {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.1);
+  }
+}
+
+.calendar-card {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.calendar-header {
+  margin-bottom: 16px;
+}
+
+.calendar-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.weekday {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  padding: 8px 0;
+}
+
+.calendar-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+}
+
+.calendar-day {
+  aspect-ratio: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: var(--text-secondary);
+  border-radius: 8px;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.calendar-day.empty {
+  visibility: hidden;
+}
+
+.calendar-day.today {
+  background: rgba(255, 107, 107, 0.1);
+  color: var(--accent-primary);
+  font-weight: 600;
+}
+
+.calendar-day.checked {
+  background: rgba(152, 216, 170, 0.2);
+  color: var(--success);
+}
+
+.calendar-day.streak {
+  background: rgba(255, 107, 107, 0.15);
+  color: var(--accent-primary);
+}
+
+.calendar-day.today.checked {
+  background: var(--success);
+  color: white;
+}
+
+.check-mark {
+  font-size: 10px;
+  font-weight: bold;
+}
+
+.reward-preview {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 20px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-sm);
+}
+
+.reward-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+}
+
+.reward-tip {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
+}
+
+.reward-items {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.reward-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 8px;
+  background: var(--bg-primary);
+  border-radius: 12px;
+}
+
+.reward-icon {
+  font-size: 28px;
+}
+
+.reward-name {
+  font-size: 10px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.checkin-btn {
+  width: 100%;
+  padding: 18px;
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+  background: linear-gradient(135deg, var(--accent-primary), #ff8787);
+  border-radius: 16px;
+  box-shadow: 0 6px 20px rgba(255, 107, 107, 0.4);
+  transition: all 0.3s ease;
+}
+
+.checkin-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(255, 107, 107, 0.5);
+}
+
+.checkin-btn:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.checkin-btn.checked {
+  background: var(--success);
+  box-shadow: 0 6px 20px rgba(152, 216, 170, 0.4);
+}
+
+.reward-modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 20px;
+}
+
+.reward-modal-content {
+  background: white;
+  border-radius: 24px;
+  padding: 40px 30px;
+  text-align: center;
+  max-width: 320px;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+.reward-stars {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-around;
+  padding: 20px;
+}
+
+.star {
+  font-size: 24px;
+  animation: starFloat 2s ease-in-out infinite;
+}
+
+.star.s1 { animation-delay: 0s; }
+.star.s2 { animation-delay: 0.3s; font-size: 20px; }
+.star.s3 { animation-delay: 0.6s; }
+
+@keyframes starFloat {
+  0%, 100% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 0.8;
+  }
+  50% {
+    transform: translateY(-10px) rotate(15deg);
+    opacity: 1;
+  }
+}
+
+.modal-title {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin-bottom: 24px;
+}
+
+.reward-item-large {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 30px 20px;
+  background: linear-gradient(135deg, #FFF5E4, #FFEAA7);
+  border-radius: 20px;
+  margin-bottom: 24px;
+}
+
+.large-icon {
+  font-size: 64px;
+}
+
+.large-name {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.large-desc {
+  font-size: 14px;
+  color: var(--success);
+  font-weight: 600;
+}
+
+.modal-close-btn {
+  width: 100%;
+  padding: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, var(--accent-primary), #ff8787);
+  border-radius: 12px;
+  transition: all 0.3s ease;
+}
+
+.modal-close-btn:hover {
+  transform: scale(1.02);
+}
+
+.animate-scale-in {
+  animation: scaleIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}

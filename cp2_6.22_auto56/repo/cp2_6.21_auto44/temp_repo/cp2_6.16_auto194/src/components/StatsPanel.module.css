@@ -1,0 +1,155 @@
+.panel {
+  background-color: var(--white);
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+  border-left: 4px solid var(--dark-gray);
+  padding: 16px;
+}
+
+.header {
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--dark-gray);
+  margin-bottom: 16px;
+}
+
+.chartContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.chartCanvas {
+  display: block;
+}
+
+.chartCenter {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.chartCenterNumber {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--dark-gray);
+  line-height: 1;
+}
+
+.chartCenterLabel {
+  font-size: 11px;
+  color: #999;
+  margin-top: 4px;
+}
+
+.legend {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.legendItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.legendColor {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+}
+
+.legendLabel {
+  flex: 1;
+  color: #666;
+}
+
+.legendPercent {
+  font-weight: 600;
+  color: var(--dark-gray);
+}
+
+.recentSection {
+  border-top: 1px solid var(--border-gray);
+  padding-top: 12px;
+}
+
+.recentTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--dark-gray);
+  margin-bottom: 10px;
+}
+
+.recentList {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recentItem {
+  display: flex;
+  gap: 8px;
+  padding: 8px;
+  background-color: #f8f9fa;
+  border-radius: 6px;
+}
+
+.recentAvatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--white);
+  font-size: 10px;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.recentContent {
+  flex: 1;
+  min-width: 0;
+}
+
+.recentAuthor {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--dark-gray);
+  margin-bottom: 2px;
+}
+
+.recentText {
+  font-size: 12px;
+  color: #666;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.emptyRecent {
+  font-size: 12px;
+  color: #999;
+  text-align: center;
+  padding: 12px 0;
+}
+
+@media (max-width: 1024px) {
+  .panel {
+    width: calc(50% - 10px);
+  }
+}
+
+@media (max-width: 640px) {
+  .panel {
+    width: 100%;
+  }
+}

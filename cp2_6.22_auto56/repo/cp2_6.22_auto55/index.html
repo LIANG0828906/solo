@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>深海珊瑚礁生态模拟器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: linear-gradient(180deg, #0a1628 0%, #0f2847 50%, #05101f 100%);
+    }
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    #loading {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      background: linear-gradient(180deg, #0a1628 0%, #0f2847 50%, #05101f 100%);
+      z-index: 9999;
+      transition: opacity 1.2s ease;
+    }
+    #loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    .loading-title {
+      font-size: 48px;
+      font-weight: 300;
+      letter-spacing: 12px;
+      color: #fff;
+      text-shadow: 0 0 30px rgba(0, 229, 255, 0.6), 0 0 60px rgba(0, 229, 255, 0.3);
+      animation: breathe 3s ease-in-out infinite;
+      margin-bottom: 24px;
+    }
+    .loading-sub {
+      font-size: 14px;
+      letter-spacing: 6px;
+      color: rgba(255, 255, 255, 0.5);
+      margin-bottom: 48px;
+    }
+    .loading-bar {
+      width: 320px;
+      height: 2px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+      overflow: hidden;
+      position: relative;
+    }
+    .loading-bar::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, #00e5ff, transparent);
+      animation: loading 1.8s ease-in-out infinite;
+    }
+    @keyframes breathe {
+      0%, 100% { opacity: 0.7; transform: scale(0.98); }
+      50% { opacity: 1; transform: scale(1.02); }
+    }
+    @keyframes loading {
+      0% { left: -100%; }
+      100% { left: 100%; }
+    }
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="loading">
+      <div class="loading-title">深海潜航</div>
+      <div class="loading-sub">CORAL REEF ECOSYSTEM</div>
+      <div class="loading-bar"></div>
+    </div>
+    <div id="canvas-container"></div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

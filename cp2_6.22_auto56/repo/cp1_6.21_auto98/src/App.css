@@ -1,0 +1,28 @@
+.app {
+  width: 100%;
+  min-height: 100vh;
+  background: #ffffff;
+  position: relative;
+}
+
+.main-content {
+  width: 100%;
+  position: relative;
+}
+
+.scenes-container {
+  position: relative;
+  width: 100%;
+}
+
+.bottom-spacer {
+  height: 80px;
+  width: 100%;
+  background: #ffffff;
+}
+
+@media (max-width: 768px) {
+  .bottom-spacer {
+    height: 70px;
+  }
+}

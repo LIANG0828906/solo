@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>佣兵团编成与自动战斗模拟器</title>
+  <link rel="stylesheet" href="./src/styles.css">
+</head>
+<body>
+  <div id="app">
+    <header class="game-header">
+      <h1>佣兵团编成与自动战斗模拟器</h1>
+      <div class="resources">
+        <span class="resource-item">
+          <span class="resource-icon gold">◈</span>
+          <span>金币: <strong id="gold-display">100</strong></span>
+        </span>
+        <span class="resource-item">
+          <span class="resource-icon mana">✧</span>
+          <span>魔力: <strong id="mana-display">50</strong></span>
+        </span>
+      </div>
+    </header>
+
+    <main id="formation-screen" class="formation-screen">
+      <aside class="sidebar left-sidebar">
+        <div class="panel">
+          <h2>种族兵种选择</h2>
+          <div class="race-tabs">
+            <button class="race-tab active" data-race="human">人类</button>
+            <button class="race-tab" data-race="elf">精灵</button>
+            <button class="race-tab" data-race="undead">亡灵</button>
+          </div>
+          <div id="unit-list" class="unit-list"></div>
+        </div>
+      </aside>
+
+      <section class="center-content">
+        <div class="panel grid-panel">
+          <h2>战场编成 (3×3 / 最多6人)</h2>
+          <div id="battle-grid" class="battle-grid">
+            <div class="grid-slot" data-slot="0" draggable="true"></div>
+            <div class="grid-slot" data-slot="1" draggable="true"></div>
+            <div class="grid-slot" data-slot="2" draggable="true"></div>
+            <div class="grid-slot" data-slot="3" draggable="true"></div>
+            <div class="grid-slot" data-slot="4" draggable="true"></div>
+            <div class="grid-slot" data-slot="5" draggable="true"></div>
+            <div class="grid-slot" data-slot="6" draggable="true"></div>
+            <div class="grid-slot" data-slot="7" draggable="true"></div>
+            <div class="grid-slot" data-slot="8" draggable="true"></div>
+          </div>
+          <div class="formation-actions">
+            <button id="clear-formation-btn" class="btn btn-secondary">清空布阵</button>
+            <button id="start-battle-btn" class="btn btn-primary">开始战斗</button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="sidebar right-sidebar">
+        <div class="panel">
+          <h2>当前队伍</h2>
+          <div id="team-info" class="team-info"></div>
+        </div>
+        <div class="panel">
+          <h2>兵种克制关系</h2>
+          <div class="counter-info">
+            <div class="counter-item"><span class="race-human">人类</span> → 克制 → <span class="race-undead">亡灵</span></div>
+            <div class="counter-item"><span class="race-undead">亡灵</span> → 克制 → <span class="race-elf">精灵</span></div>
+            <div class="counter-item"><span class="race-elf">精灵</span> → 克制 → <span class="race-human">人类</span></div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <div id="battle-screen" class="battle-screen hidden">
+      <div class="battle-hud">
+        <div class="battle-team-info enemy-team">
+          <h3>敌方: 黑暗军团</h3>
+          <div class="hp-bar total-hp">
+            <div class="hp-fill" id="enemy-total-hp"></div>
+            <span class="hp-text" id="enemy-hp-text">0/0</span>
+          </div>
+        </div>
+        <div class="battle-status">
+          <span id="round-counter">回合 1</span>
+          <button id="end-battle-btn" class="btn btn-small">返回编成</button>
+        </div>
+        <div class="battle-team-info player-team">
+          <h3>我方: 佣兵团</h3>
+          <div class="hp-bar total-hp">
+            <div class="hp-fill" id="player-total-hp"></div>
+            <span class="hp-text" id="player-hp-text">0/0</span>
+          </div>
+        </div>
+      </div>
+      <canvas id="battle-canvas" width="1200" height="600"></canvas>
+      <div id="battle-log" class="battle-log"></div>
+    </div>
+  </div>
+
+  <audio id="click-sfx" preload="auto"></audio>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

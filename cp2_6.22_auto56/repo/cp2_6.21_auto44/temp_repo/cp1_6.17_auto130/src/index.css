@@ -1,0 +1,69 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg-primary: #FDF6E3;
+  --card-bg: #FFFEF5;
+  --accent-brown: #8B4513;
+  --accent-brown-hover: #A0522D;
+  --accent-gold: #DAA520;
+  --decor-line: #D4C9A3;
+  --text-primary: #3E2723;
+  --text-secondary: #5D4037;
+  --shadow-default: rgba(0, 0, 0, 0.08);
+  --shadow-hover: rgba(0, 0, 0, 0.125);
+}
+
+html, body, #root {
+  min-height: 100vh;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Noto Serif SC', serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  overflow-x: hidden;
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: scale(0.85);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes blinkCard {
+  0%, 100% {
+    box-shadow: 0 2px 8px var(--shadow-default);
+    border: 1px solid transparent;
+  }
+  50% {
+    box-shadow: 0 4px 16px rgba(212, 201, 163, 0.5);
+    border: 2px solid var(--decor-line);
+  }
+}
+
+@keyframes floatUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

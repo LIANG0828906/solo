@@ -1,0 +1,13 @@
+{
+  "user-1": {
+    "id": "user-1",
+    "username": "农场主小明",
+    "coins": 500,
+    "inventory": {
+      "wheat": 8,
+      "egg": 12,
+      "milk": 5
+    },
+    "createdAt": 1781908357177
+  }
+}

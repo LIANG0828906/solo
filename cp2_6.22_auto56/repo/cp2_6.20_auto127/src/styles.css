@@ -1,0 +1,479 @@
+.app-container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #1a1a2e;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  display: flex;
+  overflow: hidden;
+}
+
+.canvas-container {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.glass-panel {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.top-bar {
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 20px;
+  flex-shrink: 0;
+}
+
+.app-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #ffffff;
+  letter-spacing: 2px;
+}
+
+.top-bar-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.icon-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.icon-button:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+.icon-button svg {
+  width: 18px;
+  height: 18px;
+}
+
+.tooltip {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #ffffff;
+  font-size: 12px;
+  border-radius: 6px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+  z-index: 100;
+}
+
+.icon-button:hover .tooltip {
+  opacity: 1;
+}
+
+.control-panel {
+  width: 360px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.panel-section {
+  padding: 16px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.panel-section:last-child {
+  border-bottom: none;
+}
+
+.panel-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+.geometry-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.geo-btn {
+  padding: 14px 10px;
+  border: none;
+  border-radius: 10px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.25s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.geo-btn::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, transparent 50%);
+  pointer-events: none;
+}
+
+.geo-btn:hover {
+  transform: translateY(-2px);
+  filter: brightness(1.15);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.3);
+}
+
+.geo-btn svg {
+  width: 28px;
+  height: 28px;
+}
+
+.geo-btn-box {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ee5a5a 100%);
+}
+
+.geo-btn-sphere {
+  background: linear-gradient(135deg, #48dbfb 0%, #0abde3 100%);
+}
+
+.geo-btn-cylinder {
+  background: linear-gradient(135deg, #1dd1a1 0%, #10ac84 100%);
+}
+
+.geo-btn-torus {
+  background: linear-gradient(135deg, #feca57 0%, #ff9f43 100%);
+}
+
+.geo-btn-cone {
+  background: linear-gradient(135deg, #a29bfe 0%, #6c5ce7 100%);
+}
+
+.leva-container {
+  --leva-colors-atomicNumber: #ffffff;
+  --leva-colors-background: transparent;
+  --leva-colors-content1: rgba(255, 255, 255, 0.04);
+  --leva-colors-content2: rgba(255, 255, 255, 0.06);
+  --leva-colors-content3: rgba(255, 255, 255, 0.12);
+  --leva-colors-accent1: #5f27cd;
+  --leva-colors-accent2: #341f97;
+  --leva-colors-accent3: #5f27cd;
+  --leva-colors-highlight1: #ffffff;
+  --leva-colors-highlight2: rgba(255, 255, 255, 0.6);
+  --leva-colors-highlight3: rgba(255, 255, 255, 0.4);
+  --leva-colors-warning: #feca57;
+  --leva-colors-vivid1: #ff6b6b;
+  --leva-colors-vivid2: #1dd1a1;
+  --leva-colors-vivid3: #48dbfb;
+  --leva-sizes-rootWidth: 100%;
+  --leva-sizes-controlWidth: 60%;
+}
+
+.no-selection {
+  padding: 20px;
+  text-align: center;
+  color: rgba(255, 255, 255, 0.4);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.transform-hint {
+  padding: 10px 16px;
+  background: rgba(95, 39, 205, 0.2);
+  border: 1px solid rgba(95, 39, 205, 0.3);
+  border-radius: 8px;
+  margin-bottom: 12px;
+}
+
+.transform-hint-text {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.transform-hint-key {
+  display: inline-block;
+  padding: 2px 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  font-family: monospace;
+  font-weight: 600;
+  margin: 0 2px;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal-content {
+  background: #1a1a2e;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 700px;
+  width: 90%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  animation: slideUp 0.3s ease;
+}
+
+.modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #ffffff;
+}
+
+.modal-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.modal-close:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.json-display {
+  flex: 1;
+  background: #0f0f1a;
+  border-radius: 10px;
+  padding: 16px;
+  overflow: auto;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-size: 13px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-all;
+  margin-bottom: 16px;
+  max-height: 400px;
+}
+
+.json-key {
+  color: #ff6b6b;
+}
+
+.json-string {
+  color: #1dd1a1;
+}
+
+.json-number {
+  color: #48dbfb;
+}
+
+.json-boolean {
+  color: #feca57;
+}
+
+.json-null {
+  color: #a29bfe;
+}
+
+.modal-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.modal-btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  border: none;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-btn-primary {
+  background: linear-gradient(135deg, #5f27cd 0%, #341f97 100%);
+  color: #ffffff;
+}
+
+.modal-btn-primary:hover {
+  filter: brightness(1.15);
+  transform: translateY(-1px);
+}
+
+.modal-btn-secondary {
+  background: rgba(255, 255, 255, 0.08);
+  color: #ffffff;
+}
+
+.modal-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.confirm-content {
+  max-width: 420px;
+}
+
+.confirm-message {
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes fadeOutScale {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: scale(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    flex-direction: column;
+  }
+
+  .control-panel {
+    width: 100%;
+    height: auto;
+    max-height: 45vh;
+  }
+
+  .canvas-container {
+    flex: 1;
+  }
+
+  .panel-section {
+    padding: 10px 12px;
+  }
+
+  .geometry-buttons {
+    grid-template-columns: repeat(5, 1fr);
+    gap: 6px;
+  }
+
+  .geo-btn {
+    padding: 8px 4px;
+    font-size: 10px;
+  }
+
+  .geo-btn svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .geo-btn span {
+    display: none;
+  }
+
+  .app-title {
+    font-size: 16px;
+    letter-spacing: 1px;
+  }
+
+  .top-bar {
+    padding: 0 12px;
+  }
+}
+
+.name-tag {
+  position: absolute;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.8);
+  color: #ffffff;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  transform: translate(-50%, -100%);
+  z-index: 10;
+}

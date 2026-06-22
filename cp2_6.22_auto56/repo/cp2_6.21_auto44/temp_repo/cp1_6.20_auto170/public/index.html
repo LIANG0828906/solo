@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>电子复古名片交换站</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="header">
+    <h1 class="title">电子复古名片交换站</h1>
+    <p class="subtitle">~ 在线大厅 · 交换创意人的温度 ~</p>
+    <button id="createCardBtn" class="create-btn" title="创建我的名片">
+      <span class="create-btn-letter">C</span>
+    </button>
+  </header>
+
+  <main class="hall" id="hall">
+    <div class="cards-grid" id="cardsGrid"></div>
+    <div class="empty-hall" id="emptyHall" style="display:none;">
+      <p class="empty-text">大厅里还没有名片</p>
+      <p class="empty-sub">点击右上角的 C 按钮创建第一张名片吧！</p>
+    </div>
+  </main>
+
+  <footer class="footer">
+    <button id="exchangeBtn" class="exchange-btn">
+      <span class="exchange-icon">✉</span>
+      <span>交换记录</span>
+    </button>
+    <p class="footer-text">— 每一次交换都是一场奇妙的邂逅 —</p>
+  </footer>
+
+  <div class="modal-backdrop" id="modalBackdrop"></div>
+  <div class="modal" id="createModal">
+    <div class="modal-header">
+      <h2 class="modal-title">创建我的复古名片</h2>
+      <button class="modal-close" id="modalClose">×</button>
+    </div>
+    <form id="cardForm" class="card-form">
+      <div class="form-group">
+        <label for="nickname">昵称</label>
+        <input type="text" id="nickname" name="nickname" required maxlength="20" placeholder="请输入你的昵称">
+      </div>
+      <div class="form-group">
+        <label for="bio">一句话简介</label>
+        <input type="text" id="bio" name="bio" maxlength="60" placeholder="用一句话介绍自己">
+      </div>
+      <div class="form-group">
+        <label for="skills">技能标签（用逗号分隔，最多5个）</label>
+        <input type="text" id="skills" name="skills" placeholder="例如：UI设计,插画,摄影">
+        <div class="skills-preview" id="skillsPreview"></div>
+      </div>
+      <div class="form-group">
+        <label for="email">电子邮箱</label>
+        <input type="email" id="email" name="email" required placeholder="your@email.com">
+      </div>
+      <button type="submit" class="submit-btn">保存名片</button>
+    </form>
+  </div>
+
+  <aside class="side-panel" id="sidePanel">
+    <div class="side-panel-header">
+      <h3>交换记录</h3>
+      <button class="side-panel-close" id="sidePanelClose">×</button>
+    </div>
+    <div class="exchanges-list" id="exchangesList">
+      <p class="no-exchanges">暂无交换记录</p>
+    </div>
+  </aside>
+
+  <script src="index.js"></script>
+</body>
+</html>

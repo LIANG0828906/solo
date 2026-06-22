@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>SoundVortex - 3D音乐可视化</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000000;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    canvas.three-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .audio-bar {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      z-index: 100;
+    }
+
+    .audio-btn {
+      padding: 10px 20px;
+      background: rgba(42, 42, 58, 0.9);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .audio-btn:hover {
+      background: rgba(60, 60, 80, 0.9);
+      transform: translateY(-1px);
+    }
+
+    .audio-btn.active {
+      background: #00FF88;
+      color: #000;
+    }
+
+    .waveform-canvas {
+      width: 200px;
+      height: 40px;
+      background: transparent;
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    .source-label {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      font-size: 14px;
+      color: #aaa;
+      opacity: 0.6;
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .control-panel {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      background: rgba(20, 20, 30, 0.8);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      padding: 16px;
+      z-index: 200;
+      opacity: 1;
+      transition: opacity 0.3s ease;
+      min-width: 280px;
+    }
+
+    .control-panel.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .control-group {
+      margin-bottom: 16px;
+    }
+
+    .control-group:last-child {
+      margin-bottom: 0;
+    }
+
+    .control-label {
+      display: block;
+      color: #ccc;
+      font-size: 11px;
+      margin-bottom: 6px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: #333;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #00FF88;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 12px rgba(0, 255, 136, 0.6);
+    }
+
+    .slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #00FF88;
+      cursor: pointer;
+      border: none;
+      transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .slider::-moz-range-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 12px rgba(0, 255, 136, 0.6);
+    }
+
+    .mode-buttons {
+      display: flex;
+      gap: 6px;
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .mode-btn {
+      flex: 1;
+      width: 80px;
+      height: 36px;
+      background: #2a2a3a;
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .mode-btn:hover {
+      background: #3a3a4a;
+    }
+
+    .mode-btn.active {
+      background: #00FF88;
+      color: #000;
+      font-weight: 600;
+    }
+
+    @media (max-width: 767px) {
+      .control-panel {
+        left: 0;
+        right: 0;
+        bottom: 0;
+        width: 100%;
+        max-height: 50vh;
+        overflow-y: auto;
+        border-radius: 16px 16px 0 0;
+        padding: 24px 20px;
+        transform: translateY(0);
+        transition: transform 0.3s ease, opacity 0.3s ease;
+      }
+
+      .control-panel.hidden {
+        transform: translateY(100%);
+        opacity: 0;
+      }
+
+      .slider {
+        width: 80%;
+      }
+
+      .control-group {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .mode-buttons {
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .mode-btn {
+        width: 100%;
+      }
+
+      .audio-bar {
+        top: 12px;
+        gap: 8px;
+      }
+
+      .audio-btn {
+        padding: 8px 14px;
+        font-size: 11px;
+      }
+
+      .waveform-canvas {
+        width: 120px;
+        height: 30px;
+      }
+
+      .source-label {
+        top: 60px;
+        left: 12px;
+        font-size: 12px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

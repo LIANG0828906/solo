@@ -1,0 +1,105 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #1E1E1E;
+  color: #FFFFFF;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  outline: none;
+  font-family: inherit;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
+}
+
+@keyframes enemy-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.1);
+    opacity: 1;
+  }
+}
+
+.dungeon-room {
+  transition: all 0.2s ease;
+}
+
+.dungeon-room:hover {
+  transform: scale(1.05);
+}
+
+.health-bar {
+  height: 20px;
+  border-radius: 4px;
+  background: linear-gradient(to right, #4CAF50, #8BC34A);
+  transition: width 0.3s ease, background 0.3s ease;
+}
+
+.health-bar.low {
+  background: linear-gradient(to right, #F44336, #FF5722);
+}
+
+.health-bar.medium {
+  background: linear-gradient(to right, #FF9800, #FFC107);
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+}
+
+.legend-color {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+}
+
+.inventory-card {
+  transition: all 0.2s ease;
+}
+
+.inventory-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+@media (max-width: 768px) {
+  .dungeon-room {
+    width: 60px !important;
+    height: 60px !important;
+  }
+}

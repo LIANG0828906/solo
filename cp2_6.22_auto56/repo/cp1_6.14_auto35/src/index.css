@@ -1,0 +1,76 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    background-color: #1a1a2e;
+    color: #eaeaea;
+    font-family: 'Inter', system-ui, sans-serif;
+    line-height: 1.5;
+    font-weight: 400;
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+@layer components {
+  .glass {
+    background: rgba(22, 33, 62, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(42, 42, 74, 0.5);
+  }
+
+  .hp-bar-animate {
+    transition: width 0.4s ease-out;
+    animation: pulseHp 0.3s ease-out;
+  }
+
+  .hp-bar-damage {
+    animation: hpShake 0.3s ease-out;
+  }
+
+  .hp-bar-heal {
+    animation: hpGlow 0.4s ease-out;
+  }
+}
+
+@layer utilities {
+  .scrollbar-dark::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-dark::-webkit-scrollbar-track {
+    background: #1a1a2e;
+  }
+
+  .scrollbar-dark::-webkit-scrollbar-thumb {
+    background: #2a2a4a;
+    border-radius: 3px;
+  }
+
+  .scrollbar-dark::-webkit-scrollbar-thumb:hover {
+    background: #3a3a5a;
+  }
+}
+
+@keyframes pulseHp {
+  0% { transform: scaleY(1.2); }
+  100% { transform: scaleY(1); }
+}
+
+@keyframes hpShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+
+@keyframes hpGlow {
+  0% { box-shadow: 0 0 8px rgba(102, 187, 106, 0.6); }
+  100% { box-shadow: 0 0 0px rgba(102, 187, 106, 0); }
+}

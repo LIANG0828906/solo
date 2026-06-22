@@ -1,0 +1,11 @@
+[
+  {
+    "id": "d1188f0a-9143-4492-aaa2-7f10f13044ca",
+    "bookId": "0c339b87-43bb-434f-96e3-7defd7dae477",
+    "bookTitle": "深入理解计算机系统",
+    "borrower": "张三",
+    "borrowDate": "2026-06-21",
+    "returnDate": "2026-06-21",
+    "isReturned": true
+  }
+]

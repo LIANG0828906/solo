@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/controlpanel.tsx","./src/components/growthparticle.tsx","./src/components/scene.tsx","./src/components/seedburst.tsx","./src/store/usegrowthstore.ts","./src/types/index.ts"],"version":"5.8.3"}

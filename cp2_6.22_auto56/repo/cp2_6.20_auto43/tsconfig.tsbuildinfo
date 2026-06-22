@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/battlelog.tsx","./src/components/battlefield.tsx","./src/components/cardeditor.tsx","./src/components/cardview.tsx","./src/store/gamestore.ts","./src/utils/gameengine.ts"],"version":"5.9.3"}

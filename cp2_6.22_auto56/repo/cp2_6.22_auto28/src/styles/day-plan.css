@@ -1,0 +1,416 @@
+.day-plan-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.trip-info {
+  background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-blue) 100%);
+  border-radius: var(--radius-xl);
+  padding: 32px;
+  color: white;
+  margin-bottom: 24px;
+  box-shadow: var(--shadow-lg);
+}
+
+.trip-info-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.trip-name {
+  font-size: 32px;
+  font-weight: 700;
+}
+
+.trip-dest {
+  font-size: 16px;
+  opacity: 0.9;
+}
+
+.trip-dates-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+.date-divider {
+  opacity: 0.6;
+}
+
+.trip-duration {
+  background: rgba(255, 255, 255, 0.2);
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+}
+
+.day-tabs {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 24px;
+}
+
+.day-tab {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 20px;
+  background: var(--card-bg);
+  border: 2px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  transition: var(--transition);
+}
+
+.day-tab:hover {
+  border-color: var(--primary-light);
+  background: var(--bg-color);
+}
+
+.day-tab.active {
+  background: var(--primary-color);
+  border-color: var(--primary-color);
+  color: white;
+}
+
+.tab-date {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.tab-weekday {
+  font-size: 12px;
+  opacity: 0.8;
+  margin: 2px 0;
+}
+
+.tab-count {
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.add-day-tab {
+  border-style: dashed;
+  color: var(--text-secondary);
+  font-size: 13px;
+}
+
+.day-content {
+  display: flex;
+  gap: 24px;
+}
+
+.activities-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.section-header h3 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.add-activity-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 18px;
+  background: var(--primary-color);
+  color: white;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.add-activity-btn:hover {
+  background: var(--primary-dark);
+  transform: translateY(-1px);
+}
+
+.add-activity-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.activities-list {
+  position: relative;
+}
+
+.activity-item {
+  display: flex;
+  gap: 16px;
+  position: relative;
+}
+
+.activity-time {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 60px;
+  flex-shrink: 0;
+}
+
+.time-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary-dark);
+  margin-bottom: 4px;
+}
+
+.time-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--primary-color);
+  box-shadow: 0 0 0 4px rgba(45, 212, 191, 0.2);
+  z-index: 1;
+}
+
+.time-line {
+  flex: 1;
+  width: 2px;
+  background: var(--border-color);
+  margin-top: 4px;
+}
+
+.activity-item:last-child .time-line {
+  display: none;
+}
+
+.activity-card {
+  flex: 1;
+  background: var(--card-bg);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--border-color);
+  transition: var(--transition);
+  cursor: grab;
+}
+
+.activity-card:hover {
+  box-shadow: var(--shadow-md);
+  border-color: var(--primary-light);
+}
+
+.activity-card.dragging {
+  opacity: 0.8;
+  box-shadow: var(--shadow-lg);
+}
+
+.activity-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.activity-place {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.activity-actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: var(--transition);
+}
+
+.activity-item:hover .activity-actions {
+  opacity: 1;
+}
+
+.action-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-warm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+}
+
+.action-btn:hover {
+  background: var(--primary-light);
+}
+
+.delete-act-btn:hover {
+  background: #fecaca;
+}
+
+.activity-desc {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 8px;
+}
+
+.activity-notes {
+  display: flex;
+  gap: 6px;
+  font-size: 12px;
+  padding: 8px 12px;
+  background: var(--bg-warm);
+  border-radius: var(--radius-sm);
+}
+
+.notes-label {
+  color: var(--text-light);
+  font-weight: 500;
+  flex-shrink: 0;
+}
+
+.notes-text {
+  color: var(--text-secondary);
+}
+
+.empty-activities {
+  text-align: center;
+  padding: 60px 20px;
+  background: var(--card-bg);
+  border-radius: var(--radius-lg);
+  border: 2px dashed var(--border-color);
+}
+
+.empty-act-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.empty-activities p {
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+}
+
+.add-first-act-btn {
+  padding: 12px 24px;
+  background: var(--primary-color);
+  color: white;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.add-first-act-btn:hover {
+  background: var(--primary-dark);
+}
+
+.timeline-section {
+  margin-top: 32px;
+  padding-top: 24px;
+  border-top: 1px solid var(--border-color);
+}
+
+.timeline-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.mini-timeline {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.mini-timeline-item {
+  flex-shrink: 0;
+  padding: 10px 16px;
+  background: var(--card-bg);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border-color);
+  cursor: pointer;
+  transition: var(--transition);
+  opacity: 0.6;
+}
+
+.mini-timeline-item:hover {
+  opacity: 1;
+  border-color: var(--primary-light);
+}
+
+.mini-timeline-item.active {
+  opacity: 1;
+  background: var(--primary-light);
+  border-color: var(--primary-color);
+}
+
+.mini-time {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 2px;
+}
+
+.mini-place {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+
+.empty-timeline {
+  color: var(--text-light);
+  font-size: 14px;
+  text-align: center;
+  padding: 20px;
+}
+
+@media (max-width: 1024px) {
+  .day-content {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 768px) {
+  .trip-info {
+    padding: 20px;
+  }
+
+  .trip-name {
+    font-size: 24px;
+  }
+
+  .trip-info-header {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .day-tabs {
+    gap: 6px;
+  }
+
+  .day-tab {
+    padding: 10px 16px;
+  }
+
+  .tab-date {
+    font-size: 16px;
+  }
+
+  .activity-time {
+    width: 50px;
+  }
+
+  .activity-actions {
+    opacity: 1;
+  }
+}

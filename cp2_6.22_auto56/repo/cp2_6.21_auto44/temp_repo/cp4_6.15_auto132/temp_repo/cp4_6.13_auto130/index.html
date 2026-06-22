@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>3D产品交互展示器</title>
+  <link rel="stylesheet" href="/src/styles.css">
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    
+    <div id="control-panel" class="control-panel">
+      <h2 class="panel-title">控制面板</h2>
+      
+      <div class="control-section">
+        <label class="control-label">自动旋转</label>
+        <button id="auto-rotate-btn" class="toggle-btn active">
+          <span class="toggle-text">开启</span>
+        </button>
+      </div>
+      
+      <div class="control-section">
+        <label class="control-label">材质切换</label>
+        <div class="material-buttons">
+          <button class="material-btn active" data-material="metal">金属质感</button>
+          <button class="material-btn" data-material="matte">磨砂质感</button>
+          <button class="material-btn" data-material="glass">透明玻璃</button>
+        </div>
+      </div>
+      
+      <div class="control-section">
+        <label class="control-label">模型颜色</label>
+        <div class="color-picker-wrapper">
+          <input type="color" id="color-picker" value="#4a9eff" class="color-picker">
+          <span class="color-value">#4A9EFF</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

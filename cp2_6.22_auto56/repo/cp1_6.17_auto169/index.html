@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alchemy Simulator</title>
+  <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <button id="resetBtn" class="reset-btn" title="重置">
+      <span class="reset-icon">↺</span>
+    </button>
+
+    <div class="energy-bar-container">
+      <div class="energy-bar">
+        <div id="energyFill" class="energy-fill"></div>
+      </div>
+      <span class="energy-label">能量</span>
+    </div>
+
+    <div class="main-content">
+      <div class="materials-panel">
+        <h3 class="panel-title">材料</h3>
+        <div id="materialsGrid" class="materials-grid"></div>
+      </div>
+
+      <div class="cauldron-section">
+        <div class="cauldron-wrapper">
+          <canvas id="particleCanvas" width="400" height="400"></canvas>
+          <div class="cauldron-ring"></div>
+          <div id="resultText" class="result-text"></div>
+        </div>
+        <div class="wood-table"></div>
+      </div>
+
+      <div class="side-panel">
+        <div class="history-section">
+          <h3 class="panel-title">实验记录</h3>
+          <div id="historyList" class="history-list"></div>
+        </div>
+        <div class="recipes-section">
+          <h3 class="panel-title">已发现配方</h3>
+          <div id="recipesList" class="recipes-list"></div>
+        </div>
+      </div>
+
+      <button id="igniteBtn" class="ignite-btn" title="点火">
+        <span class="flame-icon">🔥</span>
+      </button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

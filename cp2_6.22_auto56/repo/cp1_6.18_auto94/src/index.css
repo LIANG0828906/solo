@@ -1,0 +1,70 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: #1A1A2E;
+  color: #333;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+@media (max-width: 768px) {
+  .garden-board-container {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    min-width: auto !important;
+  }
+
+  .zone-column {
+    min-width: 100% !important;
+    width: 100% !important;
+  }
+
+  .weekly-calendar {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  nav {
+    padding: 0 12px !important;
+  }
+
+  nav h1 {
+    font-size: 18px !important;
+  }
+
+  nav button {
+    padding: 6px 12px !important;
+    font-size: 13px !important;
+  }
+}

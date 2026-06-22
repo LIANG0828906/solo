@@ -1,0 +1,22 @@
+{
+  "name": "gesture-3d-art-sandbox",
+  "version": "1.0.0",
+  "description": "基于手势识别的3D艺术沙盘 - 通过手部动作在三维空间创作粒子雕塑",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.160.0",
+    "@tensorflow/tfjs": "^4.17.0",
+    "@tensorflow-models/handpose": "^0.1.0",
+    "@mediapipe/hands": "^0.4.1675469240"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vite": "^5.0.12",
+    "@types/three": "^0.160.0"
+  }
+}

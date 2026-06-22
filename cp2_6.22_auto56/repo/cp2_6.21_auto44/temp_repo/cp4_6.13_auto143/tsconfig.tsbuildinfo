@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/cafescene.tsx","./src/components/catcard.tsx","./src/components/catstatuspanel.tsx","./src/data/cats.ts","./src/utils/animation.ts"],"version":"5.8.3"}

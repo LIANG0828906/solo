@@ -1,0 +1,24 @@
+{
+  "name": "cyber-maze-race",
+  "version": "1.0.0",
+  "description": "赛博朋克风格双人实时迷宫竞速对战游戏",
+  "type": "module",
+  "scripts": {
+    "dev:client": "vite",
+    "dev:server": "ts-node --esm src/server/gameServer.ts",
+    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "phaser": "^3.70.0",
+    "ws": "^8.14.2"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.10",
+    "concurrently": "^8.2.2",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.0"
+  }
+}

@@ -1,0 +1,22 @@
+.virtual-list-container {
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.virtual-list-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.virtual-list-container::-webkit-scrollbar-track {
+  background: var(--color-wood-pale);
+  border-radius: 3px;
+}
+
+.virtual-list-container::-webkit-scrollbar-thumb {
+  background: var(--color-wood-light);
+  border-radius: 3px;
+}
+
+.virtual-list-container::-webkit-scrollbar-thumb:hover {
+  background: var(--color-wood-medium);
+}

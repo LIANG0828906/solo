@@ -1,0 +1,123 @@
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  background: rgba(255, 248, 240, 0.85);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: var(--shadow-nav);
+  border-bottom: 1px solid rgba(239, 235, 233, 0.6);
+}
+
+.navbar-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 16px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 32px;
+}
+
+.navbar-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-accent);
+  transition: transform var(--transition-fast);
+}
+
+.navbar-logo:hover {
+  transform: scale(1.03);
+}
+
+.navbar-logo i {
+  font-size: 24px;
+}
+
+.navbar-search {
+  flex: 1;
+  max-width: 500px;
+}
+
+.mobile-menu-btn {
+  display: none;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-md);
+  background: var(--color-card-bg);
+  color: var(--color-text);
+  font-size: 18px;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+  box-shadow: var(--shadow-card);
+  flex-shrink: 0;
+}
+
+.mobile-menu-btn:hover {
+  background: var(--color-accent);
+  color: white;
+}
+
+.mobile-menu {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, padding 0.3s ease;
+  background: rgba(255, 248, 240, 0.95);
+  backdrop-filter: blur(12px);
+}
+
+.mobile-menu.open {
+  max-height: 200px;
+  padding: 0 20px 16px;
+}
+
+.mobile-search {
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto;
+}
+
+@media (max-width: 768px) {
+  .navbar-content {
+    padding: 12px 20px;
+    gap: 16px;
+  }
+
+  .desktop-search {
+    display: none;
+  }
+
+  .mobile-menu-btn {
+    display: flex;
+  }
+
+  .navbar-logo {
+    font-size: 18px;
+  }
+
+  .navbar-logo i {
+    font-size: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .navbar-content {
+    padding: 10px 16px;
+  }
+
+  .navbar-logo {
+    font-size: 16px;
+  }
+}
+
+@media (min-width: 769px) {
+  .mobile-menu {
+    display: none !important;
+  }
+}

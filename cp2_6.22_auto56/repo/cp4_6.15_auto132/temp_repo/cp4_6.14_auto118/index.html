@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>四旋翼无人机飞行模拟器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    body {
+      background: linear-gradient(to bottom, #0ea5e9 0%, #e0f2fe 100%);
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    #canvas-container canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #control-panel {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 280px;
+      height: 100%;
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(10px);
+      padding: 20px;
+      color: #f8fafc;
+      z-index: 10;
+      overflow-y: auto;
+    }
+
+    #control-panel h1 {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 24px;
+      letter-spacing: 0.5px;
+    }
+
+    .control-group {
+      margin-bottom: 20px;
+    }
+
+    .control-group label {
+      display: block;
+      font-size: 14px;
+      margin-bottom: 8px;
+      color: #cbd5e1;
+    }
+
+    .control-group .value-display {
+      display: inline-block;
+      margin-left: 8px;
+      font-family: monospace;
+      color: #facc15;
+      font-size: 14px;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      background: #475569;
+      border-radius: 3px;
+      outline: none;
+      -webkit-appearance: none;
+      appearance: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #3b82f6;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: transform 0.15s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.1);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      background: #3b82f6;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+    }
+
+    .input-wrapper {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 8px 12px;
+      margin-top: 8px;
+    }
+
+    .action-btn {
+      width: 100%;
+      height: 44px;
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      margin-bottom: 12px;
+    }
+
+    .action-btn:hover {
+      background: #2563eb;
+    }
+
+    .action-btn:active {
+      transform: scale(0.95);
+      transition: transform 0.1s ease;
+    }
+
+    .action-btn.reset {
+      background: #64748b;
+    }
+
+    .action-btn.reset:hover {
+      background: #475569;
+    }
+
+    .status-panel {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 8px;
+      padding: 16px;
+      margin-top: 24px;
+    }
+
+    .status-panel h2 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 12px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .status-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 0;
+      border-bottom: 1px solid #334155;
+    }
+
+    .status-item:last-child {
+      border-bottom: none;
+    }
+
+    .status-label {
+      font-size: 14px;
+      color: #cbd5e1;
+    }
+
+    .status-value {
+      font-family: monospace;
+      font-size: 16px;
+      color: #facc15;
+    }
+
+    .divider {
+      height: 1px;
+      background: #334155;
+      margin: 20px 0;
+    }
+
+    .hint-text {
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.6;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    <div id="control-panel">
+      <h1>🚁 无人机飞行控制</h1>
+      
+      <div class="control-group">
+        <label>左前旋翼角度 <span class="value-display" id="fl-value">15°</span></label>
+        <div class="input-wrapper">
+          <input type="range" id="slider-fl" min="0" max="60" value="15" step="5" />
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>右前旋翼角度 <span class="value-display" id="fr-value">15°</span></label>
+        <div class="input-wrapper">
+          <input type="range" id="slider-fr" min="0" max="60" value="15" step="5" />
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>左后旋翼角度 <span class="value-display" id="rl-value">15°</span></label>
+        <div class="input-wrapper">
+          <input type="range" id="slider-rl" min="0" max="60" value="15" step="5" />
+        </div>
+      </div>
+
+      <div class="control-group">
+        <label>右后旋翼角度 <span class="value-display" id="rr-value">15°</span></label>
+        <div class="input-wrapper">
+          <input type="range" id="slider-rr" min="0" max="60" value="15" step="5" />
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <button class="action-btn" id="btn-start">▶ 开始飞行</button>
+      <button class="action-btn reset" id="btn-reset">↺ 重置</button>
+
+      <div class="status-panel">
+        <h2>实时飞行参数</h2>
+        <div class="status-item">
+          <span class="status-label">俯仰角 (Pitch)</span>
+          <span class="status-value" id="pitch-value">0.0°</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">偏转角 (Yaw)</span>
+          <span class="status-value" id="yaw-value">0.0°</span>
+        </div>
+        <div class="status-item">
+          <span class="status-label">飞行状态</span>
+          <span class="status-value" id="flight-status">待命</span>
+        </div>
+      </div>
+
+      <p class="hint-text">
+        💡 提示：拖拽场景可旋转视角，滚轮缩放。调整旋翼角度观察飞行姿态变化。
+      </p>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>岩层音痕 - 3D地质勘探模拟</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background-color: #3d1c02;
+      color: #e0d8c8;
+    }
+
+    #app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    #waveform-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 280px;
+      height: calc(100% - 40px);
+      background: rgba(61, 28, 2, 0.85);
+      border: 1px solid rgba(200, 180, 140, 0.3);
+      border-radius: 8px;
+      padding: 16px;
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+    }
+
+    #waveform-panel h3 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #c6a87c;
+      margin-bottom: 12px;
+      letter-spacing: 1px;
+    }
+
+    #waveform-canvas {
+      flex: 1;
+      width: 100%;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 4px;
+      border: 1px solid rgba(57, 255, 20, 0.2);
+    }
+
+    #control-panel {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(61, 28, 2, 0.85);
+      border: 1px solid rgba(200, 180, 140, 0.3);
+      border-radius: 8px;
+      padding: 16px 20px;
+      backdrop-filter: blur(10px);
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      min-width: 280px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: #c6a87c;
+    }
+
+    .control-value {
+      font-family: 'Courier New', monospace;
+      color: #39ff14;
+      font-size: 14px;
+    }
+
+    #frequency-slider {
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(0, 0, 0, 0.4);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    #frequency-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      background: #39ff14;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(57, 255, 20, 0.6);
+      transition: all 0.2s ease;
+    }
+
+    #frequency-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 15px rgba(57, 255, 20, 0.8);
+    }
+
+    #frequency-slider::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      background: #39ff14;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 10px rgba(57, 255, 20, 0.6);
+    }
+
+    #reset-btn {
+      padding: 10px 20px;
+      background: rgba(74, 60, 49, 0.8);
+      border: 1px solid rgba(198, 168, 124, 0.4);
+      border-radius: 6px;
+      color: #e0d8c8;
+      font-size: 14px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: inherit;
+    }
+
+    #reset-btn:hover {
+      background: rgba(74, 60, 49, 1);
+      border-color: #39ff14;
+      color: #39ff14;
+      box-shadow: 0 0 10px rgba(57, 255, 20, 0.3);
+    }
+
+    #reset-btn:active {
+      transform: scale(0.98);
+    }
+
+    #title {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      font-size: 24px;
+      font-weight: 700;
+      color: #c6a87c;
+      letter-spacing: 4px;
+      text-shadow: 0 0 20px rgba(198, 168, 124, 0.3);
+    }
+
+    #subtitle {
+      position: absolute;
+      top: 54px;
+      left: 20px;
+      font-size: 12px;
+      color: #a09888;
+      letter-spacing: 2px;
+    }
+
+    #instructions {
+      position: absolute;
+      top: 80px;
+      left: 20px;
+      font-size: 11px;
+      color: #8a8070;
+      max-width: 300px;
+      line-height: 1.6;
+    }
+
+    #stats {
+      position: absolute !important;
+      top: 20px !important;
+      left: 50% !important;
+      transform: translateX(-50%) !important;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    
+    <h1 id="title">岩层音痕</h1>
+    <p id="subtitle">ROCK LAYER SOUND TRACE</p>
+    <p id="instructions">点击或拖拽岩层发射声波 · 拖动频率滑块调整波长 · 观察反射波形变化</p>
+
+    <div id="waveform-panel">
+      <h3>反射波形图</h3>
+      <canvas id="waveform-canvas"></canvas>
+    </div>
+
+    <div id="control-panel">
+      <div class="control-group">
+        <div class="control-label">
+          <span>声波频率</span>
+          <span class="control-value" id="frequency-value">50 Hz</span>
+        </div>
+        <input type="range" id="frequency-slider" min="10" max="200" value="50" step="1">
+      </div>
+      <button id="reset-btn">重置场景</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

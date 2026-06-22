@@ -1,0 +1,76 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: #1A1A2E;
+  color: #E0E0E0;
+}
+
+.app-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  position: relative;
+  background: radial-gradient(circle at center, #252542 0%, #1A1A2E 70%);
+}
+
+.viewport-container {
+  width: 85%;
+  height: 100%;
+  position: relative;
+  background: radial-gradient(ellipse at center, rgba(0, 188, 212, 0.03) 0%, transparent 70%);
+}
+
+.data-info-overlay {
+  position: absolute;
+  top: 24px;
+  left: 24px;
+  z-index: 10;
+  color: #FFFFFF;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.8);
+  user-select: none;
+  pointer-events: none;
+}
+
+.data-info-title {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  letter-spacing: 0.5px;
+}
+
+.data-info-range {
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+  .app-container {
+    flex-direction: column;
+  }
+
+  .viewport-container {
+    width: 100%;
+    height: calc(100% - 120px);
+  }
+
+  .data-info-overlay {
+    top: 12px;
+    left: 12px;
+  }
+
+  .data-info-title {
+    font-size: 16px;
+  }
+
+  .data-info-range {
+    font-size: 12px;
+  }
+}

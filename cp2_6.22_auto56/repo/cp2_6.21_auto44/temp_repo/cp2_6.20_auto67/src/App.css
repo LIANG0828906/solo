@@ -1,0 +1,107 @@
+.app-container {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  background: #000;
+}
+
+.background-gradient {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(
+    ellipse at center,
+    rgba(20, 10, 50, 0.4) 0%,
+    rgba(10, 5, 30, 0.6) 30%,
+    rgba(0, 0, 0, 1) 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+.background-gradient::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(
+    ellipse at 30% 40%,
+    rgba(100, 50, 150, 0.15) 0%,
+    transparent 50%
+  );
+  pointer-events: none;
+}
+
+.background-gradient::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(
+    ellipse at 70% 60%,
+    rgba(50, 100, 150, 0.1) 0%,
+    transparent 50%
+  );
+  pointer-events: none;
+}
+
+.fps-display {
+  position: fixed;
+  top: 24px;
+  right: 24px;
+  padding: 12px 16px;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: #e8e8f0;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fps-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.fps-label {
+  color: rgba(232, 232, 240, 0.6);
+}
+
+.fps-value {
+  font-weight: 600;
+}
+
+.fps-value.high {
+  color: #22c55e;
+}
+
+.fps-value.medium {
+  color: #eab308;
+}
+
+.fps-value.low {
+  color: #ef4444;
+}
+
+@media (max-width: 768px) {
+  .fps-display {
+    top: 16px;
+    right: 16px;
+    padding: 8px 12px;
+    font-size: 11px;
+  }
+}

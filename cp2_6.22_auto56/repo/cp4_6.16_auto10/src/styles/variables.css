@@ -1,0 +1,43 @@
+:root {
+  --color-primary: #1A237E;
+  --color-primary-light: #3949AB;
+  --color-primary-dark: #0D133D;
+  --color-background: #F5F5F5;
+  --color-surface: #FFFFFF;
+  --color-text: #212121;
+  --color-text-secondary: #757575;
+
+  --chart-orange: #FF6B35;
+  --chart-yellow: #F7C59F;
+  --chart-red: #E63946;
+  --chart-green: #2A9D8F;
+  --chart-blue: #264653;
+  --chart-purple: #9B5DE5;
+
+  --chart-gradient-warm: linear-gradient(135deg, #FF6B35 0%, #F7C59F 50%, #E63946 100%);
+
+  --transition-fast: 0.2s;
+  --transition-normal: 0.3s;
+  --transition-slow: 0.5s;
+  --easing-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --easing-standard: cubic-bezier(0.4, 0, 0.2, 1);
+
+  --sidebar-width: 240px;
+  --properties-panel-width: 300px;
+  --header-height: 64px;
+
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.1);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.3);
+}

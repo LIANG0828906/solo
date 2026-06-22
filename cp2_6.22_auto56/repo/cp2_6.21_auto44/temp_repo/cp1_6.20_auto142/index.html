@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>离散房间迷宫探索模拟器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #1a1a2e;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      color: #ffffff;
+      user-select: none;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: #1a1a2e;
+    }
+
+    #game-canvas {
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+
+    #status-panel {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 220px;
+      padding: 16px;
+      background: rgba(30, 30, 30, 0.85);
+      border-radius: 4px;
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    #avatar-container {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      overflow: hidden;
+      margin: 0 auto;
+      background: #2d2d5e;
+    }
+
+    #avatar-canvas {
+      display: block;
+      width: 64px;
+      height: 64px;
+      image-rendering: pixelated;
+    }
+
+    #player-name {
+      text-align: center;
+      font-size: 14px;
+      color: #cccccc;
+      font-weight: 600;
+    }
+
+    .stat-row {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: #888888;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    #hp-bar-container {
+      width: 100%;
+      height: 16px;
+      background: #1a1a1a;
+      border-radius: 4px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    #hp-bar {
+      height: 100%;
+      background: linear-gradient(90deg, #8b0000, #ff4444);
+      border-radius: 4px;
+      transition: width 0.3s ease;
+    }
+
+    #hp-bar.low-hp {
+      background: linear-gradient(90deg, #ff0000, #ff3333);
+      animation: pulse 1s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    #hp-text {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 11px;
+      font-weight: bold;
+      color: #ffffff;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    }
+
+    #coins-display {
+      font-size: 18px;
+      font-weight: bold;
+      color: #ffd700;
+      text-shadow: 0 0 6px rgba(255, 215, 0, 0.4);
+    }
+
+    #status-display {
+      font-size: 13px;
+      color: #44ff88;
+      font-weight: 500;
+    }
+
+    #status-display.slowed {
+      color: #66cc66;
+    }
+
+    #minimap {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      width: 80px;
+      height: 80px;
+      z-index: 10;
+    }
+
+    #minimap-canvas {
+      display: block;
+      width: 80px;
+      height: 80px;
+    }
+
+    #event-toast {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 12px 28px;
+      background: rgba(0, 0, 0, 0.75);
+      border-radius: 4px;
+      font-size: 16px;
+      font-weight: 600;
+      z-index: 20;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+      white-space: nowrap;
+    }
+
+    #event-toast.visible {
+      opacity: 1;
+    }
+
+    #event-toast.damage {
+      color: #ff6666;
+      border: 1px solid #ff4444;
+    }
+
+    #event-toast.coin {
+      color: #ffd700;
+      border: 1px solid #ffd700;
+    }
+
+    #event-toast.slow {
+      color: #66cc66;
+      border: 1px solid #44aa44;
+    }
+
+    #event-toast.portal {
+      color: #aa88ff;
+      border: 1px solid #8866ff;
+    }
+
+    #controls-hint {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      color: #666688;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+  </div>
+
+  <div id="minimap">
+    <canvas id="minimap-canvas" width="80" height="80"></canvas>
+  </div>
+
+  <div id="status-panel">
+    <div id="avatar-container">
+      <canvas id="avatar-canvas" width="64" height="64"></canvas>
+    </div>
+    <div id="player-name">冒险者</div>
+    
+    <div class="stat-row">
+      <span class="stat-label">生命值</span>
+      <div id="hp-bar-container">
+        <div id="hp-bar"></div>
+        <span id="hp-text">100 / 100</span>
+      </div>
+    </div>
+
+    <div class="stat-row">
+      <span class="stat-label">金币</span>
+      <span id="coins-display">0</span>
+    </div>
+
+    <div class="stat-row">
+      <span class="stat-label">状态</span>
+      <span id="status-display">正常</span>
+    </div>
+  </div>
+
+  <div id="event-toast"></div>
+  <div id="controls-hint">WASD 或 方向键 移动</div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,119 @@
+.home-page {
+  padding-bottom: 40px;
+}
+
+.search-section {
+  margin-bottom: 32px;
+}
+
+.search-container {
+  position: relative;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  color: #95a5a6;
+}
+
+.search-input {
+  width: 100%;
+  padding: 14px 16px 14px 48px;
+  border: 1px solid #e0e6ed;
+  border-radius: 12px;
+  font-size: 15px;
+  background: white;
+  transition: all 0.2s;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #4a90d9;
+  box-shadow: 0 0 0 3px rgba(74, 144, 217, 0.1);
+}
+
+.search-input::placeholder {
+  color: #bdc3c7;
+}
+
+.teachers-section {
+  margin-top: 32px;
+}
+
+.section-title {
+  font-size: 20px;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 20px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.result-count {
+  font-size: 14px;
+  font-weight: 400;
+  color: #95a5a6;
+}
+
+.teacher-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+.teacher-card-wrapper {
+  opacity: 0;
+  animation: fadeInUp 0.3s ease forwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.loading {
+  text-align: center;
+  padding: 60px;
+  color: #95a5a6;
+  font-size: 16px;
+}
+
+.no-results {
+  text-align: center;
+  padding: 60px;
+  color: #95a5a6;
+}
+
+.no-results p {
+  font-size: 16px;
+}
+
+@media (max-width: 1200px) {
+  .teacher-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+}
+
+@media (max-width: 768px) {
+  .teacher-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .section-title {
+    font-size: 18px;
+  }
+}

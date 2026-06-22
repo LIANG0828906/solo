@@ -1,0 +1,397 @@
+import { v4 as uuidv4 } from 'uuid';
+import {
+  teachers,
+  courses,
+  classrooms,
+  schedule,
+  type TimeSlot,
+  type Teacher,
+  type Course,
+  type Classroom,
+  type ScheduleEntry,
+  type ConflictInfo,
+} from '../models/dataStore.js';
+
+const TOTAL_SLOTS = 20;
+
+function slotsOverlap(start1: number, duration1: number, start2: number, duration2: number): boolean {
+  return start1 < start2 + duration2 && start2 < start1 + duration1;
+}
+
+function normalizeSlot(slot: TimeSlot): TimeSlot[] {
+  const result: TimeSlot[] = [];
+
+  if (slot.endSlot <= slot.startSlot) {
+    return result;
+  }
+
+  let remainingStart = slot.startSlot;
+  let remainingEnd = slot.endSlot;
+  let currentDay = slot.day;
+
+  while (remainingEnd > remainingStart && currentDay < 5) {
+    const clampedStart = Math.max(0, remainingStart);
+    const clampedEnd = Math.min(TOTAL_SLOTS, remainingEnd);
+
+    if (clampedEnd > clampedStart) {
+      result.push({
+        day: Math.max(0, Math.min(4, currentDay)),
+        startSlot: clampedStart,
+        endSlot: clampedEnd,
+      });
+    }
+
+    if (remainingEnd > TOTAL_SLOTS) {
+      remainingStart = 0;
+      remainingEnd = remainingEnd - TOTAL_SLOTS;
+      currentDay++;
+    } else {
+      break;
+    }
+  }
+
+  return result;
+}
+
+function normalizeSlots(slots: TimeSlot[]): TimeSlot[] {
+  const normalized: TimeSlot[] = [];
+  for (const s of slots) {
+    const parts = normalizeSlot(s);
+    normalized.push(...parts);
+  }
+  return normalized;
+}
+
+export function validateSchedule(entries: ScheduleEntry[]): { valid: boolean; errors: string[] } {
+  const errors: string[] = [];
+
+  for (let i = 0; i < entries.length; i++) {
+    const a = entries[i];
+    const aDuration = getCourseDuration(a.courseId);
+
+    for (let j = i + 1; j < entries.length; j++) {
+      const b = entries[j];
+      const bDuration = getCourseDuration(b.courseId);
+
+      if (a.day !== b.day) continue;
+
+      if (a.teacherId === b.teacherId && slotsOverlap(a.startSlot, aDuration, b.startSlot, bDuration)) {
+        errors.push(`教师冲突：课程 ${getCourseName(a.courseId)} 和 ${getCourseName(b.courseId)} 在第${a.day + 1}天同时分配给了同一位教师`);
+      }
+
+      if (a.classroomId === b.classroomId && slotsOverlap(a.startSlot, aDuration, b.startSlot, bDuration)) {
+        errors.push(`教室冲突：课程 ${getCourseName(a.courseId)} 和 ${getCourseName(b.courseId)} 在第${a.day + 1}天占用了同一教室`);
+      }
+    }
+  }
+
+  return { valid: errors.length === 0, errors };
+}
+
+function getCourseName(courseId: string): string {
+  return courses.get(courseId)?.name ?? '未知课程';
+}
+
+export function getAllTeachers(): Teacher[] {
+  return Array.from(teachers.values());
+}
+
+export function createTeacher(data: { name: string; experience: number; subject: string }): Teacher {
+  const teacher: Teacher = {
+    id: uuidv4(),
+    name: data.name,
+    experience: data.experience,
+    subject: data.subject,
+    availableSlots: [],
+  };
+  teachers.set(teacher.id, teacher);
+  return teacher;
+}
+
+export function updateTeacher(id: string, data: Partial<Teacher>): Teacher | null {
+  const teacher = teachers.get(id);
+  if (!teacher) return null;
+  if (data.name !== undefined) teacher.name = data.name;
+  if (data.experience !== undefined) teacher.experience = data.experience;
+  if (data.subject !== undefined) teacher.subject = data.subject;
+  teachers.set(id, teacher);
+  return teacher;
+}
+
+export function deleteTeacher(id: string): boolean {
+  if (!teachers.has(id)) return false;
+  teachers.delete(id);
+  for (const [entryId, entry] of schedule) {
+    if (entry.teacherId === id) {
+      schedule.delete(entryId);
+    }
+  }
+  return true;
+}
+
+export function updateTeacherSlots(id: string, slots: TimeSlot[]): Teacher | null {
+  const teacher = teachers.get(id);
+  if (!teacher) return null;
+  teacher.availableSlots = normalizeSlots(slots);
+  teachers.set(id, teacher);
+  return teacher;
+}
+
+export function getAllCourses(): Course[] {
+  return Array.from(courses.values());
+}
+
+export function createCourse(data: { name: string; grade: string; duration: number; requiredRoomType: string; preferredTeacherIds: string[]; weeklyHours: number }): Course {
+  const course: Course = {
+    id: uuidv4(),
+    name: data.name,
+    grade: data.grade,
+    duration: data.duration,
+    requiredRoomType: data.requiredRoomType,
+    preferredTeacherIds: data.preferredTeacherIds,
+    weeklyHours: data.weeklyHours,
+  };
+  courses.set(course.id, course);
+  return course;
+}
+
+export function updateCourse(id: string, data: Partial<Course>): Course | null {
+  const course = courses.get(id);
+  if (!course) return null;
+  if (data.name !== undefined) course.name = data.name;
+  if (data.grade !== undefined) course.grade = data.grade;
+  if (data.duration !== undefined) course.duration = data.duration;
+  if (data.requiredRoomType !== undefined) course.requiredRoomType = data.requiredRoomType;
+  if (data.preferredTeacherIds !== undefined) course.preferredTeacherIds = data.preferredTeacherIds;
+  if (data.weeklyHours !== undefined) course.weeklyHours = data.weeklyHours;
+  courses.set(id, course);
+  return course;
+}
+
+export function deleteCourse(id: string): boolean {
+  if (!courses.has(id)) return false;
+  courses.delete(id);
+  for (const [entryId, entry] of schedule) {
+    if (entry.courseId === id) {
+      schedule.delete(entryId);
+    }
+  }
+  return true;
+}
+
+export function getAllClassrooms(): Classroom[] {
+  return Array.from(classrooms.values());
+}
+
+export function createClassroom(data: { name: string; capacity: number; type: string }): Classroom {
+  const classroom: Classroom = {
+    id: uuidv4(),
+    name: data.name,
+    capacity: data.capacity,
+    type: data.type,
+  };
+  classrooms.set(classroom.id, classroom);
+  return classroom;
+}
+
+export function updateClassroom(id: string, data: Partial<Classroom>): Classroom | null {
+  const classroom = classrooms.get(id);
+  if (!classroom) return null;
+  if (data.name !== undefined) classroom.name = data.name;
+  if (data.capacity !== undefined) classroom.capacity = data.capacity;
+  if (data.type !== undefined) classroom.type = data.type;
+  classrooms.set(id, classroom);
+  return classroom;
+}
+
+export function deleteClassroom(id: string): boolean {
+  if (!classrooms.has(id)) return false;
+  classrooms.delete(id);
+  for (const [entryId, entry] of schedule) {
+    if (entry.classroomId === id) {
+      schedule.delete(entryId);
+    }
+  }
+  return true;
+}
+
+export function getAllSchedule(): ScheduleEntry[] {
+  return Array.from(schedule.values());
+}
+
+export function getClassroomOccupancy(classroomId: string): ScheduleEntry[] {
+  return Array.from(schedule.values()).filter(e => e.classroomId === classroomId);
+}
+
+export function autoSchedule(): { schedule: ScheduleEntry[]; conflicts: string[]; validation: { valid: boolean; errors: string[] } } {
+  schedule.clear();
+
+  const sessions: { course: Course; sessionIndex: number }[] = [];
+  for (const course of courses.values()) {
+    for (let i = 0; i < course.weeklyHours; i++) {
+      sessions.push({ course, sessionIndex: i + 1 });
+    }
+  }
+
+  const roomTypeSpecificity: Record<string, number> = { lab: 2, multimedia: 1, normal: 0 };
+  sessions.sort((a, b) => {
+    const prefDiff = a.course.preferredTeacherIds.length - b.course.preferredTeacherIds.length;
+    if (prefDiff !== 0) return prefDiff;
+    const specA = roomTypeSpecificity[a.course.requiredRoomType] ?? 0;
+    const specB = roomTypeSpecificity[b.course.requiredRoomType] ?? 0;
+    return specB - specA;
+  });
+
+  const teacherAssignmentCounts = new Map<string, number>();
+  const classroomUsageCounts = new Map<string, number>();
+  for (const t of teachers.keys()) teacherAssignmentCounts.set(t, 0);
+  for (const c of classrooms.keys()) classroomUsageCounts.set(c, 0);
+
+  const conflicts: string[] = [];
+
+  for (const session of sessions) {
+    const { course, sessionIndex } = session;
+
+    interface Candidate {
+      teacherId: string;
+      classroomId: string;
+      day: number;
+      startSlot: number;
+      teacherLoad: number;
+      classroomUsage: number;
+    }
+
+    const allCandidates: Candidate[] = [];
+
+    for (let day = 0; day < 5; day++) {
+      for (let startSlot = 0; startSlot + course.duration <= TOTAL_SLOTS; startSlot++) {
+        for (const tid of course.preferredTeacherIds) {
+          const t = teachers.get(tid);
+          if (!t) continue;
+
+          const availableOnDay = t.availableSlots.filter(s => s.day === day);
+          const hasAvailability = availableOnDay.some(s => s.startSlot <= startSlot && s.endSlot >= startSlot + course.duration);
+          if (!hasAvailability) continue;
+
+          const teacherBusy = Array.from(schedule.values()).some(
+            e => e.teacherId === tid && e.day === day && slotsOverlap(e.startSlot, getCourseDuration(e.courseId), startSlot, course.duration)
+          );
+          if (teacherBusy) continue;
+
+          const matchingClassrooms = Array.from(classrooms.values())
+            .filter(c => c.type === course.requiredRoomType)
+            .map(c => {
+              const classroomBusy = Array.from(schedule.values()).some(
+                e => e.classroomId === c.id && e.day === day && slotsOverlap(e.startSlot, getCourseDuration(e.courseId), startSlot, course.duration)
+              );
+              if (classroomBusy) return null;
+              return { id: c.id, usage: classroomUsageCounts.get(c.id) ?? 0 };
+            })
+            .filter((x): x is { id: string; usage: number } => x !== null);
+
+          for (const cr of matchingClassrooms) {
+            allCandidates.push({
+              teacherId: tid,
+              classroomId: cr.id,
+              day,
+              startSlot,
+              teacherLoad: teacherAssignmentCounts.get(tid) ?? 0,
+              classroomUsage: cr.usage,
+            });
+          }
+        }
+      }
+    }
+
+    if (allCandidates.length === 0) {
+      conflicts.push(`课程 ${course.name} 第${sessionIndex}节课无法排入`);
+      continue;
+    }
+
+    allCandidates.sort((a, b) => {
+      if (a.teacherLoad !== b.teacherLoad) return a.teacherLoad - b.teacherLoad;
+      return a.classroomUsage - b.classroomUsage;
+    });
+
+    const best = allCandidates[0];
+    const entry: ScheduleEntry = {
+      id: uuidv4(),
+      courseId: course.id,
+      teacherId: best.teacherId,
+      classroomId: best.classroomId,
+      day: best.day,
+      startSlot: best.startSlot,
+    };
+    schedule.set(entry.id, entry);
+    teacherAssignmentCounts.set(entry.teacherId, (teacherAssignmentCounts.get(entry.teacherId) ?? 0) + 1);
+    classroomUsageCounts.set(entry.classroomId, (classroomUsageCounts.get(entry.classroomId) ?? 0) + 1);
+  }
+
+  const finalEntries = Array.from(schedule.values());
+  const validation = validateSchedule(finalEntries);
+  return { schedule: finalEntries, conflicts, validation };
+}
+
+function getCourseDuration(courseId: string): number {
+  const course = courses.get(courseId);
+  return course ? course.duration : 1;
+}
+
+export function moveScheduleEntry(
+  entryId: string,
+  newDay: number,
+  newStartSlot: number,
+  newClassroomId?: string
+): { success: boolean; conflicts?: ConflictInfo[] } {
+  const entry = schedule.get(entryId);
+  if (!entry) return { success: false };
+
+  const course = courses.get(entry.courseId);
+  if (!course) return { success: false };
+
+  const targetClassroomId = newClassroomId ?? entry.classroomId;
+  const duration = course.duration;
+  const conflictList: ConflictInfo[] = [];
+
+  for (const existing of schedule.values()) {
+    if (existing.id === entryId) continue;
+
+    if (existing.teacherId === entry.teacherId && existing.day === newDay) {
+      const existingDuration = getCourseDuration(existing.courseId);
+      if (slotsOverlap(newStartSlot, duration, existing.startSlot, existingDuration)) {
+        conflictList.push({
+          type: 'teacher',
+          message: `教师冲突：该教师在第${newDay + 1}天 ${existing.startSlot} 节已有课程安排`,
+          existingEntry: existing,
+        });
+      }
+    }
+
+    if (existing.classroomId === targetClassroomId && existing.day === newDay) {
+      const existingDuration = getCourseDuration(existing.courseId);
+      if (slotsOverlap(newStartSlot, duration, existing.startSlot, existingDuration)) {
+        conflictList.push({
+          type: 'classroom',
+          message: `教室冲突：该教室在第${newDay + 1}天 ${existing.startSlot} 节已被占用`,
+          existingEntry: existing,
+        });
+      }
+    }
+  }
+
+  if (conflictList.length > 0) {
+    return { success: false, conflicts: conflictList };
+  }
+
+  entry.day = newDay;
+  entry.startSlot = newStartSlot;
+  entry.classroomId = targetClassroomId;
+  schedule.set(entryId, entry);
+  return { success: true };
+}
+
+export function deleteScheduleEntry(id: string): boolean {
+  if (!schedule.has(id)) return false;
+  schedule.delete(id);
+  return true;
+}

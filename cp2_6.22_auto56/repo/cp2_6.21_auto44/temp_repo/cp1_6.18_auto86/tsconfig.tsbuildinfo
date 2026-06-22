@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/game/gameengine.ts","./src/game/hexutils.ts","./src/game/types.ts","./src/store/usegamestore.ts","./src/ui/gameboard.tsx","./src/ui/uipanel.tsx","./src/ui/victorymodal.tsx"],"version":"5.9.3"}

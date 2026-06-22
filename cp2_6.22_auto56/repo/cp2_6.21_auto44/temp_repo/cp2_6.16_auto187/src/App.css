@@ -1,0 +1,230 @@
+.lp-app {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  background-color: #111827;
+  color: #F3F4F6;
+  font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  position: relative;
+  overflow: hidden;
+}
+
+.lp-main-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+}
+
+.lp-top-bar {
+  flex-shrink: 0;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  background-color: #111827;
+  border-bottom: 1px solid #1F2937;
+  backdrop-filter: blur(8px);
+  z-index: 20;
+}
+
+.lp-top-bar-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.lp-hamburger {
+  display: none;
+  width: 36px;
+  height: 36px;
+  border: none;
+  background-color: #1F2937;
+  border-radius: 8px;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  padding: 0;
+  transition: background-color 200ms ease-out, transform 200ms ease-out;
+}
+
+.lp-hamburger span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background-color: #D1D5DB;
+  border-radius: 2px;
+  transition: transform 200ms ease-out, opacity 200ms ease-out;
+}
+
+.lp-hamburger:hover {
+  background-color: #374151;
+}
+
+.lp-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lp-brand-logo {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  background-color: rgba(16, 185, 129, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.lp-brand-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  line-height: 1.1;
+}
+
+.lp-brand-name {
+  font-weight: 800;
+  font-size: 18px;
+  letter-spacing: 0.4px;
+  background: linear-gradient(135deg, #10B981 0%, #F59E0B 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.lp-brand-sub {
+  font-size: 11px;
+  font-weight: 500;
+  color: #9CA3AF;
+  letter-spacing: 0.3px;
+}
+
+.lp-top-bar-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lp-compare-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 10px;
+  border: 1px solid #374151;
+  background-color: #1F2937;
+  color: #D1D5DB;
+  font-family: 'Nunito', sans-serif;
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: 0.3px;
+  cursor: pointer;
+  transition: background-color 200ms ease-out,
+              border-color 200ms ease-out,
+              color 200ms ease-out,
+              transform 200ms ease-out;
+}
+
+.lp-compare-toggle:hover {
+  background-color: #374151;
+  color: #F3F4F6;
+  transform: translateY(-1px);
+}
+
+.lp-compare-toggle.lp-compare-active {
+  background-color: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.5);
+  color: #34D399;
+}
+
+.lp-reset-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid #374151;
+  background-color: #1F2937;
+  color: #D1D5DB;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 200ms ease-out,
+              border-color 200ms ease-out,
+              color 200ms ease-out,
+              transform 200ms ease-out;
+  padding: 0;
+  overflow: visible;
+}
+
+.lp-reset-btn:hover {
+  background-color: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.5);
+  color: #FBBF24;
+  transform: scale(1.05);
+}
+
+.lp-reset-icon {
+  transition: transform 1s ease-in-out;
+}
+
+.lp-reset-btn:hover .lp-reset-icon {
+  transform: rotate(360deg);
+}
+
+.lp-canvas-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  min-height: 0;
+}
+
+.lp-mobile-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 25;
+}
+
+@media (max-width: 768px) {
+  .lp-app {
+    flex-direction: column;
+  }
+
+  .lp-hamburger {
+    display: flex;
+  }
+
+  .lp-top-bar {
+    padding: 0 16px;
+    height: 56px;
+  }
+
+  .lp-brand-text {
+    display: none;
+  }
+
+  .lp-compare-toggle {
+    height: 36px;
+    padding: 0 12px;
+    font-size: 12px;
+  }
+
+  .lp-reset-btn {
+    width: 36px;
+    height: 36px;
+  }
+
+  .lp-mobile-overlay {
+    display: block;
+  }
+}

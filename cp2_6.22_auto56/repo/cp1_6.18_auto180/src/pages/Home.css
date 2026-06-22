@@ -1,0 +1,136 @@
+.home-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.page-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-text-primary);
+}
+
+.stats-row {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.home-layout {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.home-section {
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border);
+  border-radius: var(--card-radius);
+  padding: 20px;
+}
+
+.plants-section {
+  flex: 1;
+  min-width: 0;
+}
+
+.calendar-section {
+  flex: 0 0 500px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--color-text-primary);
+}
+
+.section-link {
+  font-size: 14px;
+  color: var(--color-accent);
+  transition: opacity var(--transition-ease);
+}
+
+.section-link:hover {
+  opacity: 0.8;
+}
+
+.plants-masonry {
+  column-count: 2;
+  column-gap: 16px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--color-text-muted);
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 14px;
+}
+
+.primary-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 20px;
+  background: var(--color-accent);
+  color: #FFFFFF;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all var(--transition-ease);
+}
+
+.primary-btn:hover {
+  transform: scale(1.02);
+  opacity: 0.9;
+}
+
+.primary-btn:active {
+  transform: scale(0.98);
+}
+
+@media (max-width: 768px) {
+  .home-container {
+    padding: 16px;
+    padding-bottom: 80px;
+  }
+  .home-layout {
+    flex-direction: column;
+  }
+  .calendar-section {
+    flex: 1;
+    width: 100%;
+  }
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .stats-row .stat-card {
+    width: 100%;
+  }
+  .plants-masonry {
+    column-count: 1;
+  }
+  .plants-masonry .plant-card {
+    width: 100%;
+  }
+}

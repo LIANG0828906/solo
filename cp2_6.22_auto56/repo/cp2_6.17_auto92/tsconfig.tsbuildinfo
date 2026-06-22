@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/index.tsx","./src/store.ts","./src/types.ts","./src/components/board.tsx","./src/components/column.tsx","./src/components/taskcard.tsx"],"version":"5.8.3"}

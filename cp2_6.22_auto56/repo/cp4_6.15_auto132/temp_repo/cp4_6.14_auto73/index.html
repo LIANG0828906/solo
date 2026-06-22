@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>海洋洋流动态模拟与分析</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #0F172A;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .ui-overlay {
+      position: fixed;
+      z-index: 100;
+      pointer-events: none;
+    }
+
+    .ui-overlay > * {
+      pointer-events: auto;
+    }
+
+    .ui-top-left {
+      top: 20px;
+      left: 20px;
+    }
+
+    .ui-top-right {
+      top: 20px;
+      right: 20px;
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .glass-panel {
+      background: rgba(30, 41, 59, 0.6);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 8px;
+      padding: 12px 16px;
+      color: #ffffff;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .speed-control {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      min-width: 200px;
+    }
+
+    .speed-label {
+      font-size: 13px;
+      font-weight: 500;
+      color: #e2e8f0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .speed-value {
+      color: #60a5fa;
+      font-weight: 600;
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 200px;
+      height: 4px;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #2563EB;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.4);
+      transition: transform 0.15s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #2563EB;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 6px rgba(37, 99, 235, 0.4);
+    }
+
+    .temp-btn {
+      background: #334155;
+      color: #ffffff;
+      border: none;
+      border-radius: 8px;
+      padding: 10px 16px;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .temp-btn:hover {
+      background: #475569;
+    }
+
+    .temp-btn.active {
+      background: #3B82F6;
+    }
+
+    .reset-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: #ffffff;
+      border: none;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .reset-btn:hover {
+      background: #E2E8F0;
+    }
+
+    .reset-btn svg {
+      width: 18px;
+      height: 18px;
+      stroke: #1e293b;
+      stroke-width: 2;
+      fill: none;
+    }
+
+    .slide-in {
+      opacity: 0;
+      transform: translateY(-20px);
+      animation: slideInDown 0.5s ease-out forwards;
+    }
+
+    .slide-in-delay-1 {
+      animation-delay: 0.1s;
+    }
+
+    .slide-in-delay-2 {
+      animation-delay: 0.2s;
+    }
+
+    @keyframes slideInDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .temp-label {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.5);
+      backdrop-filter: blur(4px);
+      color: #1e293b;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 3px 8px;
+      border-radius: 4px;
+      pointer-events: none;
+      white-space: nowrap;
+      z-index: 50;
+      transform: translate(-50%, -100%);
+      margin-top: -8px;
+    }
+
+    .fps-counter {
+      position: fixed;
+      bottom: 12px;
+      right: 20px;
+      font-size: 11px;
+      color: rgba(255, 255, 255, 0.4);
+      z-index: 100;
+      font-family: monospace;
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div class="ui-overlay ui-top-left slide-in">
+    <div class="glass-panel speed-control">
+      <div class="speed-label">
+        <span>流速</span>
+        <span class="speed-value" id="speedValue">1.0x</span>
+      </div>
+      <input type="range" id="speedSlider" min="0.5" max="3" step="0.1" value="1">
+    </div>
+  </div>
+
+  <div class="ui-overlay ui-top-right">
+    <button class="temp-btn slide-in slide-in-delay-1" id="tempToggle">温度显示</button>
+    <button class="reset-btn slide-in slide-in-delay-2" id="resetView" title="重置视角">
+      <svg viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
+        <path d="M3 3v5h5"/>
+      </svg>
+    </button>
+  </div>
+
+  <div id="tempLabels"></div>
+
+  <div class="fps-counter" id="fpsCounter">-- FPS</div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

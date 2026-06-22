@@ -1,0 +1,1 @@
+{"root":["./src/main.ts","./src/vite-env.d.ts","./src/core/graphengine.ts","./src/core/scenemanager.ts","./src/renderers/curverenderer.ts","./src/renderers/facerenderer.ts","./src/renderers/pointrenderer.ts","./src/types/index.ts","./src/ui/controlpanel.tsx"],"version":"5.8.3"}

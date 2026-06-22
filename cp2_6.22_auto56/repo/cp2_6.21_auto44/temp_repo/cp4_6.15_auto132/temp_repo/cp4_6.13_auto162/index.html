@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>生态系统沙盒模拟器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #1a1a2e;
+      color: #ffffff;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+
+    .main-content {
+      display: flex;
+      flex: 1;
+      padding: 20px;
+      gap: 20px;
+      align-items: flex-start;
+    }
+
+    .canvas-wrapper {
+      width: 65%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    canvas {
+      border-radius: 12px;
+      display: block;
+    }
+
+    .stats-panel {
+      width: 30%;
+      background: rgba(0, 0, 0, 0.7);
+      border-radius: 12px;
+      padding: 15px;
+      color: #ffffff;
+    }
+
+    .stats-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 15px;
+      color: #ffffff;
+    }
+
+    .stats-section {
+      margin-bottom: 20px;
+    }
+
+    .stats-section h3 {
+      font-size: 14px;
+      color: #cccccc;
+      margin-bottom: 10px;
+      font-weight: 500;
+    }
+
+    .counts-display {
+      display: flex;
+      gap: 15px;
+      margin-bottom: 15px;
+    }
+
+    .count-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .count-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .count-dot.plant { background: #4CAF50; }
+    .count-dot.herbivore { background: #2196F3; }
+    .count-dot.carnivore { background: #F44336; }
+
+    .count-value {
+      font-size: 16px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+
+    .chart-container {
+      position: relative;
+      height: 120px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+
+    .bar-chart-container {
+      height: 100px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-around;
+      gap: 20px;
+      padding: 15px 10px 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+    }
+
+    .bar-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .bar-wrapper {
+      width: 100%;
+      height: 60px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+    }
+
+    .bar {
+      width: 36px;
+      border-radius: 4px 4px 0 0;
+      transition: height 0.3s ease;
+      min-height: 2px;
+    }
+
+    .bar.predation { background: #F44336; }
+    .bar.grazing { background: #2196F3; }
+
+    .bar-label {
+      font-size: 11px;
+      color: #cccccc;
+      text-align: center;
+    }
+
+    .bar-value {
+      font-size: 12px;
+      font-weight: 600;
+      color: #ffffff;
+    }
+
+    .timer-display {
+      font-size: 24px;
+      font-weight: 700;
+      text-align: center;
+      color: #ffffff;
+      font-variant-numeric: tabular-nums;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+    }
+
+    .controls-bar {
+      height: 60px;
+      background: rgba(0, 0, 0, 0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: 0 30px;
+    }
+
+    .btn {
+      padding: 10px 24px;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: filter 0.15s ease, transform 0.1s ease;
+      color: #ffffff;
+      font-family: inherit;
+    }
+
+    .btn:hover {
+      filter: brightness(1.2);
+    }
+
+    .btn:active {
+      transform: scale(0.95);
+    }
+
+    .btn-play {
+      background: #4CAF50;
+    }
+
+    .btn-pause {
+      background: #FF9800;
+    }
+
+    .btn-reset {
+      background: #f44336;
+    }
+
+    .speed-control {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      color: #cccccc;
+      font-size: 14px;
+    }
+
+    .speed-control input[type="range"] {
+      width: 120px;
+      cursor: pointer;
+    }
+
+    .speed-value {
+      min-width: 40px;
+      text-align: center;
+      color: #ffffff;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .warning-overlay {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(244, 67, 54, 0.85);
+      color: #ffffff;
+      padding: 20px 40px;
+      border-radius: 12px;
+      font-size: 20px;
+      font-weight: 600;
+      z-index: 1000;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+
+    .warning-overlay.visible {
+      opacity: 1;
+    }
+
+    .confirm-modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 2000;
+    }
+
+    .confirm-modal.visible {
+      display: flex;
+    }
+
+    .confirm-box {
+      background: #2a2a40;
+      padding: 30px;
+      border-radius: 12px;
+      text-align: center;
+      max-width: 360px;
+      width: 90%;
+    }
+
+    .confirm-box h3 {
+      font-size: 18px;
+      margin-bottom: 12px;
+      color: #ffffff;
+    }
+
+    .confirm-box p {
+      font-size: 14px;
+      color: #cccccc;
+      margin-bottom: 24px;
+    }
+
+    .confirm-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+    }
+
+    .confirm-buttons .btn {
+      padding: 10px 20px;
+      flex: 1;
+    }
+
+    .btn-cancel {
+      background: #555;
+    }
+
+    @media (max-width: 900px) {
+      .main-content {
+        flex-direction: column;
+        align-items: center;
+      }
+
+      .canvas-wrapper {
+        width: 100%;
+      }
+
+      .stats-panel {
+        width: 100%;
+        max-width: 640px;
+      }
+
+      .controls-bar {
+        flex-wrap: wrap;
+        height: auto;
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <div class="main-content">
+      <div class="canvas-wrapper">
+        <canvas id="simulation-canvas" width="640" height="480"></canvas>
+      </div>
+      <div class="stats-panel">
+        <div class="stats-title">实时统计面板</div>
+        
+        <div class="stats-section">
+          <h3>模拟时长</h3>
+          <div class="timer-display" id="timer">00:00:00</div>
+        </div>
+
+        <div class="stats-section">
+          <h3>当前个体数</h3>
+          <div class="counts-display">
+            <div class="count-item">
+              <span class="count-dot plant"></span>
+              <span class="count-value" id="plant-count">0</span>
+            </div>
+            <div class="count-item">
+              <span class="count-dot herbivore"></span>
+              <span class="count-value" id="herbivore-count">0</span>
+            </div>
+            <div class="count-item">
+              <span class="count-dot carnivore"></span>
+              <span class="count-value" id="carnivore-count">0</span>
+            </div>
+          </div>
+          <h3>物种数量变化曲线</h3>
+          <div class="chart-container">
+            <canvas id="chart-canvas" width="320" height="120"></canvas>
+          </div>
+        </div>
+
+        <div class="stats-section">
+          <h3>捕食 / 进食次数</h3>
+          <div class="bar-chart-container">
+            <div class="bar-item">
+              <div class="bar-value" id="predation-value">0</div>
+              <div class="bar-wrapper">
+                <div class="bar predation" id="predation-bar" style="height: 2px;"></div>
+              </div>
+              <div class="bar-label">捕食次数</div>
+            </div>
+            <div class="bar-item">
+              <div class="bar-value" id="grazing-value">0</div>
+              <div class="bar-wrapper">
+                <div class="bar grazing" id="grazing-bar" style="height: 2px;"></div>
+              </div>
+              <div class="bar-label">进食次数</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="controls-bar">
+      <button class="btn btn-play" id="play-pause-btn">开始</button>
+      <button class="btn btn-reset" id="reset-btn">重置</button>
+      <div class="speed-control">
+        <span>速度</span>
+        <input type="range" id="speed-slider" min="0.5" max="3.0" step="0.1" value="1.0">
+        <span class="speed-value" id="speed-value">1.0x</span>
+      </div>
+    </div>
+
+    <div class="warning-overlay" id="warning-overlay"></div>
+
+    <div class="confirm-modal" id="confirm-modal">
+      <div class="confirm-box">
+        <h3>确认重置模拟</h3>
+        <p>此操作将清除所有当前模拟数据并重新初始化生态系统，是否继续？</p>
+        <div class="confirm-buttons">
+          <button class="btn btn-cancel" id="confirm-cancel">取消</button>
+          <button class="btn btn-reset" id="confirm-ok">确认重置</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

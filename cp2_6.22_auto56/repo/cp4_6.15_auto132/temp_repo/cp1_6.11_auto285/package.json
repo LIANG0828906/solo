@@ -1,0 +1,13 @@
+{
+  "name": "shadow-puppet-theater",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite --port 3000 --open",
+    "build": "tsc && vite build"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vite": "^5.1.0"
+  }
+}

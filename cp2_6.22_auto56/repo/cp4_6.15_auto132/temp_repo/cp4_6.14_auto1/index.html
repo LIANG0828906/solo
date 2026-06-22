@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>粒子系统动态演化</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0a0a0f;
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    }
+
+    #canvas-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    .control-panel {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      width: 280px;
+      padding: 20px;
+      background: rgba(20, 20, 30, 0.75);
+      -webkit-backdrop-filter: blur(16px) saturate(180%);
+      backdrop-filter: blur(16px) saturate(180%);
+      -moz-backdrop-filter: blur(16px) saturate(180%);
+      -ms-backdrop-filter: blur(16px) saturate(180%);
+      border-radius: 12px;
+      color: #e0e0e0;
+      z-index: 100;
+      user-select: none;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
+      will-change: transform;
+      isolation: isolate;
+      contain: layout style;
+    }
+
+    @supports not ((backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))) {
+      .control-panel {
+        background: rgba(20, 20, 30, 0.92);
+      }
+    }
+
+    .panel-title {
+      font-size: 16px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #fff;
+      letter-spacing: 0.5px;
+    }
+
+    .mode-buttons {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .mode-btn {
+      flex: 1;
+      min-width: 0;
+      padding: 8px 12px;
+      border: 1px solid #3a3a50;
+      background: rgba(40, 40, 55, 0.6);
+      color: #c0c0d0;
+      border-radius: 8px;
+      cursor: pointer;
+      font-size: 13px;
+      transition: all 0.2s ease;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      line-height: 1.4;
+      font-weight: 500;
+    }
+
+    .mode-btn:hover {
+      border-color: #4a9eff;
+      color: #6fb1ff;
+    }
+
+    .mode-btn:active {
+      border-color: #2d7edb;
+      color: #2d7edb;
+    }
+
+    .mode-btn.active {
+      background: #4a9eff;
+      border-color: #4a9eff;
+      color: #fff;
+    }
+
+    .control-group {
+      margin-bottom: 14px;
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      margin-bottom: 6px;
+      color: #b0b0c0;
+      white-space: nowrap;
+      gap: 8px;
+    }
+
+    .control-value {
+      color: #4a9eff;
+      font-weight: 500;
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 4px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(60, 60, 80, 0.6);
+      border-radius: 2px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      background: #4a9eff;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      background: #6fb1ff;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:active {
+      background: #2d7edb;
+    }
+
+    .status-text {
+      margin-top: 16px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(60, 60, 80, 0.5);
+      font-size: 12px;
+      color: #808090;
+      line-height: 1.8;
+    }
+
+    .status-text .status-row {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .status-text .status-label {
+      color: #606070;
+    }
+
+    .status-text .status-val {
+      color: #4a9eff;
+    }
+
+    .stats-display {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      padding: 12px 16px;
+      background: rgba(20, 20, 30, 0.7);
+      -webkit-backdrop-filter: blur(10px) saturate(180%);
+      backdrop-filter: blur(10px) saturate(180%);
+      -moz-backdrop-filter: blur(10px) saturate(180%);
+      -ms-backdrop-filter: blur(10px) saturate(180%);
+      border-radius: 8px;
+      color: #e0e0e0;
+      font-size: 13px;
+      font-family: 'Consolas', 'Monaco', monospace;
+      z-index: 100;
+      user-select: none;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+      -webkit-transform: translateZ(0);
+      transform: translateZ(0);
+      will-change: transform;
+      isolation: isolate;
+    }
+
+    @supports not ((backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))) {
+      .stats-display {
+        background: rgba(20, 20, 30, 0.9);
+      }
+    }
+
+    .stats-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 24px;
+    }
+
+    .stats-label {
+      color: #808090;
+    }
+
+    .stats-value {
+      color: #4a9eff;
+      font-weight: 600;
+    }
+
+    .stats-value.fps-good {
+      color: #6fd96f;
+    }
+
+    .stats-value.fps-mid {
+      color: #ffd166;
+    }
+
+    .stats-value.fps-bad {
+      color: #ff6b6b;
+    }
+
+    .hint-text {
+      margin-top: 10px;
+      font-size: 11px;
+      color: #707080;
+      font-style: italic;
+    }
+
+    @media (max-width: 1366px), (max-height: 800px) {
+      .control-panel {
+        width: auto;
+        min-width: 210px;
+        max-width: 240px;
+        padding: 12px 14px;
+        font-size: 11px;
+        top: 10px;
+        left: 10px;
+      }
+
+      .panel-title {
+        font-size: 12px;
+        margin-bottom: 10px;
+      }
+
+      .mode-buttons {
+        gap: 4px;
+        margin-bottom: 10px;
+      }
+
+      .mode-btn {
+        padding: 4px 6px;
+        font-size: 10px;
+        line-height: 1.3;
+      }
+
+      .control-group {
+        margin-bottom: 8px;
+      }
+
+      .control-label {
+        font-size: 10px;
+        margin-bottom: 3px;
+      }
+
+      .control-value {
+        font-size: 10px;
+      }
+
+      input[type="range"] {
+        height: 3px;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        width: 10px;
+        height: 10px;
+      }
+
+      .status-text {
+        margin-top: 8px;
+        padding-top: 8px;
+        font-size: 10px;
+        line-height: 1.5;
+      }
+
+      .status-text .status-row {
+        margin-bottom: 2px;
+      }
+
+      .hint-text {
+        font-size: 9px;
+        margin-top: 6px;
+        line-height: 1.4;
+      }
+
+      .stats-display {
+        right: 10px;
+        bottom: 10px;
+        padding: 6px 10px;
+        font-size: 10px;
+      }
+
+      .stats-item {
+        gap: 16px;
+      }
+    }
+
+    @media (max-width: 1366px) and (max-height: 768px) {
+      .control-panel {
+        max-width: 220px;
+        padding: 10px 12px;
+      }
+
+      .mode-btn {
+        padding: 4px 5px;
+        font-size: 9.5px;
+      }
+
+      .control-group {
+        margin-bottom: 6px;
+      }
+
+      .status-text {
+        margin-top: 6px;
+        padding-top: 6px;
+      }
+    }
+
+    @media (max-height: 700px) {
+      .control-panel {
+        padding: 8px 12px;
+      }
+
+      .panel-title {
+        font-size: 11px;
+        margin-bottom: 6px;
+      }
+
+      .mode-buttons {
+        margin-bottom: 8px;
+      }
+
+      .mode-btn {
+        padding: 3px 5px;
+        font-size: 9px;
+      }
+
+      .control-group {
+        margin-bottom: 5px;
+      }
+
+      .control-label {
+        margin-bottom: 2px;
+      }
+
+      .status-text {
+        margin-top: 6px;
+        padding-top: 6px;
+      }
+    }
+
+    @media (max-height: 650px) {
+      .control-panel {
+        padding: 6px 10px;
+      }
+
+      .panel-title {
+        margin-bottom: 4px;
+      }
+
+      .control-group {
+        margin-bottom: 3px;
+      }
+
+      .control-label {
+        margin-bottom: 1px;
+      }
+
+      .status-text {
+        margin-top: 4px;
+        padding-top: 4px;
+      }
+
+      .hint-text {
+        display: none;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div class="control-panel">
+    <div class="panel-title">粒子控制系统</div>
+
+    <div class="mode-buttons">
+      <button class="mode-btn active" data-mode="random">随机运动</button>
+      <button class="mode-btn" data-mode="ellipsoid">椭球轨迹</button>
+    </div>
+
+    <div class="control-group">
+      <div class="control-label">
+        <span>粒子数量</span>
+        <span class="control-value" id="count-value">5000</span>
+      </div>
+      <input type="range" id="count-slider" min="500" max="10000" step="100" value="5000" />
+    </div>
+
+    <div class="control-group">
+      <div class="control-label">
+        <span>粒子大小</span>
+        <span class="control-value" id="size-value">1.0</span>
+      </div>
+      <input type="range" id="size-slider" min="0.2" max="5" step="0.1" value="1" />
+    </div>
+
+    <div class="control-group">
+      <div class="control-label">
+        <span>运动速度</span>
+        <span class="control-value" id="speed-value">1.0</span>
+      </div>
+      <input type="range" id="speed-slider" min="0.1" max="5" step="0.1" value="1" />
+    </div>
+
+    <div class="control-group">
+      <div class="control-label">
+        <span>粒子颜色</span>
+        <span class="control-value" id="color-value">#4a9eff</span>
+      </div>
+      <input type="range" id="color-slider" min="0" max="360" step="1" value="210" />
+    </div>
+
+    <div class="control-group">
+      <div class="control-label">
+        <span>连线阈值</span>
+        <span class="control-value" id="line-value">30</span>
+      </div>
+      <input type="range" id="line-slider" min="0" max="100" step="1" value="30" />
+    </div>
+
+    <div class="status-text">
+      <div class="status-row">
+        <span class="status-label">当前模式</span>
+        <span class="status-val" id="status-mode">随机运动</span>
+      </div>
+      <div class="status-row">
+        <span class="status-label">连线数量</span>
+        <span class="status-val" id="status-lines">0</span>
+      </div>
+      <div class="hint-text">提示：点击场景可触发局部爆炸效果</div>
+    </div>
+  </div>
+
+  <div class="stats-display">
+    <div class="stats-item">
+      <span class="stats-label">FPS</span>
+      <span class="stats-value fps-good" id="fps-value">60</span>
+    </div>
+    <div class="stats-item">
+      <span class="stats-label">Particles</span>
+      <span class="stats-value" id="particle-count">5000</span>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

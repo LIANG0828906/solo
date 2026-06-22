@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CSS 交互动效游乐场</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+  <div class="app">
+    <header class="app-header">
+      <h1>CSS 交互动效游乐场</h1>
+      <p class="subtitle">选择效果 · 实时预览 · 自定义代码</p>
+    </header>
+
+    <main class="main-container">
+      <aside class="panel panel-left" id="effects-panel">
+        <h2 class="panel-title">效果选择</h2>
+        <div class="effects-list" id="effects-list"></div>
+      </aside>
+
+      <section class="preview-section">
+        <div class="preview-area" id="preview-area">
+          <div class="preview-element" id="preview-element">
+            <span>点我</span>
+          </div>
+        </div>
+        <div class="preview-hint">
+          <span>悬停或点击上方元素查看效果</span>
+        </div>
+      </section>
+
+      <aside class="panel panel-right">
+        <div class="code-header">
+          <h2 class="panel-title">CSS 代码</h2>
+          <button class="copy-btn" id="copy-btn" type="button">
+            <span class="copy-icon">📋</span>
+            <span class="copy-text">复制</span>
+          </button>
+          <div class="copy-toast" id="copy-toast">已复制</div>
+        </div>
+        <div class="code-editor-wrapper">
+          <textarea
+            id="code-editor"
+            class="code-editor"
+            spellcheck="false"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="off"
+          ></textarea>
+          <div class="error-indicator" id="error-indicator"></div>
+        </div>
+        <div class="editor-hint">
+          按 <kbd>Ctrl</kbd> + <kbd>Enter</kbd> 应用代码
+        </div>
+      </aside>
+    </main>
+  </div>
+
+  <style id="dynamic-styles"></style>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+{
+  "name": "arcane-tactics",
+  "version": "1.0.0",
+  "private": true,
+  "description": "奇幻战术卡牌对战社区",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "zustand": "^4.4.7",
+    "socket.io-client": "^4.7.4",
+    "react-konva": "^18.2.10",
+    "konva": "^9.3.6"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "vite": "^5.1.4",
+    "typescript": "^5.4.2",
+    "@types/react": "^18.2.64",
+    "@types/react-dom": "^18.2.21"
+  }
+}

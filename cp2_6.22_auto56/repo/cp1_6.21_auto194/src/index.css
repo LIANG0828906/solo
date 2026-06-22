@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+:root {
+  --theme-bg: #0B0E14;
+  --theme-text: #E2E8F0;
+  --theme-textarea-bg: rgba(11,14,20,0.85);
+  --theme-card-bg: rgba(30,41,59,0.6);
+  --theme-cursor: #94A3B8;
+  --theme-glow: rgba(99,102,241,0.3);
+}
+
+html {
+  width: 100%;
+  height: 100%;
+}
+
+body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--theme-bg);
+  transition: background-color 0.4s ease;
+}
+
+textarea {
+  user-select: text;
+}
+
+button {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+textarea:focus {
+  outline: none;
+}
+
+::selection {
+  background: rgba(99, 102, 241, 0.3);
+}
+
+@media (max-width: 768px) {
+  textarea {
+    font-size: 16px !important;
+    padding: 20px !important;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

@@ -1,0 +1,139 @@
+:root {
+  --transition-all: all 0.5s ease;
+  --transition-transform: transform 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --font-display: 'Orbitron', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+.theme-neon {
+  --bg-primary: #1a1a2e;
+  --bg-gradient: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+  --track-bg: rgba(15, 52, 96, 0.3);
+  --track-border: rgba(233, 69, 96, 0.3);
+  --judgment-line: #e94560;
+  --judgment-line-glow: 0 0 20px #e94560, 0 0 40px #e94560, 0 0 60px #e94560;
+  --perfect-color: #ffd700;
+  --perfect-glow: 0 0 20px #ffd700, 0 0 40px #ffd700;
+  --good-color: #4da6ff;
+  --good-glow: 0 0 15px #4da6ff, 0 0 30px #4da6ff;
+  --miss-color: #ff4757;
+  --miss-glow: 0 0 15px #ff4757, 0 0 30px #ff4757;
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.7);
+  --accent: #e94560;
+  --accent-secondary: #0f3460;
+  --beat-color: #e94560;
+  --beat-glow: 0 0 10px #e94560, 0 0 20px #e94560;
+  --panel-bg: rgba(26, 26, 46, 0.95);
+  --panel-border: rgba(233, 69, 96, 0.5);
+}
+
+.theme-retro {
+  --bg-primary: #1a1a2e;
+  --bg-gradient: linear-gradient(135deg, #2d2d44 0%, #1a1a2e 50%, #0d0d1a 100%);
+  --track-bg: rgba(45, 45, 68, 0.5);
+  --track-border: rgba(139, 92, 246, 0.4);
+  --judgment-line: #00ff88;
+  --judgment-line-glow: 0 0 20px #00ff88, 0 0 40px #00ff88;
+  --perfect-color: #ffff00;
+  --perfect-glow: 0 0 10px #ffff00;
+  --good-color: #00ffff;
+  --good-glow: 0 0 10px #00ffff;
+  --miss-color: #ff0044;
+  --miss-glow: 0 0 10px #ff0044;
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.6);
+  --accent: #00ff88;
+  --accent-secondary: #8b5cf6;
+  --beat-color: #8b5cf6;
+  --beat-glow: 0 0 8px #8b5cf6;
+  --panel-bg: rgba(13, 13, 26, 0.98);
+  --panel-border: rgba(0, 255, 136, 0.4);
+}
+
+.theme-minimal {
+  --bg-primary: #1a1a1a;
+  --bg-gradient: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 50%, #0d0d0d 100%);
+  --track-bg: rgba(60, 60, 60, 0.3);
+  --track-border: rgba(255, 255, 255, 0.2);
+  --judgment-line: #ffffff;
+  --judgment-line-glow: 0 0 15px rgba(255, 255, 255, 0.5);
+  --perfect-color: #ffffff;
+  --perfect-glow: 0 0 15px rgba(255, 255, 255, 0.8);
+  --good-color: #cccccc;
+  --good-glow: 0 0 10px rgba(204, 204, 204, 0.6);
+  --miss-color: #666666;
+  --miss-glow: 0 0 10px rgba(102, 102, 102, 0.5);
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.5);
+  --accent: #ffffff;
+  --accent-secondary: #666666;
+  --beat-color: #ffffff;
+  --beat-glow: 0 0 8px rgba(255, 255, 255, 0.4);
+  --panel-bg: rgba(26, 26, 26, 0.98);
+  --panel-border: rgba(255, 255, 255, 0.15);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: var(--font-mono);
+  background: var(--bg-gradient);
+  color: var(--text-primary);
+  transition: var(--transition-all);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  background: none;
+  color: inherit;
+}
+
+button:active {
+  transform: scale(0.95);
+  transition: var(--transition-transform);
+}
+
+button:not(:active) {
+  transform: scale(1);
+  transition: var(--transition-transform);
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes flash-red {
+  0%, 100% { box-shadow: inset 0 0 0 0 transparent; }
+  50% { box-shadow: inset 0 0 100px 20px rgba(255, 71, 87, 0.4); }
+}
+
+.flash-miss {
+  animation: flash-red 0.3s ease-out;
+}

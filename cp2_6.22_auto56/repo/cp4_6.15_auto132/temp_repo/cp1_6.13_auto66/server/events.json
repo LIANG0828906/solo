@@ -1,0 +1,40 @@
+[
+  {
+    "id": "b3f16ecb-137c-43c6-b731-47a5bba64486",
+    "title": "周末团建聚餐",
+    "description": "",
+    "timeSlots": [
+      {
+        "id": "50946389-f1dc-4cd2-9708-050755daaa94",
+        "date": "2026-06-14",
+        "startTime": "09:00",
+        "endTime": "11:00",
+        "votes": []
+      },
+      {
+        "id": "7d3196c8-f3be-4668-a245-7926400861b2",
+        "date": "2026-06-14",
+        "startTime": "14:00",
+        "endTime": "16:00",
+        "votes": [
+          "v_zr9kzjspum"
+        ]
+      },
+      {
+        "id": "5687e613-78f5-4a1e-bd2b-07c52f42c4a6",
+        "date": "2026-06-15",
+        "startTime": "09:00",
+        "endTime": "11:00",
+        "votes": []
+      },
+      {
+        "id": "ff263b9f-c906-4be3-8cda-a0aa99fcfb73",
+        "date": "2026-06-15",
+        "startTime": "14:00",
+        "endTime": "16:00",
+        "votes": []
+      }
+    ],
+    "createdAt": "2026-06-13T04:49:08.434Z"
+  }
+]

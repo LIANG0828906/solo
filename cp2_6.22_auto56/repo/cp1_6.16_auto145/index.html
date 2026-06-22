@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>水下珊瑚礁生态系统模拟器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: linear-gradient(180deg, #0a1628 0%, #1a5276 50%, #0d3b5c 100%);
+    }
+    
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+    
+    canvas {
+      display: block;
+    }
+    
+    .lil-gui {
+      --background-color: rgba(10, 25, 40, 0.8) !important;
+      --widget-color: rgba(30, 60, 90, 0.6) !important;
+      --focus-color: rgba(100, 180, 220, 0.4) !important;
+      --text-color: #e0f0ff !important;
+      --title-background-color: rgba(20, 50, 80, 0.9) !important;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 8px;
+      border: 1px solid rgba(100, 180, 220, 0.3);
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,157 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg-primary: #f5f0e8;
+  --color-bg-secondary: #ebe4d6;
+  --color-bg-sidebar: #e8e0d0;
+  --color-bg-card: #ffffff;
+  --color-text-primary: #2c2c2c;
+  --color-text-secondary: #5c5c5c;
+  --color-accent-brown: #8b6f47;
+  --color-accent-light-brown: #d4c9b8;
+  --color-tone-level: #e74c3c;
+  --color-tone-oblique: #3498db;
+  --color-rhyme: #9b59b6;
+  --color-shadow: rgba(0, 0, 0, 0.05);
+  --color-shadow-hover: rgba(0, 0, 0, 0.15);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+}
+
+body {
+  font-family: 'Noto Serif SC', 'Songti SC', 'STSong', serif;
+  background-color: var(--color-bg-primary);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg-secondary);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-accent-light-brown);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent-brown);
+}
+
+@layer utilities {
+  .font-fangsong {
+    font-family: 'FangSong', 'STFangsong', '仿宋', serif;
+  }
+  
+  .font-song {
+    font-family: 'SimSun', 'STSong', '宋体', serif;
+  }
+  
+  .font-kaiti {
+    font-family: 'KaiTi', 'STKaiti', '楷体', serif;
+  }
+  
+  .bg-paper-texture {
+    background-image: 
+      linear-gradient(transparent 50%, rgba(139, 111, 71, 0.03) 50%),
+      linear-gradient(90deg, rgba(139, 111, 71, 0.02) 1px, transparent 1px);
+    background-size: 100% 4px, 4px 100%;
+    background-color: var(--color-bg-primary);
+  }
+  
+  .card-hover {
+    transition: transform 300ms ease-out, box-shadow 300ms ease-out;
+  }
+  
+  .card-hover:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 8px 24px var(--color-shadow-hover) !important;
+  }
+  
+  .btn-click {
+    transition: transform 150ms ease-out;
+  }
+  
+  .btn-click:active {
+    transform: scale(0.95);
+  }
+  
+  .sidebar-line {
+    background-image: linear-gradient(180deg, 
+      transparent 0%, 
+      rgba(139, 111, 71, 0.1) 10%, 
+      rgba(139, 111, 71, 0.1) 90%, 
+      transparent 100%
+    );
+    background-size: 1px 100%;
+    background-repeat: repeat-y;
+    background-position: right center;
+  }
+  
+  .fade-in {
+    animation: fadeIn 200ms ease-out;
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  .ink-drop-spin {
+    animation: inkDropSpin 1s linear infinite;
+  }
+  
+  @keyframes inkDropSpin {
+    from {
+      transform: rotate(0deg);
+    }
+    to {
+      transform: rotate(360deg);
+    }
+  }
+  
+  .tone-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    margin-right: 2px;
+    vertical-align: middle;
+  }
+  
+  .tone-level {
+    background-color: var(--color-tone-level);
+  }
+  
+  .tone-oblique {
+    background-color: var(--color-tone-oblique);
+  }
+  
+  .rhyme-mark {
+    color: var(--color-rhyme);
+    font-size: 0.8em;
+    margin-left: 4px;
+  }
+}

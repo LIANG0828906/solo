@@ -1,0 +1,768 @@
+@import '@fontsource/medievalsharp/400.css';
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg-start: #0F0C29;
+  --bg-mid: #302B63;
+  --bg-end: #24243E;
+  --battle-bg-start: #2C003E;
+  --battle-bg-end: #000000;
+  --divider-start: #00BFFF;
+  --divider-end: #8A2BE2;
+  --text-primary: #F5E6C8;
+  --text-secondary: #B4A0D8;
+  --text-dim: #7B6E99;
+  --panel-bg: rgba(20, 16, 45, 0.85);
+  --panel-border: rgba(138, 43, 226, 0.35);
+  --accent-gold: #FFD700;
+  --danger-red: #EF4444;
+  --heal-green: #22C55E;
+  --shield-blue: #3B82F6;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+body {
+  font-family: 'MedievalSharp', cursive, sans-serif;
+  background: linear-gradient(135deg, var(--bg-start) 0%, var(--bg-mid) 50%, var(--bg-end) 100%);
+  background-attachment: fixed;
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  letter-spacing: 0.5px;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+  background: none;
+  color: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(var(--divider-start), var(--divider-end));
+  border-radius: 3px;
+}
+
+/* ===== 游戏板布局 ===== */
+.game-board {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: row;
+  overflow: hidden;
+  position: relative;
+}
+
+.craft-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 24px;
+  overflow-y: auto;
+  gap: 16px;
+}
+
+.magic-divider {
+  width: 4px;
+  flex-shrink: 0;
+  background: linear-gradient(180deg, var(--divider-start) 0%, var(--divider-end) 100%);
+  box-shadow:
+    0 0 12px var(--divider-start),
+    0 0 24px var(--divider-end);
+  z-index: 10;
+}
+
+.battle-panel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 24px;
+  gap: 12px;
+  overflow: hidden;
+}
+
+/* ===== 六边形基础样式 ===== */
+.hex {
+  position: relative;
+  width: 80px;
+  height: 92px;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.hex-sm {
+  width: 64px;
+  height: 74px;
+}
+
+.hex-inner {
+  position: absolute;
+  inset: 3px;
+  clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* ===== 符文卡片 ===== */
+.rune-card {
+  cursor: grab;
+  user-select: none;
+}
+.rune-card:active {
+  cursor: grabbing;
+}
+.rune-card:hover {
+  transform: translateY(-6px) rotate(5deg);
+  z-index: 10;
+}
+.rune-card.depleted {
+  opacity: 0.35;
+  cursor: not-allowed;
+  filter: grayscale(0.6);
+}
+.rune-card.depleted:hover {
+  transform: none;
+}
+.rune-card .rune-icon {
+  font-size: 28px;
+  line-height: 1;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+.rune-card .rune-count {
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 4px;
+  background: rgba(0, 0, 0, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 10px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: bold;
+  z-index: 2;
+}
+.rune-card .rune-tooltip {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  white-space: nowrap;
+  padding: 6px 12px;
+  background: rgba(0, 0, 0, 0.9);
+  color: var(--text-primary);
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--panel-border);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+  z-index: 100;
+}
+.rune-card:hover .rune-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ===== 符文背包 ===== */
+.rune-backpack {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  padding: 16px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  justify-items: center;
+}
+
+.backpack-title {
+  font-size: 18px;
+  color: var(--accent-gold);
+  text-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+/* ===== 合成插槽 ===== */
+.craft-slots {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  padding: 24px;
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  justify-items: center;
+  position: relative;
+}
+
+.craft-slots.shake {
+  animation: shake 0.3s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-6px); }
+  80% { transform: translateX(6px); }
+}
+
+.rune-slot {
+  background: rgba(0, 0, 0, 0.4);
+  border: 2px dashed rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+.rune-slot.drag-over {
+  box-shadow:
+    0 0 16px #00BFFF,
+    0 0 32px rgba(0, 191, 255, 0.5),
+    inset 0 0 12px rgba(0, 191, 255, 0.3);
+  border-color: #00BFFF;
+  transform: scale(1.05);
+}
+.rune-slot.fail {
+  box-shadow: 0 0 16px var(--danger-red), 0 0 32px rgba(239, 68, 68, 0.4);
+  border-color: var(--danger-red) !important;
+  border-style: solid !important;
+}
+.rune-slot .slot-hint {
+  color: rgba(255, 255, 255, 0.25);
+  font-size: 10px;
+}
+.rune-slot .slot-rune {
+  font-size: 28px;
+}
+
+/* ===== 合成结果区 ===== */
+.craft-result-area {
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.craft-result-spell {
+  animation: spell-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 20px;
+  background: var(--panel-bg);
+  border: 1px solid var(--accent-gold);
+  border-radius: 10px;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+}
+@keyframes spell-pop {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.15); opacity: 1; }
+  100% { transform: scale(1); }
+}
+.craft-result-spell .spell-icon-lg {
+  font-size: 36px;
+}
+.craft-result-spell .spell-name {
+  font-size: 14px;
+  color: var(--accent-gold);
+}
+
+/* ===== 合成按钮 ===== */
+.btn {
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-family: inherit;
+  letter-spacing: 1px;
+  transition: all 0.3s ease;
+  border: 1px solid var(--panel-border);
+  background: rgba(138, 43, 226, 0.2);
+  color: var(--text-primary);
+}
+.btn:hover:not(:disabled) {
+  box-shadow: 0 0 12px var(--divider-end), 0 0 24px rgba(138, 43, 226, 0.4);
+  border-color: var(--divider-end);
+  transform: translateY(-1px);
+}
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.btn-primary {
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.25), rgba(255, 140, 0, 0.25));
+  border-color: var(--accent-gold);
+  color: var(--accent-gold);
+}
+.btn-primary:hover:not(:disabled) {
+  box-shadow: 0 0 12px var(--accent-gold), 0 0 24px rgba(255, 215, 0, 0.4);
+}
+.btn-danger {
+  background: linear-gradient(135deg, rgba(239, 68, 68, 0.25), rgba(220, 38, 38, 0.25));
+  border-color: var(--danger-red);
+  color: var(--danger-red);
+}
+.btn-danger:hover:not(:disabled) {
+  box-shadow: 0 0 12px var(--danger-red), 0 0 24px rgba(239, 68, 68, 0.4);
+}
+
+.btn-row {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/* ===== 战斗场景 ===== */
+.battle-scene {
+  flex: 1;
+  background: linear-gradient(180deg, var(--battle-bg-start) 0%, var(--battle-bg-end) 100%);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  position: relative;
+  overflow: hidden;
+  min-height: 260px;
+}
+
+.battle-arena {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 32px 48px;
+}
+
+/* 地面阴影 */
+.battle-arena::after {
+  content: '';
+  position: absolute;
+  bottom: 40px;
+  left: 0;
+  right: 0;
+  height: 40px;
+  background: radial-gradient(ellipse at center, rgba(138, 43, 226, 0.2) 0%, transparent 70%);
+  pointer-events: none;
+}
+
+/* ===== 角色 ===== */
+.character {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  z-index: 2;
+}
+.character-sprite {
+  position: relative;
+  transition: transform 0.3s ease;
+}
+.character-sprite.hit {
+  animation: hit-shake 0.2s ease;
+}
+.character-sprite.hit::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  background: rgba(239, 68, 68, 0.7);
+  border-radius: 8px;
+  mix-blend-mode: screen;
+  animation: hit-flash 0.2s ease;
+  pointer-events: none;
+}
+@keyframes hit-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+@keyframes hit-flash {
+  0% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
+.character-sprite.casting .staff-glow {
+  opacity: 1;
+  animation: staff-pulse 0.5s ease;
+}
+@keyframes staff-pulse {
+  0% { opacity: 0; transform: scale(0.5); filter: blur(0); }
+  50% { opacity: 1; transform: scale(1.5); filter: blur(2px); }
+  100% { opacity: 0.6; transform: scale(1); filter: blur(0); }
+}
+
+/* ===== 生命条 ===== */
+.health-bar-wrapper {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 140px;
+}
+.health-bar-name {
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+}
+.health-bar {
+  position: relative;
+  width: 100%;
+  height: 14px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 7px;
+  overflow: hidden;
+}
+.health-bar-fill {
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  background: linear-gradient(90deg, #22C55E 0%, #84CC16 100%);
+  transition: width 0.3s ease;
+}
+.health-bar-fill.low {
+  background: linear-gradient(90deg, #EF4444 0%, #F97316 100%);
+}
+.health-bar-text {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  color: #fff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+  font-weight: bold;
+}
+
+/* ===== 关卡与回合信息 ===== */
+.turn-info {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 16px;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 6px 16px;
+  border-radius: 20px;
+  border: 1px solid var(--panel-border);
+  font-size: 12px;
+  z-index: 20;
+}
+.turn-info .chip {
+  padding: 2px 10px;
+  border-radius: 12px;
+  background: rgba(138, 43, 226, 0.3);
+  color: var(--text-primary);
+}
+.turn-info .chip.boss {
+  background: rgba(239, 68, 68, 0.4);
+  color: #FCA5A5;
+}
+.turn-info .chip.player {
+  background: rgba(59, 130, 246, 0.35);
+}
+.turn-info .chip.enemy {
+  background: rgba(239, 68, 68, 0.35);
+}
+.turn-info .chip.victory {
+  background: rgba(34, 197, 94, 0.35);
+  color: #86EFAC;
+}
+.turn-info .chip.defeat {
+  background: rgba(239, 68, 68, 0.35);
+  color: #FCA5A5;
+}
+
+/* ===== 伤害数字 ===== */
+.damage-number {
+  position: absolute;
+  font-size: 24px;
+  font-weight: bold;
+  color: var(--danger-red);
+  text-shadow: 0 0 6px rgba(239, 68, 68, 0.8), 2px 2px 0 rgba(0, 0, 0, 0.8);
+  animation: damage-pop 1s ease-out forwards;
+  pointer-events: none;
+  z-index: 100;
+}
+.damage-number.heal {
+  color: var(--heal-green);
+  text-shadow: 0 0 6px rgba(34, 197, 94, 0.8), 2px 2px 0 rgba(0, 0, 0, 0.8);
+}
+@keyframes damage-pop {
+  0% { opacity: 0; transform: translateY(0) scale(0.5); }
+  20% { opacity: 1; transform: translateY(-16px) scale(1.2); }
+  100% { opacity: 0; transform: translateY(-60px) scale(0.9); }
+}
+
+/* ===== 法术飞行 ===== */
+.spell-projectile {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  font-size: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;
+  pointer-events: none;
+  filter: drop-shadow(0 0 12px currentColor);
+  animation: projectile-flight 0.7s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+@keyframes projectile-flight {
+  0% { opacity: 0; transform: translateX(0) scale(0.3) rotate(0deg); }
+  15% { opacity: 1; transform: scale(1.2) rotate(15deg); }
+  85% { opacity: 1; transform: rotate(-10deg); }
+  100% { opacity: 1; transform: scale(1.3); }
+}
+
+/* ===== 法术列表 ===== */
+.spell-list-wrapper {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.section-title {
+  font-size: 15px;
+  color: var(--accent-gold);
+  text-shadow: 0 0 6px rgba(255, 215, 0, 0.3);
+  letter-spacing: 1px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed rgba(255, 215, 0, 0.25);
+}
+.spell-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 10px;
+  max-height: 180px;
+  overflow-y: auto;
+}
+.spell-empty-hint {
+  color: var(--text-dim);
+  font-size: 12px;
+  text-align: center;
+  padding: 16px;
+}
+.spell-card {
+  padding: 10px 8px;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid var(--panel-border);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  position: relative;
+}
+.spell-card:hover:not(.cooldown):not(.disabled) {
+  box-shadow: 0 0 12px var(--divider-end), 0 0 24px rgba(138, 43, 226, 0.3);
+  transform: translateY(-2px);
+  border-color: var(--divider-end);
+}
+.spell-card.cooldown,
+.spell-card.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  filter: grayscale(0.7);
+}
+.spell-card.selected {
+  box-shadow: 0 0 14px var(--accent-gold), 0 0 28px rgba(255, 215, 0, 0.35);
+  border-color: var(--accent-gold);
+}
+.spell-card .spell-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+.spell-card .spell-card-name {
+  font-size: 11px;
+  color: var(--text-primary);
+  text-align: center;
+}
+.spell-card .spell-dmg {
+  font-size: 10px;
+  color: var(--danger-red);
+}
+.spell-card .cooldown-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: var(--accent-gold);
+  font-weight: bold;
+  text-shadow: 0 0 6px rgba(0, 0, 0, 0.8);
+}
+
+/* ===== 战斗日志 ===== */
+.battle-log-wrapper {
+  background: var(--panel-bg);
+  border: 1px solid var(--panel-border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 140px;
+}
+.battle-log-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 11.5px;
+}
+.log-entry {
+  line-height: 1.5;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: background 0.3s ease;
+}
+.log-entry.player { color: #93C5FD; }
+.log-entry.monster { color: #FCA5A5; }
+.log-entry.system { color: var(--text-secondary); }
+.log-entry:hover { background: rgba(255, 255, 255, 0.04); }
+
+/* ===== 粒子画布 ===== */
+.particle-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 30;
+}
+
+/* ===== 游戏结束遮罩 ===== */
+.game-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(4px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  z-index: 200;
+  animation: fade-in 0.4s ease;
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.game-overlay h2 {
+  font-size: 36px;
+  letter-spacing: 2px;
+  text-shadow: 0 0 20px currentColor;
+}
+.game-overlay .victory { color: var(--heal-green); }
+.game-overlay .defeat { color: var(--danger-red); }
+.game-overlay .stats {
+  font-size: 14px;
+  color: var(--text-secondary);
+  text-align: center;
+  line-height: 1.8;
+}
+
+/* ===== 状态效果图标 ===== */
+.status-effects {
+  display: flex;
+  gap: 4px;
+  justify-content: center;
+  min-height: 16px;
+}
+.status-chip {
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+.status-chip.burn { color: #F97316; border-color: rgba(249, 115, 22, 0.5); }
+.status-chip.freeze { color: #38BDF8; border-color: rgba(56, 189, 248, 0.5); }
+.status-chip.poison { color: #A855F7; border-color: rgba(168, 85, 247, 0.5); }
+.status-chip.stun { color: #FACC15; border-color: rgba(250, 204, 21, 0.5); }
+.status-chip.shield { color: #60A5FA; border-color: rgba(96, 165, 250, 0.5); }
+
+/* ===== 响应式 ===== */
+@media (max-width: 768px) {
+  .game-board {
+    flex-direction: column;
+  }
+  .magic-divider {
+    width: 100%;
+    height: 4px;
+    background: linear-gradient(90deg, var(--divider-start) 0%, var(--divider-end) 100%);
+    box-shadow: 0 0 12px var(--divider-start), 0 0 24px var(--divider-end);
+  }
+  .craft-panel {
+    padding: 14px 16px;
+    max-height: 52vh;
+  }
+  .battle-panel {
+    padding: 14px 16px;
+    max-height: 48vh;
+  }
+  .rune-backpack {
+    grid-template-columns: repeat(3, 1fr);
+  }
+  .battle-arena {
+    padding: 24px 20px 48px;
+  }
+  .character-sprite svg {
+    width: 48px !important;
+    height: 48px !important;
+  }
+  .boss-sprite svg {
+    width: 60px !important;
+    height: 60px !important;
+  }
+  .health-bar-wrapper { min-width: 100px; }
+}

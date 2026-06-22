@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/actionlibrary.tsx","./src/components/empty.tsx","./src/components/traininglog.tsx","./src/components/trainingplan.tsx","./src/hooks/uselocalstorage.ts","./src/hooks/usetheme.ts","./src/lib/utils.ts","./src/pages/home.tsx"],"errors":true,"version":"5.9.3"}

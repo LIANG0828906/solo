@@ -1,0 +1,16 @@
+.status-bar-wrapper {
+  width: 100%;
+}
+
+.status-bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 2px;
+  color: #6b4423;
+  font-weight: 600;
+}
+
+.status-bar-numbers {
+  font-size: 11px;
+}

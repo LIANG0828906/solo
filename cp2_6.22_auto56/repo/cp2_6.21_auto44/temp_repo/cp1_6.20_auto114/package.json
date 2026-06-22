@@ -1,0 +1,35 @@
+{
+  "name": "knowledge-graph-notes",
+  "version": "1.0.0",
+  "description": "个人知识图谱与笔记关联系统",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "ts-node --transpile-only server/index.ts",
+    "client": "vite"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "express": "^4.18.2",
+    "uuid": "^9.0.0",
+    "cors": "^2.8.5",
+    "body-parser": "^1.20.2",
+    "d3": "^7.8.5",
+    "react-markdown": "^9.0.1",
+    "lodash": "^4.17.21"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.2.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.10",
+    "@types/react": "^18.2.46",
+    "@types/react-dom": "^18.2.18",
+    "@types/express": "^4.17.21",
+    "@types/uuid": "^9.0.7",
+    "@types/cors": "^2.8.17",
+    "@types/d3": "^7.4.3",
+    "@types/lodash": "^4.14.202",
+    "concurrently": "^8.2.2",
+    "ts-node": "^10.9.2"
+  }
+}

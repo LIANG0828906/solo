@@ -1,0 +1,2850 @@
+{
+  "stories": {
+    "medieval": {
+      "nodes": [
+        {
+          "id": "med_start",
+          "text": "你在迷雾森林中醒来...石径通向城堡和村庄两个方向。",
+          "choices": [
+            {
+              "id": "m_s1",
+              "text": "走向城堡",
+              "next_node_id": "med_castle_gate",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "m_s2",
+              "text": "前往村庄",
+              "next_node_id": "med_village",
+              "effect": {
+                "charisma": 5
+              }
+            },
+            {
+              "id": "m_s3",
+              "text": "探索森林",
+              "next_node_id": "med_forest",
+              "effect": {
+                "health": -5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "med_castle_gate",
+          "text": "城堡门前站着银甲骑士，警惕地打量你。",
+          "choices": [
+            {
+              "id": "m_cg1",
+              "text": "礼貌求助",
+              "next_node_id": "med_castle_in",
+              "condition": {
+                "charisma": 40
+              },
+              "effect": {
+                "charisma": 10,
+                "add_item": "knight_blessing"
+              }
+            },
+            {
+              "id": "m_cg2",
+              "text": "强行闯入",
+              "next_node_id": "med_castle_fight",
+              "effect": {
+                "health": -30
+              }
+            },
+            {
+              "id": "m_cg3",
+              "text": "转去村庄",
+              "next_node_id": "med_village",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "med_village",
+          "text": "古井边的老妇人惊讶地看着你：'很久没有外人来了...'",
+          "choices": [
+            {
+              "id": "m_v1",
+              "text": "打听情况",
+              "next_node_id": "med_v_info",
+              "effect": {
+                "sanity": 10,
+                "add_item": "old_map"
+              }
+            },
+            {
+              "id": "m_v2",
+              "text": "去酒馆",
+              "next_node_id": "med_tavern",
+              "effect": {
+                "gold": -10,
+                "charisma": 5
+              }
+            },
+            {
+              "id": "m_v3",
+              "text": "找工作",
+              "next_node_id": "med_quest",
+              "effect": {
+                "gold": 20
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "med_forest",
+          "text": "发现闪光石台，上面有一把锈剑。",
+          "choices": [
+            {
+              "id": "m_f1",
+              "text": "拿起剑",
+              "next_node_id": "med_cursed",
+              "effect": {
+                "sanity": -20,
+                "add_item": "ancient_blade"
+              }
+            },
+            {
+              "id": "m_f2",
+              "text": "搜索其他地方",
+              "next_node_id": "med_treasure",
+              "effect": {
+                "gold": 50
+              }
+            },
+            {
+              "id": "m_f3",
+              "text": "离开去村庄",
+              "next_node_id": "med_village",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "med_castle_in",
+          "text": "领主若有所思地看着你：'传说中的旅人...你终于来了。'",
+          "choices": [
+            {
+              "id": "m_ci1",
+              "text": "询问身世",
+              "next_node_id": "med_truth",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "m_ci2",
+              "text": "愿意效忠",
+              "next_node_id": "med_end_good",
+              "condition": {
+                "has_item": "knight_blessing"
+              },
+              "effect": {
+                "charisma": 20,
+                "gold": 100
+              }
+            },
+            {
+              "id": "m_ci3",
+              "text": "拒绝离开",
+              "next_node_id": "med_end_neutral"
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "med_castle_fight",
+          "text": "你被击晕，关进地牢...",
+          "choices": [
+            {
+              "id": "m_cf1",
+              "text": "寻找逃狱方法",
+              "next_node_id": "med_escape",
+              "effect": {
+                "health": -10
+              }
+            },
+            {
+              "id": "m_cf2",
+              "text": "大声呼救",
+              "next_node_id": "med_end_bad"
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "med_v_info",
+          "text": "老妇人：'这里是遗忘之村...去北山遗迹可能恢复记忆。'",
+          "choices": [
+            {
+              "id": "m_vi1",
+              "text": "去遗迹",
+              "next_node_id": "med_forest",
+              "effect": {
+                "sanity": 5
+              }
+            },
+            {
+              "id": "m_vi2",
+              "text": "先休息",
+              "next_node_id": "med_tavern",
+              "effect": {
+                "health": 20
+              }
+            },
+            {
+              "id": "m_vi3",
+              "text": "打听城堡",
+              "next_node_id": "med_castle_gate",
+              "effect": {
+                "charisma": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "med_tavern",
+          "text": "冒险者邀请你讨伐巨龙。",
+          "choices": [
+            {
+              "id": "m_t1",
+              "text": "加入讨伐",
+              "next_node_id": "med_dragon",
+              "condition": {
+                "health": 50
+              },
+              "effect": {
+                "health": -20,
+                "gold": 100
+              }
+            },
+            {
+              "id": "m_t2",
+              "text": "婉拒休息",
+              "next_node_id": "med_v_info",
+              "effect": {
+                "health": 10,
+                "sanity": 10
+              }
+            },
+            {
+              "id": "m_t3",
+              "text": "喝酒打听",
+              "next_node_id": "med_quest",
+              "effect": {
+                "gold": -5,
+                "charisma": 10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "med_quest",
+          "text": "村长：'除掉狼首，我告诉你身世秘密。'",
+          "choices": [
+            {
+              "id": "m_q1",
+              "text": "猎杀狼首",
+              "next_node_id": "med_wolf",
+              "condition": {
+                "health": 40
+              },
+              "effect": {
+                "health": -15,
+                "gold": 30
+              }
+            },
+            {
+              "id": "m_q2",
+              "text": "找安全工作",
+              "next_node_id": "med_end_neutral",
+              "effect": {
+                "gold": 10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "med_cursed",
+          "text": "你被画面冲击——尸山血海、燃烧城市...",
+          "choices": [
+            {
+              "id": "m_cs1",
+              "text": "带剑去城堡",
+              "next_node_id": "med_castle_gate",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "m_cs2",
+              "text": "丢弃诅咒之剑",
+              "next_node_id": "med_forest",
+              "condition": {
+                "sanity": 30
+              },
+              "effect": {
+                "sanity": 15,
+                "remove_item": "ancient_blade"
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "med_treasure",
+          "text": "找到暗格中的金币袋和徽章。",
+          "choices": [
+            {
+              "id": "m_tre1",
+              "text": "躲藏观察",
+              "next_node_id": "med_encounter",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "m_tre2",
+              "text": "快速离开",
+              "next_node_id": "med_village",
+              "effect": {
+                "charisma": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "med_truth",
+          "text": "领主：'你是被放逐的王子...诅咒之剑是你父亲的。'",
+          "choices": [
+            {
+              "id": "m_tr1",
+              "text": "夺回王位",
+              "next_node_id": "med_end_good",
+              "condition": {
+                "has_item": "ancient_blade",
+                "sanity": 50
+              }
+            },
+            {
+              "id": "m_tr2",
+              "text": "拒绝王位",
+              "next_node_id": "med_end_neutral"
+            },
+            {
+              "id": "m_tr3",
+              "text": "拔刀相向",
+              "next_node_id": "med_end_bad",
+              "condition": {
+                "sanity": 30
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "med_end_good",
+          "text": "完美结局：贤明之王归来。",
+          "choices": [],
+          "end": true,
+          "ending_type": "good"
+        },
+        {
+          "id": "med_end_bad",
+          "text": "悲惨结局：迷失于遗忘之地。",
+          "choices": [],
+          "end": true,
+          "ending_type": "bad"
+        },
+        {
+          "id": "med_end_neutral",
+          "text": "普通结局：平凡度过余生。",
+          "choices": [],
+          "end": true,
+          "ending_type": "neutral"
+        },
+        {
+          "id": "med_escape",
+          "text": "从密道逃出城堡。",
+          "choices": [
+            {
+              "id": "m_esc1",
+              "text": "去村庄",
+              "next_node_id": "med_village",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "med_dragon",
+          "text": "击败幼龙，获得战利品。",
+          "choices": [
+            {
+              "id": "m_dr1",
+              "text": "返回村庄",
+              "next_node_id": "med_v_info",
+              "effect": {
+                "health": 20
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "med_wolf",
+          "text": "击杀狼王。",
+          "choices": [
+            {
+              "id": "m_wf1",
+              "text": "回村领赏",
+              "next_node_id": "med_truth",
+              "effect": {
+                "health": 10,
+                "charisma": 15
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "med_encounter",
+          "text": "白袍老者：'我等你很久了。'",
+          "choices": [
+            {
+              "id": "m_en1",
+              "text": "听他讲述",
+              "next_node_id": "med_truth",
+              "effect": {
+                "sanity": 10
+              }
+            }
+          ],
+          "end": false
+        }
+      ]
+    },
+    "space": {
+      "nodes": [
+        {
+          "id": "sp_start",
+          "text": "殖民2387年，普罗米修斯号。氧气37%，三条通道：引擎室/休眠舱/舰桥。",
+          "choices": [
+            {
+              "id": "sp_s1",
+              "text": "去引擎室",
+              "next_node_id": "sp_engine",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "sp_s2",
+              "text": "去休眠舱",
+              "next_node_id": "sp_sleep",
+              "effect": {
+                "charisma": 5
+              }
+            },
+            {
+              "id": "sp_s3",
+              "text": "去舰桥",
+              "next_node_id": "sp_bridge",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_engine",
+          "text": "反应堆裂缝，辐射上升。缺少防护服。",
+          "choices": [
+            {
+              "id": "sp_e1",
+              "text": "手动修复",
+              "next_node_id": "sp_engine_r",
+              "condition": {
+                "health": 60
+              },
+              "effect": {
+                "health": -40
+              }
+            },
+            {
+              "id": "sp_e2",
+              "text": "找防护服",
+              "next_node_id": "sp_storage",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "sp_e3",
+              "text": "撤退",
+              "next_node_id": "sp_sleep",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_sleep",
+          "text": "2000殖民者存活。D137胶囊门打开，空无一人。",
+          "choices": [
+            {
+              "id": "sp_sl1",
+              "text": "检查空胶囊",
+              "next_node_id": "sp_openpod",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "sp_sl2",
+              "text": "检查死亡胶囊",
+              "next_node_id": "sp_redpods",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "sp_sl3",
+              "text": "去舰桥查监控",
+              "next_node_id": "sp_bridge",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_bridge",
+          "text": "偏离航线，血渍，船内求救信号。",
+          "choices": [
+            {
+              "id": "sp_b1",
+              "text": "追踪信号",
+              "next_node_id": "sp_signal",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "sp_b2",
+              "text": "搜索遗物",
+              "next_node_id": "sp_caplog",
+              "effect": {
+                "sanity": 5,
+                "add_item": "captain_badge"
+              }
+            },
+            {
+              "id": "sp_b3",
+              "text": "发信标求救",
+              "next_node_id": "sp_beacon",
+              "effect": {
+                "charisma": 10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_engine_r",
+          "text": "修复成功但你受了致命辐射。",
+          "choices": [
+            {
+              "id": "sp_er1",
+              "text": "发求救信号",
+              "next_node_id": "sp_end_good",
+              "condition": {
+                "health": 20
+              }
+            },
+            {
+              "id": "sp_er2",
+              "text": "送殖民者逃生",
+              "next_node_id": "sp_end_neutral"
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_storage",
+          "text": "找到EVA防护服，听到爬动声。",
+          "choices": [
+            {
+              "id": "sp_st1",
+              "text": "调查声响",
+              "next_node_id": "sp_alien",
+              "effect": {
+                "health": -10
+              }
+            },
+            {
+              "id": "sp_st2",
+              "text": "去引擎室",
+              "next_node_id": "sp_engine",
+              "effect": {
+                "sanity": 5
+              }
+            },
+            {
+              "id": "sp_st3",
+              "text": "找武器",
+              "next_node_id": "sp_weapon",
+              "effect": {
+                "add_item": "plasma_pistol"
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_openpod",
+          "text": "内壁抓痕，湿印记通向走廊。",
+          "choices": [
+            {
+              "id": "sp_op1",
+              "text": "追踪",
+              "next_node_id": "sp_chase",
+              "effect": {
+                "health": -10,
+                "sanity": -10
+              }
+            },
+            {
+              "id": "sp_op2",
+              "text": "去拿武器",
+              "next_node_id": "sp_storage",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_caplog",
+          "text": "日志：'陨石里有东西...去引擎室自毁，别让它到新伊甸园。'",
+          "choices": [
+            {
+              "id": "sp_cl1",
+              "text": "启动自毁",
+              "next_node_id": "sp_selfdest",
+              "effect": {
+                "sanity": 10
+              }
+            },
+            {
+              "id": "sp_cl2",
+              "text": "继续调查",
+              "next_node_id": "sp_signal",
+              "effect": {
+                "sanity": -10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_signal",
+          "text": "医疗舱中非人生物正在进食。",
+          "choices": [
+            {
+              "id": "sp_ds1",
+              "text": "悄悄后退",
+              "next_node_id": "sp_bridge",
+              "condition": {
+                "sanity": 40
+              },
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "sp_ds2",
+              "text": "转身就跑",
+              "next_node_id": "sp_chase2",
+              "effect": {
+                "health": -15
+              }
+            },
+            {
+              "id": "sp_ds3",
+              "text": "尝试交流",
+              "next_node_id": "sp_end_good",
+              "condition": {
+                "charisma": 60
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_alien",
+          "text": "那个存在...在看你。精神渗透！",
+          "choices": [
+            {
+              "id": "sp_ae1",
+              "text": "抵抗",
+              "next_node_id": "sp_signal",
+              "condition": {
+                "sanity": 50
+              },
+              "effect": {
+                "sanity": -20,
+                "health": -10
+              }
+            },
+            {
+              "id": "sp_ae2",
+              "text": "武器攻击",
+              "next_node_id": "sp_fight",
+              "condition": {
+                "has_item": "plasma_pistol"
+              }
+            },
+            {
+              "id": "sp_ae3",
+              "text": "放弃",
+              "next_node_id": "sp_end_bad",
+              "effect": {
+                "sanity": -50
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_fight",
+          "text": "等离子枪击退异形，获得坐标碎片。",
+          "choices": [
+            {
+              "id": "sp_af1",
+              "text": "分析坐标",
+              "next_node_id": "sp_truth",
+              "effect": {
+                "sanity": 5,
+                "add_item": "alien_coords"
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_chase2",
+          "text": "追击中，选引擎室或逃生舱。",
+          "choices": [
+            {
+              "id": "sp_ac1",
+              "text": "引擎室",
+              "next_node_id": "sp_engine",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "sp_ac2",
+              "text": "逃生舱",
+              "next_node_id": "sp_escape",
+              "effect": {
+                "health": -10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_escape",
+          "text": "三个逃生舱：1号无燃料，2号正常，3号错误。",
+          "choices": [
+            {
+              "id": "sp_ep1",
+              "text": "选2号",
+              "next_node_id": "sp_end_neutral",
+              "effect": {
+                "health": 10
+              }
+            },
+            {
+              "id": "sp_ep2",
+              "text": "修1号",
+              "next_node_id": "sp_fail",
+              "effect": {
+                "sanity": -10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_selfdest",
+          "text": "启动自毁，送走殖民者。",
+          "choices": [
+            {
+              "id": "sp_sd1",
+              "text": "等待",
+              "next_node_id": "sp_end_good"
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_truth",
+          "text": "坐标指向先驱者号失踪地——它是主动来找你们的。",
+          "choices": [
+            {
+              "id": "sp_t1",
+              "text": "改航线避开",
+              "next_node_id": "sp_end_good",
+              "effect": {
+                "sanity": 10
+              }
+            },
+            {
+              "id": "sp_t2",
+              "text": "发射所有导弹",
+              "next_node_id": "sp_end_neutral",
+              "effect": {
+                "sanity": -10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_chase",
+          "text": "追到你私人舱室，门开着——里面有你的声音。",
+          "choices": [
+            {
+              "id": "sp_cm1",
+              "text": "冲进去",
+              "next_node_id": "sp_dup",
+              "effect": {
+                "sanity": -20
+              }
+            },
+            {
+              "id": "sp_cm2",
+              "text": "锁门逃",
+              "next_node_id": "sp_escape",
+              "effect": {
+                "sanity": -10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_weapon",
+          "text": "拿到等离子枪。",
+          "choices": [
+            {
+              "id": "sp_fw1",
+              "text": "调查声响",
+              "next_node_id": "sp_alien",
+              "effect": {
+                "health": -5
+              }
+            },
+            {
+              "id": "sp_fw2",
+              "text": "去引擎室",
+              "next_node_id": "sp_engine",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_beacon",
+          "text": "救援队72小时到，选择守舰桥还是清威胁。",
+          "choices": [
+            {
+              "id": "sp_be1",
+              "text": "加固等待",
+              "next_node_id": "sp_wait",
+              "effect": {
+                "sanity": 5
+              }
+            },
+            {
+              "id": "sp_be2",
+              "text": "主动出击",
+              "next_node_id": "sp_storage",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_redpods",
+          "text": "死亡胶囊都是从内部破开的！",
+          "choices": [
+            {
+              "id": "sp_rp1",
+              "text": "销毁所有",
+              "next_node_id": "sp_destroy",
+              "effect": {
+                "sanity": -5,
+                "charisma": 5
+              }
+            },
+            {
+              "id": "sp_rp2",
+              "text": "找武器",
+              "next_node_id": "sp_storage",
+              "effect": {
+                "sanity": -10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_destroy",
+          "text": "将异常胶囊弹入太空销毁。",
+          "choices": [
+            {
+              "id": "sp_dp1",
+              "text": "去舰桥",
+              "next_node_id": "sp_bridge",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_wait",
+          "text": "在恐惧中度过72小时，获救。",
+          "choices": [
+            {
+              "id": "sp_wr1",
+              "text": "获救",
+              "next_node_id": "sp_end_neutral",
+              "effect": {
+                "sanity": -10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "sp_dup",
+          "text": "另一个'你'以不可能角度咧开嘴扑上来。",
+          "choices": [],
+          "end": true,
+          "ending_type": "bad"
+        },
+        {
+          "id": "sp_fail",
+          "text": "太晚了，那个东西追上了你。",
+          "choices": [],
+          "end": true,
+          "ending_type": "bad"
+        },
+        {
+          "id": "sp_end_good",
+          "text": "完美结局：2000殖民者安全到达新伊甸园。",
+          "choices": [],
+          "end": true,
+          "ending_type": "good"
+        },
+        {
+          "id": "sp_end_bad",
+          "text": "悲惨结局：异形随船到达新伊甸园。",
+          "choices": [],
+          "end": true,
+          "ending_type": "bad"
+        },
+        {
+          "id": "sp_end_neutral",
+          "text": "普通结局：你活下来了，但有些事你永远不会说。",
+          "choices": [],
+          "end": true,
+          "ending_type": "neutral"
+        }
+      ]
+    },
+    "magic": {
+      "nodes": [
+        {
+          "id": "magic_start",
+          "text": "星穹魔法学院门前。你是无血统新生，因意外召唤九级魔法被录取。",
+          "choices": [
+            {
+              "id": "mg_s1",
+              "text": "礼貌跟院长走",
+              "next_node_id": "magic_ceremony",
+              "effect": {
+                "charisma": 5
+              }
+            },
+            {
+              "id": "mg_s2",
+              "text": "四处打量学院",
+              "next_node_id": "magic_painting",
+              "effect": {
+                "sanity": 5
+              }
+            },
+            {
+              "id": "mg_s3",
+              "text": "和新生搭话",
+              "next_node_id": "magic_meet",
+              "effect": {
+                "gold": -5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_ceremony",
+          "text": "分院仪式开始，命运水晶决定你属于哪座塔。",
+          "choices": [
+            {
+              "id": "mg_c1",
+              "text": "触摸水晶",
+              "next_node_id": "magic_sort",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "mg_c2",
+              "text": "问院长九级魔法",
+              "next_node_id": "magic_askdean",
+              "effect": {
+                "charisma": -5,
+                "sanity": 10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_painting",
+          "text": "穹顶壁画中法师的脸和你一模一样。",
+          "choices": [
+            {
+              "id": "mg_p1",
+              "text": "仔细看画",
+              "next_node_id": "magic_pdeep",
+              "effect": {
+                "sanity": -10,
+                "add_item": "ancient_memory"
+              }
+            },
+            {
+              "id": "mg_p2",
+              "text": "赶去仪式",
+              "next_node_id": "magic_ceremony",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_meet",
+          "text": "三个新生：银发露娜(看书)、红发炎烬(玩火)、黑袍(无法判断存在)。",
+          "choices": [
+            {
+              "id": "mg_m1",
+              "text": "搭话露娜",
+              "next_node_id": "magic_luna",
+              "effect": {
+                "charisma": 10,
+                "add_item": "luna_friend"
+              }
+            },
+            {
+              "id": "mg_m2",
+              "text": "搭话炎烬",
+              "next_node_id": "magic_ember",
+              "effect": {
+                "charisma": 5
+              }
+            },
+            {
+              "id": "mg_m3",
+              "text": "找黑袍人",
+              "next_node_id": "magic_shadow",
+              "effect": {
+                "sanity": -10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_sort",
+          "text": "水晶爆发五色光——五塔同时选中你！千年来第一次。",
+          "choices": [
+            {
+              "id": "mg_so1",
+              "text": "问千年前的事",
+              "next_node_id": "magic_rev",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "mg_so2",
+              "text": "自选塔",
+              "next_node_id": "magic_choose",
+              "effect": {
+                "charisma": 10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_askdean",
+          "text": "院长：'那是创世之言，只有祖神会用...你到底是谁？'",
+          "choices": [
+            {
+              "id": "mg_a1",
+              "text": "说自己是普通人",
+              "next_node_id": "magic_deand",
+              "effect": {
+                "charisma": 5
+              }
+            },
+            {
+              "id": "mg_a2",
+              "text": "说不清楚",
+              "next_node_id": "magic_sort",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_pdeep",
+          "text": "画旁小字：'第七次转世，最终选择。' 你看到了无数前世记忆。",
+          "choices": [
+            {
+              "id": "mg_pd1",
+              "text": "带着记忆去仪式",
+              "next_node_id": "magic_sort",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_luna",
+          "text": "露娜：'我在梦里见过你很多次...' 她笑了，成为你的朋友。",
+          "choices": [
+            {
+              "id": "mg_l1",
+              "text": "一起去仪式",
+              "next_node_id": "magic_ceremony",
+              "effect": {
+                "sanity": 10,
+                "charisma": 5
+              }
+            },
+            {
+              "id": "mg_l2",
+              "text": "问她为什么",
+              "next_node_id": "magic_lsecret",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_lsecret",
+          "text": "露娜恍惚后摇头：'可能是错觉。走吧。'",
+          "choices": [
+            {
+              "id": "mg_ls1",
+              "text": "和她一起走",
+              "next_node_id": "magic_ceremony",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_ember",
+          "text": "炎烬(烈焰塔天才)：'无血统？我们做搭档！我负责打，你负责九级魔法。'",
+          "choices": [
+            {
+              "id": "mg_em1",
+              "text": "接受",
+              "next_node_id": "magic_ceremony",
+              "effect": {
+                "charisma": 5
+              }
+            },
+            {
+              "id": "mg_em2",
+              "text": "婉拒",
+              "next_node_id": "magic_ceremony",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_shadow",
+          "text": "黑袍下空无一物。'千年来第一个看见我的人...午夜来幽影塔顶楼。'",
+          "choices": [
+            {
+              "id": "mg_sh1",
+              "text": "答应",
+              "next_node_id": "magic_ceremony",
+              "effect": {
+                "sanity": -5,
+                "add_item": "secret_inv"
+              }
+            },
+            {
+              "id": "mg_sh2",
+              "text": "拒绝",
+              "next_node_id": "magic_ceremony",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_rev",
+          "text": "院长：'你是灭世者第七次转世。一千年前祖神以生命封印了你。'",
+          "choices": [
+            {
+              "id": "mg_r1",
+              "text": "不相信",
+              "next_node_id": "magic_deny",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "mg_r2",
+              "text": "问如何避免",
+              "next_node_id": "magic_path",
+              "effect": {
+                "sanity": 5
+              }
+            },
+            {
+              "id": "mg_r3",
+              "text": "接受黑暗",
+              "next_node_id": "magic_dark",
+              "effect": {
+                "sanity": -30,
+                "charisma": -20
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_choose",
+          "text": "自选塔：星辰(预言)、烈焰(力量)、幽影(禁忌)、生命(治愈)。",
+          "choices": [
+            {
+              "id": "mg_ch1",
+              "text": "星辰塔",
+              "next_node_id": "magic_tstar",
+              "effect": {
+                "sanity": 10,
+                "charisma": 5
+              }
+            },
+            {
+              "id": "mg_ch2",
+              "text": "烈焰塔",
+              "next_node_id": "magic_tflame",
+              "effect": {
+                "health": 10,
+                "charisma": 5
+              }
+            },
+            {
+              "id": "mg_ch3",
+              "text": "幽影塔",
+              "next_node_id": "magic_tshadow",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "mg_ch4",
+              "text": "生命塔",
+              "next_node_id": "magic_tlife",
+              "effect": {
+                "health": 10,
+                "sanity": 10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_deand",
+          "text": "院长不信，但挥手让你去参加仪式。",
+          "choices": [
+            {
+              "id": "mg_dd1",
+              "text": "去仪式",
+              "next_node_id": "magic_sort",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_deny",
+          "text": "你身体散发出黑色气息。院长叹息：'这就是命运的证据。'",
+          "choices": [
+            {
+              "id": "mg_dd1",
+              "text": "冷静问怎么办",
+              "next_node_id": "magic_path",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_path",
+          "text": "密室预言墙。剑=救世，书=力量，或两者都不选。",
+          "choices": [
+            {
+              "id": "mg_pc1",
+              "text": "选剑，救世",
+              "next_node_id": "magic_end_good",
+              "effect": {
+                "charisma": 30,
+                "sanity": 10
+              }
+            },
+            {
+              "id": "mg_pc2",
+              "text": "选书，力量",
+              "next_node_id": "magic_end_neutral",
+              "effect": {
+                "sanity": -20
+              }
+            },
+            {
+              "id": "mg_pc3",
+              "text": "都不选，走自己的路",
+              "next_node_id": "magic_end_free",
+              "effect": {
+                "sanity": 10,
+                "charisma": 10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_dark",
+          "text": "你大笑，整座学院在你意志下动摇。历史重演了...",
+          "choices": [
+            {
+              "id": "mg_dp1",
+              "text": "接受黑暗",
+              "next_node_id": "magic_end_bad",
+              "effect": {
+                "sanity": -50
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_tstar",
+          "text": "三年星辰塔学习，你看到了所有未来分支。",
+          "choices": [
+            {
+              "id": "mg_ts1",
+              "text": "面对选择",
+              "next_node_id": "magic_path",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_tflame",
+          "text": "三年烈焰塔学习，炎烬：'兄弟我永远站你这边。'",
+          "choices": [
+            {
+              "id": "mg_tf1",
+              "text": "面对选择",
+              "next_node_id": "magic_path",
+              "effect": {
+                "health": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_tshadow",
+          "text": "守秘人：'你前世堕落，是为救露娜的前世。'",
+          "choices": [
+            {
+              "id": "mg_tsh1",
+              "text": "面对选择",
+              "next_node_id": "magic_path",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_tlife",
+          "text": "三年生命塔学习，露娜：'我相信你。'",
+          "choices": [
+            {
+              "id": "mg_tl1",
+              "text": "面对选择",
+              "next_node_id": "magic_path",
+              "effect": {
+                "sanity": 5,
+                "charisma": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "magic_end_good",
+          "text": "完美结局：以剑守世，千年诅咒终结。",
+          "choices": [],
+          "end": true,
+          "ending_type": "good"
+        },
+        {
+          "id": "magic_end_neutral",
+          "text": "普通结局：以禁忌之力隐居守护。",
+          "choices": [],
+          "end": true,
+          "ending_type": "neutral"
+        },
+        {
+          "id": "magic_end_free",
+          "text": "隐藏结局：自由自在，无名守护。",
+          "choices": [],
+          "end": true,
+          "ending_type": "good"
+        },
+        {
+          "id": "magic_end_bad",
+          "text": "悲惨结局：重蹈灭世覆辙。",
+          "choices": [],
+          "end": true,
+          "ending_type": "bad"
+        }
+      ]
+    },
+    "cyberpunk": {
+      "nodes": [
+        {
+          "id": "cp_start",
+          "text": "2087年，新东京。霓虹与酸雨。你是黑市侦探'银狐'，接到神秘委托：找回大财阀黑泽会长失踪的女儿。",
+          "choices": [
+            {
+              "id": "cp_s1",
+              "text": "先去黑泽家了解情况",
+              "next_node_id": "cp_kurosawa",
+              "effect": {
+                "charisma": 5,
+                "gold": 50
+              }
+            },
+            {
+              "id": "cp_s2",
+              "text": "去后街找线人打听",
+              "next_node_id": "cp_snitch",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "cp_s3",
+              "text": "黑入数据库查信息",
+              "next_node_id": "cp_hack",
+              "effect": {
+                "sanity": -10,
+                "gold": -20
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_kurosawa",
+          "text": "黑泽会长：'女儿失踪三天了。绑匪要10亿信用点，但她留了奇怪的字条——一串坐标。'",
+          "choices": [
+            {
+              "id": "cp_k1",
+              "text": "研究那串坐标",
+              "next_node_id": "cp_coords",
+              "effect": {
+                "sanity": 5
+              }
+            },
+            {
+              "id": "cp_k2",
+              "text": "问会长有什么仇人",
+              "next_node_id": "cp_enemies",
+              "effect": {
+                "charisma": 5
+              }
+            },
+            {
+              "id": "cp_k3",
+              "text": "检查女儿房间",
+              "next_node_id": "cp_room",
+              "effect": {
+                "sanity": -5,
+                "add_item": "necklace"
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_snitch",
+          "text": "后街的老鼠告诉你：'最近有人在码头贩卖活人...黑泽小姐可能在那里。' 他眼神闪烁。",
+          "choices": [
+            {
+              "id": "cp_sn1",
+              "text": "去码头调查",
+              "next_node_id": "cp_docks",
+              "effect": {
+                "health": -5,
+                "sanity": -5
+              }
+            },
+            {
+              "id": "cp_sn2",
+              "text": "逼他说更多",
+              "next_node_id": "cp_snitch_beat",
+              "condition": {
+                "charisma": 30
+              },
+              "effect": {
+                "sanity": -10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_hack",
+          "text": "黑入NCPD数据库，发现黑泽小姐上周去了非法义体诊所三次。诊所名叫'重生'。",
+          "choices": [
+            {
+              "id": "cp_h1",
+              "text": "去重生诊所",
+              "next_node_id": "cp_clinic",
+              "effect": {
+                "sanity": -5,
+                "add_item": "clinic_data"
+              }
+            },
+            {
+              "id": "cp_h2",
+              "text": "继续追查坐标线索",
+              "next_node_id": "cp_coords",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_coords",
+          "text": "坐标指向废弃的X7工厂区。那里是'深渊帮'的地盘——据说他们卖灵魂芯片。",
+          "choices": [
+            {
+              "id": "cp_c1",
+              "text": "孤身潜入X7工厂",
+              "next_node_id": "cp_factory",
+              "effect": {
+                "health": -10,
+                "sanity": -10
+              }
+            },
+            {
+              "id": "cp_c2",
+              "text": "找搭档组队去",
+              "next_node_id": "cp_partner",
+              "effect": {
+                "gold": -30,
+                "charisma": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_enemies",
+          "text": "会长：'三井财团是我死对头，但...更可能是'神谕教'——他们崇拜'数字飞升'。'",
+          "choices": [
+            {
+              "id": "cp_e1",
+              "text": "调查三井财团",
+              "next_node_id": "cp_mitsui",
+              "effect": {
+                "charisma": 5,
+                "add_item": "corp_doc"
+              }
+            },
+            {
+              "id": "cp_e2",
+              "text": "调查神谕教",
+              "next_node_id": "cp_cult",
+              "effect": {
+                "sanity": -15
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_room",
+          "text": "女儿房间很整洁，墙上有奇怪的涂鸦：一只被箭穿过的眼睛。书桌上的日记：'他们说可以救妈妈...'",
+          "choices": [
+            {
+              "id": "cp_r1",
+              "text": "查'妈妈'的线索",
+              "next_node_id": "cp_mother",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "cp_r2",
+              "text": "研究涂鸦含义",
+              "next_node_id": "cp_graffiti",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_docks",
+          "text": "码头仓库。你看到被改造的人——像商品一样堆着。黑泽小姐不在这里，但有一个logo：一只被箭穿过的眼睛。",
+          "choices": [
+            {
+              "id": "cp_d1",
+              "text": "顺藤摸瓜找logo来源",
+              "next_node_id": "cp_graffiti",
+              "effect": {
+                "sanity": 5
+              }
+            },
+            {
+              "id": "cp_d2",
+              "text": "救出这里的人",
+              "next_node_id": "cp_rescue",
+              "condition": {
+                "health": 40
+              },
+              "effect": {
+                "health": -20,
+                "charisma": 20
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_snitch_beat",
+          "text": "老鼠崩溃了：'是神谕教！他们在找特殊灵魂...黑泽小姐因为她妈...' 话没完，他脑袋爆了。",
+          "choices": [
+            {
+              "id": "cp_sb1",
+              "text": "立刻查神谕教",
+              "next_node_id": "cp_cult",
+              "effect": {
+                "sanity": -20
+              }
+            },
+            {
+              "id": "cp_sb2",
+              "text": "检查尸体找芯片",
+              "next_node_id": "cp_chip",
+              "effect": {
+                "add_item": "snitch_chip",
+                "sanity": -5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_clinic",
+          "text": "重生诊所。医生很紧张：'黑泽小姐...她是自愿的。她说要去'里面'找她妈妈。'",
+          "choices": [
+            {
+              "id": "cp_cl1",
+              "text": "问'里面'是什么意思",
+              "next_node_id": "cp_inside",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "cp_cl2",
+              "text": "威胁医生说更多",
+              "next_node_id": "cp_clinic_threat",
+              "condition": {
+                "charisma": 40
+              },
+              "effect": {
+                "add_item": "cult_map"
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_factory",
+          "text": "X7工厂。深处是服务器群，数百个大脑浸泡在液体里——连接着虚拟世界。你看到了黑泽小姐的身体。",
+          "choices": [
+            {
+              "id": "cp_f1",
+              "text": "尝试物理切断连接",
+              "next_node_id": "cp_physical",
+              "effect": {
+                "health": -15,
+                "sanity": -10
+              }
+            },
+            {
+              "id": "cp_f2",
+              "text": "进入虚拟世界救她",
+              "next_node_id": "cp_virtual",
+              "condition": {
+                "sanity": 40
+              },
+              "effect": {
+                "sanity": -20
+              }
+            },
+            {
+              "id": "cp_f3",
+              "text": "炸掉服务器",
+              "next_node_id": "cp_destroy",
+              "effect": {
+                "sanity": -30
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_partner",
+          "text": "找了老搭档'铁拳'——重装义体战士。'这单干完，我退休。'",
+          "choices": [
+            {
+              "id": "cp_pa1",
+              "text": "一起去X7工厂",
+              "next_node_id": "cp_factory2",
+              "effect": {
+                "health": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_factory2",
+          "text": "有铁拳在，轻松清理了守卫。面对虚拟世界服务器，铁拳说：'我守外面，你进去救她。'",
+          "choices": [
+            {
+              "id": "cp_pf1",
+              "text": "进入虚拟世界",
+              "next_node_id": "cp_virtual",
+              "condition": {
+                "sanity": 40
+              },
+              "effect": {
+                "sanity": -20
+              }
+            },
+            {
+              "id": "cp_pf2",
+              "text": "让铁拳炸服务器",
+              "next_node_id": "cp_destroy2",
+              "effect": {
+                "sanity": -15
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_cult",
+          "text": "神谕教秘密教堂。他们的教义：'抛弃肉体，数字飞升，与母亲结合。' 母亲是谁？",
+          "choices": [
+            {
+              "id": "cp_cu1",
+              "text": "伪装信徒潜入深处",
+              "next_node_id": "cp_infiltrate",
+              "condition": {
+                "charisma": 50
+              },
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "cp_cu2",
+              "text": "硬闯",
+              "next_node_id": "cp_fight_cult",
+              "condition": {
+                "health": 50
+              },
+              "effect": {
+                "health": -25,
+                "add_item": "holy_script"
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_virtual",
+          "text": "进入虚拟世界。一片纯白。黑泽小姐和一个女人站在一起——那是她死去十年的母亲。\n'我找到了妈妈...你为什么要打扰我们？'",
+          "choices": [
+            {
+              "id": "cp_v1",
+              "text": "说服她这不是真实的",
+              "next_node_id": "cp_convince",
+              "condition": {
+                "charisma": 50
+              },
+              "effect": {
+                "sanity": 10
+              }
+            },
+            {
+              "id": "cp_v2",
+              "text": "强行切断她的连接",
+              "next_node_id": "cp_force",
+              "effect": {
+                "sanity": -20,
+                "health": -10
+              }
+            },
+            {
+              "id": "cp_v3",
+              "text": "尊重她的选择离开",
+              "next_node_id": "cp_end_neutral",
+              "effect": {
+                "charisma": 10,
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_convince",
+          "text": "你展示了她母亲去世的证据和记忆：'真正的妈妈希望你活着。' 她最终崩溃大哭。\n虚拟世界开始崩塌。",
+          "choices": [
+            {
+              "id": "cp_cv1",
+              "text": "带她逃离虚拟世界",
+              "next_node_id": "cp_end_good",
+              "effect": {
+                "gold": 200,
+                "charisma": 20
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_destroy",
+          "text": "服务器爆炸了。你救出了她的身体，但她的灵魂永远困在了里面。\n会长崩溃，但你救了她的肉体。",
+          "choices": [
+            {
+              "id": "cp_ds1",
+              "text": "告诉会长真相",
+              "next_node_id": "cp_end_neutral",
+              "effect": {
+                "gold": 100,
+                "sanity": -20
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_destroy2",
+          "text": "铁拳按下了按钮。爆炸中你冲出了工厂，黑泽小姐的身体被救了出来。\n铁拳却永远留在了那里。",
+          "choices": [
+            {
+              "id": "cp_ds2",
+              "text": "带黑泽小姐回家",
+              "next_node_id": "cp_end_neutral",
+              "effect": {
+                "gold": 100,
+                "sanity": -15
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_force",
+          "text": "你强行切断。她尖叫着醒来——失忆了，却活着。会长感激涕零，却认不出自己的女儿。",
+          "choices": [
+            {
+              "id": "cp_fo1",
+              "text": "接受委托费离开",
+              "next_node_id": "cp_end_neutral",
+              "effect": {
+                "gold": 150
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_end_good",
+          "text": "完美结局：救出了黑泽小姐。她决定用家族财富帮助更多被神谕教欺骗的人。\n你得到了10亿，也找回了久违的信念。",
+          "choices": [],
+          "end": true,
+          "ending_type": "good"
+        },
+        {
+          "id": "cp_end_neutral",
+          "text": "普通结局：事情解决了，但有些东西永远失去了。\n霓虹依旧闪烁，酸雨依旧落下。你继续在这座城市里生存。",
+          "choices": [],
+          "end": true,
+          "ending_type": "neutral"
+        },
+        {
+          "id": "cp_mitsui",
+          "text": "黑入三井，发现他们和神谕教有秘密资金往来。他们在资助'数字飞升'计划。",
+          "choices": [
+            {
+              "id": "cp_m1",
+              "text": "去查神谕教",
+              "next_node_id": "cp_cult",
+              "effect": {
+                "sanity": -10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_mother",
+          "text": "她妈妈十年前死于车祸——但有传言说她被神谕教带走了，意识被上传到了某个地方。",
+          "choices": [
+            {
+              "id": "cp_mo1",
+              "text": "调查神谕教",
+              "next_node_id": "cp_cult",
+              "effect": {
+                "sanity": -10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_graffiti",
+          "text": "涂鸦是神谕教的标志。他们在找'具有特殊基因的灵魂'，用于'与母亲融合'。",
+          "choices": [
+            {
+              "id": "cp_gr1",
+              "text": "去查神谕教",
+              "next_node_id": "cp_cult",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_rescue",
+          "text": "救出了所有人，从他们口中得知了神谕教的位置。",
+          "choices": [
+            {
+              "id": "cp_re1",
+              "text": "去神谕教",
+              "next_node_id": "cp_cult",
+              "effect": {
+                "charisma": 20
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_chip",
+          "text": "从老鼠的脑芯片中提取了坐标——指向X7工厂。",
+          "choices": [
+            {
+              "id": "cp_ch1",
+              "text": "去X7工厂",
+              "next_node_id": "cp_factory",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_inside",
+          "text": "'里面'是神谕教建造的虚拟世界——黑泽小姐的母亲的意识被困在那里。",
+          "choices": [
+            {
+              "id": "cp_in1",
+              "text": "去查神谕教",
+              "next_node_id": "cp_cult",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_clinic_threat",
+          "text": "医生吓得给了你神谕教总部地图和地址。",
+          "choices": [
+            {
+              "id": "cp_ct1",
+              "text": "去神谕教",
+              "next_node_id": "cp_cult",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_physical",
+          "text": "切断了连接，但黑泽小姐陷入了永久昏迷——她的意识拒绝回来。",
+          "choices": [
+            {
+              "id": "cp_ph1",
+              "text": "带着她的身体离开",
+              "next_node_id": "cp_end_neutral",
+              "effect": {
+                "gold": 50
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_infiltrate",
+          "text": "潜入成功，到达了虚拟世界入口——和X7工厂的服务器是同一个！",
+          "choices": [
+            {
+              "id": "cp_inf1",
+              "text": "进入虚拟世界",
+              "next_node_id": "cp_virtual",
+              "condition": {
+                "sanity": 40
+              },
+              "effect": {
+                "sanity": -20
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "cp_fight_cult",
+          "text": "经过激战，你找到了一本神圣经卷——写着虚拟世界入口在X7工厂。",
+          "choices": [
+            {
+              "id": "cp_fc1",
+              "text": "去X7工厂",
+              "next_node_id": "cp_factory",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ],
+          "end": false
+        }
+      ]
+    },
+    "apocalypse": {
+      "nodes": [
+        {
+          "id": "ap_start",
+          "text": "灾变第47天。丧尸病毒席卷全球。你躲在一栋废弃公寓里，食物只够两天。\n听到楼下有小孩的哭声...",
+          "choices": [
+            {
+              "id": "ap_s1",
+              "text": "下去救那个孩子",
+              "next_node_id": "ap_save_kid",
+              "effect": {
+                "health": -10,
+                "charisma": 20
+              }
+            },
+            {
+              "id": "ap_s2",
+              "text": "收拾东西去其他地方",
+              "next_node_id": "ap_move",
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "ap_s3",
+              "text": "从窗户观察情况",
+              "next_node_id": "ap_observe",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_save_kid",
+          "text": "你冲向楼下，救出了那个小女孩——叫小雨，7岁。但引来了一群丧尸。",
+          "choices": [
+            {
+              "id": "ap_sk1",
+              "text": "逃回公寓",
+              "next_node_id": "ap_back_apt",
+              "effect": {
+                "health": -15
+              }
+            },
+            {
+              "id": "ap_sk2",
+              "text": "往反方向跑寻找新避难所",
+              "next_node_id": "ap_flee",
+              "effect": {
+                "health": -5,
+                "sanity": -5
+              }
+            },
+            {
+              "id": "ap_sk3",
+              "text": "用你仅有的子弹开路",
+              "next_node_id": "ap_shoot",
+              "condition": {
+                "gold": 0
+              },
+              "effect": {
+                "add_item": "spent_brass",
+                "sanity": -10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_move",
+          "text": "你收拾好背包，悄悄离开。走廊尽头，你看到一个幸存者在求救——但他周围有丧尸。",
+          "choices": [
+            {
+              "id": "ap_m1",
+              "text": "救他",
+              "next_node_id": "ap_save_man",
+              "effect": {
+                "health": -10,
+                "charisma": 15
+              }
+            },
+            {
+              "id": "ap_m2",
+              "text": "不管他继续走",
+              "next_node_id": "ap_flee",
+              "effect": {
+                "sanity": -15
+              }
+            },
+            {
+              "id": "ap_m3",
+              "text": "观察等机会",
+              "next_node_id": "ap_wait_man",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_observe",
+          "text": "你看到：小孩旁边有3只丧尸，街对面一家便利店似乎完好。远处有广播车的声音——救援队？",
+          "choices": [
+            {
+              "id": "ap_ob1",
+              "text": "救孩子",
+              "next_node_id": "ap_save_kid",
+              "effect": {
+                "health": -10,
+                "charisma": 20
+              }
+            },
+            {
+              "id": "ap_ob2",
+              "text": "去便利店",
+              "next_node_id": "ap_store",
+              "effect": {
+                "sanity": 5,
+                "add_item": "food_3d"
+              }
+            },
+            {
+              "id": "ap_ob3",
+              "text": "找广播车",
+              "next_node_id": "ap_radio",
+              "effect": {
+                "charisma": 10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_back_apt",
+          "text": "回到公寓，锁上门。小雨很害怕但很乖。她说：'我妈妈说去找'白鲸基地'，那里有庇护所。'",
+          "choices": [
+            {
+              "id": "ap_ba1",
+              "text": "相信她，出发找白鲸基地",
+              "next_node_id": "ap_journey",
+              "effect": {
+                "sanity": 10,
+                "add_item": "little_yuri"
+              }
+            },
+            {
+              "id": "ap_ba2",
+              "text": "先去便利店补充物资",
+              "next_node_id": "ap_store",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_flee",
+          "text": "漫无目的地跑了很久，天黑了。来到一所学校，看起来很安全。",
+          "choices": [
+            {
+              "id": "ap_fl1",
+              "text": "躲进学校过夜",
+              "next_node_id": "ap_school",
+              "effect": {
+                "sanity": 5,
+                "health": 5
+              }
+            },
+            {
+              "id": "ap_fl2",
+              "text": "继续赶路",
+              "next_node_id": "ap_night",
+              "effect": {
+                "health": -10,
+                "sanity": -10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_shoot",
+          "text": "砰！砰！砰！三发子弹清出一条路。带着小雨狂奔，但枪声引来了更多丧尸。",
+          "choices": [
+            {
+              "id": "ap_sh1",
+              "text": "躲进附近餐馆",
+              "next_node_id": "ap_restaurant",
+              "effect": {
+                "health": -5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_save_man",
+          "text": "你救下了他——老张，前军人。'谢了兄弟。我知道一个安全的地方——军事基地。' ",
+          "choices": [
+            {
+              "id": "ap_sm1",
+              "text": "跟他去军事基地",
+              "next_node_id": "ap_base_journey",
+              "effect": {
+                "charisma": 10,
+                "add_item": "zhang_ally"
+              }
+            },
+            {
+              "id": "ap_sm2",
+              "text": "先找物资",
+              "next_node_id": "ap_store",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_wait_man",
+          "text": "等了很久，他最终被丧尸包围...他临死前看了你一眼。你看到他口袋里露出的地图一角。",
+          "choices": [
+            {
+              "id": "ap_wm1",
+              "text": "趁丧尸分散去拿地图",
+              "next_node_id": "ap_grab_map",
+              "effect": {
+                "sanity": -15,
+                "add_item": "base_map"
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_store",
+          "text": "便利店里没人。你找到了很多食物、水、一把信号枪，还有一本写满字的日记本。",
+          "choices": [
+            {
+              "id": "ap_st1",
+              "text": "读日记",
+              "next_node_id": "ap_diary",
+              "effect": {
+                "sanity": -5
+              }
+            },
+            {
+              "id": "ap_st2",
+              "text": "拿走物资离开",
+              "next_node_id": "ap_journey",
+              "effect": {
+                "health": 10,
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_radio",
+          "text": "循着声音找到了广播车，但车已被遗弃。录音机还在播放：'白鲸基地...坐标33.7, 117.2...最后广播...'",
+          "choices": [
+            {
+              "id": "ap_ra1",
+              "text": "记下坐标去找白鲸基地",
+              "next_node_id": "ap_journey",
+              "effect": {
+                "sanity": 10,
+                "add_item": "coord_note"
+              }
+            },
+            {
+              "id": "ap_ra2",
+              "text": "先去附近找物资",
+              "next_node_id": "ap_store",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_school",
+          "text": "教室很安全。你睡着了，但做了噩梦——梦到家人变成了丧尸。惊醒时天亮了。",
+          "choices": [
+            {
+              "id": "ap_sc1",
+              "text": "准备去找避难所",
+              "next_node_id": "ap_journey",
+              "effect": {
+                "sanity": -5,
+                "health": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_night",
+          "text": "黑夜中差点被丧尸咬伤。幸好找到了一辆还能开的车——虽然油不多。",
+          "choices": [
+            {
+              "id": "ap_ni1",
+              "text": "开车去寻找避难所",
+              "next_node_id": "ap_car_journey",
+              "effect": {
+                "sanity": 5,
+                "health": -5,
+                "add_item": "old_car"
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_restaurant",
+          "text": "餐馆里暂时安全。遇到了一对老夫妇，他们说：'南边山上有个教堂，神父收留了很多人。'",
+          "choices": [
+            {
+              "id": "ap_re1",
+              "text": "去教堂",
+              "next_node_id": "ap_church",
+              "effect": {
+                "charisma": 10
+              }
+            },
+            {
+              "id": "ap_re2",
+              "text": "还是去找白鲸基地",
+              "next_node_id": "ap_journey",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_base_journey",
+          "text": "老张带你一路杀到了军事基地。但基地大门紧闭——里面的人不愿开门，说'食物不够'。",
+          "choices": [
+            {
+              "id": "ap_bj1",
+              "text": "强行闯关",
+              "next_node_id": "ap_base_storm",
+              "condition": {
+                "health": 50
+              },
+              "effect": {
+                "health": -30,
+                "sanity": -10
+              }
+            },
+            {
+              "id": "ap_bj2",
+              "text": "说服里面的人",
+              "next_node_id": "ap_base_talk",
+              "condition": {
+                "charisma": 50
+              },
+              "effect": {
+                "charisma": 10
+              }
+            },
+            {
+              "id": "ap_bj3",
+              "text": "放弃去其他地方",
+              "next_node_id": "ap_church",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_grab_map",
+          "text": "你拿到了地图——指向军事基地。但代价是...你眼睁睁看着他死去。",
+          "choices": [
+            {
+              "id": "ap_gm1",
+              "text": "按地图去军事基地",
+              "next_node_id": "ap_base_journey",
+              "effect": {
+                "sanity": -10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_diary",
+          "text": "日记里写：'第31天，教堂神父被咬伤但没变异——他可能是免疫者...白鲸基地是个骗局，那里的人在做人体实验...'",
+          "choices": [
+            {
+              "id": "ap_di1",
+              "text": "改去教堂找免疫者",
+              "next_node_id": "ap_church",
+              "effect": {
+                "sanity": 10
+              }
+            },
+            {
+              "id": "ap_di2",
+              "text": "还是去白鲸基地验证",
+              "next_node_id": "ap_journey",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_car_journey",
+          "text": "车开到了一个岔路口：左边是山上教堂方向，右边是白鲸基地方向。油只够一条路了。",
+          "choices": [
+            {
+              "id": "ap_cj1",
+              "text": "去教堂",
+              "next_node_id": "ap_church",
+              "effect": {
+                "charisma": 10
+              }
+            },
+            {
+              "id": "ap_cj2",
+              "text": "去白鲸基地",
+              "next_node_id": "ap_whale_journey",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_church",
+          "text": "教堂里真的有避难所！神父果然是免疫者——他被咬过，却没事。他微笑着欢迎你。",
+          "choices": [
+            {
+              "id": "ap_ch1",
+              "text": "留下加入避难所",
+              "next_node_id": "ap_end_church",
+              "effect": {
+                "charisma": 20,
+                "sanity": 10
+              }
+            },
+            {
+              "id": "ap_ch2",
+              "text": "请神父帮忙研制疫苗",
+              "next_node_id": "ap_vaccine",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_base_talk",
+          "text": "你说服了他们：'外面有免疫者，我们需要合作。' 门终于打开了。",
+          "choices": [
+            {
+              "id": "ap_bt1",
+              "text": "一起寻找免疫者研制疫苗",
+              "next_node_id": "ap_vaccine",
+              "effect": {
+                "charisma": 15,
+                "sanity": 10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_base_storm",
+          "text": "你和老张硬闯基地。激战后控制了基地，但老张牺牲了。幸存者们看着你，等待你的决定。",
+          "choices": [
+            {
+              "id": "ap_bs1",
+              "text": "带领大家建设新家园",
+              "next_node_id": "ap_end_neutral",
+              "effect": {
+                "charisma": 15,
+                "sanity": -10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_journey",
+          "text": "经过千辛万苦，你终于到达了白鲸基地。但门口的士兵...他们的眼神很奇怪。",
+          "choices": [
+            {
+              "id": "ap_j1",
+              "text": "礼貌请求进入",
+              "next_node_id": "ap_whale_enter",
+              "effect": {
+                "charisma": 5
+              }
+            },
+            {
+              "id": "ap_j2",
+              "text": "偷偷潜入调查",
+              "next_node_id": "ap_whale_sneak",
+              "condition": {
+                "sanity": 30
+              },
+              "effect": {
+                "sanity": -10
+              }
+            },
+            {
+              "id": "ap_j3",
+              "text": "转身去教堂",
+              "next_node_id": "ap_church",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_whale_journey",
+          "text": "到达白鲸基地。看起来很先进，但...你注意到很多'人'走路都很僵硬。",
+          "choices": [
+            {
+              "id": "ap_wj1",
+              "text": "请求进入",
+              "next_node_id": "ap_whale_enter",
+              "effect": {
+                "charisma": 5
+              }
+            },
+            {
+              "id": "ap_wj2",
+              "text": "先潜入看看",
+              "next_node_id": "ap_whale_sneak",
+              "effect": {
+                "sanity": -10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_whale_enter",
+          "text": "他们热情地接待你。但在你睡着后，你听到了隔壁房间的惨叫声...",
+          "choices": [
+            {
+              "id": "ap_we1",
+              "text": "去查看",
+              "next_node_id": "ap_whale_truth",
+              "effect": {
+                "sanity": -15
+              }
+            },
+            {
+              "id": "ap_we2",
+              "text": "装睡等到天亮逃跑",
+              "next_node_id": "ap_whale_flee",
+              "effect": {
+                "sanity": -5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_whale_sneak",
+          "text": "你潜入地下实验室——恐怖的景象：人们被关在笼子里，接受病毒注射。\n日记果然是对的！他们在用活人做实验，想找到'完美进化'。",
+          "choices": [
+            {
+              "id": "ap_ws1",
+              "text": "释放所有被囚禁的人",
+              "next_node_id": "ap_whale_riot",
+              "effect": {
+                "health": -20,
+                "charisma": 30
+              }
+            },
+            {
+              "id": "ap_ws2",
+              "text": "搜集证据逃出去",
+              "next_node_id": "ap_whale_flee",
+              "effect": {
+                "add_item": "evidence",
+                "sanity": -10
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_whale_truth",
+          "text": "你看到了：他们在给人注射病毒，筛选出强者，抛弃弱者。这就是白鲸'避难所'的真相。",
+          "choices": [
+            {
+              "id": "ap_wt1",
+              "text": "奋起反抗",
+              "next_node_id": "ap_whale_riot",
+              "effect": {
+                "health": -25,
+                "sanity": -10
+              }
+            },
+            {
+              "id": "ap_wt2",
+              "text": "装作不知道继续装睡",
+              "next_node_id": "ap_end_bad",
+              "effect": {
+                "sanity": -30
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_whale_riot",
+          "text": "你释放了所有人，基地陷入大暴动。经过一场血战，罪恶的实验被摧毁了。\n但你也发现了大量宝贵的疫苗样本。",
+          "choices": [
+            {
+              "id": "ap_wr1",
+              "text": "用样本和免疫者合作",
+              "next_node_id": "ap_vaccine",
+              "effect": {
+                "charisma": 20,
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_whale_flee",
+          "text": "你连夜逃出了白鲸基地，朝着教堂方向走去。至少那里是真正温暖的。",
+          "choices": [
+            {
+              "id": "ap_wf1",
+              "text": "到达教堂",
+              "next_node_id": "ap_church",
+              "effect": {
+                "sanity": 5
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_vaccine",
+          "text": "在你、神父(免疫者)和基地科学家的共同努力下，第一支疫苗终于研制成功！\n人类的转机到来了。",
+          "choices": [
+            {
+              "id": "ap_va1",
+              "text": "让小雨接种第一支疫苗",
+              "next_node_id": "ap_end_good",
+              "effect": {
+                "charisma": 30,
+                "sanity": 20,
+                "health": 30
+              }
+            }
+          ],
+          "end": false
+        },
+        {
+          "id": "ap_end_good",
+          "text": "完美结局：你成为了重建人类文明的核心。疫苗拯救了无数人。\n二十年后，人们在城市废墟上建起了新的家园——以你的名字命名。\n小雨成为了新一代的领袖。你知道，一切苦难都值得。",
+          "choices": [],
+          "end": true,
+          "ending_type": "good"
+        },
+        {
+          "id": "ap_end_church",
+          "text": "完美结局：你在教堂安了家。神父的研究最终帮助人类找到了对抗病毒的方法。\n虽然世界仍在废墟中，但这里是温暖的，是安全的，是充满希望的。\n你救了小雨，也救了你自己。",
+          "choices": [],
+          "end": true,
+          "ending_type": "good"
+        },
+        {
+          "id": "ap_end_neutral",
+          "text": "普通结局：你成为了一个小基地的领导者。外面的世界依然危险，食物依然短缺。\n但至少，大家都还活着，都还在战斗。\n也许明天会更好。也许不会。但你不会放弃。",
+          "choices": [],
+          "end": true,
+          "ending_type": "neutral"
+        },
+        {
+          "id": "ap_end_bad",
+          "text": "悲惨结局：第二天醒来，你发现自己被绑在手术台上。\n'你的体质很特别...'一个穿白大褂的人笑着说。\n然后是针扎进皮肤的感觉，然后是...无尽的黑暗。\n你成为了他们下一个'实验品'。",
+          "choices": [],
+          "end": true,
+          "ending_type": "bad"
+        }
+      ]
+    }
+  }
+}

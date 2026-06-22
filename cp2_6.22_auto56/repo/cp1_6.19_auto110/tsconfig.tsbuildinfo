@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/heatmap.tsx","./src/components/seatmap.tsx","./src/components/statspanel.tsx","./src/hooks/usessedata.ts"],"version":"5.8.3"}

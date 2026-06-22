@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>宫廷编钟雅乐</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0a0a0a;
+    }
+    #gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+    #startBtn {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 15px 50px;
+      font-family: "STKaiti", "KaiTi", serif;
+      font-size: 24px;
+      color: #4A2C1A;
+      background: linear-gradient(180deg, #FFD700 0%, #FFB300 100%);
+      border: 4px solid #4A2C1A;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+      z-index: 10;
+    }
+    #startBtn:hover {
+      transform: translateX(-50%) scale(1.05);
+      box-shadow: 0 6px 20px rgba(255,179,0,0.6);
+    }
+    #restartBtn {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 15px 50px;
+      font-family: "STKaiti", "KaiTi", serif;
+      font-size: 24px;
+      color: #fff;
+      background: linear-gradient(180deg, #8B2500 0%, #5D3A1A 100%);
+      border: 4px solid #4A2C1A;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+      z-index: 10;
+      display: none;
+    }
+    #restartBtn:hover {
+      transform: translateX(-50%) scale(1.05);
+      box-shadow: 0 6px 20px rgba(139,37,0,0.6);
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <button id="startBtn">开始演奏</button>
+  <button id="restartBtn">重新演奏</button>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

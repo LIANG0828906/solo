@@ -1,0 +1,167 @@
+[
+  {
+    "id": "catan",
+    "name": "卡坦岛",
+    "minPlayers": 3,
+    "maxPlayers": 4,
+    "averageDuration": 90,
+    "bggRating": 7.2,
+    "description": "经典德式策略桌游，玩家在卡坦岛上定居、交易资源、建设道路和城市。",
+    "emoji": "🏝️",
+    "isCustom": false
+  },
+  {
+    "id": "avalon",
+    "name": "阿瓦隆",
+    "minPlayers": 5,
+    "maxPlayers": 10,
+    "averageDuration": 45,
+    "bggRating": 7.6,
+    "description": "亚瑟王背景的社交推理游戏，好人与坏人阵营博弈，特殊角色拥有独特能力。",
+    "emoji": "⚔️",
+    "isCustom": false
+  },
+  {
+    "id": "dixit",
+    "name": "画物语",
+    "minPlayers": 3,
+    "maxPlayers": 6,
+    "averageDuration": 30,
+    "bggRating": 7.3,
+    "description": "充满想象力的表达类桌游，玩家用独特的描述引导他人猜出自己的卡牌。",
+    "emoji": "🎨",
+    "isCustom": false
+  },
+  {
+    "id": "splendor",
+    "name": "璀璨宝石",
+    "minPlayers": 2,
+    "maxPlayers": 4,
+    "averageDuration": 30,
+    "bggRating": 7.5,
+    "description": "快速上手的宝石交易策略游戏，收集宝石、购买卡牌、争夺贵族青睐。",
+    "emoji": "💎",
+    "isCustom": false
+  },
+  {
+    "id": "ticket-to-ride",
+    "name": "车票之旅",
+    "minPlayers": 2,
+    "maxPlayers": 5,
+    "averageDuration": 45,
+    "bggRating": 7.4,
+    "description": "火车路线规划桌游，收集车厢牌、连接城市、完成目的地车票获得分数。",
+    "emoji": "🚂",
+    "isCustom": false
+  },
+  {
+    "id": "puerto-rico",
+    "name": "波多黎各",
+    "minPlayers": 2,
+    "maxPlayers": 5,
+    "averageDuration": 120,
+    "bggRating": 7.7,
+    "description": "经典策略桌游，玩家扮演种植园主，通过选择角色来发展经济和建筑。",
+    "emoji": "🌴",
+    "isCustom": false
+  },
+  {
+    "id": "7-wonders",
+    "name": "七大奇迹",
+    "minPlayers": 2,
+    "maxPlayers": 7,
+    "averageDuration": 30,
+    "bggRating": 7.7,
+    "description": "卡牌 drafting 游戏，玩家发展文明、建造奇迹，同时左右交互影响。",
+    "emoji": "🏛️",
+    "isCustom": false
+  },
+  {
+    "id": "twilight-struggle",
+    "name": "冷战热斗",
+    "minPlayers": 2,
+    "maxPlayers": 2,
+    "averageDuration": 180,
+    "bggRating": 8.2,
+    "description": "冷战背景的双人卡牌战棋，美苏争霸全球影响力，深度策略体验。",
+    "emoji": "☭",
+    "isCustom": false
+  },
+  {
+    "id": "agricola",
+    "name": "农场主",
+    "minPlayers": 1,
+    "maxPlayers": 5,
+    "averageDuration": 120,
+    "bggRating": 8.0,
+    "description": "乌维·罗森伯格经典作品，玩家经营农场、养育家人，14轮后比拼财富。",
+    "emoji": "🌾",
+    "isCustom": false
+  },
+  {
+    "id": "wingspan",
+    "name": "展翅翱翔",
+    "minPlayers": 1,
+    "maxPlayers": 5,
+    "averageDuration": 60,
+    "bggRating": 7.9,
+    "description": "鸟类主题的引擎构建桌游，精美的插画和流畅的游戏节奏。",
+    "emoji": "🦅",
+    "isCustom": false
+  },
+  {
+    "id": "pandemic",
+    "name": "瘟疫危机",
+    "minPlayers": 2,
+    "maxPlayers": 4,
+    "averageDuration": 45,
+    "bggRating": 7.6,
+    "description": "经典合作桌游，玩家扮演疾病控制专家，共同对抗全球瘟疫。",
+    "emoji": "🦠",
+    "isCustom": false
+  },
+  {
+    "id": "betrayal-at-house-on-the-hill",
+    "name": "山屋惊魂",
+    "minPlayers": 3,
+    "maxPlayers": 6,
+    "averageDuration": 90,
+    "bggRating": 7.1,
+    "description": "恐怖探索桌游，前半段合作探索鬼屋，后半段背叛者VS幸存者。",
+    "emoji": "🏚️",
+    "isCustom": false
+  },
+  {
+    "id": "unlock",
+    "name": "大搜查",
+    "minPlayers": 1,
+    "maxPlayers": 6,
+    "averageDuration": 60,
+    "bggRating": 7.5,
+    "description": "密室逃脱卡牌系列，结合APP互动，破解谜题逃出困境。",
+    "emoji": "🔐",
+    "isCustom": false
+  },
+  {
+    "id": "chronicles-of-crime",
+    "name": "推理事件簿",
+    "minPlayers": 1,
+    "maxPlayers": 4,
+    "averageDuration": 90,
+    "bggRating": 7.6,
+    "description": "结合VR扫描的推理破案游戏，玩家扮演侦探调查案件真相。",
+    "emoji": "🔍",
+    "isCustom": false
+  },
+  {
+    "id": "sothebys",
+    "name": "决战苏富比",
+    "minPlayers": 3,
+    "maxPlayers": 5,
+    "averageDuration": 60,
+    "bggRating": 7.0,
+    "description": "拍卖主题桌游，玩家通过买卖艺术品来积累财富，心理博弈精彩。",
+    "emoji": "🖼️",
+    "isCustom": false
+  }
+]

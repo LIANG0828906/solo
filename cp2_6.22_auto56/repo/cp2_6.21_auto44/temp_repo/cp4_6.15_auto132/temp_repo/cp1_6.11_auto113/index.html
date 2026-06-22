@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>双人平台跳跃竞速</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(180deg, #0B0C10 0%, #1F2833 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Courier New', Courier, monospace;
+      overflow: hidden;
+    }
+    #game-wrapper {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 12px;
+    }
+    #gameCanvas {
+      display: block;
+      border: 3px solid #45A29E;
+      border-radius: 8px;
+      box-shadow: 0 0 30px rgba(69, 162, 158, 0.3);
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    #controls-hint {
+      color: #C5C6C7;
+      font-size: 13px;
+      text-align: center;
+      line-height: 1.6;
+      letter-spacing: 0.5px;
+    }
+    #controls-hint span {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-weight: bold;
+      margin: 0 2px;
+    }
+    .p1 {
+      background: rgba(0, 168, 255, 0.2);
+      color: #00A8FF;
+      border: 1px solid #00A8FF;
+    }
+    .p2 {
+      background: rgba(255, 51, 102, 0.2);
+      color: #FF3366;
+      border: 1px solid #FF3366;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-wrapper">
+    <canvas id="gameCanvas" width="800" height="500"></canvas>
+    <div id="controls-hint">
+      <span class="p1">玩家A</span> W(跳) A(左) D(右) &nbsp;|&nbsp;
+      <span class="p2">玩家B</span> ↑(跳) ←(左) →(右) &nbsp;|&nbsp;
+      空格: 开始/重玩
+    </div>
+  </div>
+  <script type="module" src="/src/game.ts"></script>
+</body>
+</html>

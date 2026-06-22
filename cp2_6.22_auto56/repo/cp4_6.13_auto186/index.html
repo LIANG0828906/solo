@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OceanFlow - 深海洋流三维热力图</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/styles/main.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="scene-canvas"></canvas>
+
+    <div id="loading-screen" class="loading-screen">
+      <div class="loading-ring">
+        <div class="ring-particles"></div>
+        <div class="ring-text">OceanFlow</div>
+      </div>
+      <div class="loading-tip">正在初始化深海场景...</div>
+    </div>
+
+    <div id="upload-zone" class="upload-zone">
+      <div class="upload-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+      </div>
+      <div class="upload-title">上传海洋数据</div>
+      <div class="upload-subtitle">拖拽 CSV 文件到此处或点击选择</div>
+      <div class="upload-hint">支持经纬度、深度、温度、盐度、流速数据</div>
+      <input type="file" id="file-input" accept=".csv" hidden />
+      <div class="ripple-effect"></div>
+    </div>
+
+    <div id="control-panel" class="control-panel hidden">
+      <div class="panel-header">
+        <div class="panel-title">可视化控制</div>
+        <div class="panel-subtitle">OceanFlow Control</div>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-label">深度层显示</div>
+        <div class="layer-switches" id="layer-switches">
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-label">
+          <span>流速可视化</span>
+          <span class="section-value" id="velocity-value">1.0x</span>
+        </div>
+        <input type="range" id="velocity-slider" class="slider" min="0.5" max="3" step="0.1" value="1" />
+        <div class="slider-labels">
+          <span>0.5x</span>
+          <span>3.0x</span>
+        </div>
+      </div>
+
+      <div class="panel-section">
+        <div class="section-label">温度色阶</div>
+        <select id="color-scheme" class="select">
+          <option value="thermal">热力色阶</option>
+          <option value="cool">冷色色阶</option>
+          <option value="monochrome">黑白色阶</option>
+        </select>
+      </div>
+
+      <div class="panel-section">
+        <label class="toggle-row">
+          <span>自动旋转</span>
+          <label class="toggle">
+            <input type="checkbox" id="auto-rotate" />
+            <span class="toggle-slider"></span>
+          </label>
+        </label>
+      </div>
+
+      <div class="panel-section">
+        <label class="toggle-row">
+          <span>粒子流显示</span>
+          <label class="toggle">
+            <input type="checkbox" id="particles-toggle" checked />
+            <span class="toggle-slider"></span>
+          </label>
+        </label>
+      </div>
+    </div>
+
+    <div id="tooltip" class="tooltip hidden">
+      <div class="tooltip-header" id="tooltip-header">数据详情</div>
+      <div class="tooltip-row">
+        <span class="tooltip-label">深度</span>
+        <span class="tooltip-value" id="tooltip-depth">-</span>
+      </div>
+      <div class="tooltip-row">
+        <span class="tooltip-label">温度</span>
+        <span class="tooltip-value" id="tooltip-temp">-</span>
+      </div>
+      <div class="tooltip-row">
+        <span class="tooltip-label">盐度</span>
+        <span class="tooltip-value" id="tooltip-salinity">-</span>
+      </div>
+      <div class="tooltip-row">
+        <span class="tooltip-label">流速</span>
+        <span class="tooltip-value" id="tooltip-velocity">-</span>
+      </div>
+    </div>
+
+    <div id="timeline-container" class="timeline-container hidden">
+      <div class="timeline-label">时间轴</div>
+      <input type="range" id="timeline-slider" class="timeline-slider" min="0" max="0" step="1" value="0" />
+      <div class="timeline-value" id="timeline-value">-</div>
+    </div>
+
+    <div id="stats" class="stats hidden">
+      <div class="stats-item">
+        <span class="stats-label">FPS</span>
+        <span class="stats-value" id="fps-value">60</span>
+      </div>
+      <div class="stats-item">
+        <span class="stats-label">柱体</span>
+        <span class="stats-value" id="bars-value">0</span>
+      </div>
+      <div class="stats-item">
+        <span class="stats-label">粒子</span>
+        <span class="stats-value" id="particles-value">0</span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

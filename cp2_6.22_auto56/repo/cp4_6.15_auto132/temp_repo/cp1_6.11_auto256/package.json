@@ -1,0 +1,19 @@
+{
+  "name": "ancient-waterwheel-irrigation",
+  "version": "1.0.0",
+  "description": "基于Three.js的交互式3D古代水车灌溉系统模拟",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.160.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.160.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.10"
+  }
+}

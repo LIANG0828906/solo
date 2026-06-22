@@ -1,0 +1,176 @@
+.polishing-container {
+  display: flex;
+  gap: 2rem;
+  padding: 1.5rem;
+  background: linear-gradient(135deg, #4a3520 0%, #3a2815 100%);
+  border-radius: 12px;
+  border: 3px solid #8b7a6a;
+  box-shadow:
+    inset 0 2px 10px rgba(0, 0, 0, 0.3),
+    0 4px 20px rgba(0, 0, 0, 0.4);
+}
+
+.polishing-placeholder {
+  padding: 3rem;
+  text-align: center;
+  background: linear-gradient(135deg, #4a3520 0%, #3a2815 100%);
+  border-radius: 12px;
+  border: 3px solid #8b7a6a;
+  color: #b8a078;
+}
+
+.polishing-scene {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: relative;
+  min-height: 450px;
+}
+
+.polishing-canvas {
+  background: radial-gradient(ellipse at center, #3a2919 0%, #2a1909 100%);
+  border-radius: 8px;
+  border: 3px solid #8b7a6a;
+  box-shadow:
+    inset 0 0 30px rgba(0, 0, 0, 0.5),
+    0 4px 15px rgba(0, 0, 0, 0.4);
+  touch-action: none;
+}
+
+.whetstone-preview {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+.whetstone-preview::before {
+  content: '';
+  position: absolute;
+  top: -10px;
+  left: -25px;
+  width: 50px;
+  height: 20px;
+  background: linear-gradient(135deg, #7a8a7a 0%, #5a6a5a 100%);
+  border-radius: 4px;
+  border: 2px solid #4a5a4a;
+  opacity: 0.8;
+}
+
+.whetstone-label {
+  position: absolute;
+  top: -35px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+  color: #b8a078;
+  white-space: nowrap;
+}
+
+.polishing-controls {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  padding: 1rem;
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 215, 0, 0.2);
+}
+
+.progress-section,
+.sharpness-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.progress-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.progress-count {
+  color: #ffd700;
+  font-weight: bold;
+  font-size: 1.1rem;
+}
+
+.progress-bar-container {
+  width: 100%;
+  height: 16px;
+  background: #2a1909;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 2px solid #8b7a6a;
+}
+
+.progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, #cc3333 0%, #ff6666 100%);
+  transition: width 0.3s ease;
+}
+
+.progress-bar.sharpness {
+  background: linear-gradient(90deg, #b88a44 0%, #ffd700 100%);
+}
+
+.finish-button {
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  border: 2px solid #ffd700;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.3s;
+  min-height: 56px;
+}
+
+.finish-button.enabled {
+  background: linear-gradient(135deg, #cc3333 0%, #992222 100%);
+  color: #ffd700;
+  box-shadow: 0 4px 15px rgba(204, 51, 51, 0.4);
+}
+
+.finish-button.enabled:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(204, 51, 51, 0.6);
+}
+
+.finish-button.disabled {
+  background: #3a2919;
+  color: #665544;
+  border-color: #5a4939;
+  cursor: not-allowed;
+}
+
+.tip-text {
+  text-align: center;
+  padding: 0.75rem;
+  background: rgba(139, 122, 106, 0.2);
+  border-radius: 6px;
+  border: 1px dashed #8b7a6a;
+}
+
+.seal-text {
+  font-family: 'STKaiti', 'KaiTi', 'SimSun', serif;
+  color: #ffd700;
+  font-size: 1.1rem;
+  letter-spacing: 2px;
+}
+
+@media (max-width: 768px) {
+  .polishing-container {
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .polishing-scene {
+    min-height: 400px;
+  }
+
+  .polishing-canvas {
+    width: 250px;
+    height: 350px;
+  }
+}

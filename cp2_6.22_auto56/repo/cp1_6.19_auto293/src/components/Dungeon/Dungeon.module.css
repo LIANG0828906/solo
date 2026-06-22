@@ -1,0 +1,339 @@
+.dungeonContainer {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+  position: relative;
+}
+
+.dungeonGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  gap: 10px;
+  padding: 20px;
+  background: #0f0f1a;
+  border-radius: 12px;
+  border: 3px solid #333;
+  box-shadow: 0 0 30px rgba(0, 0, 0, 0.5);
+}
+
+.room {
+  width: 100px;
+  height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #2a2a3e;
+  border: 2px solid #444;
+  border-radius: 8px;
+  position: relative;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.room:hover {
+  border-color: #666;
+  box-shadow: 0 0 15px rgba(255, 255, 255, 0.1);
+}
+
+.room.visited {
+  background: #3a3a4e;
+}
+
+.room.cleared {
+  background: #4a4a5e;
+}
+
+.room.current {
+  border-color: #ffd700;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.5);
+}
+
+.room.enemy {
+  background: #3a1a1a;
+  border-color: #8B0000;
+}
+
+.room.chest {
+  background: #3a3a1a;
+  border-color: #daa520;
+}
+
+.room.start {
+  background: #1a3a1a;
+  border-color: #228B22;
+}
+
+.roomIcon {
+  font-size: 32px;
+}
+
+.player {
+  position: absolute;
+  font-size: 24px;
+  bottom: 5px;
+  right: 5px;
+}
+
+.hallway {
+  position: absolute;
+  background: #333;
+}
+
+.hallwayHorizontal {
+  height: 10px;
+  width: 10px;
+}
+
+.hallwayVertical {
+  width: 10px;
+  height: 10px;
+}
+
+.hud {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  color: white;
+  font-family: 'Courier New', monospace;
+}
+
+.hudItem {
+  margin-bottom: 10px;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.controls {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  color: #888;
+  font-family: 'Courier New', monospace;
+  font-size: 14px;
+  text-align: center;
+}
+
+.exitButton {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  padding: 10px 20px;
+  background: #444;
+  color: white;
+  border: 2px solid #666;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  transition: all 0.2s ease;
+}
+
+.exitButton:hover {
+  background: #555;
+  border-color: #888;
+}
+
+.battleScreen {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: #8B0000;
+  position: relative;
+}
+
+.battleArena {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  width: 100%;
+  max-width: 600px;
+  padding: 40px;
+}
+
+.battleSide {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.playerCharacter {
+  width: 80px;
+  height: 80px;
+  background: #4169E1;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 48px;
+  border: 3px solid #1e3a5f;
+  box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
+}
+
+.playerCharacter.attacking {
+  animation: playerAttack 0.2s ease-in-out;
+}
+
+.playerCharacter.hurt {
+  animation: flashWhite 0.3s ease-in-out;
+}
+
+@keyframes playerAttack {
+  0% {
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(20px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+@keyframes flashWhite {
+  0%, 100% {
+    filter: brightness(1);
+  }
+  50% {
+    filter: brightness(3) saturate(0);
+  }
+}
+
+.attackButton {
+  padding: 15px 40px;
+  background: #8B0000;
+  color: white;
+  border: 3px solid #ff4444;
+  border-radius: 8px;
+  font-size: 20px;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+  transition: all 0.2s ease;
+  margin-top: 30px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.attackButton:hover:not(:disabled) {
+  background: #aa0000;
+  transform: translateY(-2px);
+}
+
+.attackButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hpDisplay {
+  color: white;
+  font-family: 'Courier New', monospace;
+  font-size: 18px;
+  text-align: center;
+}
+
+.hpBarLarge {
+  width: 100px;
+  height: 12px;
+  background: #333;
+  border: 2px solid #000;
+  margin-top: 5px;
+}
+
+.hpBarFill {
+  height: 100%;
+  background: #ff0000;
+  transition: width 0.3s ease;
+}
+
+.playerHpFill {
+  background: #00ff00;
+}
+
+.battleLog {
+  position: absolute;
+  bottom: 100px;
+  color: white;
+  font-family: 'Courier New', monospace;
+  font-size: 16px;
+  text-align: center;
+  min-height: 30px;
+}
+
+.vs {
+  font-size: 36px;
+  color: #ffd700;
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+}
+
+.fadeEnter {
+  opacity: 0;
+}
+
+.fadeEnterActive {
+  opacity: 1;
+  transition: opacity 0.5s ease;
+}
+
+.fadeExit {
+  opacity: 1;
+}
+
+.fadeExitActive {
+  opacity: 0;
+  transition: opacity 0.5s ease;
+}
+
+.rewardPopup {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #2a2a3e;
+  border: 3px solid #ffd700;
+  border-radius: 12px;
+  padding: 30px;
+  color: white;
+  font-family: 'Courier New', monospace;
+  text-align: center;
+  z-index: 100;
+  box-shadow: 0 0 40px rgba(255, 215, 0, 0.5);
+}
+
+.rewardIcon {
+  font-size: 48px;
+  margin-bottom: 15px;
+}
+
+.rewardText {
+  font-size: 20px;
+  margin-bottom: 20px;
+}
+
+.rewardButton {
+  padding: 10px 30px;
+  background: #ffd700;
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: 'Courier New', monospace;
+}
+
+.rewardButton:hover {
+  background: #ffed4a;
+}

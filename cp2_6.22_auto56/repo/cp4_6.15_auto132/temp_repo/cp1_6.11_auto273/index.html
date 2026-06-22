@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>沙漠商队 - 商旅征途</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: "KaiTi", "楷体", "STKaiti", serif;
+      background: linear-gradient(to bottom, #F5DEB3 0%, #E8D8A8 100%);
+    }
+
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      overflow: hidden;
+    }
+
+    #game-canvas {
+      display: block;
+      cursor: pointer;
+      touch-action: none;
+    }
+
+    #game-title {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 28px;
+      color: #3B1F0B;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+      z-index: 100;
+      letter-spacing: 4px;
+      font-weight: bold;
+    }
+
+    #status-bar {
+      position: absolute;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 30px;
+      padding: 12px 30px;
+      background: rgba(210, 180, 140, 0.85);
+      border: 3px solid #8B7355;
+      border-radius: 12px;
+      z-index: 100;
+      font-size: 16px;
+      color: #3B1F0B;
+    }
+
+    .status-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-icon {
+      font-size: 22px;
+    }
+
+    .status-bar-bg {
+      width: 100px;
+      height: 14px;
+      background: #5D4037;
+      border-radius: 7px;
+      overflow: hidden;
+      border: 1px solid #3B1F0B;
+    }
+
+    .status-bar-fill {
+      height: 100%;
+      transition: width 0.3s ease;
+      border-radius: 6px;
+    }
+
+    .water-fill {
+      background: linear-gradient(to right, #1E90FF, #00BFFF);
+    }
+
+    .food-fill {
+      background: linear-gradient(to right, #8B4513, #D2691E);
+    }
+
+    .morale-face {
+      font-size: 24px;
+    }
+
+    #event-popup {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 450px;
+      padding: 30px;
+      background: #F5DEB3;
+      border: 4px solid #D2B48C;
+      border-radius: 8px;
+      z-index: 200;
+      display: none;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    }
+
+    #event-popup::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 50px;
+      height: 50px;
+      background: #D2B48C;
+      clip-path: polygon(0 0, 100% 0, 0 100%);
+      border-radius: 4px 0 0 0;
+    }
+
+    #event-popup.visible {
+      display: block;
+      animation: popIn 0.3s ease-out;
+    }
+
+    @keyframes popIn {
+      from {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.8);
+      }
+      to {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+      }
+    }
+
+    .event-title {
+      font-size: 22px;
+      color: #3B1F0B;
+      margin-bottom: 15px;
+      font-weight: bold;
+    }
+
+    .event-desc {
+      font-size: 16px;
+      color: #3B1F0B;
+      margin-bottom: 20px;
+      line-height: 1.6;
+    }
+
+    .event-timer {
+      position: absolute;
+      right: 30px;
+      top: 30px;
+      font-size: 14px;
+      color: #8B4513;
+    }
+
+    .hourglass {
+      display: inline-block;
+      font-size: 20px;
+      animation: sandFall 1s ease-in-out infinite;
+    }
+
+    @keyframes sandFall {
+      0%, 100% { transform: rotate(0deg); }
+      50% { transform: rotate(180deg); }
+    }
+
+    .event-buttons {
+      display: flex;
+      gap: 15px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+
+    .event-btn {
+      padding: 12px 24px;
+      font-size: 16px;
+      font-family: inherit;
+      color: #F5DEB3;
+      background: #8B7355;
+      border: 2px solid #5D4037;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .event-btn:hover {
+      background: #D2B48C;
+      color: #3B1F0B;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+
+    .event-btn:active {
+      transform: translateY(0);
+    }
+
+    #result-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 300;
+    }
+
+    #result-screen.visible {
+      display: flex;
+    }
+
+    .result-badge {
+      width: 300px;
+      height: 300px;
+      position: relative;
+      animation: slideIn 1s ease-out;
+    }
+
+    @keyframes slideIn {
+      from {
+        transform: translateX(-200%) rotate(-30deg);
+        opacity: 0;
+      }
+      to {
+        transform: translateX(0) rotate(0deg);
+        opacity: 1;
+      }
+    }
+
+    .result-content {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: #3B1F0B;
+    }
+
+    .result-grade {
+      font-size: 48px;
+      font-weight: bold;
+      color: #8B4513;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .result-score {
+      font-size: 20px;
+      margin-top: 10px;
+    }
+
+    .result-details {
+      font-size: 14px;
+      margin-top: 15px;
+      line-height: 1.8;
+    }
+
+    .result-restart {
+      margin-top: 20px;
+      padding: 12px 30px;
+      font-size: 18px;
+      font-family: inherit;
+      color: #F5DEB3;
+      background: #8B7355;
+      border: 2px solid #5D4037;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .result-restart:hover {
+      background: #D2B48C;
+      color: #3B1F0B;
+      transform: translateY(-2px);
+    }
+
+    #start-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(to bottom, #F5DEB3 0%, #E8D8A8 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 400;
+    }
+
+    #start-screen.hidden {
+      display: none;
+    }
+
+    .start-title {
+      font-size: 48px;
+      color: #3B1F0B;
+      margin-bottom: 20px;
+      letter-spacing: 8px;
+      text-shadow: 3px 3px 6px rgba(0,0,0,0.2);
+    }
+
+    .start-subtitle {
+      font-size: 20px;
+      color: #8B4513;
+      margin-bottom: 40px;
+    }
+
+    .start-btn {
+      padding: 18px 60px;
+      font-size: 24px;
+      font-family: inherit;
+      color: #F5DEB3;
+      background: #8B7355;
+      border: 3px solid #5D4037;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      letter-spacing: 4px;
+    }
+
+    .start-btn:hover {
+      background: #D2B48C;
+      color: #3B1F0B;
+      transform: translateY(-3px);
+      box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+    }
+
+    .start-tips {
+      margin-top: 40px;
+      font-size: 14px;
+      color: #8B7355;
+      max-width: 400px;
+      text-align: center;
+      line-height: 1.8;
+    }
+
+    #mini-map-hint {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 14px;
+      color: #8B4513;
+      background: rgba(245, 222, 179, 0.8);
+      padding: 8px 20px;
+      border-radius: 20px;
+      z-index: 50;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <h1 id="game-title">沙漠商队 · 商旅征途</h1>
+
+    <div id="status-bar">
+      <div class="status-item">
+        <span class="status-icon">💧</span>
+        <span>水袋</span>
+        <div class="status-bar-bg">
+          <div class="status-bar-fill water-fill" id="water-bar" style="width: 100%"></div>
+        </div>
+        <span id="water-text">100%</span>
+      </div>
+      <div class="status-item">
+        <span class="status-icon">🍇</span>
+        <span>干粮</span>
+        <div class="status-bar-bg">
+          <div class="status-bar-fill food-fill" id="food-bar" style="width: 100%"></div>
+        </div>
+        <span id="food-text">100%</span>
+      </div>
+      <div class="status-item">
+        <span>士气</span>
+        <span class="morale-face" id="morale-face">😊</span>
+      </div>
+      <div class="status-item">
+        <span>🐫 骆驼</span>
+        <span id="camel-count">7</span>
+      </div>
+    </div>
+
+    <canvas id="game-canvas"></canvas>
+
+    <div id="event-popup">
+      <div class="event-timer">
+        <span class="hourglass">⏳</span>
+        <span id="event-time">15</span>秒
+      </div>
+      <div class="event-title" id="event-title">事件标题</div>
+      <div class="event-desc" id="event-desc">事件描述</div>
+      <div class="event-buttons" id="event-buttons"></div>
+    </div>
+
+    <div id="result-screen">
+      <div class="result-badge">
+        <svg viewBox="0 0 200 200" width="300" height="300">
+          <defs>
+            <linearGradient id="goldGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" style="stop-color:#FFD700"/>
+              <stop offset="50%" style="stop-color:#FFA500"/>
+              <stop offset="100%" style="stop-color:#FFD700"/>
+            </linearGradient>
+            <filter id="glow">
+              <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+              <feMerge>
+                <feMergeNode in="coloredBlur"/>
+                <feMergeNode in="SourceGraphic"/>
+              </feMerge>
+            </filter>
+          </defs>
+          <circle cx="100" cy="100" r="90" fill="url(#goldGradient)" filter="url(#glow)" stroke="#B8860B" stroke-width="4"/>
+          <circle cx="100" cy="100" r="70" fill="none" stroke="#FFF8DC" stroke-width="2"/>
+          <polygon points="100,20 108,40 130,40 112,55 120,75 100,62 80,75 88,55 70,40 92,40" fill="#FFD700" stroke="#B8860B" stroke-width="1"/>
+        </svg>
+        <div class="result-content">
+          <div class="result-grade" id="result-grade">S</div>
+          <div class="result-score" id="result-score">得分: 100</div>
+          <div class="result-details" id="result-details">
+            <div>存活骆驼: 7 峰</div>
+            <div>剩余水: 45%</div>
+            <div>剩余粮: 38%</div>
+          </div>
+          <button class="result-restart" id="restart-btn">再次出发</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="start-screen">
+      <div class="start-title">沙漠商队</div>
+      <div class="start-subtitle">—— 商旅征途 ——</div>
+      <button class="start-btn" id="start-btn">开始旅程</button>
+      <div class="start-tips">
+        你是一支商队的领队，带领骆驼队穿越茫茫沙漠。<br/>
+        点击地图规划路线，管理水和食物，应对随机事件。<br/>
+        抵达三个城镇即可完成旅程！
+      </div>
+    </div>
+
+    <div id="mini-map-hint">点击地图移动商队 · 双指缩放地图</div>
+  </div>
+
+  <script type="module" src="/src/game.ts"></script>
+</body>
+</html>

@@ -1,0 +1,333 @@
+.review-editor-page {
+  padding: 24px 32px;
+  min-height: 100vh;
+}
+
+.editor-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.editor-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0;
+}
+
+.submit-btn {
+  background: linear-gradient(135deg, #3498db, #2ecc71);
+  border: none;
+  border-radius: 24px;
+  height: 44px;
+  padding: 0 24px;
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(52, 152, 219, 0.3);
+  transition: all 0.3s ease;
+}
+
+.submit-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(52, 152, 219, 0.4);
+}
+
+.book-search-section {
+  margin-bottom: 24px;
+}
+
+.book-info-card {
+  border-radius: 16px !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.book-search-wrapper {
+  margin-bottom: 16px;
+}
+
+.selected-book-info {
+  display: flex;
+  gap: 20px;
+  padding: 16px;
+  background: linear-gradient(135deg, #f0f8ff, #f0fff4);
+  border-radius: 12px;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.selected-book-cover {
+  width: 80px;
+  height: 110px;
+  object-fit: cover;
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.selected-book-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.selected-book-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 8px 0;
+}
+
+.selected-book-author {
+  font-size: 14px;
+  color: #666;
+  margin: 0 0 4px 0;
+}
+
+.selected-book-isbn {
+  font-size: 12px;
+  color: #999;
+  margin: 0;
+}
+
+.editor-main {
+  display: flex;
+  gap: 24px;
+  align-items: flex-start;
+}
+
+.editor-left-panel {
+  width: 280px;
+  flex-shrink: 0;
+}
+
+.tags-card {
+  border-radius: 16px !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+}
+
+.tags-card .ant-card-head {
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.tags-card .ant-card-head-title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.tags-input-wrapper {
+  margin-bottom: 16px;
+}
+
+.tags-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  min-height: 32px;
+}
+
+.editor-tag {
+  background: linear-gradient(135deg, #3498db, #2ecc71) !important;
+  color: white !important;
+  border: none !important;
+  border-radius: 16px !important;
+  padding: 4px 14px !important;
+  font-size: 13px !important;
+}
+
+.editor-tag .anticon-close {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.editor-tag .anticon-close:hover {
+  color: white !important;
+}
+
+.tags-hint {
+  font-size: 12px;
+  color: #999;
+  margin: 0;
+}
+
+.editor-right-panel {
+  flex: 1;
+  min-width: 0;
+}
+
+.editor-container {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  display: flex;
+  min-height: 500px;
+}
+
+.editor-section,
+.preview-section {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-section {
+  border-right: 1px solid #f0f0f0;
+}
+
+.section-title {
+  padding: 16px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  background: #fafafa;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.review-textarea {
+  flex: 1;
+  border: none !important;
+  resize: none;
+  padding: 20px !important;
+  font-size: 14px;
+  line-height: 1.8;
+  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+}
+
+.review-textarea:focus {
+  box-shadow: none !important;
+}
+
+.markdown-preview {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.8;
+  color: #333;
+}
+
+.markdown-preview h1,
+.markdown-preview h2,
+.markdown-preview h3 {
+  margin-top: 20px;
+  margin-bottom: 12px;
+  font-weight: 600;
+  color: #1a1a2e;
+}
+
+.markdown-preview h1 {
+  font-size: 24px;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 8px;
+}
+
+.markdown-preview h2 {
+  font-size: 20px;
+}
+
+.markdown-preview h3 {
+  font-size: 16px;
+}
+
+.markdown-preview p {
+  margin-bottom: 12px;
+}
+
+.markdown-preview code {
+  background: #f5f7fa;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 13px;
+  color: #e74c3c;
+}
+
+.markdown-preview pre {
+  background: #f5f7fa;
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.markdown-preview pre code {
+  background: none;
+  padding: 0;
+  color: #333;
+}
+
+.markdown-preview blockquote {
+  border-left: 4px solid #3498db;
+  padding-left: 16px;
+  margin: 16px 0;
+  color: #666;
+  background: #f8f9fa;
+  padding: 12px 16px;
+  border-radius: 0 8px 8px 0;
+}
+
+.markdown-preview ul,
+.markdown-preview ol {
+  padding-left: 24px;
+  margin-bottom: 12px;
+}
+
+.markdown-preview li {
+  margin-bottom: 4px;
+}
+
+.markdown-preview a {
+  color: #3498db;
+  text-decoration: none;
+}
+
+.markdown-preview a:hover {
+  text-decoration: underline;
+}
+
+.markdown-preview img {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.markdown-preview hr {
+  border: none;
+  border-top: 1px solid #e8e8e8;
+  margin: 20px 0;
+}
+
+.preview-placeholder {
+  color: #ccc;
+  text-align: center;
+  padding: 40px 20px;
+  font-size: 14px;
+}
+
+@media (max-width: 1024px) {
+  .editor-main {
+    flex-direction: column;
+  }
+
+  .editor-left-panel {
+    width: 100%;
+  }
+
+  .editor-container {
+    flex-direction: column;
+  }
+
+  .editor-section {
+    border-right: none;
+    border-bottom: 1px solid #f0f0f0;
+  }
+}

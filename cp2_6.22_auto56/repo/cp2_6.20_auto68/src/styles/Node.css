@@ -1,0 +1,91 @@
+.timeline-node-wrapper {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+  cursor: pointer;
+}
+
+.timeline-node-dot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--bg-color);
+  border: 3px solid var(--node-color, #4a90d9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  position: relative;
+  z-index: 2;
+  transition: box-shadow 0.2s ease;
+}
+
+.timeline-node-dot:hover {
+  box-shadow: 0 0 0 4px var(--node-color, #4a90d9), 0 4px 12px var(--card-shadow);
+}
+
+.timeline-node-dot:active {
+  cursor: grabbing;
+}
+
+.timeline-node-dot-inner {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--node-color, #4a90d9);
+}
+
+.timeline-node-card {
+  position: absolute;
+  top: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 280px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  z-index: 20;
+  transform-origin: top center;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.timeline-node-card:hover {
+  transform: translateX(-50%) scale(1.05);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+}
+
+.timeline-node-image {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+  display: block;
+}
+
+.timeline-node-content {
+  padding: 16px;
+}
+
+.timeline-node-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333333;
+  margin: 0 0 8px 0;
+  line-height: 1.4;
+}
+
+.timeline-node-date {
+  font-size: 14px;
+  font-weight: 700;
+  color: #4a90d9;
+  margin: 0 0 12px 0;
+}
+
+.timeline-node-description {
+  font-size: 13px;
+  color: #666666;
+  margin: 0;
+  line-height: 1.6;
+  max-height: 80px;
+  overflow-y: auto;
+}

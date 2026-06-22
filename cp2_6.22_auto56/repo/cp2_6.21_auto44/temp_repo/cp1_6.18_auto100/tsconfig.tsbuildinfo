@@ -1,0 +1,1 @@
+{"root":["./src/main.tsx","./src/vite-env.d.ts","./src/components/dreameditor.tsx","./src/components/dreammap.tsx","./src/components/dreamtimeline.tsx","./src/components/navbar.tsx","./src/renderer/maprenderer.ts","./src/stores/dreamstore.ts"],"version":"5.8.3"}

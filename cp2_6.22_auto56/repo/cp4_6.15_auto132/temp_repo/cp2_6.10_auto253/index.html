@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>蚀月编年史 - Eclipse Moon Chronicles</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+
+    <div class="ui-panel moon-phase-indicator">
+      <span class="phase-text">月相进度</span>
+      <div class="phase-icons"></div>
+    </div>
+
+    <div class="ui-panel inventory-panel">
+      <h3 class="panel-title">光玉背包</h3>
+      <div class="orb-grid"></div>
+    </div>
+
+    <div class="ui-panel narrative-panel">
+      <h3 class="panel-title">叙事日志</h3>
+    </div>
+
+    <div class="hint-text">点击光玉收集 · 左键旋转视角 · 滚轮缩放</div>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

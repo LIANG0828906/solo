@@ -1,0 +1,137 @@
+.toolbar-panel {
+  position: absolute;
+  top: 50%;
+  left: 24px;
+  transform: translateY(-50%);
+  background-color: var(--bg-toolbar);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  z-index: 100;
+}
+
+.toolbar-group {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-icon {
+  width: 44px;
+  height: 44px;
+  border: none;
+  background: transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-secondary);
+  transition: all 250ms ease-out;
+}
+
+.toolbar-icon:hover {
+  background: rgba(108, 92, 231, 0.1);
+  color: var(--brand-color);
+}
+
+.toolbar-icon.active {
+  background: rgba(108, 92, 231, 0.15);
+  color: var(--brand-color);
+}
+
+.toolbar-export {
+  background: var(--brand-color);
+  color: white;
+}
+
+.toolbar-export:hover {
+  background: var(--brand-color-light);
+  color: white;
+  transform: scale(1.05);
+}
+
+.toolbar-items {
+  position: absolute;
+  left: 60px;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--bg-toolbar);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-md);
+  padding: 8px;
+  min-width: 120px;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-8px);
+  transition: all 250ms ease-out;
+}
+
+.toolbar-items.expanded {
+  max-height: 400px;
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  overflow-y: auto;
+}
+
+.toolbar-item {
+  padding: 8px 12px;
+  border: none;
+  background: transparent;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: all 250ms ease-out;
+  white-space: nowrap;
+}
+
+.toolbar-item:hover {
+  background: rgba(108, 92, 231, 0.2);
+  color: var(--brand-color);
+}
+
+.active-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--brand-color);
+}
+
+@media (max-width: 768px) {
+  .toolbar-panel {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: auto;
+    transform: none;
+    flex-direction: row;
+    justify-content: space-around;
+    padding: 8px 16px;
+    border-radius: var(--radius-md) var(--radius-md) 0 0;
+    width: 100%;
+  }
+
+  .toolbar-items {
+    position: fixed;
+    left: 16px;
+    right: 16px;
+    bottom: 80px;
+    top: auto;
+    flex-direction: row;
+    flex-wrap: wrap;
+  }
+}

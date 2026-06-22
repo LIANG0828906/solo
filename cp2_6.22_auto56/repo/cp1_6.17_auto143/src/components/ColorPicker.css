@@ -1,0 +1,75 @@
+.color-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.color-picker__controls {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.color-picker__lightness {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.color-picker__lightness label {
+  font-size: 12px;
+  color: #2c3e50;
+  min-width: 36px;
+}
+
+.color-picker__lightness input[type='range'] {
+  flex: 1;
+  height: 8px;
+  border-radius: 4px;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+}
+
+.color-picker__lightness input[type='range']::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #2c3e50;
+  cursor: pointer;
+}
+
+.color-picker__hex {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.color-picker__hex label {
+  font-size: 12px;
+  color: #2c3e50;
+  min-width: 36px;
+}
+
+.color-picker__hex input {
+  flex: 1;
+  padding: 6px 10px;
+  border: 1px solid #e8d5b7;
+  border-radius: 6px;
+  font-size: 13px;
+  font-family: monospace;
+  background: #fffdf7;
+  color: #2c3e50;
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.color-picker__hex input:focus {
+  border-color: #e67e22;
+}

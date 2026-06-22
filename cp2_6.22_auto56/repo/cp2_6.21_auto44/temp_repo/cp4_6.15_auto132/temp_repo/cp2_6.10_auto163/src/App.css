@@ -1,0 +1,203 @@
+.game-container {
+  width: 100%;
+  height: 100%;
+  min-height: 100vh;
+  display: flex;
+  align-items: stretch;
+  justify-content: center;
+  background: var(--color-dark-red-dark);
+  position: relative;
+  overflow: hidden;
+}
+
+.game-container::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: 
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.03) 2px,
+      rgba(0, 0, 0, 0.03) 4px
+    ),
+    repeating-linear-gradient(
+      -45deg,
+      transparent,
+      transparent 2px,
+      rgba(0, 0, 0, 0.02) 2px,
+      rgba(0, 0, 0, 0.02) 4px
+    );
+  pointer-events: none;
+}
+
+.game-layout {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  max-width: 1600px;
+  position: relative;
+  z-index: 1;
+}
+
+.left-panel {
+  width: 30%;
+  min-width: 280px;
+  height: 100%;
+}
+
+.center-panel {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.table-border {
+  width: 95%;
+  height: 95%;
+  max-width: 600px;
+  max-height: 700px;
+  border: 8px solid;
+  border-image: linear-gradient(
+    135deg,
+    #8b6914 0%,
+    #b8860b 25%,
+    #daa520 50%,
+    #b8860b 75%,
+    #5a420d 100%
+  ) 1;
+  border-radius: 24px;
+  padding: 4px;
+  background: linear-gradient(135deg, #4a350a 0%, #2a1810 100%);
+  box-shadow:
+    inset 0 0 50px rgba(0, 0, 0, 0.5),
+    0 0 30px rgba(0, 0, 0, 0.6),
+    0 20px 60px rgba(0, 0, 0, 0.5);
+  position: relative;
+}
+
+.table-border::before {
+  content: '';
+  position: absolute;
+  inset: -16px;
+  border: 4px solid #4a350a;
+  border-radius: 32px;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 20px rgba(0, 0, 0, 0.3),
+    0 0 20px rgba(0, 0, 0, 0.4);
+}
+
+.table-inner {
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(ellipse at center, #9c3d3d 0%, #7a2d2d 40%, #5a1d1d 100%);
+  border-radius: 16px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.table-inner::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: 
+    repeating-linear-gradient(
+      45deg,
+      transparent,
+      transparent 8px,
+      rgba(0, 0, 0, 0.04) 8px,
+      rgba(0, 0, 0, 0.04) 16px
+    );
+  pointer-events: none;
+}
+
+.table-inner::after {
+  content: '臨安骰局';
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: var(--font-display);
+  font-size: 24px;
+  color: rgba(184, 134, 11, 0.3);
+  letter-spacing: 8px;
+  pointer-events: none;
+}
+
+.right-panel {
+  width: 30%;
+  min-width: 280px;
+  height: 100%;
+}
+
+@media (max-width: 1024px) {
+  .game-layout {
+    flex-direction: column;
+    height: auto;
+    min-height: 100vh;
+  }
+
+  .left-panel,
+  .right-panel {
+    width: 100%;
+    min-width: auto;
+    height: auto;
+  }
+
+  .center-panel {
+    min-height: 400px;
+    order: -1;
+  }
+
+  .left-panel {
+    order: 0;
+  }
+
+  .right-panel {
+    order: 1;
+  }
+
+  .table-border {
+    max-height: 500px;
+  }
+}
+
+@media (max-width: 768px) {
+  .game-container {
+    overflow: auto;
+  }
+
+  .game-layout {
+    min-height: auto;
+  }
+
+  .center-panel {
+    min-height: 350px;
+    padding: 10px 0;
+  }
+
+  .table-border {
+    width: 90%;
+    max-height: 400px;
+    border-width: 6px;
+  }
+
+  .table-border::before {
+    inset: -12px;
+    border-width: 3px;
+  }
+
+  .table-inner::after {
+    font-size: 18px;
+    letter-spacing: 6px;
+    top: 15px;
+  }
+}

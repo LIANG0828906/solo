@@ -1,0 +1,25 @@
+[
+  {
+    "id": "b265208f-527a-4d51-b833-017919db75ad",
+    "title": "???????",
+    "description": "????????????,????????,??????????????????!",
+    "imageUrl": "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?w=800",
+    "ratings": [
+      {
+        "ip": "::1",
+        "score": 5,
+        "timestamp": 1781517132087
+      }
+    ],
+    "comments": [
+      {
+        "id": "b399913f-65ae-48ac-b2f3-6ff49b400c4b",
+        "content": "???????!?????!",
+        "anonymousId": 1,
+        "color": "#0f3460",
+        "timestamp": 1781517132089
+      }
+    ],
+    "createdAt": 1781517132075
+  }
+]

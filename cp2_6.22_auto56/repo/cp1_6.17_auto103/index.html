@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>抽象水彩画体验器</title>
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+  <div id="toolbar">
+    <div id="color-palette">
+      <div class="color-dot selected" data-color="#FF7F7F" style="background-color: #FF7F7F;"></div>
+      <div class="color-dot" data-color="#7EC8E3" style="background-color: #7EC8E3;"></div>
+      <div class="color-dot" data-color="#7CB342" style="background-color: #7CB342;"></div>
+      <div class="color-dot" data-color="#FFD54F" style="background-color: #FFD54F;"></div>
+    </div>
+    <button id="clear-btn" title="清空画布">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+        <path d="M4 4L12 12M12 4L4 12" stroke="#8B7E6A" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+    </button>
+  </div>
+  <canvas id="canvas"></canvas>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

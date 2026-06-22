@@ -1,0 +1,74 @@
+.timer-container {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  margin-bottom: 16px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+}
+
+.timer-container.urgent {
+  background: linear-gradient(135deg, #fff5f5, #ffe8e8);
+  animation: pulse 1s ease-in-out infinite;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    box-shadow: 0 2px 8px rgba(255, 71, 87, 0.1);
+  }
+  50% {
+    box-shadow: 0 4px 16px rgba(255, 71, 87, 0.2);
+  }
+}
+
+.timer-label {
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 8px;
+}
+
+.timer-display {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.timer-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #333;
+  font-variant-numeric: tabular-nums;
+}
+
+.urgent .timer-value {
+  color: #ff4757;
+}
+
+.timer-separator {
+  font-size: 14px;
+  color: #666;
+  margin: 0 4px;
+}
+
+.urgent .timer-separator {
+  color: #ff4757;
+}
+
+.timer-urgent-text {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #ff4757;
+  font-weight: 500;
+  animation: blink 1s ease-in-out infinite;
+}
+
+@keyframes blink {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}

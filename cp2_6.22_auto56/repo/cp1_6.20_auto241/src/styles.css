@@ -1,0 +1,402 @@
+@import url('https://fonts.googleapis.com/css2?family=Dancing+Script:wght@400;700&display=swap');
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: linear-gradient(180deg, #0d1b2a 0%, #1b2838 100%);
+  color: #e0e0e0;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+.app-container {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 40px 20px 80px;
+}
+
+.app-header {
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.app-title {
+  font-family: 'Dancing Script', cursive;
+  font-size: 52px;
+  font-weight: 700;
+  background: linear-gradient(135deg, #ff6b6b, #ffd93d, #6c5ce7, #74b9ff);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  animation: gradientShift 6s ease infinite;
+  margin-bottom: 8px;
+  letter-spacing: 2px;
+}
+
+@keyframes gradientShift {
+  0%,
+  100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.app-subtitle {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 300;
+  letter-spacing: 1px;
+}
+
+.input-section {
+  margin-bottom: 40px;
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+  padding: 28px;
+}
+
+.input-label {
+  display: block;
+  font-size: 14px;
+  color: rgba(255, 255, 255, 0.6);
+  margin-bottom: 12px;
+  letter-spacing: 0.5px;
+}
+
+.poem-textarea {
+  width: 100%;
+  min-height: 220px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  color: #e0e0e0;
+  font-size: 16px;
+  font-family: 'Dancing Script', cursive;
+  line-height: 2;
+  resize: vertical;
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+
+.poem-textarea:focus {
+  border-color: rgba(108, 92, 231, 0.5);
+}
+
+.poem-textarea::placeholder {
+  color: rgba(255, 255, 255, 0.25);
+}
+
+.error-text {
+  color: #ff6b6b;
+  font-size: 13px;
+  margin-top: 8px;
+  padding-left: 4px;
+}
+
+.button-row {
+  margin-top: 16px;
+  display: flex;
+  justify-content: center;
+}
+
+.generate-btn {
+  position: relative;
+  overflow: hidden;
+  padding: 12px 36px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #6c5ce7, #a29bfe);
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  letter-spacing: 1px;
+}
+
+.generate-btn:hover {
+  background: linear-gradient(135deg, #a29bfe, #6c5ce7);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(108, 92, 231, 0.35);
+}
+
+.generate-btn:active {
+  transform: translateY(0);
+}
+
+.generate-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.35);
+  transform: translate(-50%, -50%) scale(0);
+  animation: rippleEffect 0.6s ease-out;
+  pointer-events: none;
+  width: 200px;
+  height: 200px;
+}
+
+@keyframes rippleEffect {
+  to {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0;
+  }
+}
+
+.poetry-scroll-wrapper {
+  position: relative;
+}
+
+.scroll-controls {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 24px;
+}
+
+.control-btn {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.control-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-1px);
+}
+
+.control-btn svg {
+  flex-shrink: 0;
+}
+
+.export-btn {
+  border-radius: 10px;
+}
+
+.poetry-scroll {
+  max-width: 900px;
+  margin: 0 auto;
+  scroll-behavior: smooth;
+}
+
+.poem-line-item {
+  display: flex;
+  align-items: center;
+  gap: 28px;
+  padding: 20px 0;
+  opacity: 0;
+  animation: fadeInUp 0.5s ease forwards;
+  transition: background-color 0.3s ease;
+  border-radius: 12px;
+  position: relative;
+}
+
+.poem-line-item.active {
+  background-color: rgba(255, 234, 167, 0.12);
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.art-image-wrapper {
+  flex-shrink: 0;
+  width: 280px;
+  height: 280px;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.art-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  animation: artFadeIn 0.5s ease forwards;
+  opacity: 0;
+}
+
+@keyframes artFadeIn {
+  from {
+    opacity: 0;
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+  }
+}
+
+.poem-text-card {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.07);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 12px;
+  padding: 20px 24px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  position: relative;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.3s ease;
+}
+
+.poem-line-item.active .poem-text-card {
+  background: rgba(255, 234, 167, 0.15);
+  border-color: rgba(255, 234, 167, 0.25);
+  box-shadow: 0 4px 20px rgba(255, 234, 167, 0.1);
+}
+
+.poem-text {
+  font-family: 'Dancing Script', cursive;
+  font-size: 20px;
+  line-height: 1.8;
+  color: rgba(255, 255, 255, 0.9);
+  flex: 1;
+}
+
+.sentiment-badge {
+  font-size: 18px;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.sentiment-badge[data-sentiment='positive'] {
+  background: rgba(255, 107, 107, 0.15);
+}
+
+.sentiment-badge[data-sentiment='negative'] {
+  background: rgba(108, 92, 231, 0.15);
+}
+
+.line-divider {
+  position: absolute;
+  bottom: 0;
+  left: 20px;
+  right: 20px;
+  height: 1px;
+  border-top: 1px dashed #495057;
+}
+
+.export-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(13, 27, 42, 0.85);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  gap: 16px;
+}
+
+.export-overlay p {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
+.export-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: #a29bfe;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (max-width: 600px) {
+  .app-container {
+    padding: 24px 12px 60px;
+  }
+
+  .app-title {
+    font-size: 36px;
+  }
+
+  .poem-line-item {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .art-image-wrapper {
+    width: 100%;
+    max-width: 280px;
+    height: auto;
+    aspect-ratio: 1;
+  }
+
+  .poem-text-card {
+    width: 100%;
+  }
+
+  .glass-card {
+    padding: 20px 16px;
+  }
+}

@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>跨平台内容发布管理</title>
+    <style>
+      body { margin: 0; background: #111827; }
+      #root { min-height: 100vh; }
+      .app-loader {
+        display: flex; align-items: center; justify-content: center;
+        min-height: 100vh; background: #111827;
+      }
+      .app-loader svg { animation: spin 1s linear infinite; }
+      @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    </style>
+  </head>
+  <body>
+    <div id="root">
+      <div class="app-loader">
+        <svg width="48" height="48" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="24" r="20" stroke="#6366F1" stroke-width="4" stroke-linecap="round" stroke-dasharray="80 50" />
+        </svg>
+      </div>
+    </div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

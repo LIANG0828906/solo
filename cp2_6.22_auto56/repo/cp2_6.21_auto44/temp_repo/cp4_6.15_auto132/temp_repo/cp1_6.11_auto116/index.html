@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>音流幻境</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: radial-gradient(ellipse at center, #1A0033 0%, #000000 100%);
+      color: #fff;
+    }
+
+    #app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+    }
+
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    .overlay {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      pointer-events: none;
+    }
+
+    .title {
+      text-align: center;
+      padding: 40px 20px 20px;
+      font-size: 42px;
+      font-weight: 300;
+      letter-spacing: 12px;
+      background: linear-gradient(135deg, #00FFFF 0%, #FF69B4 50%, #8A2BE2 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: 0 0 40px rgba(138, 43, 226, 0.5);
+    }
+
+    .main-content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      pointer-events: auto;
+    }
+
+    .file-drop-area {
+      width: 100%;
+      max-width: 480px;
+      padding: 50px 30px;
+      border: 2px dashed rgba(255, 255, 255, 0.2);
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-color: rgba(255, 255, 255, 0.15);
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 20px rgba(255, 255, 255, 0.05);
+    }
+
+    .file-drop-area:hover {
+      border-color: rgba(0, 255, 255, 0.5);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 30px rgba(0, 255, 255, 0.2);
+    }
+
+    .file-drop-area.dragover {
+      border-color: #00FFFF;
+      animation: borderPulse 0.8s ease-in-out infinite;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 40px rgba(0, 255, 255, 0.4);
+    }
+
+    @keyframes borderPulse {
+      0%, 100% { border-color: #00FFFF; }
+      50% { border-color: rgba(0, 255, 255, 0.5); }
+    }
+
+    .file-drop-area .icon {
+      font-size: 48px;
+      margin-bottom: 16px;
+      opacity: 0.8;
+    }
+
+    .file-drop-area .text {
+      font-size: 16px;
+      color: rgba(255, 255, 255, 0.85);
+      letter-spacing: 2px;
+    }
+
+    .file-drop-area .hint {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.5);
+      margin-top: 8px;
+    }
+
+    .file-info {
+      margin-top: 16px;
+      padding: 12px 20px;
+      background: rgba(0, 255, 255, 0.1);
+      border-radius: 8px;
+      font-size: 14px;
+      color: #00FFFF;
+      display: none;
+    }
+
+    .file-info.show {
+      display: inline-block;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 30px;
+      margin-top: 40px;
+      padding: 20px 40px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 50px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3), 0 0 20px rgba(255, 255, 255, 0.05);
+    }
+
+    .play-btn {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      border: none;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      color: #fff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      box-shadow: 0 0 20px rgba(255, 255, 255, 0.2), inset 0 0 20px rgba(255, 255, 255, 0.05);
+    }
+
+    .play-btn:hover {
+      box-shadow: 0 0 30px rgba(0, 255, 255, 0.4), inset 0 0 20px rgba(0, 255, 255, 0.1);
+    }
+
+    .play-btn:active {
+      transform: scale(0.9);
+      background: rgba(0, 255, 255, 0.2);
+      color: #00FFFF;
+    }
+
+    .play-btn svg {
+      width: 24px;
+      height: 24px;
+      fill: currentColor;
+    }
+
+    .volume-control {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .volume-icon {
+      width: 20px;
+      height: 20px;
+      opacity: 0.7;
+    }
+
+    .volume-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 160px;
+      height: 6px;
+      border-radius: 3px;
+      background: linear-gradient(90deg, rgba(0, 255, 255, 0.3) 0%, rgba(255, 105, 180, 0.3) 100%);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .volume-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.8), 0 0 30px rgba(0, 255, 255, 0.4);
+      transition: all 0.2s ease;
+    }
+
+    .volume-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 20px rgba(255, 105, 180, 0.8), 0 0 40px rgba(255, 105, 180, 0.4);
+    }
+
+    .volume-slider::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.8), 0 0 30px rgba(0, 255, 255, 0.4);
+    }
+
+    .spectrum-container {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 4px;
+      align-items: flex-end;
+      z-index: 10;
+      pointer-events: none;
+    }
+
+    .spectrum-bar {
+      width: 10px;
+      height: 4px;
+      background: linear-gradient(to top, #00FFFF 0%, #FF69B4 100%);
+      border-radius: 2px 2px 0 0;
+      box-shadow: 0 0 8px rgba(0, 255, 255, 0.5), 0 -2px 8px rgba(255, 105, 180, 0.3);
+      transition: height 0.05s ease-out;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 768px) {
+      #canvas-container {
+        height: 60%;
+      }
+
+      .overlay {
+        height: auto;
+      }
+
+      .title {
+        font-size: 28px;
+        letter-spacing: 8px;
+        padding: 20px 10px 10px;
+      }
+
+      .main-content {
+        justify-content: flex-start;
+        padding-top: 10px;
+      }
+
+      .file-drop-area {
+        max-width: 90%;
+        padding: 30px 20px;
+      }
+
+      .file-drop-area .icon {
+        font-size: 36px;
+      }
+
+      .file-drop-area .text {
+        font-size: 14px;
+      }
+
+      .controls {
+        gap: 20px;
+        padding: 15px 25px;
+        margin-top: 25px;
+      }
+
+      .play-btn {
+        width: 50px;
+        height: 50px;
+      }
+
+      .play-btn svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      .volume-slider {
+        width: 120px;
+      }
+
+      .spectrum-container {
+        bottom: 20px;
+      }
+
+      .spectrum-bar {
+        width: 8px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    <div class="overlay">
+      <h1 class="title">音流幻境</h1>
+      <div class="main-content">
+        <div class="file-drop-area" id="fileDropArea">
+          <div class="icon">🎵</div>
+          <div class="text">点击或拖拽选择音乐文件</div>
+          <div class="hint">支持 MP3 / WAV 格式</div>
+          <div class="file-info" id="fileInfo"></div>
+        </div>
+        <input type="file" id="fileInput" accept="audio/mp3,audio/wav,audio/mpeg,audio/x-wav,.mp3,.wav" style="display:none" />
+        <div class="controls hidden" id="controls">
+          <button class="play-btn" id="playBtn" aria-label="播放">
+            <svg id="playIcon" viewBox="0 0 24 24">
+              <path d="M8 5v14l11-7z"/>
+            </svg>
+            <svg id="pauseIcon" viewBox="0 0 24 24" style="display:none">
+              <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/>
+            </svg>
+          </button>
+          <div class="volume-control">
+            <svg class="volume-icon" viewBox="0 0 24 24" fill="#fff">
+              <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
+            </svg>
+            <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="70" />
+          </div>
+        </div>
+      </div>
+      <div class="spectrum-container" id="spectrumContainer"></div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,41 @@
+:root {
+  --color-dark-red: #8b3a3a;
+  --color-dark-red-light: #a04a4a;
+  --color-dark-red-dark: #6b2a2a;
+  --color-bronze: #b8860b;
+  --color-bronze-light: #d4a017;
+  --color-bronze-dark: #8b6508;
+  --color-gray: #6b6b6b;
+  --color-gray-light: #8a8a8a;
+  --color-gray-dark: #4a4a4a;
+  --color-ivory: #f5f0e0;
+  --color-ivory-dark: #e5e0d0;
+  --color-linen: #faf6ed;
+  --color-ink: #2a1810;
+  --color-gold: #ffd700;
+  --color-gold-dark: #daa520;
+  --color-win: #2e7d32;
+  --color-lose: #c62828;
+
+  --font-display: 'Ma Shan Zheng', 'ZCOOL KuaiLe', cursive;
+  --font-body: 'Noto Serif SC', 'SimSun', serif;
+
+  --animation-shake: 3000ms;
+  --animation-dice-pop: 500ms;
+  --animation-chip-fly: 600ms;
+  --animation-number-roll: 800ms;
+  --animation-particle: 1000ms;
+
+  --shadow-soft: 0 4px 12px rgba(0, 0, 0, 0.15);
+  --shadow-medium: 0 8px 24px rgba(0, 0, 0, 0.25);
+  --shadow-hard: 0 12px 36px rgba(0, 0, 0, 0.35);
+
+  --radius-small: 4px;
+  --radius-medium: 8px;
+  --radius-large: 16px;
+  --radius-full: 9999px;
+
+  --border-width-thin: 1px;
+  --border-width-medium: 2px;
+  --border-width-thick: 4px;
+}

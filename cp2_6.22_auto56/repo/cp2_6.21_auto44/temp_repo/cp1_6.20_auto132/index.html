@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>自走棋对战模拟器</title>
+  <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Source+Sans+3:wght@300;400;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-deep: #0a1628;
+      --bg-panel: #0d1b2e;
+      --bg-card: #111d33;
+      --border: #1a3050;
+      --accent: #00d4ff;
+      --accent-dim: #007799;
+      --text: #c8d8e8;
+      --text-dim: #6a8aaa;
+      --red: #ff4444;
+      --gold: #ffd700;
+      --green: #00ff88;
+      --purple: #9b59b6;
+    }
+
+    body {
+      background: var(--bg-deep);
+      color: var(--text);
+      font-family: 'Source Sans 3', 'Rajdhani', sans-serif;
+      overflow: hidden;
+      height: 100vh;
+      width: 100vw;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    #topBar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 16px;
+      background: var(--bg-panel);
+      border-bottom: 1px solid var(--border);
+      min-height: 48px;
+      flex-shrink: 0;
+    }
+
+    #topBar .title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: 1px;
+    }
+
+    #topBar .info-group {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    #topBar .info-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 16px;
+      font-weight: 600;
+    }
+
+    #topBar .info-item .label {
+      color: var(--text-dim);
+      font-weight: 400;
+    }
+
+    #goldDisplay { color: var(--gold); font-size: 18px; }
+    #roundDisplay { color: var(--accent); }
+    #phaseDisplay { color: var(--green); font-size: 14px; }
+    #streakDisplay { font-size: 14px; }
+
+    #startBtn {
+      padding: 6px 20px;
+      background: linear-gradient(135deg, #004466, #002244);
+      border: 1.5px solid var(--accent);
+      border-radius: 8px;
+      color: var(--accent);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    #startBtn:hover:not(.disabled) {
+      background: linear-gradient(135deg, #005577, #003355);
+      box-shadow: 0 0 12px rgba(0,212,255,0.3);
+    }
+
+    #startBtn.disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    #mainArea {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    #leftPanel {
+      width: 220px;
+      background: var(--bg-panel);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: width 0.3s, opacity 0.3s;
+    }
+
+    #leftPanel.collapsed {
+      width: 0;
+      overflow: hidden;
+      opacity: 0;
+    }
+
+    .panel-header {
+      padding: 8px 12px;
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    #heroPool {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      align-content: start;
+    }
+
+    #heroPool::-webkit-scrollbar { width: 4px; }
+    #heroPool::-webkit-scrollbar-track { background: var(--bg-panel); }
+    #heroPool::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .hero-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .hero-card:hover {
+      border-color: var(--accent);
+      background: #152540;
+      transform: scale(1.05);
+      box-shadow: 0 0 10px rgba(0,212,255,0.15);
+    }
+
+    .hero-card.selected {
+      border-color: var(--gold);
+      background: #1a2a10;
+      box-shadow: 0 0 12px rgba(255,215,0,0.2);
+    }
+
+    .hero-emoji { font-size: 24px; }
+    .hero-name { font-size: 11px; font-weight: 600; text-align: center; }
+    .hero-cost { font-size: 11px; color: var(--gold); }
+
+    .hero-tags {
+      display: flex;
+      gap: 3px;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    .tag {
+      font-size: 9px;
+      padding: 1px 4px;
+      border-radius: 3px;
+      border: 1px solid;
+      background: rgba(0,0,0,0.3);
+    }
+
+    .tag-role { color: inherit; }
+    .tag-race { color: inherit; }
+
+    #canvasContainer {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #rightPanel {
+      width: 200px;
+      background: var(--bg-panel);
+      border-left: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+      transition: width 0.3s, opacity 0.3s;
+    }
+
+    #rightPanel.collapsed {
+      width: 0;
+      overflow: hidden;
+      opacity: 0;
+    }
+
+    #synergyPanel {
+      padding: 8px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    .synergy-title {
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 6px;
+    }
+
+    .synergy-empty {
+      font-size: 11px;
+      color: var(--text-dim);
+    }
+
+    .synergy-item {
+      padding: 5px 8px;
+      border-left: 3px solid;
+      border-radius: 0 4px 4px 0;
+      margin-bottom: 4px;
+      background: rgba(0,0,0,0.2);
+      font-size: 11px;
+    }
+
+    .synergy-item.active {
+      background: rgba(0,212,255,0.05);
+    }
+
+    .synergy-item.inactive {
+      opacity: 0.5;
+    }
+
+    .synergy-name { font-weight: 600; }
+    .synergy-count { margin-left: 6px; color: var(--text-dim); }
+    .synergy-effect { display: block; font-size: 10px; color: var(--green); margin-top: 2px; }
+
+    .hero-tooltip {
+      position: fixed;
+      background: var(--bg-panel);
+      border: 1px solid var(--accent);
+      border-radius: 8px;
+      padding: 10px 14px;
+      min-width: 180px;
+      z-index: 1000;
+      display: none;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.6);
+    }
+
+    .tt-name { font-family: 'Rajdhani', sans-serif; font-size: 16px; font-weight: 700; color: var(--accent); margin-bottom: 4px; }
+    .tt-cost { color: var(--gold); font-size: 13px; margin-bottom: 2px; }
+    .tt-stat { color: var(--text); font-size: 12px; }
+    .tt-skill { color: var(--purple); font-size: 12px; margin-top: 4px; }
+    .tt-tags { font-size: 12px; margin-top: 4px; }
+
+    .toast {
+      position: fixed;
+      top: 60px;
+      left: 50%;
+      transform: translateX(-50%) translateY(-20px);
+      background: var(--bg-panel);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      padding: 8px 20px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-family: 'Rajdhani', sans-serif;
+      opacity: 0;
+      transition: all 0.3s;
+      z-index: 999;
+      pointer-events: none;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
+
+    .next-round-btn {
+      position: absolute;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      padding: 10px 30px;
+      background: linear-gradient(135deg, #004466, #002244);
+      border: 2px solid var(--accent);
+      border-radius: 10px;
+      color: var(--accent);
+      font-family: 'Rajdhani', sans-serif;
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      animation: fadeInUp 0.5s ease;
+    }
+
+    .next-round-btn:hover {
+      background: linear-gradient(135deg, #005577, #003355);
+      box-shadow: 0 0 20px rgba(0,212,255,0.4);
+    }
+
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateX(-50%) translateY(10px); }
+      to { opacity: 1; transform: translateX(-50%) translateY(0); }
+    }
+
+    .panel-toggle {
+      position: absolute;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 24px;
+      height: 48px;
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      color: var(--accent);
+      font-size: 14px;
+      cursor: pointer;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+    }
+
+    #leftPanelToggle { left: 0; border-left: none; border-radius: 0 6px 6px 0; }
+    #rightPanelToggle { right: 0; border-right: none; border-radius: 6px 0 0 6px; }
+
+    @media (max-width: 768px) {
+      #leftPanel {
+        position: absolute;
+        left: 0;
+        top: 48px;
+        bottom: 0;
+        z-index: 20;
+        width: 220px;
+      }
+      #leftPanel.collapsed { width: 0; }
+      #rightPanel {
+        position: absolute;
+        right: 0;
+        top: 48px;
+        bottom: 0;
+        z-index: 20;
+        width: 200px;
+      }
+      #rightPanel.collapsed { width: 0; }
+      .panel-toggle { display: flex; }
+      #leftPanelToggle { display: flex; left: 0; top: 56px; }
+      #rightPanelToggle { display: flex; right: 0; top: 56px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="topBar">
+      <span class="title">⚔️ 自走棋模拟器</span>
+      <div class="info-group">
+        <span class="info-item"><span class="label">阶段</span> <span id="phaseDisplay">准备阶段</span></span>
+        <span class="info-item"><span class="label">回合</span> <span id="roundDisplay">1</span></span>
+        <span class="info-item">💰 <span id="goldDisplay">10</span></span>
+        <span class="info-item" id="streakDisplay"></span>
+        <button id="startBtn">⚔️ 开始战斗</button>
+      </div>
+    </div>
+    <div id="mainArea">
+      <div id="leftPanel">
+        <div class="panel-header">🛒 英雄池</div>
+        <div id="heroPool"></div>
+      </div>
+      <div id="canvasContainer">
+        <canvas id="gameCanvas"></canvas>
+        <button class="panel-toggle" id="leftPanelToggle">◀</button>
+        <button class="panel-toggle" id="rightPanelToggle">▶</button>
+      </div>
+      <div id="rightPanel">
+        <div class="panel-header">🔥 羁绊信息</div>
+        <div id="synergyPanel"></div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

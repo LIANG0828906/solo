@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>行星引力弹弓效应模拟器</title>
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+  <canvas id="scene"></canvas>
+
+  <div id="info-panel" class="panel info-panel">
+    <div class="info-row">
+      <span class="info-label">当前速度</span>
+      <span id="info-speed" class="info-value info-speed">0 px/s</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">距离行星</span>
+      <span id="info-distance" class="info-value info-distance">0 px</span>
+    </div>
+    <div class="info-row">
+      <span class="info-label">轨道类型</span>
+      <span id="info-orbit" class="info-value info-orbit">—</span>
+    </div>
+  </div>
+
+  <div id="control-panel" class="panel control-panel">
+    <h2 class="panel-title">发射参数</h2>
+
+    <div class="slider-group">
+      <div class="slider-header">
+        <label for="slider-speed">初始速度</label>
+        <span id="value-speed" class="slider-value">150</span>
+      </div>
+      <input
+        id="slider-speed"
+        type="range"
+        min="50"
+        max="300"
+        step="10"
+        value="150"
+        class="slider"
+      />
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-header">
+        <label for="slider-angle">发射角度</label>
+        <span id="value-angle" class="slider-value">0°</span>
+      </div>
+      <input
+        id="slider-angle"
+        type="range"
+        min="-90"
+        max="90"
+        step="1"
+        value="0"
+        class="slider"
+      />
+    </div>
+
+    <div class="slider-group">
+      <div class="slider-header">
+        <label for="slider-mass">行星质量</label>
+        <span id="value-mass" class="slider-value">100</span>
+      </div>
+      <input
+        id="slider-mass"
+        type="range"
+        min="50"
+        max="200"
+        step="10"
+        value="100"
+        class="slider"
+      />
+    </div>
+
+    <button id="btn-reset" class="reset-btn">重置发射</button>
+  </div>
+
+  <div id="success-toast" class="success-toast hidden">弹弓加速成功</div>
+
+  <script type="module" src="./src/main.ts"></script>
+</body>
+</html>

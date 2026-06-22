@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>六边形战棋战斗模拟器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: linear-gradient(135deg, #0a1628 0%, #1a2a4a 50%, #0d1b2a 100%);
+      min-height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      overflow: hidden;
+    }
+    #game-container {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    #game-canvas {
+      border: 3px solid #3a5a8a;
+      border-radius: 12px;
+      box-shadow: 0 0 40px rgba(58, 90, 138, 0.4), inset 0 0 60px rgba(0, 0, 0, 0.3);
+      background: #0f1e38;
+    }
+    #hud {
+      display: flex;
+      gap: 24px;
+      padding: 12px 24px;
+      background: rgba(15, 30, 56, 0.8);
+      border: 2px solid #3a5a8a;
+      border-radius: 8px;
+      color: #a8c8f0;
+      font-size: 14px;
+    }
+    #hud span {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .status-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+    .player-dot { background: #4a90e2; }
+    .enemy-dot { background: #e24a4a; }
+    #message {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 16px 32px;
+      background: rgba(0, 0, 0, 0.85);
+      color: #ffd700;
+      font-size: 24px;
+      font-weight: bold;
+      border-radius: 8px;
+      border: 2px solid #ffd700;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    #message.show {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="hud">
+      <span><div class="status-dot player-dot"></div>己方: <span id="player-count">0</span></span>
+      <span><div class="status-dot enemy-dot"></div>敌方: <span id="enemy-count">0</span></span>
+      <span>回合: <span id="turn-count">1</span></span>
+      <span>阶段: <span id="phase">玩家</span></span>
+    </div>
+    <canvas id="game-canvas" width="900" height="780"></canvas>
+    <div id="message"></div>
+  </div>
+  <script type="module" src="/src/GameController.ts"></script>
+</body>
+</html>

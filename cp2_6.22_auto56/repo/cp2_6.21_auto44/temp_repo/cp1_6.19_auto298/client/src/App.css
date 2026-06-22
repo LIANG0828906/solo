@@ -1,0 +1,61 @@
+.app-container {
+  display: flex;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+  margin-left: 240px;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.top-header {
+  display: none;
+  background: white;
+  padding: 12px 16px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  align-items: center;
+  gap: 12px;
+  position: sticky;
+  top: 0;
+  z-index: 50;
+}
+
+.menu-btn {
+  background: none;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: 6px;
+  color: #2C3E50;
+}
+
+.menu-btn:hover {
+  background-color: #F1F3F5;
+  transform: none;
+  box-shadow: none;
+}
+
+.mobile-title {
+  font-size: 18px;
+  color: #2C3E50;
+  font-weight: 600;
+}
+
+.page-content {
+  flex: 1;
+  overflow-x: hidden;
+}
+
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0;
+  }
+
+  .top-header {
+    display: flex;
+  }
+}

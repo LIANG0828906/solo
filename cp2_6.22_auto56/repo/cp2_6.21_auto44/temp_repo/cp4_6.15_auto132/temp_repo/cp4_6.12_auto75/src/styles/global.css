@@ -1,0 +1,108 @@
+/* 全局样式 - 深色主题 */
+
+/* 重置默认样式 */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* 根元素铺满整个视口 */
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* 页面基础样式 */
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: #e6e6e6;
+  background: #1a1a2e;
+}
+
+/* 自定义滚动条 - 整体宽度 */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+/* 自定义滚动条 - 轨道 */
+::-webkit-scrollbar-track {
+  background: #0f3460;
+  border-radius: 4px;
+}
+
+/* 自定义滚动条 - 滑块 */
+::-webkit-scrollbar-thumb {
+  background: #16c79a;
+  border-radius: 4px;
+}
+
+/* 自定义滚动条 - 滑块悬停状态 */
+::-webkit-scrollbar-thumb:hover {
+  background: #14a885;
+}
+
+/* 自定义滚动条 - 边角（水平和垂直滚动条交汇处） */
+::-webkit-scrollbar-corner {
+  background: #0f3460;
+}
+
+/* 自定义滚动条 - Firefox 兼容 */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #16c79a #0f3460;
+}
+
+/* 按钮基础样式 */
+button {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+}
+
+/* 按钮点击缩放效果 */
+button:active {
+  transform: scale(0.95);
+}
+
+/* 输入框和文本域通用样式 */
+input[type="text"],
+input[type="date"],
+textarea {
+  all: unset;
+  background: #0f3460;
+  color: #fff;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 13px;
+  border: 1px solid transparent;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* 输入框和文本域聚焦样式 */
+input[type="text"]:focus,
+input[type="date"]:focus,
+textarea:focus {
+  border-color: #16c79a;
+}
+
+/* 文本域垂直调整大小 */
+textarea {
+  resize: vertical;
+  min-height: 60px;
+  line-height: 1.5;
+}
+
+/* 占位符文本颜色 */
+input::placeholder,
+textarea::placeholder {
+  color: rgba(230, 230, 230, 0.5);
+}

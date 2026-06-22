@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>引力弹弓模拟器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC",
+        "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    }
+
+    body {
+      background: radial-gradient(ellipse at center, #0b1325 0%, #030814 100%);
+    }
+
+    #app {
+      position: relative;
+      width: 100%;
+      height: 100vh;
+    }
+
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .title-wrap {
+      position: absolute;
+      top: 24px;
+      left: 28px;
+      z-index: 10;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .title-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      font-size: 28px;
+      font-weight: 200;
+      letter-spacing: 4px;
+      white-space: nowrap;
+    }
+
+    .title-base {
+      position: relative;
+      color: #88ccff;
+      text-shadow: 0 0 4px #88ccff;
+    }
+
+    .title-glow-1 {
+      color: transparent;
+      text-shadow: 0 0 8px rgba(136, 204, 255, 0.6);
+      animation: titleGlow1 3s ease-in-out infinite;
+    }
+
+    .title-glow-2 {
+      color: transparent;
+      text-shadow: 0 0 16px rgba(136, 204, 255, 0.35);
+      animation: titleGlow2 3s ease-in-out infinite;
+    }
+
+    .title-glow-3 {
+      color: transparent;
+      text-shadow: 0 0 24px rgba(136, 204, 255, 0.2);
+      animation: titleGlow3 3s ease-in-out infinite;
+    }
+
+    @keyframes titleGlow1 {
+      0%, 100% { opacity: 0.4; filter: blur(0px); }
+      50% { opacity: 1; filter: blur(0.5px); }
+    }
+
+    @keyframes titleGlow2 {
+      0%, 100% { opacity: 0.2; filter: blur(1px); }
+      50% { opacity: 0.8; filter: blur(2px); }
+    }
+
+    @keyframes titleGlow3 {
+      0%, 100% { opacity: 0.1; filter: blur(2px); }
+      50% { opacity: 0.5; filter: blur(4px); }
+    }
+
+    .control-panel {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      width: 320px;
+      background: rgba(10, 20, 40, 0.7);
+      border: 2px solid rgba(68, 136, 255, 0.31);
+      border-radius: 16px;
+      padding: 24px;
+      z-index: 10;
+      backdrop-filter: blur(8px);
+    }
+
+    .control-panel h2 {
+      color: #88ccff;
+      font-size: 16px;
+      font-weight: 300;
+      margin-bottom: 20px;
+      letter-spacing: 2px;
+    }
+
+    .slider-group {
+      margin-bottom: 18px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: #aaccff;
+      font-size: 13px;
+      margin-bottom: 8px;
+      font-weight: 300;
+    }
+
+    .slider-value {
+      color: #88ccff;
+      font-variant-numeric: tabular-nums;
+      display: inline-block;
+      transition: transform 0.2s ease-out;
+    }
+
+    .slider-value.pulse {
+      transform: scale(1.15);
+    }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: linear-gradient(90deg, #3366ff 0%, #88ccff 100%);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+      transition: all 0.15s ease-out;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3366ff 0%, #88ccff 100%);
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s ease-out;
+      box-shadow: none;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover,
+    input[type="range"]::-webkit-slider-thumb:active {
+      transform: scale(1.2);
+      box-shadow: 0 0 3px rgba(68, 136, 255, 0.5);
+    }
+
+    input[type="range"]::-moz-range-track {
+      width: 100%;
+      height: 6px;
+      background: linear-gradient(90deg, #3366ff 0%, #88ccff 100%);
+      border-radius: 3px;
+      border: none;
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #3366ff 0%, #88ccff 100%);
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s ease-out;
+    }
+
+    .launch-btn {
+      position: relative;
+      overflow: hidden;
+      width: 100%;
+      padding: 12px;
+      margin-top: 8px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #3366ff 0%, #88ccff 100%);
+      color: white;
+      font-size: 15px;
+      font-weight: 400;
+      letter-spacing: 3px;
+      cursor: pointer;
+      transition: all 0.15s ease-out;
+    }
+
+    .launch-btn:hover {
+      filter: brightness(1.2);
+    }
+
+    .launch-btn:active {
+      transform: scale(0.95);
+    }
+
+    .launch-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      filter: none;
+    }
+
+    .launch-btn:disabled:active {
+      transform: none;
+    }
+
+    .launch-ripple {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(136, 204, 255, 0.3);
+      transform: scale(0);
+      animation: rippleExpand 0.3s ease-out forwards;
+      pointer-events: none;
+    }
+
+    @keyframes rippleExpand {
+      to {
+        transform: scale(4);
+        opacity: 0;
+      }
+    }
+
+    .orbit-info {
+      position: absolute;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 32px;
+      z-index: 10;
+      user-select: none;
+    }
+
+    .orbit-info-item {
+      background: rgba(10, 20, 40, 0.5);
+      border: 1px solid rgba(68, 136, 255, 0.3);
+      border-radius: 8px;
+      padding: 10px 18px;
+      backdrop-filter: blur(4px);
+    }
+
+    .orbit-info-label {
+      font-size: 11px;
+      color: #6688aa;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+    }
+
+    .orbit-info-value {
+      font-size: 15px;
+      font-weight: 300;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .orbit-info-value.captured {
+      color: #44ff88;
+    }
+
+    .orbit-info-value.normal {
+      color: #ffffff;
+    }
+
+    .info-panel {
+      position: absolute;
+      bottom: 24px;
+      right: 24px;
+      width: 280px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 12px;
+      padding: 20px;
+      z-index: 10;
+      opacity: 0;
+      transform: translateY(10px);
+      transition: all 0.3s ease-out;
+      pointer-events: none;
+    }
+
+    .info-panel.visible {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    .info-panel h3 {
+      color: #88ccff;
+      font-size: 14px;
+      font-weight: 300;
+      margin-bottom: 14px;
+      letter-spacing: 2px;
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 5px 0;
+      font-size: 12px;
+    }
+
+    .info-row-label {
+      color: #6688aa;
+    }
+
+    .info-row-value {
+      color: #ddeeff;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .asteroid-limit-hint {
+      color: #ff6688;
+      font-size: 12px;
+      margin-top: 10px;
+      text-align: center;
+      opacity: 0;
+      transition: opacity 0.15s ease-out;
+    }
+
+    .asteroid-limit-hint.visible {
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    <div class="title-wrap">
+      <div class="title-layer title-glow-3">引力弹弓模拟器</div>
+      <div class="title-layer title-glow-2">引力弹弓模拟器</div>
+      <div class="title-layer title-glow-1">引力弹弓模拟器</div>
+      <div class="title-layer title-base">引力弹弓模拟器</div>
+    </div>
+
+    <div class="orbit-info" id="orbit-info">
+      <div class="orbit-info-item">
+        <div class="orbit-info-label">轨道能量</div>
+        <div class="orbit-info-value normal" id="energy-value">—</div>
+      </div>
+      <div class="orbit-info-item">
+        <div class="orbit-info-label">轨道偏心率</div>
+        <div class="orbit-info-value normal" id="eccentricity-value">—</div>
+      </div>
+    </div>
+
+    <div class="control-panel">
+      <h2>小行星发射参数</h2>
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>质量</span>
+          <span class="slider-value" id="mass-value">10</span>
+        </div>
+        <input type="range" id="mass-slider" min="1" max="50" step="1" value="10" />
+      </div>
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>速度大小</span>
+          <span class="slider-value" id="speed-value">2.0</span>
+        </div>
+        <input type="range" id="speed-slider" min="0.5" max="5" step="0.1" value="2" />
+      </div>
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>发射角度</span>
+          <span class="slider-value" id="angle-value">90°</span>
+        </div>
+        <input type="range" id="angle-slider" min="0" max="360" step="1" value="90" />
+      </div>
+      <button class="launch-btn" id="launch-btn">发 射</button>
+      <div class="asteroid-limit-hint" id="limit-hint">最多同时发射 3 颗小行星</div>
+    </div>
+
+    <div class="info-panel" id="info-panel">
+      <h3 id="info-panel-title">小行星详情</h3>
+      <div class="info-row">
+        <span class="info-row-label">位置坐标</span>
+        <span class="info-row-value" id="info-position">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-row-label">速度向量</span>
+        <span class="info-row-value" id="info-velocity">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-row-label">到恒星距离</span>
+        <span class="info-row-value" id="info-distance">—</span>
+      </div>
+      <div class="info-row">
+        <span class="info-row-label">轨道周期</span>
+        <span class="info-row-value" id="info-period">—</span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

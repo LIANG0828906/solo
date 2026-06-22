@@ -1,0 +1,54 @@
+[
+  {
+    "id": "spiral-nebula",
+    "name": "螺旋星云",
+    "shape": "spiral",
+    "density": 30000,
+    "rotationSpeed": 0.5,
+    "particleSize": 1.5,
+    "attenuation": 0.6,
+    "pulseAmplitude": 0.2,
+    "colorStart": "#6a0dad",
+    "colorMid": "#1e90ff",
+    "colorEnd": "#00ffff"
+  },
+  {
+    "id": "rose-nebula",
+    "name": "玫瑰星云",
+    "shape": "sphere",
+    "density": 35000,
+    "rotationSpeed": 0.3,
+    "particleSize": 2.0,
+    "attenuation": 0.4,
+    "pulseAmplitude": 0.3,
+    "colorStart": "#ff1493",
+    "colorMid": "#ff6347",
+    "colorEnd": "#ffa500"
+  },
+  {
+    "id": "ring-nebula",
+    "name": "环状星云",
+    "shape": "torus",
+    "density": 25000,
+    "rotationSpeed": 0.8,
+    "particleSize": 1.2,
+    "attenuation": 0.7,
+    "pulseAmplitude": 0.15,
+    "colorStart": "#00ff88",
+    "colorMid": "#00bfff",
+    "colorEnd": "#4169e1"
+  },
+  {
+    "id": "supernova-remnant",
+    "name": "超新星遗迹",
+    "shape": "sphere",
+    "density": 50000,
+    "rotationSpeed": 1.2,
+    "particleSize": 1.8,
+    "attenuation": 0.5,
+    "pulseAmplitude": 0.4,
+    "colorStart": "#ff4500",
+    "colorMid": "#ffd700",
+    "colorEnd": "#ffffff"
+  }
+]

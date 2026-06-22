@@ -1,0 +1,20 @@
+{
+  "name": "urban-heat-viz",
+  "version": "1.0.0",
+  "description": "3D热力图可视化应用 - 城市热岛效应分析",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "0.160.0",
+    "gsap": "3.12.5",
+    "@types/three": "0.160.0"
+  },
+  "devDependencies": {
+    "typescript": "5.3.3",
+    "vite": "5.0.10"
+  }
+}

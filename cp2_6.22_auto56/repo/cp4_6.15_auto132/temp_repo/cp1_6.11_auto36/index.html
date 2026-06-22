@@ -1,0 +1,305 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>星环隧道飞行</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: monospace;
+    }
+
+    #game-container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    #game-canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    #ui-layer {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    #timer {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      font: bold 24px monospace;
+      color: rgba(255, 255, 255, 0.8);
+      text-shadow: 0 0 10px rgba(100, 150, 255, 0.5);
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    #score-display {
+      position: absolute;
+      top: 55px;
+      left: 20px;
+      font: bold 18px monospace;
+      color: rgba(100, 255, 150, 0.8);
+      text-shadow: 0 0 10px rgba(100, 255, 150, 0.5);
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    #flash-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0);
+      pointer-events: none;
+      transition: background 0.1s ease-out;
+      z-index: 20;
+    }
+
+    #flash-overlay.active {
+      background: rgba(255, 255, 255, 0.6);
+    }
+
+    #game-over-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      pointer-events: all;
+      z-index: 100;
+    }
+
+    #game-over-screen.active {
+      display: flex;
+    }
+
+    .game-over-title {
+      font: bold 48px monospace;
+      color: rgba(255, 100, 100, 0.9);
+      text-shadow: 0 0 20px rgba(255, 100, 100, 0.8);
+      margin-bottom: 30px;
+      letter-spacing: 4px;
+    }
+
+    .stats-panel {
+      background: rgba(20, 20, 40, 0.6);
+      border: 2px solid rgba(100, 150, 255, 0.5);
+      border-radius: 10px;
+      padding: 30px 50px;
+      margin-bottom: 30px;
+    }
+
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 40px;
+      margin: 10px 0;
+      font: 20px monospace;
+    }
+
+    .stat-label {
+      color: rgba(200, 200, 255, 0.7);
+    }
+
+    .stat-value {
+      color: rgba(255, 255, 255, 0.9);
+      font-weight: bold;
+    }
+
+    #restart-btn {
+      padding: 15px 50px;
+      font: bold 22px monospace;
+      color: white;
+      background: linear-gradient(135deg, #4a6cf7 0%, #9b59b6 100%);
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 0 20px rgba(100, 150, 255, 0.5);
+      letter-spacing: 2px;
+    }
+
+    #restart-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 30px rgba(100, 150, 255, 0.8);
+    }
+
+    #restart-btn:active {
+      transform: scale(0.9);
+      box-shadow: 0 0 15px rgba(100, 150, 255, 0.6);
+    }
+
+    #start-screen {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      pointer-events: all;
+      z-index: 100;
+    }
+
+    #start-screen.hidden {
+      display: none;
+    }
+
+    .game-title {
+      font: bold 56px monospace;
+      background: linear-gradient(135deg, #4a6cf7 0%, #9b59b6 50%, #4a6cf7 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      text-shadow: none;
+      filter: drop-shadow(0 0 20px rgba(100, 150, 255, 0.8));
+      margin-bottom: 20px;
+      letter-spacing: 6px;
+    }
+
+    .game-subtitle {
+      font: 18px monospace;
+      color: rgba(200, 200, 255, 0.7);
+      margin-bottom: 40px;
+    }
+
+    .instructions {
+      background: rgba(20, 20, 40, 0.6);
+      border: 1px solid rgba(100, 150, 255, 0.3);
+      border-radius: 10px;
+      padding: 25px 40px;
+      margin-bottom: 40px;
+    }
+
+    .instruction-row {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin: 10px 0;
+      font: 16px monospace;
+      color: rgba(200, 200, 255, 0.8);
+    }
+
+    .key {
+      display: inline-block;
+      padding: 4px 10px;
+      background: rgba(100, 150, 255, 0.2);
+      border: 1px solid rgba(100, 150, 255, 0.5);
+      border-radius: 4px;
+      font-weight: bold;
+      color: rgba(150, 200, 255, 0.9);
+      min-width: 30px;
+      text-align: center;
+    }
+
+    #start-btn {
+      padding: 15px 60px;
+      font: bold 24px monospace;
+      color: white;
+      background: linear-gradient(135deg, #4a6cf7 0%, #9b59b6 100%);
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 0 20px rgba(100, 150, 255, 0.5);
+      letter-spacing: 3px;
+    }
+
+    #start-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 30px rgba(100, 150, 255, 0.8);
+    }
+
+    #start-btn:active {
+      transform: scale(0.9);
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+    
+    <div id="ui-layer">
+      <div id="timer">时间: 0.0s</div>
+      <div id="score-display">分数: 0 | 光波: 0</div>
+      <div id="flash-overlay"></div>
+      
+      <div id="start-screen">
+        <h1 class="game-title">星环隧道</h1>
+        <p class="game-subtitle">穿越无尽星环，收集能量光波</p>
+        <div class="instructions">
+          <div class="instruction-row">
+            <span class="key">鼠标</span>
+            <span>控制飞船左右移动</span>
+          </div>
+          <div class="instruction-row">
+            <span class="key">W</span>
+            <span>向上移动</span>
+          </div>
+          <div class="instruction-row">
+            <span class="key">S</span>
+            <span>向下移动</span>
+          </div>
+          <div class="instruction-row">
+            <span style="color: #ff6b6b;">■</span>
+            <span>红色障碍物 - 躲避</span>
+          </div>
+          <div class="instruction-row">
+            <span style="color: #6bff6b;">◆</span>
+            <span>绿色能量波 - 收集 (+2分)</span>
+          </div>
+        </div>
+        <button id="start-btn">开始游戏</button>
+      </div>
+      
+      <div id="game-over-screen">
+        <h1 class="game-over-title">游戏结束</h1>
+        <div class="stats-panel">
+          <div class="stat-row">
+            <span class="stat-label">生存时间</span>
+            <span class="stat-value" id="final-time">0.0s</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">收集光波</span>
+            <span class="stat-value" id="final-waves">0</span>
+          </div>
+          <div class="stat-row">
+            <span class="stat-label">最终得分</span>
+            <span class="stat-value" id="final-score">0</span>
+          </div>
+        </div>
+        <button id="restart-btn">重新开始</button>
+      </div>
+    </div>
+  </div>
+  
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

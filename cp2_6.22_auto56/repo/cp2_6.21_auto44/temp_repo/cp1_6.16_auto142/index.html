@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>海洋洋流与生态系统动态三维模拟</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Courier New', monospace;
+      background: linear-gradient(180deg, #0A0A2E 0%, #000011 100%);
+      color: #E0E0E0;
+    }
+    
+    #app {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+    
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    
+    #ui-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 300px;
+      background: rgba(30, 30, 62, 0.75);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.3);
+      border-radius: 16px;
+      padding: 20px;
+      z-index: 100;
+      transition: all 0.3s ease;
+    }
+    
+    #ui-panel h2 {
+      font-size: 16px;
+      margin-bottom: 16px;
+      color: #AADDFF;
+      letter-spacing: 1px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+      padding-bottom: 10px;
+    }
+    
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 13px;
+      border-bottom: 1px dashed rgba(255, 255, 255, 0.08);
+    }
+    
+    .info-label {
+      color: #8899BB;
+    }
+    
+    .info-value {
+      color: #66DDAA;
+      font-weight: bold;
+    }
+    
+    #tooltip {
+      position: fixed;
+      background: rgba(20, 20, 50, 0.95);
+      border: 1px solid rgba(100, 200, 255, 0.6);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 12px;
+      pointer-events: none;
+      z-index: 200;
+      display: none;
+      box-shadow: 0 4px 20px rgba(0, 150, 255, 0.3);
+      min-width: 160px;
+    }
+    
+    #tooltip .tooltip-title {
+      color: #66CCFF;
+      font-weight: bold;
+      margin-bottom: 6px;
+      font-size: 13px;
+    }
+    
+    #tooltip .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      margin: 3px 0;
+    }
+    
+    #tooltip .tooltip-label {
+      color: #8899BB;
+    }
+    
+    #tooltip .tooltip-value {
+      color: #FFD700;
+    }
+    
+    .dg.ac {
+      z-index: 150 !important;
+    }
+    
+    #mobile-toggle {
+      display: none;
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #1E3A8A, #6B46C1);
+      border: 1px solid rgba(255, 255, 255, 0.4);
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 160;
+      box-shadow: 0 4px 16px rgba(30, 58, 138, 0.5);
+      transition: transform 0.2s ease;
+    }
+    
+    #mobile-toggle:hover {
+      transform: scale(1.08);
+    }
+    
+    #mobile-toggle:active {
+      transform: scale(0.95);
+    }
+    
+    @media (max-width: 1200px) and (min-width: 768px) {
+      #ui-panel {
+        width: 260px;
+      }
+    }
+    
+    @media (max-width: 768px) {
+      #ui-panel {
+        top: auto;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        border-radius: 16px 16px 0 0;
+        max-height: 60vh;
+        overflow-y: auto;
+        transform: translateY(100%);
+        transition: transform 0.3s ease;
+      }
+      
+      #ui-panel.open {
+        transform: translateY(0);
+      }
+      
+      #mobile-toggle {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    <div id="ui-panel">
+      <h2>🌊 海洋洋流模拟控制台</h2>
+      <div class="info-row">
+        <span class="info-label">模拟时间:</span>
+        <span class="info-value" id="sim-time">0.00s</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">帧率 (FPS):</span>
+        <span class="info-value" id="fps-counter">60</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">粒子总数:</span>
+        <span class="info-value" id="particle-count">0</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">鱼群总数:</span>
+        <span class="info-value" id="fish-count">0</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">渲染精度:</span>
+        <span class="info-value" id="render-quality">全精度</span>
+      </div>
+    </div>
+    <button id="mobile-toggle">⚙️</button>
+    <div id="tooltip"></div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

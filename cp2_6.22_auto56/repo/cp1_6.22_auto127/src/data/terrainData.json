@@ -1,0 +1,9 @@
+{
+  "gridSize": 20,
+  "minDensity": 500,
+  "maxDensity": 8500,
+  "minHeight": 0,
+  "maxHeight": 5,
+  "yearRange": [2013, 2023],
+  "points": []
+}

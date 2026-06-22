@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>古法造纸 · 3D工艺流程模拟</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;600;700&family=ZCOOL+XiaoWei&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --paper-white: #F5F0E1;
+      --bamboo-green: #6B8E23;
+      --vermilion: #C62828;
+      --gold: #FFB300;
+      --gray-stamp: #BDBDBD;
+      --wall-bg: #E8E0D0;
+      --wood-floor: #DEB887;
+      --score-good: #4CAF50;
+      --score-bad: #FF5722;
+      --transition: 0.8s ease-in-out;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Noto Serif SC', 'FangSong', 'STFangsong', serif;
+      background: var(--wall-bg);
+      color: #333;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #scene-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+    }
+
+    #scene-container canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .page-title {
+      position: absolute;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .page-title h1 {
+      font-family: 'ZCOOL XiaoWei', 'FangSong', 'STFangsong', serif;
+      font-size: 32px;
+      font-weight: 700;
+      color: #3a2f1f;
+      letter-spacing: 8px;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.08);
+    }
+
+    .page-title p {
+      margin-top: 6px;
+      font-size: 13px;
+      color: #6b5a42;
+      letter-spacing: 3px;
+    }
+
+    .quality-score {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      z-index: 10;
+      background: rgba(245, 240, 225, 0.92);
+      border: 2px solid var(--bamboo-green);
+      border-radius: 12px;
+      padding: 12px 18px;
+      min-width: 140px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .quality-score .label {
+      font-size: 12px;
+      color: #6b5a42;
+      letter-spacing: 2px;
+      margin-bottom: 4px;
+    }
+
+    .quality-score .score {
+      font-family: 'ZCOOL XiaoWei', serif;
+      font-size: 36px;
+      font-weight: 700;
+      line-height: 1;
+      transition: color var(--transition);
+    }
+
+    .quality-score .detail {
+      margin-top: 6px;
+      font-size: 11px;
+      color: #8a7a62;
+      line-height: 1.5;
+    }
+
+    .fps-monitor {
+      position: absolute;
+      top: 24px;
+      right: 116px;
+      z-index: 10;
+      background: rgba(245, 240, 225, 0.85);
+      border-radius: 8px;
+      padding: 6px 12px;
+      font-size: 12px;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 1px;
+    }
+
+    .screenshot-btn {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      z-index: 10;
+      background: var(--bamboo-green);
+      color: var(--paper-white);
+      border: none;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      letter-spacing: 2px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(107, 142, 35, 0.4);
+      font-family: inherit;
+    }
+
+    .screenshot-btn:hover {
+      transform: scale(1.05);
+      background: #5a7a1c;
+    }
+
+    .screenshot-btn:active {
+      transform: scale(0.98);
+      background: #4e6a18;
+    }
+
+    .step-status-bar {
+      position: absolute;
+      top: 50%;
+      right: 20px;
+      transform: translateY(-50%);
+      z-index: 10;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      width: 80px;
+    }
+
+    .stamp {
+      position: relative;
+      width: 72px;
+      height: 72px;
+      border: 3px solid var(--gray-stamp);
+      border-radius: 8px;
+      background: rgba(245, 240, 225, 0.7);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      color: var(--gray-stamp);
+    }
+
+    .stamp:hover {
+      transform: scale(1.05);
+    }
+
+    .stamp:active {
+      transform: scale(0.97);
+    }
+
+    .stamp.completed {
+      border-color: var(--vermilion);
+      color: var(--vermilion);
+      background: rgba(198, 40, 40, 0.08);
+    }
+
+    .stamp.current {
+      border-color: var(--gold);
+      color: var(--gold);
+      background: rgba(255, 179, 0, 0.12);
+      box-shadow: 0 0 0 3px rgba(255, 179, 0, 0.2), 0 4px 16px rgba(255,179,0,0.25);
+      animation: pulse-gold 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse-gold {
+      0%, 100% { box-shadow: 0 0 0 3px rgba(255, 179, 0, 0.2), 0 4px 16px rgba(255,179,0,0.25); }
+      50% { box-shadow: 0 0 0 5px rgba(255, 179, 0, 0.12), 0 4px 20px rgba(255,179,0,0.35); }
+    }
+
+    .stamp .num {
+      font-family: 'ZCOOL XiaoWei', serif;
+      font-size: 22px;
+      font-weight: 700;
+      line-height: 1;
+    }
+
+    .stamp .name {
+      margin-top: 3px;
+      font-size: 11px;
+      letter-spacing: 1px;
+      writing-mode: horizontal-tb;
+    }
+
+    .control-panel {
+      position: absolute;
+      left: 50%;
+      bottom: 24px;
+      transform: translateX(-50%);
+      z-index: 10;
+      background: rgba(245, 240, 225, 0.95);
+      border: 1px solid rgba(107, 142, 35, 0.3);
+      border-radius: 16px;
+      padding: 18px 28px;
+      box-shadow: 0 8px 28px rgba(0,0,0,0.12);
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      min-width: 720px;
+    }
+
+    .step-info {
+      display: flex;
+      flex-direction: column;
+      min-width: 140px;
+    }
+
+    .step-info .current-step-label {
+      font-size: 12px;
+      color: #8a7a62;
+      letter-spacing: 2px;
+    }
+
+    .step-info .current-step-name {
+      font-family: 'ZCOOL XiaoWei', serif;
+      font-size: 24px;
+      font-weight: 700;
+      color: #3a2f1f;
+      margin-top: 2px;
+    }
+
+    .step-info .progress-wrap {
+      margin-top: 8px;
+      width: 100%;
+      height: 6px;
+      background: rgba(107, 142, 35, 0.15);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .step-info .progress-bar {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, var(--bamboo-green), var(--gold));
+      border-radius: 3px;
+      transition: width 0.1s linear;
+    }
+
+    .sliders-group {
+      display: flex;
+      gap: 22px;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .slider-item {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      min-width: 0;
+    }
+
+    .slider-item .slider-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 6px;
+    }
+
+    .slider-item .slider-label {
+      font-size: 12px;
+      color: #6b5a42;
+      letter-spacing: 1px;
+    }
+
+    .slider-item .slider-value {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--bamboo-green);
+      font-family: 'ZCOOL XiaoWei', serif;
+    }
+
+    .slider-item input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: rgba(107, 142, 35, 0.18);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .slider-item input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      background: var(--bamboo-green);
+      border: 2px solid var(--paper-white);
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+      transition: transform 0.15s ease;
+    }
+
+    .slider-item input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .slider-item input[type="range"]::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      background: var(--bamboo-green);
+      border: 2px solid var(--paper-white);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .start-btn {
+      background: var(--vermilion);
+      color: var(--paper-white);
+      border: none;
+      border-radius: 12px;
+      padding: 14px 26px;
+      font-family: 'ZCOOL XiaoWei', serif;
+      font-size: 18px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      cursor: pointer;
+      box-shadow: 0 4px 14px rgba(198, 40, 40, 0.4);
+      transition: all 0.2s ease;
+      white-space: nowrap;
+    }
+
+    .start-btn:hover {
+      transform: scale(1.05);
+      background: #a82222;
+      box-shadow: 0 6px 20px rgba(198, 40, 40, 0.55);
+    }
+
+    .start-btn:active {
+      transform: scale(0.98);
+    }
+
+    .start-btn:disabled {
+      background: var(--gray-stamp);
+      cursor: not-allowed;
+      box-shadow: none;
+      transform: none;
+    }
+
+    .transition-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--paper-white);
+      z-index: 100;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity var(--transition);
+    }
+
+    .transition-overlay.active {
+      opacity: 0.92;
+    }
+
+    .helper-tip {
+      position: absolute;
+      bottom: 170px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 5;
+      font-size: 12px;
+      color: #8a7a62;
+      letter-spacing: 2px;
+      background: rgba(245, 240, 225, 0.7);
+      padding: 6px 16px;
+      border-radius: 20px;
+      pointer-events: none;
+    }
+
+    @media (max-width: 1024px) and (min-width: 769px) {
+      .step-status-bar { width: 60px; right: 12px; gap: 10px; }
+      .stamp { width: 54px; height: 54px; }
+      .stamp .num { font-size: 16px; }
+      .stamp .name { font-size: 9px; }
+      .fps-monitor { right: 84px; }
+      .control-panel { min-width: 620px; padding: 14px 20px; gap: 18px; }
+      .page-title h1 { font-size: 24px; letter-spacing: 6px; }
+    }
+
+    @media (max-width: 768px) {
+      .page-title { top: 12px; }
+      .page-title h1 { font-size: 20px; letter-spacing: 4px; }
+      .page-title p { display: none; }
+
+      .quality-score {
+        top: 64px;
+        left: 12px;
+        padding: 8px 12px;
+        min-width: 100px;
+      }
+      .quality-score .score { font-size: 26px; }
+      .quality-score .detail { display: none; }
+
+      .fps-monitor { top: 64px; right: 72px; padding: 4px 8px; font-size: 10px; }
+      .screenshot-btn { top: 64px; right: 12px; padding: 6px 10px; font-size: 11px; }
+
+      .step-status-bar {
+        top: 120px;
+        right: auto;
+        left: 50%;
+        transform: translateX(-50%);
+        flex-direction: row;
+        gap: 8px;
+        width: auto;
+      }
+      .stamp { width: 48px; height: 48px; }
+      .stamp .num { font-size: 14px; }
+      .stamp .name { font-size: 8px; }
+
+      .helper-tip { display: none; }
+
+      .control-panel {
+        left: 0;
+        right: 0;
+        bottom: 0;
+        transform: none;
+        min-width: auto;
+        width: 100%;
+        border-radius: 16px 16px 0 0;
+        padding: 14px;
+        flex-direction: column;
+        gap: 14px;
+        max-height: 48vh;
+        overflow-y: auto;
+      }
+      .step-info { width: 100%; min-width: auto; }
+      .sliders-group { width: 100%; flex-direction: column; gap: 12px; }
+      .start-btn { width: 100%; padding: 12px; font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="scene-container"></div>
+
+    <div class="page-title">
+      <h1>古法造纸</h1>
+      <p>ANCIENT PAPERMAKING · 工艺流程</p>
+    </div>
+
+    <div class="quality-score">
+      <div class="label">纸张品质</div>
+      <div class="score" id="score-value">--</div>
+      <div class="detail" id="score-detail">等待开始…</div>
+    </div>
+
+    <div class="fps-monitor" id="fps-monitor">FPS: --</div>
+
+    <button class="screenshot-btn" id="screenshot-btn" title="保存截图">截图</button>
+
+    <div class="step-status-bar" id="step-status-bar">
+      <div class="stamp current" data-step="0">
+        <div class="num">壹</div><div class="name">浸泡</div>
+      </div>
+      <div class="stamp" data-step="1">
+        <div class="num">貳</div><div class="name">蒸煮</div>
+      </div>
+      <div class="stamp" data-step="2">
+        <div class="num">參</div><div class="name">捣浆</div>
+      </div>
+      <div class="stamp" data-step="3">
+        <div class="num">肆</div><div class="name">抄纸</div>
+      </div>
+      <div class="stamp" data-step="4">
+        <div class="num">伍</div><div class="name">压榨</div>
+      </div>
+      <div class="stamp" data-step="5">
+        <div class="num">陸</div><div class="name">晒干</div>
+      </div>
+    </div>
+
+    <div class="helper-tip">鼠标左键拖拽旋转 · 滚轮缩放 · 右键平移</div>
+
+    <div class="control-panel">
+      <div class="step-info">
+        <div class="current-step-label">当前工序</div>
+        <div class="current-step-name" id="current-step-name">原料浸泡</div>
+        <div class="progress-wrap"><div class="progress-bar" id="progress-bar"></div></div>
+      </div>
+
+      <div class="sliders-group">
+        <div class="slider-item" id="slider-soaking">
+          <div class="slider-head">
+            <span class="slider-label">浸泡时长</span>
+            <span class="slider-value" id="val-soaking">5</span>
+          </div>
+          <input type="range" min="1" max="10" step="1" value="5" id="input-soaking" />
+        </div>
+
+        <div class="slider-item" id="slider-pulping" style="opacity:0.4; pointer-events:none;">
+          <div class="slider-head">
+            <span class="slider-label">捣浆次数</span>
+            <span class="slider-value" id="val-pulping">9</span>
+          </div>
+          <input type="range" min="3" max="15" step="1" value="9" id="input-pulping" />
+        </div>
+
+        <div class="slider-item" id="slider-pressing" style="opacity:0.4; pointer-events:none;">
+          <div class="slider-head">
+            <span class="slider-label">压榨力度</span>
+            <span class="slider-value" id="val-pressing">5</span>
+          </div>
+          <input type="range" min="1" max="10" step="1" value="5" id="input-pressing" />
+        </div>
+      </div>
+
+      <button class="start-btn" id="start-btn">开始</button>
+    </div>
+
+    <div class="transition-overlay" id="transition-overlay"></div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

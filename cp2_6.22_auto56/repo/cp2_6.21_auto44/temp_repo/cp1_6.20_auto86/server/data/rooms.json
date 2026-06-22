@@ -1,0 +1,17 @@
+{
+  "032ad64e-f97a-466b-b448-6ea685c18e1a": {
+    "id": "032ad64e-f97a-466b-b448-6ea685c18e1a",
+    "name": "Test Room",
+    "collaborators": [
+      {
+        "id": "3f700437-2a02-4ca3-b416-256bd322e45f",
+        "name": "Test Room",
+        "color": "#e74c3c",
+        "initials": "T"
+      }
+    ],
+    "versions": [],
+    "annotations": [],
+    "markers": []
+  }
+}

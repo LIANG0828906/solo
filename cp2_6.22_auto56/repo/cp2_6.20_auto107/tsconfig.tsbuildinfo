@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/controlpanel.tsx","./src/components/exportmodal.tsx","./src/components/previewcanvas.tsx","./src/modules/canvasrenderer.ts","./src/modules/handwritinggenerator.ts","./src/store/appstore.ts","./src/utils/exporter.ts"],"errors":true,"version":"5.8.3"}

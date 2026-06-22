@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/acceptsignarea.tsx","./src/components/clauseblock.tsx","./src/components/revisionpanel.tsx","./src/store/usecontractstore.ts"],"version":"5.8.3"}

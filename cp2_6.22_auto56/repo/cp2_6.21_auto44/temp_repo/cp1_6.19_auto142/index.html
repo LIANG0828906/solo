@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>粒子声波雕塑</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: #000000;
+      font-family: 'Microsoft YaHei', 'PingFang SC', sans-serif;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: fixed;
+      top: 0;
+      left: 0;
+    }
+
+    #control-bar {
+      position: fixed;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%) translateY(0);
+      width: 400px;
+      height: 50px;
+      background: rgba(0, 0, 0, 0.6);
+      border-radius: 0 0 12px 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      z-index: 100;
+      transition: transform 0.3s ease, opacity 0.3s ease;
+      opacity: 1;
+    }
+
+    #control-bar.hidden {
+      transform: translateX(-50%) translateY(-100%);
+      opacity: 0;
+    }
+
+    #waveform-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 10px;
+      font-weight: bold;
+      transition: background-color 0.2s ease;
+    }
+
+    #waveform-info {
+      color: white;
+      font-size: 14px;
+      display: flex;
+      gap: 15px;
+    }
+
+    #control-ring {
+      position: fixed;
+      width: 120px;
+      height: 120px;
+      border: 2px solid #F06292;
+      border-radius: 50%;
+      pointer-events: none;
+      z-index: 200;
+      opacity: 0;
+      transition: opacity 0.15s ease;
+      transform: translate(-50%, -50%);
+    }
+
+    #control-ring.visible {
+      opacity: 1;
+    }
+
+    #control-ring::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 6px;
+      height: 6px;
+      background: #F06292;
+      border-radius: 50%;
+      transform-origin: 0 0;
+      animation: rotateRing 2s linear infinite;
+    }
+
+    @keyframes rotateRing {
+      from { transform: rotate(0deg) translateX(58px); }
+      to { transform: rotate(360deg) translateX(58px); }
+    }
+
+    #ring-info {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: white;
+      font-size: 12px;
+      text-align: center;
+      line-height: 1.5;
+      pointer-events: none;
+    }
+
+    .fade-in {
+      animation: fadeIn 0.3s ease forwards;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div id="canvas-container"></div>
+
+  <div id="control-bar" class="fade-in">
+    <div id="waveform-icon">~</div>
+    <div id="waveform-info">
+      <span id="freq-display">频率: 440Hz</span>
+      <span id="amp-display">振幅: 0.50</span>
+    </div>
+  </div>
+
+  <div id="control-ring">
+    <div id="ring-info">
+      <div id="ring-freq">440Hz</div>
+      <div id="ring-amp">0.50</div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

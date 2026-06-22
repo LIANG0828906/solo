@@ -1,0 +1,65 @@
+.dropdown-button:hover {
+  background-color: rgba(255, 255, 255, 0.15) !important;
+  border-color: rgba(100, 181, 246, 0.5) !important;
+}
+
+.dropdown-item:hover {
+  background-color: rgba(100, 181, 246, 0.2) !important;
+}
+
+.reset-button:hover {
+  background-color: #1976D2 !important;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(21, 101, 192, 0.4);
+}
+
+.reset-button:active {
+  transform: translateY(0);
+}
+
+.toggle-button:hover {
+  background-color: rgba(25, 118, 210, 0.9) !important;
+}
+
+.energy-chart-canvas {
+  transition: all 0.2s ease;
+}
+
+.panel-transition {
+  transition: all 0.3s ease !important;
+}
+
+.atom-highlight {
+  filter: drop-shadow(0 0 8px currentColor);
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.energy-pulse {
+  animation: pulse 1s ease-in-out infinite;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 181, 246, 0.5);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 181, 246, 0.7);
+}

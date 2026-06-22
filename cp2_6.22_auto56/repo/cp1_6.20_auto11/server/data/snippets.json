@@ -1,0 +1,90 @@
+[
+  {
+    "id": "1a77e8ff-a77a-4a46-9c9f-ee826d00543a",
+    "title": "React useDebounce Hook",
+    "code": "import { useState, useEffect } from 'react';\n\nexport function useDebounce<T>(value: T, delay: number): T {\n  const [debouncedValue, setDebouncedValue] = useState<T>(value);\n\n  useEffect(() => {\n    const handler = setTimeout(() => {\n      setDebouncedValue(value);\n    }, delay);\n\n    return () => {\n      clearTimeout(handler);\n    };\n  }, [value, delay]);\n\n  return debouncedValue;\n}",
+    "language": "TypeScript",
+    "tags": [
+      "React",
+      "工具函数"
+    ],
+    "likes": 42,
+    "favorites": 18,
+    "isLiked": false,
+    "isFavorited": false,
+    "createdAt": "2026-06-16T16:30:28.355Z"
+  },
+  {
+    "id": "dc166ae6-c6d0-4175-9eb8-689618a0f169",
+    "title": "快速排序算法",
+    "code": "function quickSort(arr: number[]): number[] {\n  if (arr.length <= 1) return arr;\n  \n  const pivot = arr[Math.floor(arr.length / 2)];\n  const left = arr.filter(x => x < pivot);\n  const middle = arr.filter(x => x === pivot);\n  const right = arr.filter(x => x > pivot);\n  \n  return [...quickSort(left), ...middle, ...quickSort(right)];\n}\n\nconsole.log(quickSort([3, 6, 8, 10, 1, 2, 1]));",
+    "language": "TypeScript",
+    "tags": [
+      "算法"
+    ],
+    "likes": 128,
+    "favorites": 56,
+    "isLiked": false,
+    "isFavorited": false,
+    "createdAt": "2026-06-14T16:30:28.356Z"
+  },
+  {
+    "id": "d2f6b86e-d5f8-4f71-aadf-4516af1d6209",
+    "title": "Python 列表推导式技巧",
+    "code": "# 条件过滤\nnumbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]\nevens = [x for x in numbers if x % 2 == 0]\n\n# 嵌套推导\nmatrix = [[1, 2, 3], [4, 5, 6], [7, 8, 9]]\nflat = [num for row in matrix for num in row]\n\n# 字典推导式\nwords = ['hello', 'world', 'python']\nword_lengths = {word: len(word) for word in words}\n\nprint(evens, flat, word_lengths)",
+    "language": "Python",
+    "tags": [
+      "Python",
+      "工具函数"
+    ],
+    "likes": 95,
+    "favorites": 42,
+    "isLiked": false,
+    "isFavorited": false,
+    "createdAt": "2026-06-12T16:30:28.356Z"
+  },
+  {
+    "id": "6e47d6d9-518e-4fcf-9a6c-a498a8803c55",
+    "title": "CSS Flex 居中布局",
+    "code": ".center-container {\n  display: flex;\n  justify-content: center;\n  align-items: center;\n  min-height: 100vh;\n}\n\n.flex-between {\n  display: flex;\n  justify-content: space-between;\n  align-items: center;\n  gap: 16px;\n}\n\n.flex-wrap-grid {\n  display: flex;\n  flex-wrap: wrap;\n  gap: 12px;\n}\n\n.flex-wrap-grid > * {\n  flex: 1 1 280px;\n  max-width: 100%;\n}",
+    "language": "CSS",
+    "tags": [
+      "CSS技巧"
+    ],
+    "likes": 203,
+    "favorites": 89,
+    "isLiked": false,
+    "isFavorited": false,
+    "createdAt": "2026-06-09T16:30:28.356Z"
+  },
+  {
+    "id": "865c80df-1fe3-45f9-aa01-43b7ccfd0ae2",
+    "title": "JavaScript 防抖与节流",
+    "code": "// 防抖\nfunction debounce(fn, delay = 300) {\n  let timer = null;\n  return function (...args) {\n    if (timer) clearTimeout(timer);\n    timer = setTimeout(() => fn.apply(this, args), delay);\n  };\n}\n\n// 节流\nfunction throttle(fn, interval = 300) {\n  let lastTime = 0;\n  return function (...args) {\n    const now = Date.now();\n    if (now - lastTime >= interval) {\n      lastTime = now;\n      fn.apply(this, args);\n    }\n  };\n}",
+    "language": "JavaScript",
+    "tags": [
+      "工具函数",
+      "性能优化"
+    ],
+    "likes": 312,
+    "favorites": 156,
+    "isLiked": false,
+    "isFavorited": false,
+    "createdAt": "2026-06-04T16:30:28.356Z"
+  },
+  {
+    "id": "adfed5bc-7313-4816-8bff-5830d6f8c332",
+    "title": "Node.js Express 错误处理中间件",
+    "code": "class AppError extends Error {\n  constructor(message, statusCode) {\n    super(message);\n    this.statusCode = statusCode;\n    this.isOperational = true;\n  }\n}\n\nconst notFound = (req, res, next) => {\n  next(new AppError(`Not Found - ${req.originalUrl}`, 404));\n};\n\nconst errorHandler = (err, req, res, next) => {\n  const statusCode = err.statusCode || 500;\n  res.status(statusCode).json({\n    success: false,\n    message: err.message,\n    stack: process.env.NODE_ENV === 'production' ? null : err.stack,\n  });\n};\n\nexport { AppError, notFound, errorHandler };",
+    "language": "JavaScript",
+    "tags": [
+      "Node.js",
+      "设计模式"
+    ],
+    "likes": 87,
+    "favorites": 34,
+    "isLiked": false,
+    "isFavorited": false,
+    "createdAt": "2026-05-30T16:30:28.356Z"
+  }
+]

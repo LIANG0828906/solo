@@ -1,0 +1,338 @@
+[
+  {
+    "id": "2408b935-58f4-4767-8a30-a26cace2be51",
+    "title": "前端框架迁移至 React 19",
+    "description": "经过团队评估，决定将项目前端框架从 React 18 升级至 React 19，以利用新的并发特性、自动批处理改进和性能优化。迁移计划分三个阶段进行，预计两周完成。",
+    "type": "technical",
+    "author": "张伟",
+    "authorInitial": "张",
+    "avatarColor": "#6D4C41",
+    "timestamp": "2026-06-05T04:02:00.000Z",
+    "pinned": true,
+    "attachments": [],
+    "comments": [
+      {
+        "id": "6f5388dd-4c41-477a-a2a3-ecc75307f912",
+        "author": "李明",
+        "authorInitial": "李",
+        "avatarColor": "#3949AB",
+        "content": "需要确认所有第三方库的兼容性，特别是状态管理部分。",
+        "timestamp": "2026-06-06T04:38:00.000Z"
+      }
+    ],
+    "activityLog": [
+      {
+        "id": "3d86dc47-d1a6-437d-b7d1-63c7e2acd31a",
+        "type": "create",
+        "author": "张伟",
+        "description": "创建了决策",
+        "timestamp": "2026-06-05T06:46:00.000Z"
+      }
+    ],
+    "displayOrder": 1
+  },
+  {
+    "id": "73a37376-40ae-44a9-9c97-5e01fc075933",
+    "title": "采用全新设计系统 V3",
+    "description": "为统一产品视觉语言，决定全面采用设计系统 V3，包含新的色彩体系、间距规范、组件库和交互模式。设计团队已完成组件规范文档，前端团队需在下一迭代完成组件库更新。",
+    "type": "design",
+    "author": "王芳",
+    "authorInitial": "王",
+    "avatarColor": "#546E7A",
+    "timestamp": "2026-06-06T11:11:00.000Z",
+    "pinned": false,
+    "attachments": [],
+    "comments": [
+      {
+        "id": "fdb4bdee-2b10-45a7-b0b0-a48e56145cb1",
+        "author": "赵磊",
+        "authorInitial": "赵",
+        "avatarColor": "#FDD835",
+        "content": "建议先做一个小范围试点页面，确认视觉效果后再全面推广。",
+        "timestamp": "2026-06-07T08:40:00.000Z"
+      }
+    ],
+    "activityLog": [
+      {
+        "id": "56fe7002-bdc6-49e6-9aa7-479bffac977e",
+        "type": "create",
+        "author": "王芳",
+        "description": "创建了决策",
+        "timestamp": "2026-06-06T07:39:00.000Z"
+      }
+    ],
+    "displayOrder": 2
+  },
+  {
+    "id": "dd0b5f13-84c2-4bdf-81e4-b1a5c07ddcbf",
+    "title": "项目迭代周期调整为双周",
+    "description": "为提高交付节奏和团队响应速度，决定将项目迭代周期从三周调整为双周。每个迭代包含5天开发和2天测试，预留1天用于回顾和规划。",
+    "type": "management",
+    "author": "陈静",
+    "authorInitial": "陈",
+    "avatarColor": "#6D4C41",
+    "timestamp": "2026-06-06T00:18:00.000Z",
+    "pinned": false,
+    "attachments": [],
+    "comments": [
+      {
+        "id": "eaa28e36-b4cc-4ab4-b83d-cb82b26fac7c",
+        "author": "刘洋",
+        "authorInitial": "刘",
+        "avatarColor": "#8E24AA",
+        "content": "双周迭代对测试时间压力较大，需要考虑自动化测试覆盖率的提升。",
+        "timestamp": "2026-06-07T04:52:00.000Z"
+      },
+      {
+        "id": "9877bcd4-2f81-408e-8a9c-9aed27137222",
+        "author": "杨帆",
+        "authorInitial": "杨",
+        "avatarColor": "#3949AB",
+        "content": "同意，建议同步增加CI/CD流水线的自动化程度。",
+        "timestamp": "2026-06-08T10:23:00.000Z"
+      }
+    ],
+    "activityLog": [
+      {
+        "id": "4d7823e0-77c5-4572-8d7b-c18bf529074c",
+        "type": "create",
+        "author": "陈静",
+        "description": "创建了决策",
+        "timestamp": "2026-06-06T00:19:00.000Z"
+      }
+    ],
+    "displayOrder": 3
+  },
+  {
+    "id": "042660c9-22d0-4105-af32-812b74b56d41",
+    "title": "数据库从MySQL迁移至PostgreSQL",
+    "description": "基于对JSON查询、全文搜索和扩展性的需求评估，决定将主数据库从MySQL迁移至PostgreSQL。迁移将采用双写策略，确保数据一致性，预计需要三个迭代完成。",
+    "type": "technical",
+    "author": "赵磊",
+    "authorInitial": "赵",
+    "avatarColor": "#FDD835",
+    "timestamp": "2026-06-07T11:12:00.000Z",
+    "pinned": false,
+    "attachments": [],
+    "comments": [
+      {
+        "id": "66803f8d-bd18-4cf6-abe3-0716841db63b",
+        "author": "张伟",
+        "authorInitial": "张",
+        "avatarColor": "#6D4C41",
+        "content": "双写期间需要监控数据一致性，建议增加对账脚本。",
+        "timestamp": "2026-06-08T11:04:00.000Z"
+      }
+    ],
+    "activityLog": [
+      {
+        "id": "a69da487-9c23-4c28-800a-0310a337c066",
+        "type": "create",
+        "author": "赵磊",
+        "description": "创建了决策",
+        "timestamp": "2026-06-07T00:02:00.000Z"
+      }
+    ],
+    "displayOrder": 4
+  },
+  {
+    "id": "c0acbcbf-cf56-402b-ae48-58dbc514e045",
+    "title": "移动端采用响应式设计方案",
+    "description": "经过市场调研和成本评估，决定移动端不开发独立APP，而是采用响应式设计方案适配移动端。优先保证核心功能在移动端的可用性，复杂功能引导用户使用桌面端。",
+    "type": "design",
+    "author": "刘洋",
+    "authorInitial": "刘",
+    "avatarColor": "#8E24AA",
+    "timestamp": "2026-06-08T02:02:00.000Z",
+    "pinned": true,
+    "attachments": [],
+    "comments": [
+      {
+        "id": "33957564-ead0-4bd3-b340-af5a2de8fba4",
+        "author": "王芳",
+        "authorInitial": "王",
+        "avatarColor": "#546E7A",
+        "content": "交互体验需要仔细打磨，特别是表单填写和手势操作。",
+        "timestamp": "2026-06-09T02:27:00.000Z"
+      }
+    ],
+    "activityLog": [
+      {
+        "id": "846f02ad-59bc-4f5e-9efb-55c68881e576",
+        "type": "create",
+        "author": "刘洋",
+        "description": "创建了决策",
+        "timestamp": "2026-06-08T00:29:00.000Z"
+      }
+    ],
+    "displayOrder": 5
+  },
+  {
+    "id": "9252c450-1533-4f47-814d-33ca35265d84",
+    "title": "引入代码审查制度",
+    "description": "为提升代码质量和团队知识共享，决定强制引入代码审查制度。所有代码合并必须至少获得一位非作者的团队成员审核通过。审查重点包括代码规范、逻辑正确性和安全风险。",
+    "type": "management",
+    "author": "杨帆",
+    "authorInitial": "杨",
+    "avatarColor": "#3949AB",
+    "timestamp": "2026-06-08T04:03:00.000Z",
+    "pinned": false,
+    "attachments": [],
+    "comments": [
+      {
+        "id": "4852f1ef-d283-48ff-bcf3-c2404effce09",
+        "author": "陈静",
+        "authorInitial": "陈",
+        "avatarColor": "#6D4C41",
+        "content": "建议制定审查checklist，避免审查流于形式。",
+        "timestamp": "2026-06-09T08:51:00.000Z"
+      },
+      {
+        "id": "45ba200c-af59-4885-8917-6366230fe24e",
+        "author": "黄磊",
+        "authorInitial": "黄",
+        "avatarColor": "#FB8C00",
+        "content": "可以配合lint工具减少低级问题的审查负担。",
+        "timestamp": "2026-06-10T04:21:00.000Z"
+      }
+    ],
+    "activityLog": [
+      {
+        "id": "cb730635-97d6-40dd-9b5b-65335a28f92c",
+        "type": "create",
+        "author": "杨帆",
+        "description": "创建了决策",
+        "timestamp": "2026-06-08T06:28:00.000Z"
+      }
+    ],
+    "displayOrder": 6
+  },
+  {
+    "id": "1a707197-33d9-4e6a-ac9b-d9b07af67e87",
+    "title": "采用微服务架构重构后端",
+    "description": "随着业务复杂度增长，单体架构已难以满足独立部署和横向扩展的需求。决定将后端按业务域拆分为用户服务、订单服务、通知服务等微服务，使用gRPC进行服务间通信。",
+    "type": "technical",
+    "author": "黄磊",
+    "authorInitial": "黄",
+    "avatarColor": "#FB8C00",
+    "timestamp": "2026-06-09T07:43:00.000Z",
+    "pinned": false,
+    "attachments": [],
+    "comments": [
+      {
+        "id": "b1745ed7-a1fd-4605-9cd5-3fd04ebd71ab",
+        "author": "赵磊",
+        "authorInitial": "赵",
+        "avatarColor": "#FDD835",
+        "content": "服务拆分粒度需要仔细评估，避免过度拆分带来运维成本上升。",
+        "timestamp": "2026-06-10T06:48:00.000Z"
+      }
+    ],
+    "activityLog": [
+      {
+        "id": "4112f971-efcb-43b5-a59b-25b61088d4a2",
+        "type": "create",
+        "author": "黄磊",
+        "description": "创建了决策",
+        "timestamp": "2026-06-09T04:12:00.000Z"
+      }
+    ],
+    "displayOrder": 7
+  },
+  {
+    "id": "af523ced-ea86-4309-a17e-8b1ee5c2cd81",
+    "title": "统一色彩规范与品牌升级",
+    "description": "配合公司品牌升级战略，产品视觉语言需要同步更新。新色彩体系采用更加现代化的配色方案，主色调从深蓝调整为科技蓝，辅助色增加活力橙和清新绿，提升品牌辨识度。",
+    "type": "design",
+    "author": "周涛",
+    "authorInitial": "周",
+    "avatarColor": "#6D4C41",
+    "timestamp": "2026-06-10T10:22:00.000Z",
+    "pinned": false,
+    "attachments": [],
+    "comments": [
+      {
+        "id": "afb1f8ab-6984-4064-9693-f876c4a89c06",
+        "author": "王芳",
+        "authorInitial": "王",
+        "avatarColor": "#546E7A",
+        "content": "需要确保新色彩在不同显示器上的一致性，建议增加色彩校准文档。",
+        "timestamp": "2026-06-11T03:47:00.000Z"
+      }
+    ],
+    "activityLog": [
+      {
+        "id": "cc3555c3-cb8b-4f7b-b4d2-ccee276a4f64",
+        "type": "create",
+        "author": "周涛",
+        "description": "创建了决策",
+        "timestamp": "2026-06-10T10:29:00.000Z"
+      }
+    ],
+    "displayOrder": 8
+  },
+  {
+    "id": "b271c2ee-dcc3-4f12-9f2d-b8a68cdc6d9d",
+    "title": "团队扩招与分工调整",
+    "description": "随着项目规模扩大，计划在下一季度扩招2名前端工程师和1名后端工程师。同时调整团队分工，设立前端组、后端组和基础设施组，各组设置技术负责人。",
+    "type": "management",
+    "author": "吴婷",
+    "authorInitial": "吴",
+    "avatarColor": "#FDD835",
+    "timestamp": "2026-06-10T06:45:00.000Z",
+    "pinned": false,
+    "attachments": [],
+    "comments": [
+      {
+        "id": "b1f3a413-20ab-4770-86c2-7f51bcdec2f8",
+        "author": "陈静",
+        "authorInitial": "陈",
+        "avatarColor": "#6D4C41",
+        "content": "新人入职后的培训计划也需要同步规划，确保快速融入团队。",
+        "timestamp": "2026-06-11T07:34:00.000Z"
+      }
+    ],
+    "activityLog": [
+      {
+        "id": "48f71487-9820-4e6c-81e6-80843c83b99c",
+        "type": "create",
+        "author": "吴婷",
+        "description": "创建了决策",
+        "timestamp": "2026-06-10T01:44:00.000Z"
+      }
+    ],
+    "displayOrder": 9
+  },
+  {
+    "id": "81801814-fcee-46df-a95c-8b43896a215c",
+    "title": "引入Redis缓存层提升性能",
+    "description": "针对当前系统在高并发场景下的响应延迟问题，决定引入Redis作为缓存层。优先对热点数据（用户会话、配置信息、排行榜）进行缓存，目标将平均响应时间降低60%以上。",
+    "type": "technical",
+    "author": "李明",
+    "authorInitial": "李",
+    "avatarColor": "#3949AB",
+    "timestamp": "2026-06-11T09:30:00.000Z",
+    "pinned": false,
+    "attachments": [],
+    "comments": [
+      {
+        "id": "20230860-5df0-4f16-b82c-9bf9d62d5cf8",
+        "author": "黄磊",
+        "authorInitial": "黄",
+        "avatarColor": "#FB8C00",
+        "content": "缓存一致性策略需要提前确定，建议采用主动失效加延迟双删的方案。",
+        "timestamp": "2026-06-11T01:39:00.000Z"
+      }
+    ],
+    "activityLog": [
+      {
+        "id": "4f89465c-5818-46f7-90e8-020999fb4599",
+        "type": "create",
+        "author": "李明",
+        "description": "创建了决策",
+        "timestamp": "2026-06-11T07:10:00.000Z"
+      }
+    ],
+    "displayOrder": 10
+  }
+]

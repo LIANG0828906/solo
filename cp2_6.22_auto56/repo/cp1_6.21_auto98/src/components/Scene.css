@@ -1,0 +1,135 @@
+.scene-section {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  background: #ffffff;
+}
+
+.scene-inner {
+  position: sticky;
+  top: 0;
+  width: 100%;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.scene-content {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 0 5%;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+.scene-image-wrapper {
+  width: 55%;
+  height: 70vh;
+  overflow: hidden;
+  border-radius: 8px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+}
+
+.scene-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top;
+}
+
+.scene-text {
+  width: 35%;
+  margin-left: 5%;
+  flex-shrink: 0;
+}
+
+.scene-index {
+  display: flex;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.scene-index-number {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e88e5;
+  letter-spacing: 2px;
+}
+
+.scene-index-line {
+  flex: 1;
+  height: 1px;
+  background: #e0e0e0;
+  margin-left: 16px;
+}
+
+.scene-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #333333;
+  margin-bottom: 20px;
+  line-height: 1.4;
+}
+
+.scene-body {
+  font-size: 16px;
+  font-weight: 400;
+  color: #666666;
+  line-height: 1.8;
+}
+
+.scene-body > p {
+  margin-bottom: 16px;
+}
+
+.scene-quote {
+  border-left: 4px solid #ff6b6b;
+  background: #fff5f5;
+  padding: 12px;
+  border-radius: 4px;
+  font-style: italic;
+  color: #9e9e9e;
+  margin: 16px 0;
+  font-size: 15px;
+  line-height: 1.7;
+}
+
+@media (max-width: 768px) {
+  .scene-inner {
+    position: relative;
+    height: auto;
+    min-height: auto;
+    padding: 60px 0;
+  }
+
+  .scene-content {
+    flex-direction: column;
+    padding: 0 20px;
+  }
+
+  .scene-image-wrapper {
+    width: 100%;
+    height: 280px;
+    order: 1;
+    margin-bottom: 32px;
+  }
+
+  .scene-text {
+    width: 100%;
+    margin-left: 0;
+    order: 2;
+  }
+
+  .scene-title {
+    font-size: 20px;
+  }
+
+  .scene-body {
+    font-size: 15px;
+  }
+}

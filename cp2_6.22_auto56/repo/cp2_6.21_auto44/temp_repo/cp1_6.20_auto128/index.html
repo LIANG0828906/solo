@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>太空节奏战斗</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #0a0a1a;
+      overflow: hidden;
+      font-family: 'Courier New', monospace;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 0;
+    }
+
+    #gameContainer {
+      position: relative;
+      width: 800px;
+      height: 600px;
+      margin: 0 auto;
+    }
+
+    #gameCanvas {
+      display: block;
+      background: linear-gradient(to bottom, #1a0a2e, #16213e, #0f3460);
+      border: 2px solid #4a5568;
+      border-radius: 8px;
+      box-shadow: 0 0 30px rgba(100, 100, 255, 0.3);
+    }
+
+    #ui {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      font-family: 'Courier New', monospace;
+      z-index: 10;
+      overflow: visible;
+    }
+
+    #scorePanel {
+      position: absolute;
+      top: 20px;
+      left: 30px;
+      color: #fff;
+      font-size: 18px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.8);
+      z-index: 20;
+      white-space: nowrap;
+    }
+
+    #combo {
+      font-size: 24px;
+      color: #ffd700;
+      margin-bottom: 10px;
+    }
+
+    #hearts {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .heart {
+      font-size: 24px;
+      color: #ff4757;
+      text-shadow: 0 0 10px rgba(255, 71, 87, 0.5);
+      transition: all 0.2s ease;
+    }
+
+    .heart.lost {
+      color: #4a4a4a;
+      text-shadow: none;
+    }
+
+    .heart.shake {
+      animation: shake 0.3s ease;
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      25% { transform: translateX(-5px); }
+      75% { transform: translateX(5px); }
+    }
+
+    #skillIndicator {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      color: #00d4ff;
+      font-size: 16px;
+      text-shadow: 0 0 10px rgba(0, 212, 255, 0.8);
+    }
+
+    #skillBar {
+      width: 150px;
+      height: 12px;
+      background: rgba(0, 0, 0, 0.5);
+      border: 2px solid #00d4ff;
+      border-radius: 6px;
+      margin-top: 8px;
+      overflow: hidden;
+    }
+
+    #skillFill {
+      height: 100%;
+      background: linear-gradient(90deg, #00d4ff, #00ff88);
+      width: 0%;
+      transition: width 0.2s ease;
+      box-shadow: 0 0 10px rgba(0, 212, 255, 0.8);
+    }
+
+    #skillCooldown {
+      margin-top: 5px;
+      font-size: 14px;
+      color: #888;
+    }
+
+    #skillReady {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 4px solid transparent;
+      border-radius: 8px;
+      pointer-events: none;
+      box-sizing: border-box;
+    }
+
+    #skillReady.flashing {
+      animation: borderFlash 0.5s ease infinite;
+    }
+
+    @keyframes borderFlash {
+      0%, 100% { border-color: rgba(0, 212, 255, 0.3); }
+      50% { border-color: rgba(0, 212, 255, 1); box-shadow: 0 0 20px rgba(0, 212, 255, 0.8); }
+    }
+
+    #gameOver {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.85);
+      display: none;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      color: #fff;
+      pointer-events: auto;
+    }
+
+    #gameOver h1 {
+      font-size: 48px;
+      color: #ff4757;
+      text-shadow: 0 0 20px rgba(255, 71, 87, 0.8);
+      margin-bottom: 20px;
+    }
+
+    #finalScore {
+      font-size: 32px;
+      color: #ffd700;
+      margin-bottom: 30px;
+    }
+
+    #restartBtn {
+      padding: 15px 40px;
+      font-size: 20px;
+      font-family: 'Courier New', monospace;
+      background: linear-gradient(135deg, #00d4ff, #00ff88);
+      border: none;
+      border-radius: 8px;
+      color: #000;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all 0.3s ease;
+      text-transform: uppercase;
+    }
+
+    #restartBtn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 30px rgba(0, 212, 255, 0.8);
+    }
+
+    #controls {
+      position: absolute;
+      bottom: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 12px;
+      text-align: center;
+    }
+
+    #laserFlash {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(255, 255, 255, 0.9);
+      pointer-events: none;
+      opacity: 0;
+    }
+
+    #laserFlash.active {
+      animation: laserFlash 0.5s ease-out;
+    }
+
+    @keyframes laserFlash {
+      0% { opacity: 0.9; }
+      100% { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="ui">
+      <div id="skillReady"></div>
+      <div id="scorePanel">
+        <div id="combo">COMBO: 0</div>
+        <div id="score">SCORE: 0</div>
+        <div id="hearts">
+          <span class="heart">♥</span>
+          <span class="heart">♥</span>
+          <span class="heart">♥</span>
+          <span class="heart">♥</span>
+          <span class="heart">♥</span>
+        </div>
+      </div>
+      <div id="skillIndicator">
+        <div>SKILL CHARGE</div>
+        <div id="skillBar">
+          <div id="skillFill"></div>
+        </div>
+        <div id="skillCooldown"></div>
+      </div>
+      <div id="laserFlash"></div>
+      <div id="gameOver">
+        <h1>GAME OVER</h1>
+        <div id="finalScore">FINAL SCORE: 0</div>
+        <button id="restartBtn">RESTART</button>
+      </div>
+      <div id="controls">
+        移动: A/D 或 ←/→ | 攻击: Q W E R T | 技能: 空格
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

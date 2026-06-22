@@ -1,0 +1,58 @@
+[
+  {
+    "id": "1",
+    "name": "美式咖啡",
+    "price": 22,
+    "category": "coffee",
+    "type": "drink",
+    "available": true
+  },
+  {
+    "id": "2",
+    "name": "拿铁",
+    "price": 28,
+    "category": "coffee",
+    "type": "drink",
+    "available": true
+  },
+  {
+    "id": "3",
+    "name": "伯爵红茶",
+    "price": 20,
+    "category": "tea",
+    "type": "drink",
+    "available": true
+  },
+  {
+    "id": "4",
+    "name": "蜜桃乌龙",
+    "price": 25,
+    "category": "tea",
+    "type": "drink",
+    "available": true
+  },
+  {
+    "id": "5",
+    "name": "樱花气泡水",
+    "price": 30,
+    "category": "special",
+    "type": "drink",
+    "available": true
+  },
+  {
+    "id": "6",
+    "name": "提拉米苏",
+    "price": 35,
+    "hasGluten": true,
+    "type": "dessert",
+    "available": true
+  },
+  {
+    "id": "7",
+    "name": "芝士蛋糕",
+    "price": 32,
+    "hasGluten": false,
+    "type": "dessert",
+    "available": true
+  }
+]

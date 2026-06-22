@@ -1,0 +1,66 @@
+.note-bubble {
+  position: relative;
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(241, 248, 233, 0.95) 100%);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin-top: 4px;
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(76, 175, 80, 0.15);
+  animation-fill-mode: forwards, forwards, both;
+  opacity: 0;
+  transform-origin: left center;
+  --bubble-scale-1: 0.95;
+  --bubble-scale-2: 1.02;
+  --bounce-duration: 0.5s;
+}
+
+.note-arrow {
+  position: absolute;
+  top: -8px;
+  left: 16px;
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+  border-bottom: 8px solid rgba(255, 255, 255, 0.95);
+}
+
+.note-text {
+  font-size: 14px;
+  color: var(--color-text-secondary);
+  line-height: 1.5;
+  margin: 0;
+  word-break: break-word;
+}
+
+@keyframes bounceIn {
+  0% {
+    transform: scale(var(--bubble-scale-1));
+  }
+  55% {
+    transform: scale(var(--bubble-scale-2));
+  }
+  80% {
+    transform: scale(0.995);
+  }
+  100% {
+    transform: scale(1.0);
+  }
+}
+
+@keyframes floatSoft {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-3px);
+  }
+}
+
+.animate-bounce-in {
+  animation: bounceIn var(--bounce-duration) cubic-bezier(0.25, 0.8, 0.25, 1) forwards;
+}
+
+.animate-float-soft {
+  animation: floatSoft 2.5s ease-in-out infinite;
+}

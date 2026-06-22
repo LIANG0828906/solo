@@ -1,0 +1,781 @@
+import * as THREE from 'three'
+import type { DataSeries, DataPoint } from './types'
+
+interface ChartOptions {
+  color: string
+  barWidth?: number
+  barDepth?: number
+  lineWidth?: number
+  pointSize?: number
+  hasZ?: boolean
+  xRange?: [number, number]
+  yRange?: [number, number]
+  zRange?: [number, number]
+  lodLevel?: number
+}
+
+interface ChartResult {
+  group: THREE.Group
+  objects: Map<number, THREE.Mesh>
+  updateData: (data: DataPoint[], animate?: boolean) => void
+  animateIn: () => void
+  animateOut: () => Promise<void>
+  dispose: () => void
+}
+
+const SPREAD_X = 20
+const SPREAD_Z = 15
+const MAX_Y = 10
+
+function normalizeValue(val: number, min: number, max: number): number {
+  if (max === min) return 0.5
+  return (val - min) / (max - min)
+}
+
+function createGradientMaterial(color: string, isEmissive = false): THREE.MeshStandardMaterial {
+  const c = new THREE.Color(color)
+  const lighter = c.clone().multiplyScalar(1.2)
+  
+  const material = new THREE.MeshStandardMaterial({
+    color: c,
+    roughness: 0.4,
+    metalness: 0.2,
+    emissive: isEmissive ? lighter : new THREE.Color(0x000000),
+    emissiveIntensity: isEmissive ? 0.3 : 0,
+    transparent: true,
+    opacity: 1
+  })
+  
+  return material
+}
+
+export function createBars(
+  series: DataSeries,
+  options: ChartOptions
+): ChartResult {
+  const { color, barWidth = 0.6, barDepth = 0.6, xRange, yRange, hasZ, zRange } = options
+  const group = new THREE.Group()
+  const objects = new Map<number, THREE.Mesh>()
+  
+  const data = series.data
+  const yMin = yRange ? yRange[0] : Math.min(...data.map(d => d.y), 0)
+  const yMax = yRange ? yRange[1] : Math.max(...data.map(d => d.y))
+  const xMin = xRange ? xRange[0] : 0
+  const xMax = xRange ? xRange[1] : data.length - 1
+  const zMin = zRange ? zRange[0] : 0
+  const zMax = zRange ? zRange[1] : 1
+  
+  const geometry = new THREE.BoxGeometry(barWidth, 1, barDepth)
+  
+  data.forEach((point, index) => {
+    const material = createGradientMaterial(color, true)
+    
+    const bar = new THREE.Mesh(geometry.clone(), material)
+    
+    const xPos = data.length > 1 
+      ? -SPREAD_X / 2 + (index / (data.length - 1)) * SPREAD_X
+      : 0
+    
+    const zPos = hasZ && point.z !== undefined
+      ? -SPREAD_Z / 2 + normalizeValue(point.z, zMin, zMax) * SPREAD_Z
+      : 0
+    
+    const height = Math.max(0.1, normalizeValue(point.y, yMin, yMax) * MAX_Y)
+    
+    bar.position.set(xPos, height / 2, zPos)
+    bar.scale.y = height
+    bar.userData = { 
+      pointIndex: index, 
+      seriesId: series.id,
+      pointData: point,
+      seriesName: series.name
+    }
+    
+    bar.scale.set(0.001, 0.001, 0.001)
+    bar.visible = false
+    
+    group.add(bar)
+    objects.set(index, bar)
+  })
+  
+  const targetHeights = new Map<number, number>()
+  const targetPositions = new Map<number, { y: number; z: number }>()
+  const currentHeights = new Map<number, number>()
+  let updateAnimationId: number | null = null
+  
+  data.forEach((point, index) => {
+    const height = Math.max(0.1, normalizeValue(point.y, yMin, yMax) * MAX_Y)
+    targetHeights.set(index, height)
+    currentHeights.set(index, height)
+    const zPos = hasZ && point.z !== undefined
+      ? -SPREAD_Z / 2 + normalizeValue(point.z, zMin, zMax) * SPREAD_Z
+      : 0
+    targetPositions.set(index, { y: height / 2, z: zPos })
+  })
+  
+  const updateData = (newData: DataPoint[], animate = true) => {
+    newData.forEach((point, index) => {
+      const bar = objects.get(index)
+      if (!bar) return
+      
+      const targetHeight = Math.max(0.1, normalizeValue(point.y, yMin, yMax) * MAX_Y)
+      targetHeights.set(index, targetHeight)
+      
+      const zPos = hasZ && point.z !== undefined
+        ? -SPREAD_Z / 2 + normalizeValue(point.z, zMin, zMax) * SPREAD_Z
+        : 0
+      targetPositions.set(index, { y: targetHeight / 2, z: zPos })
+      
+      bar.visible = true
+    })
+    
+    if (animate && updateAnimationId === null) {
+      const startTime = performance.now()
+      const duration = 400
+      
+      const animateUpdate = () => {
+        const elapsed = performance.now() - startTime
+        const progress = Math.min(elapsed / duration, 1)
+        const eased = 1 - Math.pow(1 - progress, 3)
+        
+        newData.forEach((_, index) => {
+          const bar = objects.get(index)
+          if (!bar || !bar.visible) return
+          
+          const targetHeight = targetHeights.get(index) || 0.1
+          const startHeight = currentHeights.get(index) || targetHeight
+          const currentHeight = startHeight + (targetHeight - startHeight) * eased
+          
+          const targetPos = targetPositions.get(index)
+          if (targetPos) {
+            bar.scale.y = currentHeight
+            bar.position.y = currentHeight / 2
+            bar.position.z = targetPos.z
+          }
+        })
+        
+        if (progress < 1) {
+          updateAnimationId = requestAnimationFrame(animateUpdate)
+        } else {
+          newData.forEach((_, index) => {
+            currentHeights.set(index, targetHeights.get(index) || 0.1)
+          })
+          updateAnimationId = null
+        }
+      }
+      
+      animateUpdate()
+    } else if (!animate) {
+      newData.forEach((_, index) => {
+        const bar = objects.get(index)
+        if (!bar) return
+        
+        const targetHeight = targetHeights.get(index) || 0.1
+        const targetPos = targetPositions.get(index)
+        
+        bar.scale.y = targetHeight
+        bar.position.y = targetHeight / 2
+        if (targetPos) {
+          bar.position.z = targetPos.z
+        }
+        currentHeights.set(index, targetHeight)
+      })
+    }
+  }
+  
+  const animateIn = () => {
+    const duration = 600
+    const startTime = performance.now()
+    const totalBars = data.length
+    const centerIndex = totalBars / 2
+    
+    const animate = () => {
+      const elapsed = performance.now() - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      
+      data.forEach((point, index) => {
+        const bar = objects.get(index)
+        if (!bar) return
+        
+        const distanceFromCenter = Math.abs(index - centerIndex) / centerIndex
+        const startDelay = distanceFromCenter * duration * 0.3
+        const localProgress = Math.min(1, Math.max(0, (elapsed - startDelay)) / (duration * 0.7))
+        const localEased = 1 - Math.pow(1 - localProgress, 3)
+        
+        if (localProgress > 0) {
+          bar.visible = true
+          
+          const targetHeight = Math.max(0.1, normalizeValue(point.y, yMin, yMax) * MAX_Y)
+          const scale = localEased
+          bar.scale.set(scale, targetHeight * scale, scale)
+          bar.position.y = (targetHeight * scale) / 2
+          
+          const mat = bar.material as THREE.MeshStandardMaterial
+          mat.opacity = localEased
+        } else {
+          bar.visible = false
+        }
+      })
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate)
+      }
+    }
+    
+    animate()
+  }
+  
+  const animateOut = (): Promise<void> => {
+    return new Promise((resolve) => {
+      const duration = 600
+      const startTime = performance.now()
+      
+      const startScales = new Map<number, THREE.Vector3>()
+      data.forEach((_, index) => {
+        const bar = objects.get(index)
+        if (bar) startScales.set(index, bar.scale.clone())
+      })
+      
+      const animate = () => {
+        const elapsed = performance.now() - startTime
+        const progress = Math.min(elapsed / duration, 1)
+        const eased = 1 - Math.pow(progress, 2)
+        
+        data.forEach((_, index) => {
+          const bar = objects.get(index)
+          if (!bar || !bar.visible) return
+          
+          const startScale = startScales.get(index)
+          if (startScale) {
+            bar.scale.x = startScale.x * eased
+            bar.scale.z = startScale.z * eased
+            bar.scale.y = startScale.y * eased
+          }
+          
+          const mat = bar.material as THREE.MeshStandardMaterial
+          mat.opacity = eased
+        })
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate)
+        } else {
+          group.visible = false
+          resolve()
+        }
+      }
+      
+      animate()
+    })
+  }
+  
+  const dispose = () => {
+    if (updateAnimationId !== null) {
+      cancelAnimationFrame(updateAnimationId)
+    }
+    geometry.dispose()
+    objects.forEach(obj => {
+      if (Array.isArray(obj.material)) {
+        obj.material.forEach((m: THREE.Material) => m.dispose())
+      } else {
+        obj.material.dispose()
+      }
+    })
+  }
+  
+  return { group, objects, updateData, animateIn, animateOut, dispose }
+}
+
+export function createLine(
+  series: DataSeries,
+  options: ChartOptions
+): ChartResult {
+  const { color, lineWidth = 0.15, xRange, yRange, hasZ, zRange, pointSize = 0.25 } = options
+  const group = new THREE.Group()
+  const objects = new Map<number, THREE.Mesh>()
+  
+  const data = series.data
+  const yMin = yRange ? yRange[0] : Math.min(...data.map(d => d.y), 0)
+  const yMax = yRange ? yRange[1] : Math.max(...data.map(d => d.y))
+  const xMin = xRange ? xRange[0] : 0
+  const xMax = xRange ? xRange[1] : data.length - 1
+  const zMin = zRange ? zRange[0] : 0
+  const zMax = zRange ? zRange[1] : 1
+  
+  const lineColor = new THREE.Color(color)
+  const glowColor = lineColor.clone().multiplyScalar(1.5)
+  
+  const points: THREE.Vector3[] = []
+  data.forEach((point, index) => {
+    const xPos = data.length > 1 
+      ? -SPREAD_X / 2 + (index / (data.length - 1)) * SPREAD_X
+      : 0
+    
+    const yPos = normalizeValue(point.y, yMin, yMax) * MAX_Y
+    
+    const zPos = hasZ && point.z !== undefined
+      ? -SPREAD_Z / 2 + normalizeValue(point.z, zMin, zMax) * SPREAD_Z
+      : 0
+    
+    points.push(new THREE.Vector3(xPos, yPos, zPos))
+  })
+  
+  const curve = new THREE.CatmullRomCurve3(points)
+  const tubeGeometry = new THREE.TubeGeometry(curve, Math.max(64, data.length * 4), lineWidth, 8, false)
+  
+  const lineMaterial = new THREE.MeshStandardMaterial({
+    color: lineColor,
+    roughness: 0.3,
+    metalness: 0.3,
+    emissive: glowColor,
+    emissiveIntensity: 0.4,
+    transparent: true,
+    opacity: 0
+  })
+  
+  const lineMesh = new THREE.Mesh(tubeGeometry, lineMaterial)
+  lineMesh.userData = { isLine: true, seriesId: series.id }
+  group.add(lineMesh)
+  
+  const pointGeometry = new THREE.SphereGeometry(pointSize, 16, 16)
+  
+  data.forEach((point, index) => {
+    const pointMaterial = new THREE.MeshStandardMaterial({
+      color: lineColor,
+      roughness: 0.3,
+      metalness: 0.4,
+      emissive: glowColor,
+      emissiveIntensity: 0.6,
+      transparent: true,
+      opacity: 0
+    })
+    
+    const sphere = new THREE.Mesh(pointGeometry.clone(), pointMaterial)
+    
+    const xPos = data.length > 1 
+      ? -SPREAD_X / 2 + (index / (data.length - 1)) * SPREAD_X
+      : 0
+    
+    const yPos = normalizeValue(point.y, yMin, yMax) * MAX_Y
+    
+    const zPos = hasZ && point.z !== undefined
+      ? -SPREAD_Z / 2 + normalizeValue(point.z, zMin, zMax) * SPREAD_Z
+      : 0
+    
+    sphere.position.set(xPos, yPos, zPos)
+    sphere.userData = { 
+      pointIndex: index, 
+      seriesId: series.id,
+      pointData: point,
+      seriesName: series.name,
+      isDataPoint: true
+    }
+    sphere.visible = false
+    
+    group.add(sphere)
+    objects.set(index, sphere)
+  })
+  
+  const targetPositions = new Map<number, { y: number; z: number }>()
+  const currentPositions = new Map<number, { y: number; z: number }>()
+  let updateAnimationId: number | null = null
+  
+  data.forEach((point, index) => {
+    const yPos = normalizeValue(point.y, yMin, yMax) * MAX_Y
+    const zPos = hasZ && point.z !== undefined
+      ? -SPREAD_Z / 2 + normalizeValue(point.z, zMin, zMax) * SPREAD_Z
+      : 0
+    targetPositions.set(index, { y: yPos, z: zPos })
+    currentPositions.set(index, { y: yPos, z: zPos })
+  })
+  
+  const updateData = (newData: DataPoint[], animate = true) => {
+    newData.forEach((point, index) => {
+      const sphere = objects.get(index)
+      if (!sphere) return
+      
+      const yPos = normalizeValue(point.y, yMin, yMax) * MAX_Y
+      const zPos = hasZ && point.z !== undefined
+        ? -SPREAD_Z / 2 + normalizeValue(point.z, zMin, zMax) * SPREAD_Z
+        : 0
+      targetPositions.set(index, { y: yPos, z: zPos })
+      
+      sphere.visible = true
+    })
+    
+    if (animate && updateAnimationId === null) {
+      const startTime = performance.now()
+      const duration = 400
+      
+      const animateUpdate = () => {
+        const elapsed = performance.now() - startTime
+        const progress = Math.min(elapsed / duration, 1)
+        const eased = 1 - Math.pow(1 - progress, 3)
+        
+        newData.forEach((_, index) => {
+          const sphere = objects.get(index)
+          if (!sphere || !sphere.visible) return
+          
+          const targetPos = targetPositions.get(index)
+          const startPos = currentPositions.get(index)
+          if (!targetPos || !startPos) return
+          
+          sphere.position.y = startPos.y + (targetPos.y - startPos.y) * eased
+          sphere.position.z = startPos.z + (targetPos.z - startPos.z) * eased
+        })
+        
+        if (progress < 1) {
+          updateAnimationId = requestAnimationFrame(animateUpdate)
+        } else {
+          newData.forEach((_, index) => {
+            const targetPos = targetPositions.get(index)
+            if (targetPos) {
+              currentPositions.set(index, { y: targetPos.y, z: targetPos.z })
+            }
+          })
+          updateAnimationId = null
+        }
+      }
+      
+      animateUpdate()
+    } else if (!animate) {
+      newData.forEach((_, index) => {
+        const sphere = objects.get(index)
+        if (!sphere) return
+        
+        const targetPos = targetPositions.get(index)
+        if (targetPos) {
+          sphere.position.y = targetPos.y
+          sphere.position.z = targetPos.z
+          currentPositions.set(index, { y: targetPos.y, z: targetPos.z })
+        }
+      })
+    }
+  }
+  
+  const animateIn = () => {
+    const duration = 600
+    const startTime = performance.now()
+    const totalPoints = data.length
+    const centerIndex = totalPoints / 2
+    
+    const animate = () => {
+      const elapsed = performance.now() - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      
+      lineMaterial.opacity = eased
+      lineMesh.scale.setScalar(0.5 + eased * 0.5)
+      
+      data.forEach((_, index) => {
+        const sphere = objects.get(index)
+        if (!sphere) return
+        
+        const distanceFromCenter = Math.abs(index - centerIndex) / centerIndex
+        const startDelay = distanceFromCenter * duration * 0.3
+        const localProgress = Math.min(1, Math.max(0, (elapsed - startDelay)) / (duration * 0.7))
+        const localEased = 1 - Math.pow(1 - localProgress, 3)
+        
+        if (localProgress > 0) {
+          sphere.visible = true
+          const mat = sphere.material as THREE.MeshStandardMaterial
+          mat.opacity = localEased
+          sphere.scale.setScalar(localEased)
+        } else {
+          sphere.visible = false
+        }
+      })
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate)
+      }
+    }
+    
+    animate()
+  }
+  
+  const animateOut = (): Promise<void> => {
+    return new Promise((resolve) => {
+      const duration = 600
+      const startTime = performance.now()
+      
+      const startScales = new Map<number, number>()
+      objects.forEach((sphere, index) => {
+        startScales.set(index, sphere.scale.x)
+      })
+      
+      const animate = () => {
+        const elapsed = performance.now() - startTime
+        const progress = Math.min(elapsed / duration, 1)
+        const eased = 1 - Math.pow(progress, 2)
+        
+        lineMaterial.opacity = eased
+        lineMesh.scale.setScalar(eased)
+        
+        objects.forEach((sphere, index) => {
+          const mat = sphere.material as THREE.MeshStandardMaterial
+          mat.opacity = eased
+          const startScale = startScales.get(index) || 1
+          sphere.scale.setScalar(startScale * eased)
+        })
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate)
+        } else {
+          group.visible = false
+          resolve()
+        }
+      }
+      
+      animate()
+    })
+  }
+  
+  const dispose = () => {
+    if (updateAnimationId !== null) {
+      cancelAnimationFrame(updateAnimationId)
+    }
+    tubeGeometry.dispose()
+    lineMaterial.dispose()
+    pointGeometry.dispose()
+    objects.forEach(obj => {
+      if (Array.isArray(obj.material)) {
+        obj.material.forEach((m: THREE.Material) => m.dispose())
+      } else {
+        obj.material.dispose()
+      }
+    })
+  }
+  
+  return { group, objects, updateData, animateIn, animateOut, dispose }
+}
+
+export function createScatter(
+  series: DataSeries,
+  options: ChartOptions
+): ChartResult {
+  const { color, pointSize = 0.35, xRange, yRange, hasZ, zRange, lodLevel = 0 } = options
+  const group = new THREE.Group()
+  const objects = new Map<number, THREE.Mesh>()
+  
+  const data = series.data
+  const yMin = yRange ? yRange[0] : Math.min(...data.map(d => d.y), 0)
+  const yMax = yRange ? yRange[1] : Math.max(...data.map(d => d.y))
+  const xMin = xRange ? xRange[0] : 0
+  const xMax = xRange ? xRange[1] : data.length - 1
+  const zMin = zRange ? zRange[0] : 0
+  const zMax = zRange ? zRange[1] : 1
+  
+  const sphereColor = new THREE.Color(color)
+  const emissiveColor = sphereColor.clone().multiplyScalar(1.3)
+  
+  const segments = lodLevel > 0 ? 4 : 12
+  const geometry = new THREE.SphereGeometry(pointSize, segments, segments)
+  
+  data.forEach((point, index) => {
+    const material = new THREE.MeshStandardMaterial({
+      color: sphereColor,
+      roughness: 0.35,
+      metalness: 0.3,
+      emissive: emissiveColor,
+      emissiveIntensity: 0.2,
+      transparent: true,
+      opacity: 0
+    })
+    
+    const sphere = new THREE.Mesh(geometry.clone(), material)
+    
+    const xPos = data.length > 1 
+      ? -SPREAD_X / 2 + (index / (data.length - 1)) * SPREAD_X
+      : 0
+    
+    const yPos = normalizeValue(point.y, yMin, yMax) * MAX_Y
+    
+    const zPos = hasZ && point.z !== undefined
+      ? -SPREAD_Z / 2 + normalizeValue(point.z, zMin, zMax) * SPREAD_Z
+      : 0
+    
+    sphere.position.set(xPos, yPos, zPos)
+    sphere.userData = { 
+      pointIndex: index, 
+      seriesId: series.id,
+      pointData: point,
+      seriesName: series.name
+    }
+    sphere.scale.setScalar(0.01)
+    sphere.visible = false
+    
+    group.add(sphere)
+    objects.set(index, sphere)
+  })
+  
+  const targetPositions = new Map<number, { y: number; z: number }>()
+  const currentPositions = new Map<number, { y: number; z: number }>()
+  let updateAnimationId: number | null = null
+  
+  data.forEach((point, index) => {
+    const yPos = normalizeValue(point.y, yMin, yMax) * MAX_Y
+    const zPos = hasZ && point.z !== undefined
+      ? -SPREAD_Z / 2 + normalizeValue(point.z, zMin, zMax) * SPREAD_Z
+      : 0
+    targetPositions.set(index, { y: yPos, z: zPos })
+    currentPositions.set(index, { y: yPos, z: zPos })
+  })
+  
+  const updateData = (newData: DataPoint[], animate = true) => {
+    newData.forEach((point, index) => {
+      const sphere = objects.get(index)
+      if (!sphere) return
+      
+      const yPos = normalizeValue(point.y, yMin, yMax) * MAX_Y
+      const zPos = hasZ && point.z !== undefined
+        ? -SPREAD_Z / 2 + normalizeValue(point.z, zMin, zMax) * SPREAD_Z
+        : 0
+      targetPositions.set(index, { y: yPos, z: zPos })
+      
+      sphere.visible = true
+    })
+    
+    if (animate && updateAnimationId === null) {
+      const startTime = performance.now()
+      const duration = 400
+      
+      const animateUpdate = () => {
+        const elapsed = performance.now() - startTime
+        const progress = Math.min(elapsed / duration, 1)
+        const eased = 1 - Math.pow(1 - progress, 3)
+        
+        newData.forEach((_, index) => {
+          const sphere = objects.get(index)
+          if (!sphere || !sphere.visible) return
+          
+          const targetPos = targetPositions.get(index)
+          const startPos = currentPositions.get(index)
+          if (!targetPos || !startPos) return
+          
+          sphere.position.y = startPos.y + (targetPos.y - startPos.y) * eased
+          sphere.position.z = startPos.z + (targetPos.z - startPos.z) * eased
+        })
+        
+        if (progress < 1) {
+          updateAnimationId = requestAnimationFrame(animateUpdate)
+        } else {
+          newData.forEach((_, index) => {
+            const targetPos = targetPositions.get(index)
+            if (targetPos) {
+              currentPositions.set(index, { y: targetPos.y, z: targetPos.z })
+            }
+          })
+          updateAnimationId = null
+        }
+      }
+      
+      animateUpdate()
+    } else if (!animate) {
+      newData.forEach((_, index) => {
+        const sphere = objects.get(index)
+        if (!sphere) return
+        
+        const targetPos = targetPositions.get(index)
+        if (targetPos) {
+          sphere.position.y = targetPos.y
+          sphere.position.z = targetPos.z
+          currentPositions.set(index, { y: targetPos.y, z: targetPos.z })
+        }
+      })
+    }
+  }
+  
+  const animateIn = () => {
+    const duration = 600
+    const startTime = performance.now()
+    const totalPoints = data.length
+    const centerIndex = totalPoints / 2
+    
+    const animate = () => {
+      const elapsed = performance.now() - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      const eased = 1 - Math.pow(1 - progress, 3)
+      
+      data.forEach((_, index) => {
+        const sphere = objects.get(index)
+        if (!sphere) return
+        
+        const distanceFromCenter = Math.abs(index - centerIndex) / centerIndex
+        const startDelay = distanceFromCenter * duration * 0.3
+        const localProgress = Math.min(1, Math.max(0, (elapsed - startDelay)) / (duration * 0.7))
+        const localEased = 1 - Math.pow(1 - localProgress, 3)
+        
+        if (localProgress > 0) {
+          sphere.visible = true
+          sphere.scale.setScalar(localEased)
+          const mat = sphere.material as THREE.MeshStandardMaterial
+          mat.opacity = localEased
+        } else {
+          sphere.visible = false
+        }
+      })
+      
+      if (progress < 1) {
+        requestAnimationFrame(animate)
+      }
+    }
+    
+    animate()
+  }
+  
+  const animateOut = (): Promise<void> => {
+    return new Promise((resolve) => {
+      const duration = 600
+      const startTime = performance.now()
+      
+      const startScales = new Map<number, number>()
+      objects.forEach((sphere, index) => {
+        startScales.set(index, sphere.scale.x)
+      })
+      
+      const animate = () => {
+        const elapsed = performance.now() - startTime
+        const progress = Math.min(elapsed / duration, 1)
+        const eased = 1 - Math.pow(progress, 2)
+        
+        objects.forEach((sphere, index) => {
+          const startScale = startScales.get(index) || 1
+          sphere.scale.setScalar(startScale * eased)
+          const mat = sphere.material as THREE.MeshStandardMaterial
+          mat.opacity = eased
+        })
+        
+        if (progress < 1) {
+          requestAnimationFrame(animate)
+        } else {
+          group.visible = false
+          resolve()
+        }
+      }
+      
+      animate()
+    })
+  }
+  
+  const dispose = () => {
+    if (updateAnimationId !== null) {
+      cancelAnimationFrame(updateAnimationId)
+    }
+    geometry.dispose()
+    objects.forEach(obj => {
+      if (Array.isArray(obj.material)) {
+        obj.material.forEach((m: THREE.Material) => m.dispose())
+      } else {
+        obj.material.dispose()
+      }
+    })
+  }
+  
+  return { group, objects, updateData, animateIn, animateOut, dispose }
+}
+
+export const chartFactory = {
+  createBars,
+  createLine,
+  createScatter
+}

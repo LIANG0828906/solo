@@ -1,0 +1,336 @@
+.forge-workshop {
+  padding: 20px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+
+.forge-container {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+}
+
+.hexagram-wrapper {
+  position: relative;
+  width: 280px;
+  height: 280px;
+}
+
+.hexagram-svg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.hexagram-line {
+  transition: stroke 0.3s ease;
+}
+
+.hexagram-line.glowing {
+  stroke: #c9a34a;
+  filter: drop-shadow(0 0 10px #c9a34a);
+  animation: pulse-glow 1s ease-in-out infinite alternate;
+}
+
+@keyframes pulse-glow {
+  from {
+    stroke-opacity: 0.5;
+    filter: drop-shadow(0 0 5px #c9a34a);
+  }
+  to {
+    stroke-opacity: 1;
+    filter: drop-shadow(0 0 20px #c9a34a);
+  }
+}
+
+.forge-slot {
+  position: absolute;
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(44, 31, 14, 0.8);
+  border: 2px dashed rgba(201, 163, 74, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(4px);
+  z-index: 2;
+}
+
+.forge-slot:hover {
+  border-color: #c9a34a;
+  box-shadow: 0 0 15px rgba(201, 163, 74, 0.4);
+  transform: scale(1.1);
+}
+
+.forge-slot.filled {
+  border-style: solid;
+  background: rgba(44, 31, 14, 0.95);
+  box-shadow: 0 0 15px var(--element-color, rgba(201, 163, 74, 0.4));
+}
+
+.forge-slot.cracked {
+  border-color: #8b0000 !important;
+  background: rgba(139, 0, 0, 0.3);
+}
+
+.forge-slot.shake {
+  animation: shake 0.3s ease-in-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
+}
+
+.slot-number {
+  color: rgba(201, 163, 74, 0.5);
+  font-size: 18px;
+  font-weight: bold;
+}
+
+.slot-fragment {
+  animation: fragment-fly-in 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes fragment-fly-in {
+  from {
+    transform: scale(0) rotate(-180deg);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+.forge-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+  z-index: 3;
+}
+
+.forge-button {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 2px solid rgba(201, 163, 74, 0.3);
+  background: rgba(44, 31, 14, 0.8);
+  color: rgba(201, 163, 74, 0.5);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: not-allowed;
+  transition: all 0.3s ease;
+  backdrop-filter: blur(8px);
+}
+
+.forge-button.active {
+  cursor: pointer;
+  border-color: #c9a34a;
+  color: #c9a34a;
+  animation: forge-pulse 2s ease-in-out infinite;
+}
+
+@keyframes forge-pulse {
+  0%, 100% {
+    box-shadow: 0 0 10px rgba(201, 163, 74, 0.4);
+  }
+  50% {
+    box-shadow: 0 0 25px rgba(201, 163, 74, 0.8), 0 0 50px rgba(201, 163, 74, 0.4);
+  }
+}
+
+.forge-button.forging {
+  animation: forge-spin 1s linear infinite;
+}
+
+@keyframes forge-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.success-rate {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #c9a34a;
+}
+
+.particles-container {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.particle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color);
+  box-shadow: 0 0 10px var(--color);
+  animation: particle-explode 1s ease-out forwards;
+}
+
+@keyframes particle-explode {
+  0% {
+    transform: translate(0, 0) scale(1);
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--tx), var(--ty)) scale(0);
+    opacity: 0;
+  }
+}
+
+.collection-panel {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(201, 163, 74, 0.2);
+}
+
+.collection-title {
+  color: #c9a34a;
+  font-size: 16px;
+  margin: 0 0 12px 0;
+}
+
+.rune-collection {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 150px;
+  overflow-y: auto;
+}
+
+.empty-collection {
+  color: #666;
+  font-size: 13px;
+  text-align: center;
+  width: 100%;
+  padding: 20px 0;
+}
+
+.rune-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(44, 31, 14, 0.8);
+  border: 1px solid var(--rune-color, #c9a34a);
+  border-radius: 8px;
+  cursor: grab;
+  transition: all 0.3s ease;
+  min-width: 120px;
+}
+
+.rune-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3), 0 0 10px var(--rune-color, rgba(201, 163, 74, 0.3));
+}
+
+.rune-item:active {
+  cursor: grabbing;
+}
+
+.rune-info {
+  flex: 1;
+}
+
+.rune-name {
+  color: #fff;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.rune-rarity {
+  font-size: 11px;
+}
+
+.forge-result-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 200;
+  animation: fadeIn 0.3s ease;
+}
+
+.forge-result-card {
+  background: linear-gradient(160deg, rgba(44, 31, 14, 0.98), rgba(26, 26, 46, 0.98));
+  border: 2px solid #c9a34a;
+  border-radius: 20px;
+  padding: 40px;
+  text-align: center;
+  animation: result-pop 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes result-pop {
+  from {
+    transform: scale(0.5);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.result-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.forge-result-card h3 {
+  color: #c9a34a;
+  font-size: 24px;
+  margin: 0 0 20px 0;
+}
+
+.result-rune {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 20px 30px;
+  border: 2px solid;
+  border-radius: 16px;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.result-rune-name {
+  color: #fff;
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.result-rune-rarity {
+  font-size: 20px;
+}
+
+@media (max-width: 768px) {
+  .hexagram-wrapper {
+    width: 240px;
+    height: 240px;
+  }
+}

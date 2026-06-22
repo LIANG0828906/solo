@@ -1,0 +1,395 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D粒子星云画廊</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000011;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+      color: #e2e8f0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .loader {
+      position: fixed;
+      inset: 0;
+      background: #000011;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      transition: opacity 0.6s ease;
+    }
+
+    .loader.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loader-spinner {
+      width: 50px;
+      height: 50px;
+      border: 3px solid rgba(255, 255, 255, 0.1);
+      border-top-color: #6366f1;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    .loader-text {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #94a3b8;
+      letter-spacing: 2px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .fps-counter {
+      position: fixed;
+      left: 20px;
+      bottom: 20px;
+      padding: 8px 14px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 8px;
+      font-size: 14px;
+      color: #f1f5f9;
+      font-variant-numeric: tabular-nums;
+      z-index: 100;
+      pointer-events: none;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .control-panel {
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      width: 280px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 12px;
+      z-index: 100;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+    }
+
+    .panel-header {
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      cursor: move;
+      background: rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+      transition: background 0.2s;
+    }
+
+    .panel-header:hover {
+      background: rgba(255, 255, 255, 0.08);
+    }
+
+    .panel-title {
+      font-size: 12px;
+      color: #cbd5e1;
+      font-weight: 500;
+      letter-spacing: 0.5px;
+    }
+
+    .panel-toggle {
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border: none;
+      background: transparent;
+      color: #94a3b8;
+      font-size: 14px;
+      line-height: 1;
+      border-radius: 4px;
+      transition: all 0.2s;
+    }
+
+    .panel-toggle:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #e2e8f0;
+    }
+
+    .panel-content {
+      padding: 16px;
+      transition: all 0.3s ease;
+      overflow: hidden;
+    }
+
+    .panel-content.collapsed {
+      padding: 0 16px;
+      max-height: 0;
+      opacity: 0;
+    }
+
+    .panel-item {
+      margin-bottom: 16px;
+    }
+
+    .panel-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .panel-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: #cbd5e1;
+      margin-bottom: 8px;
+    }
+
+    .panel-value {
+      color: #6366f1;
+      font-variant-numeric: tabular-nums;
+      font-weight: 500;
+    }
+
+    .panel-slider {
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .panel-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #6366f1;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(99, 102, 241, 0.5);
+      transition: transform 0.15s;
+    }
+
+    .panel-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    .panel-slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      background: #6366f1;
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 8px rgba(99, 102, 241, 0.5);
+    }
+
+    .reset-btn {
+      width: 100%;
+      padding: 10px 16px;
+      background: rgba(99, 102, 241, 0.2);
+      color: #a5b4fc;
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: inherit;
+      letter-spacing: 0.5px;
+    }
+
+    .reset-btn:hover {
+      background: rgba(99, 102, 241, 0.35);
+      color: #c7d2fe;
+      border-color: rgba(99, 102, 241, 0.5);
+    }
+
+    .reset-btn:active {
+      transform: scale(0.98);
+    }
+
+    .stat-box {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .stat-label {
+      font-size: 11px;
+      color: #94a3b8;
+      margin-right: 8px;
+    }
+
+    .stat-value {
+      font-size: 16px;
+      color: #e2e8f0;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .particle-tooltip {
+      position: fixed;
+      pointer-events: none;
+      padding: 10px 14px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border-radius: 12px;
+      z-index: 200;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      font-size: 12px;
+      line-height: 1.7;
+      color: #f1f5f9;
+      min-width: 180px;
+      white-space: nowrap;
+    }
+
+    .particle-tooltip.visible {
+      opacity: 1;
+    }
+
+    .particle-tooltip.locked {
+      border-color: rgba(99, 102, 241, 0.4);
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.15);
+    }
+
+    .tooltip-title {
+      font-size: 11px;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 6px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .tooltip-row {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .tooltip-key {
+      color: #94a3b8;
+    }
+
+    .tooltip-val {
+      color: #e2e8f0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .tooltip-val.color {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .color-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      box-shadow: 0 0 6px currentColor;
+    }
+
+    .tooltip-section {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .tooltip-hint {
+      margin-top: 8px;
+      font-size: 10px;
+      color: #64748b;
+      text-align: center;
+      font-style: italic;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="loader" id="loader">
+      <div class="loader-spinner"></div>
+      <div class="loader-text">正在加载星云...</div>
+    </div>
+
+    <div class="fps-counter" id="fpsCounter">FPS: --</div>
+
+    <div class="control-panel" id="controlPanel">
+      <div class="panel-header" id="panelHeader">
+        <span class="panel-title">星云控制面板</span>
+        <button class="panel-toggle" id="panelToggle" title="展开/收起">−</button>
+      </div>
+      <div class="panel-content" id="panelContent">
+        <div class="panel-item">
+          <div class="stat-box">
+            <span class="stat-label">粒子数量</span>
+            <span class="stat-value" id="particleCount">0</span>
+          </div>
+        </div>
+        <div class="panel-item">
+          <div class="panel-label">
+            <span>旋转速度</span>
+            <span class="panel-value" id="rotationValue">1.0x</span>
+          </div>
+          <input type="range" class="panel-slider" id="rotationSlider" min="0" max="2" step="0.1" value="1">
+        </div>
+        <div class="panel-item">
+          <div class="panel-label">
+            <span>粒子大小</span>
+            <span class="panel-value" id="sizeValue">1.0x</span>
+          </div>
+          <input type="range" class="panel-slider" id="sizeSlider" min="0.5" max="2" step="0.1" value="1">
+        </div>
+        <div class="panel-item">
+          <button class="reset-btn" id="resetBtn">重置视角</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="particle-tooltip" id="particleTooltip"></div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

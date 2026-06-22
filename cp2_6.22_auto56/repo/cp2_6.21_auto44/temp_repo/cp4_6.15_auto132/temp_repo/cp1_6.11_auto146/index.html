@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>音频波形可视化与均衡器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      min-height: 100vh;
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #e0e0e0;
+      overflow-x: hidden;
+    }
+
+    #app {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      min-height: 100vh;
+      background: #0f0f23;
+    }
+
+    .panel {
+      background: #1a1a2e;
+      border: 1px solid #2a2a3e;
+      border-radius: 6px;
+      padding: 16px 20px;
+    }
+
+    /* Upload Section */
+    .upload-section {
+      height: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+    }
+
+    .upload-btn {
+      background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+      color: white;
+      border: none;
+      padding: 12px 32px;
+      font-size: 14px;
+      font-weight: 600;
+      border-radius: 10px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: filter 0.2s, transform 0.1s;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .upload-btn:hover {
+      filter: brightness(1.1);
+    }
+
+    .upload-btn:active {
+      transform: scale(0.95);
+    }
+
+    .upload-btn.loading {
+      pointer-events: none;
+    }
+
+    .spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .file-info {
+      font-size: 13px;
+      color: #888;
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    /* Canvas Containers */
+    .canvas-container {
+      position: relative;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    #waveformCanvas {
+      width: 100%;
+      height: 200px;
+      display: block;
+      cursor: pointer;
+    }
+
+    #spectrogramCanvas {
+      width: 100%;
+      height: 150px;
+      display: block;
+      cursor: pointer;
+    }
+
+    .canvas-label {
+      position: absolute;
+      top: 8px;
+      left: 12px;
+      font-size: 12px;
+      color: #666;
+      font-weight: 500;
+      pointer-events: none;
+    }
+
+    /* EQ Section */
+    .eq-section {
+      height: 250px;
+      display: flex;
+      align-items: flex-end;
+      justify-content: space-around;
+      padding: 20px 30px;
+      position: relative;
+    }
+
+    .eq-band {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      height: 100%;
+      position: relative;
+      flex: 1;
+      max-width: 80px;
+    }
+
+    .eq-connector {
+      position: absolute;
+      top: 20px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    .eq-gain-top {
+      height: 24px;
+      font-size: 12px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 50px;
+      transition: all 0.2s;
+    }
+
+    .eq-gain-top.active {
+      transform: translateY(-4px);
+      font-size: 13px;
+    }
+
+    .eq-slider-container {
+      flex: 1;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .eq-slider-track {
+      width: 8px;
+      height: 100%;
+      background: #2a2a3e;
+      border-radius: 4px;
+      position: relative;
+      transition: box-shadow 0.2s;
+    }
+
+    .eq-slider-track:hover {
+      box-shadow: 0 0 0 2px rgba(0, 212, 255, 0.3);
+    }
+
+    .eq-slider-track::before {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%);
+      width: 4px;
+      height: 2px;
+      background: #555;
+    }
+
+    .eq-slider-scale {
+      position: absolute;
+      left: -20px;
+      width: 16px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 4px 0;
+    }
+
+    .eq-scale-mark {
+      width: 8px;
+      height: 1px;
+      background: #555;
+      margin-left: auto;
+    }
+
+    .eq-slider-thumb {
+      position: absolute;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      cursor: grab;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+      transition: box-shadow 0.15s, transform 0.1s;
+      z-index: 2;
+    }
+
+    .eq-slider-thumb:hover {
+      box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.3), 0 2px 8px rgba(0,0,0,0.4);
+    }
+
+    .eq-slider-thumb:active {
+      cursor: grabbing;
+      transform: translateX(-50%) scale(1.1);
+    }
+
+    .eq-gain-bottom {
+      height: 24px;
+      font-size: 12px;
+      color: #888;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .eq-freq-label {
+      font-size: 12px;
+      color: #888;
+      font-weight: 500;
+      margin-top: 4px;
+    }
+
+    /* Playback Controls */
+    .playback-section {
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 24px;
+    }
+
+    .playback-btn {
+      background: #2a2a3e;
+      border: 1px solid #3a3a4e;
+      color: #e0e0e0;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+
+    .playback-btn:hover {
+      background: #3a3a4e;
+      border-color: #00d4ff;
+    }
+
+    .playback-btn:active {
+      transform: scale(0.95);
+    }
+
+    .playback-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .play-btn {
+      width: 52px;
+      height: 52px;
+      background: linear-gradient(135deg, #00d4ff 0%, #7b2ff7 100%);
+      border: none;
+      font-size: 18px;
+    }
+
+    .play-btn:hover {
+      filter: brightness(1.1);
+    }
+
+    .time-display {
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+      color: #aaa;
+      min-width: 90px;
+      text-align: center;
+    }
+
+    .progress-circle-container {
+      position: relative;
+      width: 30px;
+      height: 30px;
+    }
+
+    .progress-circle {
+      transform: rotate(-90deg);
+      width: 100%;
+      height: 100%;
+    }
+
+    .progress-circle-bg {
+      fill: none;
+      stroke: #2a2a3e;
+      stroke-width: 3;
+    }
+
+    .progress-circle-fg {
+      fill: none;
+      stroke: #00d4ff;
+      stroke-width: 3;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.1s linear;
+    }
+
+    /* Presets Section */
+    .presets-section {
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      padding: 0 20px;
+    }
+
+    .preset-btn {
+      background: #2a2a3e;
+      border: 1px solid #3a3a4e;
+      color: #ccc;
+      padding: 6px 18px;
+      font-size: 12px;
+      border-radius: 20px;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all 0.15s;
+      font-weight: 500;
+    }
+
+    .preset-btn:hover {
+      background: #3a3a4e;
+      border-color: #00d4ff;
+      color: #fff;
+    }
+
+    .preset-btn:active {
+      transform: scale(0.95);
+    }
+
+    .preset-btn.active {
+      background: linear-gradient(135deg, #8b5cf6 0%, #6366f1 100%);
+      border-color: transparent;
+      color: white;
+    }
+
+    /* Info Section */
+    .info-section {
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 32px;
+      flex-wrap: wrap;
+    }
+
+    .info-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      color: #888;
+    }
+
+    .info-item .label {
+      color: #666;
+    }
+
+    .info-item .value {
+      color: #00d4ff;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .vu-meter-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .vu-meter {
+      width: 200px;
+      height: 14px;
+      background: #2a2a3e;
+      border-radius: 3px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .vu-meter-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #00ff88 0%, #00ff88 60%, #ffff00 80%, #ff4444 100%);
+      transition: width 0.05s linear;
+      border-radius: 3px;
+    }
+
+    .vu-db-label {
+      font-size: 11px;
+      color: #666;
+      min-width: 40px;
+      text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      #app {
+        padding: 12px;
+        gap: 12px;
+      }
+
+      .panel {
+        padding: 12px 14px;
+      }
+
+      #waveformCanvas {
+        height: 150px;
+      }
+
+      #spectrogramCanvas {
+        height: 100px;
+      }
+
+      .eq-section {
+        height: 200px;
+        padding: 14px 10px;
+        gap: 2px;
+      }
+
+      .eq-band {
+        max-width: none;
+      }
+
+      .eq-slider-track {
+        width: 6px;
+      }
+
+      .eq-slider-thumb {
+        width: 20px;
+        height: 20px;
+      }
+
+      .eq-freq-label {
+        font-size: 10px;
+      }
+
+      .eq-gain-top, .eq-gain-bottom {
+        font-size: 10px;
+      }
+
+      .playback-section {
+        gap: 14px;
+      }
+
+      .presets-section {
+        gap: 6px;
+        flex-wrap: wrap;
+        height: auto;
+        padding: 10px;
+      }
+
+      .preset-btn {
+        padding: 5px 12px;
+        font-size: 11px;
+      }
+
+      .info-section {
+        gap: 16px;
+        height: auto;
+        padding: 12px;
+      }
+
+      .vu-meter {
+        width: 120px;
+      }
+    }
+
+    @media (orientation: landscape) and (max-height: 600px) {
+      #waveformCanvas {
+        height: 120px;
+      }
+
+      #spectrogramCanvas {
+        height: 80px;
+      }
+
+      .eq-section {
+        height: 160px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- Upload Section -->
+    <div class="panel upload-section">
+      <button class="upload-btn" id="uploadBtn">
+        <span id="uploadIcon">📁</span>
+        <span id="uploadText">上传音频</span>
+      </button>
+      <input type="file" id="fileInput" accept=".mp3,.wav,audio/mpeg,audio/wav,audio/x-wav">
+      <div class="file-info" id="fileInfo">支持 MP3、WAV 格式，最大 20MB</div>
+    </div>
+
+    <!-- Waveform -->
+    <div class="panel canvas-container">
+      <div class="canvas-label">波形图</div>
+      <canvas id="waveformCanvas"></canvas>
+    </div>
+
+    <!-- Spectrogram -->
+    <div class="panel canvas-container">
+      <div class="canvas-label">频谱图</div>
+      <canvas id="spectrogramCanvas"></canvas>
+    </div>
+
+    <!-- Equalizer -->
+    <div class="panel eq-section" id="eqSection">
+      <svg class="eq-connector" id="eqConnector"></svg>
+    </div>
+
+    <!-- Playback Controls -->
+    <div class="panel playback-section">
+      <button class="playback-btn" id="stopBtn" disabled title="停止">■</button>
+      <button class="playback-btn play-btn" id="playBtn" disabled title="播放/暂停">▶</button>
+      <div class="time-display"><span id="currentTime">00:00</span> / <span id="totalTime">00:00</span></div>
+      <div class="progress-circle-container">
+        <svg class="progress-circle" viewBox="0 0 30 30">
+          <circle class="progress-circle-bg" cx="15" cy="15" r="13"></circle>
+          <circle class="progress-circle-fg" cx="15" cy="15" r="13" 
+            stroke-dasharray="81.68" stroke-dashoffset="81.68"></circle>
+        </svg>
+      </div>
+    </div>
+
+    <!-- Presets -->
+    <div class="panel presets-section" id="presetsSection">
+      <button class="preset-btn" data-preset="standard">标准</button>
+      <button class="preset-btn" data-preset="rock">摇滚</button>
+      <button class="preset-btn" data-preset="pop">流行</button>
+      <button class="preset-btn" data-preset="jazz">爵士</button>
+      <button class="preset-btn" data-preset="classical">古典</button>
+      <button class="preset-btn" data-preset="vocal">人声</button>
+    </div>
+
+    <!-- Audio Info -->
+    <div class="panel info-section">
+      <div class="info-item">
+        <span class="label">采样率:</span>
+        <span class="value" id="sampleRate">-- Hz</span>
+      </div>
+      <div class="info-item">
+        <span class="label">位深:</span>
+        <span class="value" id="bitDepth">-- bit</span>
+      </div>
+      <div class="info-item">
+        <span class="label">声道:</span>
+        <span class="value" id="channels">--</span>
+      </div>
+      <div class="vu-meter-container">
+        <span class="label" style="font-size:12px;color:#888;">峰值:</span>
+        <div class="vu-meter">
+          <div class="vu-meter-fill" id="vuMeter" style="width:0%"></div>
+        </div>
+        <span class="vu-db-label" id="vuDb">-∞ dB</span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

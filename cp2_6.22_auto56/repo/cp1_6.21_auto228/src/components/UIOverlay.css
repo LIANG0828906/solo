@@ -1,0 +1,355 @@
+.ui-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 100;
+}
+
+.ui-overlay > * {
+  pointer-events: auto;
+}
+
+.top-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 24px;
+  background: linear-gradient(180deg, rgba(11, 12, 16, 0.95) 0%, transparent 100%);
+}
+
+.resource-panel {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.player-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px;
+  font-weight: bold;
+  color: #C5C6C7;
+}
+
+.player-info.player-1 {
+  border: 2px solid #66FCF1;
+  background: rgba(102, 252, 241, 0.1);
+}
+
+.player-info.player-2 {
+  border: 2px solid #FF6B6B;
+  background: rgba(255, 107, 107, 0.1);
+}
+
+.player-name {
+  font-size: 18px;
+}
+
+.resources {
+  font-size: 20px;
+  color: #FFD700;
+}
+
+.turn-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-family: 'Orbitron', sans-serif;
+  color: #C5C6C7;
+}
+
+.turn-label {
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.turn-number {
+  font-size: 24px;
+  font-weight: bold;
+  color: #66FCF1;
+}
+
+.battle-report {
+  position: absolute;
+  top: 80px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 24px;
+  background: rgba(0, 0, 0, 0.8);
+  border: 2px solid #66FCF1;
+  border-radius: 8px;
+  font-size: 18px;
+  color: #FFFFFF;
+  white-space: nowrap;
+  animation: report-fade 2s ease-in-out forwards;
+}
+
+@keyframes report-fade {
+  0% { opacity: 0; transform: translate(-50%, -20px); }
+  15% { opacity: 1; transform: translate(-50%, 0); }
+  85% { opacity: 1; transform: translate(-50%, 0); }
+  100% { opacity: 0; transform: translate(-50%, -20px); }
+}
+
+.deployment-notice {
+  position: absolute;
+  top: 130px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 8px 16px;
+  background: rgba(255, 107, 107, 0.2);
+  border: 1px solid #FF6B6B;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #FF6B6B;
+}
+
+.selected-ship-info {
+  position: absolute;
+  top: 170px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 16px;
+  background: rgba(31, 40, 51, 0.9);
+  border: 1px solid #45A29E;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #C5C6C7;
+}
+
+.ship-icon {
+  font-size: 24px;
+}
+
+.ship-name {
+  font-weight: bold;
+  color: #66FCF1;
+}
+
+.ship-stats {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 12px;
+}
+
+.bottom-bar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 16px 24px;
+  background: linear-gradient(0deg, rgba(11, 12, 16, 0.95) 0%, transparent 100%);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.build-panel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.build-label {
+  font-size: 14px;
+  color: #C5C6C7;
+  margin-right: 8px;
+}
+
+.build-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 8px 12px;
+  background: rgba(69, 162, 158, 0.2);
+  border: 2px solid #45A29E;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.build-btn:hover:not(.disabled) {
+  background: rgba(69, 162, 158, 0.4);
+  transform: scale(1.05);
+}
+
+.build-btn:active:not(.disabled) {
+  transform: scale(0.95);
+}
+
+.build-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn-icon {
+  font-size: 20px;
+}
+
+.btn-cost {
+  font-size: 11px;
+  color: #FFD700;
+  margin-top: 2px;
+}
+
+.end-turn-btn {
+  padding: 12px 24px;
+  background: linear-gradient(135deg, #66FCF1 0%, #45A29E 100%);
+  border: none;
+  border-radius: 8px;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 16px;
+  font-weight: bold;
+  color: #0B0C10;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.end-turn-btn:hover {
+  filter: brightness(1.2);
+  transform: scale(1.05);
+}
+
+.end-turn-btn:active {
+  transform: scale(0.95);
+}
+
+.game-over-modal {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(11, 12, 16, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  backdrop-filter: blur(5px);
+}
+
+.modal-content {
+  background: linear-gradient(135deg, #1F2833 0%, #0B0C10 100%);
+  border: 3px solid #66FCF1;
+  border-radius: 16px;
+  padding: 32px 48px;
+  text-align: center;
+  max-width: 500px;
+  box-shadow: 0 0 50px rgba(102, 252, 241, 0.3);
+  animation: modal-in 0.5s ease-out;
+}
+
+@keyframes modal-in {
+  from { opacity: 0; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.modal-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 28px;
+  color: #66FCF1;
+  margin-bottom: 24px;
+}
+
+.score-breakdown {
+  margin-bottom: 20px;
+}
+
+.score-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 20px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  font-size: 18px;
+}
+
+.score-row.player1 {
+  background: rgba(102, 252, 241, 0.1);
+  border: 1px solid #66FCF1;
+}
+
+.score-row.player2 {
+  background: rgba(255, 107, 107, 0.1);
+  border: 1px solid #FF6B6B;
+}
+
+.score-name {
+  font-weight: bold;
+  color: #C5C6C7;
+}
+
+.score-value {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 24px;
+  font-weight: bold;
+  color: #FFD700;
+}
+
+.score-detail {
+  font-size: 12px;
+  color: #C5C6C7;
+  opacity: 0.7;
+  margin-bottom: 24px;
+}
+
+.modal-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-btn {
+  padding: 12px 24px;
+  background: rgba(69, 162, 158, 0.2);
+  border: 2px solid #45A29E;
+  border-radius: 8px;
+  font-size: 16px;
+  color: #C5C6C7;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modal-btn:hover {
+  background: rgba(69, 162, 158, 0.4);
+  transform: scale(1.02);
+}
+
+.modal-btn:active {
+  transform: scale(0.98);
+}
+
+.modal-btn.primary {
+  background: linear-gradient(135deg, #66FCF1 0%, #45A29E 100%);
+  border-color: #66FCF1;
+  color: #0B0C10;
+  font-weight: bold;
+}
+
+.modal-btn.secondary {
+  background: transparent;
+  border-color: #C5C6C7;
+  opacity: 0.7;
+}
+
+.saved-message {
+  padding: 12px;
+  background: rgba(76, 175, 80, 0.2);
+  border: 1px solid #4CAF50;
+  border-radius: 8px;
+  color: #4CAF50;
+}

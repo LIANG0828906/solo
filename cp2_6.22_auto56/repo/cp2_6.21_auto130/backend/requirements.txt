@@ -1,0 +1,8 @@
+fastapi
+uvicorn[standard]
+python-socketio
+sqlalchemy
+aiosqlite
+pydantic[email]
+python-multipart
+httpx

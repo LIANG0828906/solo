@@ -1,0 +1,285 @@
+{
+  "orders": [
+    {
+      "id": "1",
+      "title": "奶茶凑单 满30减10 还差1人",
+      "type": "food",
+      "totalAmount": 35,
+      "targetMembers": 3,
+      "currentMembers": 2,
+      "deadline": "2026-06-19T09:37:35.592Z",
+      "creatorId": "user-1",
+      "creatorName": "小明",
+      "creatorAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=xiaoming",
+      "members": [
+        {
+          "userId": "user-1",
+          "userName": "小明",
+          "userAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=xiaoming",
+          "paymentStatus": "paid",
+          "shareAmount": 11.67
+        },
+        {
+          "userId": "user-2",
+          "userName": "小红",
+          "userAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=xiaohong",
+          "paymentStatus": "pending",
+          "shareAmount": 11.67
+        }
+      ],
+      "status": "active",
+      "matchRule": {
+        "minAmount": 10,
+        "maxMembers": 5,
+        "autoRejectBelow": 5
+      },
+      "createdAt": "2026-06-19T07:37:35.592Z"
+    },
+    {
+      "id": "2",
+      "title": "京东凑单 满200减30",
+      "type": "shopping",
+      "totalAmount": 200,
+      "targetMembers": 4,
+      "currentMembers": 1,
+      "deadline": "2026-06-20T07:37:35.592Z",
+      "creatorId": "user-3",
+      "creatorName": "购物达人",
+      "creatorAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=gouwudaren",
+      "members": [
+        {
+          "userId": "user-3",
+          "userName": "购物达人",
+          "userAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=gouwudaren",
+          "paymentStatus": "paid",
+          "shareAmount": 50
+        }
+      ],
+      "status": "active",
+      "matchRule": {
+        "minAmount": 30
+      },
+      "createdAt": "2026-06-19T07:37:35.592Z"
+    },
+    {
+      "id": "3",
+      "title": "下班拼车 市区→郊区 每人分摊",
+      "type": "carpool",
+      "totalAmount": 80,
+      "targetMembers": 4,
+      "currentMembers": 3,
+      "deadline": "2026-06-19T12:37:35.592Z",
+      "creatorId": "user-4",
+      "creatorName": "老司机",
+      "creatorAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=laosiji",
+      "members": [
+        {
+          "userId": "user-4",
+          "userName": "老司机",
+          "userAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=laosiji",
+          "paymentStatus": "paid",
+          "shareAmount": 20
+        },
+        {
+          "userId": "user-5",
+          "userName": "乘客A",
+          "userAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=passengerA",
+          "paymentStatus": "paid",
+          "shareAmount": 20
+        },
+        {
+          "userId": "user-6",
+          "userName": "乘客B",
+          "userAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=passengerB",
+          "paymentStatus": "pending",
+          "shareAmount": 20
+        }
+      ],
+      "status": "active",
+      "createdAt": "2026-06-19T07:37:35.592Z"
+    },
+    {
+      "id": "4",
+      "title": "外卖拼单 麻辣烫 起送25",
+      "type": "food",
+      "totalAmount": 50,
+      "targetMembers": 3,
+      "currentMembers": 2,
+      "deadline": "2026-06-19T08:37:35.592Z",
+      "creatorId": "user-7",
+      "creatorName": "吃货小王",
+      "creatorAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=chihuoxiaowang",
+      "members": [
+        {
+          "userId": "user-7",
+          "userName": "吃货小王",
+          "userAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=chihuoxiaowang",
+          "paymentStatus": "paid",
+          "shareAmount": 16.67
+        },
+        {
+          "userId": "user-8",
+          "userName": "隔壁小李",
+          "userAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=gebixiaoli",
+          "paymentStatus": "received",
+          "shareAmount": 16.67
+        }
+      ],
+      "status": "active",
+      "matchRule": {
+        "autoRejectBelow": 10
+      },
+      "createdAt": "2026-06-19T07:37:35.592Z"
+    },
+    {
+      "id": "5",
+      "title": "淘宝凑单 跨店满300减50",
+      "type": "shopping",
+      "totalAmount": 300,
+      "targetMembers": 5,
+      "currentMembers": 2,
+      "deadline": "2026-06-21T07:37:35.592Z",
+      "creatorId": "user-9",
+      "creatorName": "省钱小能手",
+      "creatorAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=shengqianxiaonengshou",
+      "members": [
+        {
+          "userId": "user-9",
+          "userName": "省钱小能手",
+          "userAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=shengqianxiaonengshou",
+          "paymentStatus": "paid",
+          "shareAmount": 60
+        },
+        {
+          "userId": "user-10",
+          "userName": "剁手党",
+          "userAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=duoshoudang",
+          "paymentStatus": "pending",
+          "shareAmount": 60
+        }
+      ],
+      "status": "active",
+      "matchRule": {
+        "minAmount": 50,
+        "maxMembers": 5
+      },
+      "createdAt": "2026-06-19T07:37:35.592Z"
+    },
+    {
+      "id": "6",
+      "title": "周末拼车去机场",
+      "type": "carpool",
+      "totalAmount": 120,
+      "targetMembers": 4,
+      "currentMembers": 1,
+      "deadline": "2026-06-22T07:37:35.592Z",
+      "creatorId": "user-11",
+      "creatorName": "旅行者",
+      "creatorAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=lvxingzhe",
+      "members": [
+        {
+          "userId": "user-11",
+          "userName": "旅行者",
+          "userAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=lvxingzhe",
+          "paymentStatus": "paid",
+          "shareAmount": 30
+        }
+      ],
+      "status": "active",
+      "createdAt": "2026-06-19T07:37:35.592Z"
+    },
+    {
+      "id": "h1",
+      "title": "618淘宝凑单 满300减50",
+      "type": "shopping",
+      "totalAmount": 320,
+      "targetMembers": 4,
+      "currentMembers": 4,
+      "deadline": "2026-06-18T07:37:35.592Z",
+      "creatorId": "user-1",
+      "creatorName": "小明",
+      "creatorAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=xiaoming",
+      "members": [
+        {
+          "userId": "user-1",
+          "userName": "小明",
+          "userAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=xiaoming",
+          "paymentStatus": "received",
+          "shareAmount": 80
+        },
+        {
+          "userId": "user-2",
+          "userName": "小红",
+          "userAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=xiaohong",
+          "paymentStatus": "received",
+          "shareAmount": 80
+        },
+        {
+          "userId": "user-3",
+          "userName": "购物达人",
+          "userAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=gouwudaren",
+          "paymentStatus": "received",
+          "shareAmount": 80
+        },
+        {
+          "userId": "user-4",
+          "userName": "老司机",
+          "userAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=laosiji",
+          "paymentStatus": "received",
+          "shareAmount": 80
+        }
+      ],
+      "status": "completed",
+      "createdAt": "2026-06-17T07:37:35.592Z"
+    },
+    {
+      "id": "h2",
+      "title": "上周拼车去机场",
+      "type": "carpool",
+      "totalAmount": 100,
+      "targetMembers": 4,
+      "currentMembers": 4,
+      "deadline": "2026-06-12T07:37:35.592Z",
+      "creatorId": "user-2",
+      "creatorName": "小红",
+      "creatorAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=xiaohong",
+      "members": [],
+      "status": "archived",
+      "createdAt": "2026-06-09T07:37:35.592Z"
+    }
+  ],
+  "messages": {
+    "1": [
+      {
+        "id": "msg-1",
+        "orderId": "1",
+        "userId": "user-1",
+        "userName": "小明",
+        "userAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=xiaoming",
+        "content": "大家好，我想点奶茶，有一起的吗？",
+        "timestamp": "2026-06-19T07:07:35.592Z",
+        "type": "user"
+      },
+      {
+        "id": "msg-2",
+        "orderId": "1",
+        "userId": "user-2",
+        "userName": "小红",
+        "userAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=xiaohong",
+        "content": "我要一杯珍珠奶茶",
+        "timestamp": "2026-06-19T07:12:35.592Z",
+        "type": "user"
+      },
+      {
+        "id": "msg-3",
+        "orderId": "1",
+        "userId": "system",
+        "userName": "系统",
+        "userAvatar": "",
+        "content": "还差1人就凑够啦！",
+        "timestamp": "2026-06-19T07:17:35.592Z",
+        "type": "system"
+      }
+    ]
+  }
+}

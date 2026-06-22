@@ -1,0 +1,57 @@
+.voteContainer {
+  position: relative;
+  display: inline-block;
+}
+
+.voteButton {
+  padding: 14px 40px;
+  font-size: 16px;
+  font-weight: 600;
+  border-radius: var(--radius-lg);
+  background: linear-gradient(135deg, var(--color-accent-primary), #7c3aed);
+  color: white;
+  transition: all var(--transition-normal);
+  box-shadow: 0 4px 15px var(--color-accent-glow);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  position: relative;
+  overflow: hidden;
+}
+
+.voteButton:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px var(--color-accent-glow);
+}
+
+.voteButton:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.voteButton:disabled {
+  cursor: not-allowed;
+  opacity: 0.8;
+}
+
+.votedButton {
+  background: linear-gradient(135deg, var(--color-success), #10b981);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+}
+
+.votedButton:hover {
+  box-shadow: 0 8px 25px rgba(16, 185, 129, 0.5);
+}
+
+.particleCanvas {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.voteCount {
+  font-size: 18px;
+  font-weight: 700;
+}

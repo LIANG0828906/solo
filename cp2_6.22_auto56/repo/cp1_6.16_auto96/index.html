@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>时空修补匠</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #1a0f05;
+      font-family: 'Microsoft YaHei', 'SimSun', serif;
+    }
+
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #game-canvas {
+      display: block;
+      touch-action: none;
+      cursor: grab;
+    }
+
+    #game-canvas:active {
+      cursor: grabbing;
+    }
+
+    #ui-overlay {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 280px;
+      height: 100vh;
+      padding: 20px;
+      background: linear-gradient(180deg, rgba(61, 41, 20, 0.95) 0%, rgba(40, 25, 10, 0.98) 100%);
+      border-left: 3px solid #8B6914;
+      box-shadow: -5px 0 20px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    .panel-title {
+      font-size: 20px;
+      color: #FFD700;
+      text-align: center;
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+      border-bottom: 2px solid #8B6914;
+      padding-bottom: 12px;
+      letter-spacing: 4px;
+    }
+
+    .status-section {
+      background: linear-gradient(135deg, rgba(139, 105, 20, 0.3) 0%, rgba(61, 41, 20, 0.5) 100%);
+      border: 2px solid #CD7F32;
+      border-radius: 8px;
+      padding: 16px;
+      position: relative;
+    }
+
+    .status-section::before {
+      content: '';
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      width: 8px;
+      height: 8px;
+      background: #CD7F32;
+      border-radius: 50%;
+      box-shadow: 
+        calc(100% - 20px) 0 0 #CD7F32,
+        0 calc(100% - 20px) 0 #CD7F32,
+        calc(100% - 20px) calc(100% - 20px) 0 #CD7F32;
+    }
+
+    .section-label {
+      font-size: 14px;
+      color: #CD7F32;
+      margin-bottom: 12px;
+      letter-spacing: 2px;
+    }
+
+    .progress-container {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+      width: 120px;
+      height: 120px;
+      margin: 0 auto;
+    }
+
+    .progress-svg {
+      transform: rotate(-90deg);
+    }
+
+    .progress-bg {
+      fill: none;
+      stroke: rgba(139, 105, 20, 0.3);
+      stroke-width: 8;
+    }
+
+    .progress-bar {
+      fill: none;
+      stroke: url(#progressGradient);
+      stroke-width: 8;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.3s ease;
+    }
+
+    .progress-text {
+      position: absolute;
+      font-size: 18px;
+      font-weight: bold;
+      color: #FFD700;
+      text-shadow: 0 0 5px rgba(255, 215, 0, 0.5);
+    }
+
+    .weather-icons {
+      display: flex;
+      justify-content: space-around;
+      gap: 8px;
+    }
+
+    .weather-icon {
+      width: 40px;
+      height: 40px;
+      opacity: 0.3;
+      transition: all 0.3s ease;
+    }
+
+    .weather-icon.active {
+      opacity: 1;
+      filter: drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
+    }
+
+    .fragment-count {
+      font-size: 32px;
+      font-weight: bold;
+      color: #FFD700;
+      text-align: center;
+      text-shadow: 0 0 10px rgba(255, 215, 0, 0.5);
+    }
+
+    .fragment-label {
+      font-size: 12px;
+      color: #CD7F32;
+      text-align: center;
+      margin-top: 4px;
+    }
+
+    .hint-text {
+      font-size: 12px;
+      color: rgba(205, 127, 50, 0.7);
+      line-height: 1.6;
+      text-align: center;
+      margin-top: auto;
+      padding: 12px;
+      border-top: 1px dashed rgba(139, 105, 20, 0.5);
+    }
+
+    #game-complete {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.9);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      gap: 24px;
+      z-index: 100;
+    }
+
+    #game-complete.show {
+      display: flex;
+    }
+
+    .complete-title {
+      font-size: 48px;
+      color: #FFD700;
+      text-shadow: 0 0 30px rgba(255, 215, 0, 0.8);
+      letter-spacing: 8px;
+      animation: glow 2s ease-in-out infinite;
+    }
+
+    @keyframes glow {
+      0%, 100% { text-shadow: 0 0 30px rgba(255, 215, 0, 0.8); }
+      50% { text-shadow: 0 0 60px rgba(255, 215, 0, 1), 0 0 100px rgba(255, 100, 100, 0.5); }
+    }
+
+    .complete-score {
+      font-size: 24px;
+      color: #CD7F32;
+    }
+
+    .restart-btn {
+      padding: 12px 36px;
+      font-size: 18px;
+      background: linear-gradient(135deg, #CD7F32 0%, #8B6914 100%);
+      color: #FFF;
+      border: 2px solid #FFD700;
+      border-radius: 8px;
+      cursor: pointer;
+      letter-spacing: 4px;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .restart-btn::before {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 4px;
+      width: 6px;
+      height: 6px;
+      background: #FFD700;
+      border-radius: 50%;
+      box-shadow: 
+        calc(100% - 16px) 0 0 #FFD700,
+        0 calc(100% - 16px) 0 #FFD700,
+        calc(100% - 16px) calc(100% - 16px) 0 #FFD700;
+    }
+
+    .restart-btn:hover {
+      transform: scale(1.05);
+      box-shadow: 0 0 30px rgba(255, 215, 0, 0.6);
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="game-canvas"></canvas>
+    
+    <div id="ui-overlay">
+      <h1 class="panel-title">时空修补匠</h1>
+      
+      <div class="status-section">
+        <div class="section-label">时间进度</div>
+        <div class="progress-container">
+          <svg class="progress-svg" width="120" height="120">
+            <defs>
+              <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" style="stop-color:#FFD700" />
+                <stop offset="100%" style="stop-color:#FF4500" />
+              </linearGradient>
+            </defs>
+            <circle class="progress-bg" cx="60" cy="60" r="50" />
+            <circle class="progress-bar" id="progress-bar" cx="60" cy="60" r="50" 
+                    stroke-dasharray="314.16" stroke-dashoffset="314.16" />
+          </svg>
+          <div class="progress-text" id="progress-text">0%</div>
+        </div>
+      </div>
+      
+      <div class="status-section">
+        <div class="section-label">当前天气</div>
+        <div class="weather-icons">
+          <svg class="weather-icon active" id="weather-sun" viewBox="0 0 40 40">
+            <circle cx="20" cy="20" r="8" fill="#FFD700" />
+            <g stroke="#FFD700" stroke-width="2" stroke-linecap="round">
+              <line x1="20" y1="4" x2="20" y2="10" />
+              <line x1="20" y1="30" x2="20" y2="36" />
+              <line x1="4" y1="20" x2="10" y2="20" />
+              <line x1="30" y1="20" x2="36" y2="20" />
+              <line x1="8.5" y1="8.5" x2="12.5" y2="12.5" />
+              <line x1="27.5" y1="27.5" x2="31.5" y2="31.5" />
+              <line x1="8.5" y1="31.5" x2="12.5" y2="27.5" />
+              <line x1="27.5" y1="12.5" x2="31.5" y2="8.5" />
+            </g>
+          </svg>
+          <svg class="weather-icon" id="weather-rain" viewBox="0 0 40 40">
+            <ellipse cx="20" cy="14" rx="10" ry="7" fill="#87CEEB" />
+            <ellipse cx="14" cy="18" rx="6" ry="5" fill="#87CEEB" />
+            <ellipse cx="26" cy="18" rx="6" ry="5" fill="#87CEEB" />
+            <g stroke="#4169E1" stroke-width="2" stroke-linecap="round">
+              <line x1="12" y1="25" x2="9" y2="32" />
+              <line x1="20" y1="25" x2="17" y2="32" />
+              <line x1="28" y1="25" x2="25" y2="32" />
+            </g>
+          </svg>
+          <svg class="weather-icon" id="weather-snow" viewBox="0 0 40 40">
+            <circle cx="20" cy="20" r="4" fill="#FFF" />
+            <g stroke="#FFF" stroke-width="1.5" stroke-linecap="round">
+              <line x1="20" y1="8" x2="20" y2="32" />
+              <line x1="8" y1="20" x2="32" y2="20" />
+              <line x1="11.5" y1="11.5" x2="28.5" y2="28.5" />
+              <line x1="11.5" y1="28.5" x2="28.5" y2="11.5" />
+            </g>
+            <circle cx="20" cy="8" r="2" fill="#FFF" />
+            <circle cx="20" cy="32" r="2" fill="#FFF" />
+            <circle cx="8" cy="20" r="2" fill="#FFF" />
+            <circle cx="32" cy="20" r="2" fill="#FFF" />
+            <circle cx="11.5" cy="11.5" r="2" fill="#FFF" />
+            <circle cx="28.5" cy="28.5" r="2" fill="#FFF" />
+            <circle cx="11.5" cy="28.5" r="2" fill="#FFF" />
+            <circle cx="28.5" cy="11.5" r="2" fill="#FFF" />
+          </svg>
+        </div>
+      </div>
+      
+      <div class="status-section">
+        <div class="section-label">已收集碎片</div>
+        <div class="fragment-count" id="fragment-count">0</div>
+        <div class="fragment-label">/ 6</div>
+      </div>
+      
+      <div class="hint-text">
+        拖拽并合并相同色系的时空碎片<br/>
+        放入正确的插槽修复时间轴<br/>
+        红+橙 → 12点 | 黄+绿 → 3点<br/>
+        蓝+紫 → 6点 | 全部 → 9点
+      </div>
+    </div>
+
+    <div id="game-complete">
+      <h1 class="complete-title">时空重铸</h1>
+      <p class="complete-score">时间轴已完全修复</p>
+      <button class="restart-btn" id="restart-btn">重新开始</button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/game/GameEngine.ts"></script>
+</body>
+</html>

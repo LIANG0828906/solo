@@ -1,0 +1,132 @@
+.navbar {
+  background-color: #5C3A21;
+  color: #FFFFFF;
+  padding: 0 24px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.navbar-content {
+  width: 100%;
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #FFFFFF;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 20px;
+}
+
+.coffee-bean-icon {
+  color: #D4A574;
+  display: flex;
+  align-items: center;
+}
+
+.brand-name {
+  letter-spacing: 0.5px;
+}
+
+.navbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.add-batch-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: #8B5E3C;
+  color: #FFFFFF;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+  text-decoration: none;
+}
+
+.add-batch-btn:hover {
+  background-color: #6B4423;
+}
+
+.add-icon {
+  font-size: 18px;
+  font-weight: 300;
+}
+
+.user-menu {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #D4A574;
+  color: #5C3A21;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.username {
+  font-size: 14px;
+  font-weight: 500;
+  color: #F5E6CC;
+}
+
+.logout-btn {
+  background: transparent;
+  color: #D4A574;
+  font-size: 13px;
+  padding: 6px 12px;
+  border: 1px solid #8B5E3C;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.logout-btn:hover {
+  background-color: #8B5E3C;
+  color: #FFFFFF;
+}
+
+@media (max-width: 768px) {
+  .navbar {
+    padding: 0 16px;
+  }
+
+  .username {
+    display: none;
+  }
+
+  .add-batch-btn {
+    padding: 8px 12px;
+  }
+
+  .add-batch-btn span:not(.add-icon) {
+    display: none;
+  }
+
+  .brand-name {
+    font-size: 16px;
+  }
+}

@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/store/outfitstore.ts","./src/store/wardrobestore.ts","./src/utils/colorharmony.ts"],"errors":true,"version":"5.8.3"}

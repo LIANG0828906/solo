@@ -1,0 +1,9 @@
+.radial-chart {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.radial-chart canvas {
+  cursor: pointer;
+}

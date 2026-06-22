@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/control/controlpanel.tsx","./src/control/keyframeengine.ts","./src/control/timeline.tsx","./src/stage/stagescene.tsx","./src/utils/storage.ts"],"version":"5.8.3"}

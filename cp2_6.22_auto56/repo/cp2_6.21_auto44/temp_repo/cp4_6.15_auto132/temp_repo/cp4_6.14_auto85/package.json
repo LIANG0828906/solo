@@ -1,0 +1,19 @@
+{
+  "name": "abstract-sculpture-studio",
+  "version": "1.0.0",
+  "description": "3D Abstract Sculpture Creation Simulator",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "three": "^0.160.0",
+    "three-csg-ts": "^3.2.0"
+  },
+  "devDependencies": {
+    "@types/three": "^0.160.0",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.10"
+  }
+}

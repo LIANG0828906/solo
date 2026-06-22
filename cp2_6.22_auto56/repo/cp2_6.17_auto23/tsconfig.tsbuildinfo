@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/mindmap.tsx","./src/store/mindmapstore.ts","./src/types/index.ts","./src/utils/canvasrenderer.ts","./src/utils/layout.ts","./src/utils/markdownparser.ts"],"version":"5.8.3"}

@@ -1,0 +1,79 @@
+[
+  {
+    "id": "course-001",
+    "title": "React 基础入门",
+    "cover": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=react%20programming%20course%20cover%20modern%20blue%20tech&image_size=landscape_16_9",
+    "description": "从零开始学习 React 框架，掌握组件化开发思想",
+    "quizId": "quiz-001",
+    "units": [
+      {
+        "id": "unit-001-1",
+        "title": "React 简介与环境搭建",
+        "content": "# React 简介\n\nReact 是一个用于构建用户界面的 JavaScript 库，由 Facebook 开发和维护。\n\n## 核心特性\n\n- **组件化**：将 UI 拆分为独立、可复用的组件\n- **虚拟 DOM**：高效的 DOM 更新机制\n- **单向数据流**：数据流向清晰，易于调试\n\n## 环境搭建\n\n```bash\nnpx create-react-app my-app\ncd my-app\nnpm start\n```\n\n现在你已经准备好开始 React 之旅了！"
+      },
+      {
+        "id": "unit-001-2",
+        "title": "JSX 语法基础",
+        "content": "# JSX 语法基础\n\nJSX 是 JavaScript XML 的缩写，它允许我们在 JavaScript 中编写 HTML 结构。\n\n## 基本用法\n\n```jsx\nconst element = <h1>Hello, World!</h1>;\n```\n\n## 表达式嵌入\n\n```jsx\nconst name = 'Alice';\nconst greeting = <h1>Hello, {name}!</h1>;\n```\n\n## 注意事项\n\n1. 类名使用 `className` 而非 `class`\n2. 事件名使用驼峰命名，如 `onClick`\n3. 组件名必须以大写字母开头"
+      },
+      {
+        "id": "unit-001-3",
+        "title": "组件与 Props",
+        "content": "# 组件与 Props\n\n组件是 React 应用的基本构建块。\n\n## 函数组件\n\n```jsx\nfunction Welcome(props) {\n  return <h1>Hello, {props.name}</h1>;\n}\n```\n\n## Props 的使用\n\nProps 是只读的，组件不能修改自己的 props。\n\n```jsx\nfunction App() {\n  return (\n    <div>\n      <Welcome name=\"Alice\" />\n      <Welcome name=\"Bob\" />\n    </div>\n  );\n}\n```\n\n## 默认 Props\n\n```jsx\nWelcome.defaultProps = {\n  name: 'Guest'\n};\n```"
+      },
+      {
+        "id": "unit-001-4",
+        "title": "State 与生命周期",
+        "content": "# State 与生命周期\n\nState 允许组件在不依赖外部输入的情况下管理自己的数据。\n\n## useState Hook\n\n```jsx\nimport { useState } from 'react';\n\nfunction Counter() {\n  const [count, setCount] = useState(0);\n  \n  return (\n    <div>\n      <p>Count: {count}</p>\n      <button onClick={() => setCount(count + 1)}>\n        Increment\n      </button>\n    </div>\n  );\n}\n```\n\n## useEffect Hook\n\n```jsx\nimport { useEffect } from 'react';\n\nfunction Example() {\n  useEffect(() => {\n    document.title = 'Component Mounted';\n    return () => {\n      document.title = 'Component Unmounted';\n    };\n  }, []);\n  \n  return <div>Example Component</div>;\n}\n```"
+      }
+    ]
+  },
+  {
+    "id": "course-002",
+    "title": "TypeScript 进阶",
+    "cover": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=typescript%20programming%20course%20cover%20blue%20professional&image_size=landscape_16_9",
+    "description": "深入理解 TypeScript 类型系统，编写更安全的代码",
+    "quizId": "quiz-002",
+    "units": [
+      {
+        "id": "unit-002-1",
+        "title": "TypeScript 基础类型",
+        "content": "# TypeScript 基础类型\n\nTypeScript 提供了丰富的类型系统来增强 JavaScript。\n\n## 基本类型\n\n```typescript\nlet str: string = 'hello';\nlet num: number = 42;\nlet bool: boolean = true;\nlet arr: number[] = [1, 2, 3];\nlet tuple: [string, number] = ['age', 25];\n```\n\n## 联合类型\n\n```typescript\nlet value: string | number;\nvalue = 'hello';\nvalue = 42;\n```\n\n## 类型别名\n\n```typescript\ntype User = {\n  id: number;\n  name: string;\n  email?: string;\n};\n```"
+      },
+      {
+        "id": "unit-002-2",
+        "title": "接口与类型别名",
+        "content": "# 接口与类型别名\n\n接口和类型别名是 TypeScript 中定义对象形状的两种方式。\n\n## 接口定义\n\n```typescript\ninterface Person {\n  name: string;\n  age: number;\n  greet(): void;\n}\n\nconst person: Person = {\n  name: 'Alice',\n  age: 30,\n  greet() {\n    console.log(`Hello, I'm ${this.name}`);\n  }\n};\n```\n\n## 接口继承\n\n```typescript\ninterface Employee extends Person {\n  company: string;\n  salary: number;\n}\n```\n\n## 类型别名 vs 接口\n\n- 接口可以被继承和实现\n- 类型别名可以定义联合类型和元组\n- 接口可以声明合并"
+      },
+      {
+        "id": "unit-002-3",
+        "title": "泛型编程",
+        "content": "# 泛型编程\n\n泛型允许我们编写可重用的组件，同时保持类型安全。\n\n## 基本泛型\n\n```typescript\nfunction identity<T>(arg: T): T {\n  return arg;\n}\n\nconst result = identity<string>('hello');\nconst numResult = identity(42); // 类型推断\n```\n\n## 泛型约束\n\n```typescript\ninterface Lengthwise {\n  length: number;\n}\n\nfunction logLength<T extends Lengthwise>(arg: T): T {\n  console.log(arg.length);\n  return arg;\n}\n```\n\n## 泛型类\n\n```typescript\nclass Container<T> {\n  private value: T;\n  \n  constructor(value: T) {\n    this.value = value;\n  }\n  \n  getValue(): T {\n    return this.value;\n  }\n}\n```"
+      }
+    ]
+  },
+  {
+    "id": "course-003",
+    "title": "项目管理实战",
+    "cover": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=project%20management%20course%20cover%20business%20professional&image_size=landscape_16_9",
+    "description": "掌握敏捷开发方法，提升团队协作效率",
+    "quizId": "quiz-003",
+    "units": [
+      {
+        "id": "unit-003-1",
+        "title": "敏捷开发概述",
+        "content": "# 敏捷开发概述\n\n敏捷开发是一种以人为核心、迭代、循序渐进的开发方法。\n\n## 敏捷宣言的核心价值\n\n- **个体和交互** 高于 流程和工具\n- **可工作的软件** 高于 详尽的文档\n- **客户合作** 高于 合同谈判\n- **响应变化** 高于 遵循计划\n\n## Scrum 框架\n\nScrum 是最流行的敏捷框架之一，包含以下角色：\n\n- **产品负责人 (PO)**：定义产品需求和优先级\n- **Scrum Master**：确保团队遵循 Scrum 流程\n- **开发团队**：负责交付可工作的软件\n\n## 核心仪式\n\n1. Sprint Planning\n2. Daily Standup\n3. Sprint Review\n4. Sprint Retrospective"
+      },
+      {
+        "id": "unit-003-2",
+        "title": "用户故事与需求管理",
+        "content": "# 用户故事与需求管理\n\n用户故事是敏捷开发中描述需求的主要方式。\n\n## 用户故事模板\n\n```\n作为 [角色]，我想要 [功能]，以便于 [价值]\n```\n\n## 示例\n\n> 作为网站访客，我想要搜索产品，以便于快速找到我需要的商品\n\n## INVEST 原则\n\n- **I**ndependent（独立的）\n- **N**egotiable（可协商的）\n- **V**aluable（有价值的）\n- **E**stimable（可估算的）\n- **S**mall（小的）\n- **T**estable（可测试的）\n\n## 验收标准\n\n每个用户故事都应该有明确的验收标准（AC），用于验证功能是否正确实现。"
+      },
+      {
+        "id": "unit-003-3",
+        "title": "迭代开发与持续改进",
+        "content": "# 迭代开发与持续改进\n\n敏捷开发通过短周期迭代和持续改进来交付价值。\n\n## Sprint 生命周期\n\n1. **Sprint Planning**：确定 Sprint 目标和待办事项\n2. **开发**：团队完成 Sprint 目标\n3. **Daily Standup**：每日同步进度\n4. **Sprint Review**：演示已完成功能\n5. **Sprint Retrospective**：团队反思和改进\n\n## 持续改进\n\n每个 Sprint 结束后，团队应该思考：\n\n- 哪些事情做得好？\n- 哪些事情可以改进？\n- 下一个 Sprint 我们将做出什么改变？\n\n## 度量指标\n\n- 速度（Velocity）\n- 燃尽图（Burndown Chart）\n- 周期时间（Cycle Time）\n- 缺陷率"
+      }
+    ]
+  }
+]

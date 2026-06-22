@@ -1,0 +1,1 @@
+{"root":["./src/main.tsx","./src/game/entitymanager.ts","./src/game/gameengine.ts","./src/ui/app.tsx","./src/ui/gamecanvas.tsx","./src/ui/uioverlay.tsx"],"version":"5.8.3"}

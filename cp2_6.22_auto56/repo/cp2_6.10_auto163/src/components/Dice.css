@@ -1,0 +1,85 @@
+.dice {
+  width: 80px;
+  height: 80px;
+  position: relative;
+  perspective: 600px;
+  will-change: transform, opacity;
+}
+
+.dice-face {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(145deg, #f5f0e0 0%, #e5e0d0 50%, #d5d0c0 100%);
+  border-radius: 12px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(3, 1fr);
+  padding: 12px;
+  gap: 4px;
+  box-shadow:
+    inset 2px 2px 4px rgba(255, 255, 255, 0.8),
+    inset -2px -2px 4px rgba(0, 0, 0, 0.1),
+    4px 4px 12px rgba(0, 0, 0, 0.3),
+    -2px -2px 8px rgba(255, 255, 255, 0.2);
+  border: 2px solid #c5c0b0;
+  position: relative;
+  transform-style: preserve-3d;
+}
+
+.dice-face::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  background: linear-gradient(
+    145deg,
+    transparent 0%,
+    transparent 40%,
+    rgba(255, 255, 200, 0.3) 50%,
+    transparent 60%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.dice-dot {
+  width: 100%;
+  height: 100%;
+  background: radial-gradient(circle at 30% 30%, #4a350a 0%, #2a1810 70%, #1a0800 100%);
+  border-radius: 50%;
+  align-self: center;
+  justify-self: center;
+  box-shadow:
+    inset 1px 1px 2px rgba(255, 255, 255, 0.2),
+    inset -1px -1px 2px rgba(0, 0, 0, 0.3),
+    1px 1px 2px rgba(0, 0, 0, 0.2);
+  min-width: 12px;
+  min-height: 12px;
+}
+
+.dice-glow {
+  position: absolute;
+  inset: -20px;
+  background: radial-gradient(circle, rgba(255, 215, 0, 0.6) 0%, transparent 70%);
+  border-radius: 50%;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+@media (max-width: 768px) {
+  .dice {
+    width: 60px;
+    height: 60px;
+  }
+
+  .dice-face {
+    padding: 8px;
+    gap: 3px;
+    border-radius: 10px;
+  }
+
+  .dice-dot {
+    min-width: 8px;
+    min-height: 8px;
+  }
+}

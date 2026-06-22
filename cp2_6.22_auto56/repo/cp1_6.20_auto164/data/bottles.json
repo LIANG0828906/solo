@@ -1,0 +1,53 @@
+[
+  {
+    "id": "1",
+    "text": "今天阳光很好，希望看到这个瓶子的你也有好心情！",
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "feedbackEmoji": {
+      "encourage": 5,
+      "speechlessness": 0
+    },
+    "createdBy": "system"
+  },
+  {
+    "id": "2",
+    "text": "每一个不曾起舞的日子，都是对生命的辜负。——尼采",
+    "createdAt": "2024-01-02T00:00:00.000Z",
+    "feedbackEmoji": {
+      "encourage": 12,
+      "speechlessness": 1
+    },
+    "createdBy": "system"
+  },
+  {
+    "id": "3",
+    "text": "生活不止眼前的苟且，还有诗和远方的田野。",
+    "imageUrl": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400",
+    "createdAt": "2024-01-03T00:00:00.000Z",
+    "feedbackEmoji": {
+      "encourage": 8,
+      "speechlessness": 2
+    },
+    "createdBy": "system"
+  },
+  {
+    "id": "4",
+    "text": "你要悄悄努力，然后惊艳所有人！",
+    "createdAt": "2024-01-04T00:00:00.000Z",
+    "feedbackEmoji": {
+      "encourage": 15,
+      "speechlessness": 0
+    },
+    "createdBy": "system"
+  },
+  {
+    "id": "5",
+    "text": "今天学到了一个新的编程技巧，分享给大家：保持好奇心，永远不要停止学习！",
+    "createdAt": "2024-01-05T00:00:00.000Z",
+    "feedbackEmoji": {
+      "encourage": 6,
+      "speechlessness": 0
+    },
+    "createdBy": "system"
+  }
+]

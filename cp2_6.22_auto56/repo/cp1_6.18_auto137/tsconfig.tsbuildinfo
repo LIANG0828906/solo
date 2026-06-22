@@ -1,0 +1,1 @@
+{"root":["./src/main.tsx","./src/vite-env.d.ts","./src/data/tagmap.ts","./src/engine/sentimentengine.ts","./src/renderer/scrollrenderer.ts","./src/stores/snapshotstore.ts","./src/ui/searchpanel.tsx","./src/ui/snapshotdetail.tsx"],"version":"5.8.3"}

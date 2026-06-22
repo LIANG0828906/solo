@@ -1,0 +1,26 @@
+{
+  "name": "curtain-wall-simulator",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
+    "dev:client": "vite",
+    "dev:server": "nodemon --exec tsx server/index.ts"
+  },
+  "dependencies": {
+    "three": "^0.170.0",
+    "express": "^4.21.0",
+    "cors": "^2.8.5"
+  },
+  "devDependencies": {
+    "@types/three": "^0.170.0",
+    "@types/express": "^5.0.0",
+    "@types/cors": "^2.8.17",
+    "typescript": "^5.7.0",
+    "vite": "^6.0.0",
+    "@vitejs/plugin-react": "^4.3.0",
+    "nodemon": "^3.1.9",
+    "concurrently": "^9.1.0",
+    "tsx": "^4.19.0"
+  }
+}

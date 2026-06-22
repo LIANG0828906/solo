@@ -1,0 +1,182 @@
+.battle-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.8);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.battle-modal {
+  background: linear-gradient(135deg, #1a237e 0%, #0a0e27 100%);
+  border: 2px solid #ffd54f;
+  border-radius: 16px;
+  padding: 32px 40px;
+  text-align: center;
+  box-shadow: 0 0 60px rgba(255, 213, 79, 0.3);
+  animation: modalPop 0.4s ease;
+  min-width: 360px;
+}
+
+@keyframes modalPop {
+  0% { transform: scale(0.7); opacity: 0; }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.battle-title {
+  color: #ffd54f;
+  font-size: 28px;
+  margin: 0 0 24px 0;
+  text-shadow: 0 0 20px rgba(255, 213, 79, 0.5);
+}
+
+.battle-players {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 32px;
+  margin-bottom: 24px;
+}
+
+.battle-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.battle-player-label {
+  font-size: 12px;
+  color: #90a4ae;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.battle-player-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  margin-bottom: 4px;
+}
+
+.attacker .battle-player-name {
+  color: #ff7043;
+}
+
+.defender .battle-player-name {
+  color: #26c6da;
+}
+
+.dice {
+  font-size: 60px;
+  width: 80px;
+  height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+  perspective: 400px;
+}
+
+.dice-3d {
+  transform-style: preserve-3d;
+}
+
+.dice-rolling {
+  animation: diceRoll3d 0.5s linear infinite;
+}
+
+@keyframes diceRoll3d {
+  0% { transform: rotateY(0deg) rotateX(0deg); }
+  25% { transform: rotateY(90deg) rotateX(15deg); }
+  50% { transform: rotateY(180deg) rotateX(0deg); }
+  75% { transform: rotateY(270deg) rotateX(-15deg); }
+  100% { transform: rotateY(360deg) rotateX(0deg); }
+}
+
+.dice-face {
+  display: block;
+  line-height: 1;
+  backface-visibility: visible;
+}
+
+.dice-number {
+  font-size: 20px;
+  font-weight: 700;
+  color: white;
+  margin-top: 4px;
+}
+
+.battle-vs {
+  font-size: 24px;
+  font-weight: 900;
+  color: #ffd54f;
+  text-shadow: 0 0 10px rgba(255, 213, 79, 0.5);
+}
+
+.battle-result {
+  animation: resultSlide 0.5s ease;
+}
+
+@keyframes resultSlide {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.winner-announce {
+  font-size: 22px;
+  margin-bottom: 8px;
+}
+
+.winner-name {
+  color: #ffd54f;
+  font-weight: 700;
+  text-shadow: 0 0 15px rgba(255, 213, 79, 0.6);
+}
+
+.winner-text {
+  color: white;
+}
+
+.battle-detail {
+  font-size: 14px;
+  color: #b0bec5;
+}
+
+@media (max-width: 480px) {
+  .battle-modal {
+    min-width: auto;
+    width: 90%;
+    padding: 24px;
+  }
+
+  .battle-title {
+    font-size: 22px;
+  }
+
+  .battle-players {
+    gap: 16px;
+  }
+
+  .dice {
+    font-size: 40px;
+    width: 60px;
+    height: 60px;
+  }
+}

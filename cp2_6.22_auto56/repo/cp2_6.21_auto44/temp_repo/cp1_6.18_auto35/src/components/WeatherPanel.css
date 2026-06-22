@@ -1,0 +1,139 @@
+.weather-panel {
+  background: linear-gradient(135deg, #1E1E2E 0%, #252540 100%);
+  border: 1px solid #3A3A5C;
+  border-radius: 12px;
+  padding: 16px;
+  color: #fff;
+  font-family: 'Inter', sans-serif;
+}
+
+.weather-current {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.weather-icon-container {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.weather-icon {
+  font-size: 40px;
+  position: absolute;
+  transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.weather-icon-old {
+  animation: fadeOutSlide 1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.weather-icon-new {
+  transform: translateY(0);
+  opacity: 1;
+}
+
+.weather-icon-new.sliding-in {
+  animation: slideInFromTop 1s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+@keyframes slideInFromTop {
+  0% {
+    transform: translateY(-60px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOutSlide {
+  0% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(30px);
+    opacity: 0;
+  }
+}
+
+.weather-info {
+  flex: 1;
+}
+
+.weather-name {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.weather-temp {
+  font-size: 24px;
+  font-weight: 700;
+  color: #6C63FF;
+}
+
+.weather-details {
+  display: flex;
+  gap: 16px;
+  margin-bottom: 16px;
+  padding: 8px 0;
+  border-top: 1px solid #3A3A5C;
+  border-bottom: 1px solid #3A3A5C;
+}
+
+.weather-detail {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.detail-icon {
+  font-size: 16px;
+}
+
+.detail-value {
+  font-size: 14px;
+  color: #8888AA;
+}
+
+.weather-forecast {
+  margin-top: 8px;
+}
+
+.forecast-title {
+  font-size: 12px;
+  color: #8888AA;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.forecast-icons {
+  display: flex;
+  justify-content: space-between;
+}
+
+.forecast-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.forecast-icon {
+  font-size: 22px;
+}
+
+.forecast-label {
+  font-size: 10px;
+  color: #8888AA;
+}

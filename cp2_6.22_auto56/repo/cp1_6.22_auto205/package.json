@@ -1,0 +1,18 @@
+{
+  "name": "handwritten-signature-generator",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3",
+    "vite": "^5.0.8"
+  },
+  "dependencies": {
+    "blueimp-canvas-to-blob": "^3.29.0"
+  }
+}

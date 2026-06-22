@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>网页记忆纸雕画廊</title>
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: radial-gradient(ellipse at center, #1A1A2E 0%, #16213E 100%);
+      color: #e0e0e0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #loader {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+      background: radial-gradient(ellipse at center, #1A1A2E 0%, #16213E 100%);
+      transition: opacity 0.5s ease-out;
+    }
+
+    #loader.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loader-spinner {
+      width: 48px;
+      height: 48px;
+      border: 3px solid rgba(201, 169, 110, 0.2);
+      border-top: 3px solid #C9A96E;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    #input-bar {
+      position: fixed;
+      top: 24px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 40%;
+      max-width: 600px;
+    }
+
+    #url-input {
+      flex: 1;
+      padding: 10px 16px;
+      border: 1px solid rgba(201, 169, 110, 0.3);
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: #e0e0e0;
+      font-size: 14px;
+      outline: none;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    #url-input::placeholder {
+      color: rgba(255, 255, 255, 0.35);
+    }
+
+    #url-input:focus {
+      border-color: rgba(201, 169, 110, 0.6);
+      box-shadow: 0 2px 16px rgba(201, 169, 110, 0.15);
+    }
+
+    #add-btn {
+      padding: 10px 20px;
+      border: 1px solid rgba(201, 169, 110, 0.4);
+      border-radius: 12px;
+      background: rgba(201, 169, 110, 0.15);
+      color: #C9A96E;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background 0.2s, transform 0.15s;
+    }
+
+    #add-btn:hover {
+      background: rgba(201, 169, 110, 0.3);
+      transform: scale(1.03);
+    }
+
+    #add-btn:active {
+      transform: scale(0.97);
+    }
+
+    #gallery-container {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      perspective: 1200px;
+      perspective-origin: 50% 40%;
+    }
+
+    #gallery-stage {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform-style: preserve-3d;
+      will-change: transform;
+    }
+
+    .card {
+      position: absolute;
+      transform-style: preserve-3d;
+      cursor: pointer;
+      will-change: transform, opacity;
+      transition: box-shadow 0.3s ease;
+    }
+
+    .card-inner {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      transform-style: preserve-3d;
+      transition: transform 0.6s ease-out;
+    }
+
+    .card.flipped .card-inner {
+      transform: rotateY(180deg);
+    }
+
+    .card-face {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%;
+      height: 100%;
+      backface-visibility: hidden;
+      -webkit-backface-visibility: hidden;
+      border-radius: 8px;
+      border: 1px solid #C9A96E;
+      overflow: hidden;
+    }
+
+    .card-front {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card-back {
+      transform: rotateY(180deg);
+      background: rgba(22, 33, 62, 0.95);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+      gap: 8px;
+      text-align: center;
+    }
+
+    .card-back-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: #C9A96E;
+      line-height: 1.3;
+      word-break: break-word;
+      max-height: 3.9em;
+      overflow: hidden;
+    }
+
+    .card-back-desc {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+      line-height: 1.4;
+      max-height: 3.6em;
+      overflow: hidden;
+    }
+
+    .card-back-url {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.3);
+      max-width: 100%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .card-back-btn {
+      margin-top: 6px;
+      padding: 6px 18px;
+      border: 1px solid rgba(201, 169, 110, 0.5);
+      border-radius: 6px;
+      background: rgba(201, 169, 110, 0.12);
+      color: #C9A96E;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s, transform 0.15s;
+      text-decoration: none;
+      display: inline-block;
+    }
+
+    .card-back-btn:hover {
+      background: rgba(201, 169, 110, 0.3);
+      transform: scale(1.05);
+    }
+
+    .card-fly-in {
+      animation: flyIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+
+    @keyframes flyIn {
+      0% {
+        opacity: 0;
+        transform: translate3d(0, 300px, 200px) scale(0.3) rotateX(20deg);
+      }
+      100% {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1) rotateX(0deg);
+      }
+    }
+
+    .card-fade-out {
+      animation: fadeOut 0.3s ease-out forwards;
+    }
+
+    @keyframes fadeOut {
+      0% { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    .card-pattern-overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      opacity: 0.15;
+      pointer-events: none;
+    }
+
+    #hint {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.25);
+      z-index: 100;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    @media (max-width: 767px) {
+      #input-bar {
+        width: 80%;
+        top: 16px;
+      }
+
+      #url-input {
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+
+      #add-btn {
+        padding: 8px 14px;
+        font-size: 13px;
+      }
+
+      .card-back-title {
+        font-size: 12px;
+      }
+
+      .card-back-desc {
+        font-size: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="loader">
+    <div class="loader-spinner"></div>
+  </div>
+
+  <div id="input-bar">
+    <input type="text" id="url-input" placeholder="输入网址或描述，回车添加卡片..." />
+    <button id="add-btn">添加</button>
+  </div>
+
+  <div id="gallery-container">
+    <div id="gallery-stage"></div>
+  </div>
+
+  <div id="hint">拖拽旋转 · 滚轮缩放 · 点击卡片翻转</div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

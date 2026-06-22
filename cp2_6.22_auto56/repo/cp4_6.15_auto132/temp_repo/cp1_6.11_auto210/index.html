@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>光栅扫描与像素排布效果生成器</title>
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <div class="canvas-wrapper">
+      <canvas id="mainCanvas"></canvas>
+      <div class="info-panel">
+        <div class="panel-title">实时数据面板</div>
+        <div class="panel-item">
+          <span class="label">扫描模式:</span>
+          <span id="scanMode" class="value highlight">逐行扫描</span>
+        </div>
+        <div class="panel-item">
+          <span class="label">扫描进度:</span>
+          <span id="scanProgress" class="value highlight">0.00%</span>
+        </div>
+        <div class="panel-item">
+          <span class="label">当前帧率:</span>
+          <span id="fpsCounter" class="value highlight">0 FPS</span>
+        </div>
+        <div class="panel-item">
+          <span class="label">像素变化总量:</span>
+          <span id="pixelChanges" class="value highlight">0</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="controls">
+      <div class="mode-buttons">
+        <button class="mode-btn active" data-mode="progressive">逐行扫描</button>
+        <button class="mode-btn" data-mode="interlaced">隔行扫描</button>
+        <button class="mode-btn" data-mode="fan">扇形扫描</button>
+      </div>
+      
+      <div class="speed-control">
+        <label for="speedSlider">扫描速度: <span id="speedValue">10</span> <span id="speedUnit">行/帧</span></label>
+        <input type="range" id="speedSlider" min="1" max="20" value="10">
+      </div>
+      
+      <div class="pixel-control">
+        <label for="pixelSlider">像素大小: <span id="pixelValue">10</span> px</label>
+        <input type="range" id="pixelSlider" min="4" max="20" value="10" step="1">
+      </div>
+    </div>
+  </div>
+  
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

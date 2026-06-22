@@ -1,0 +1,578 @@
+{
+  "plot-0-0": {
+    "id": "plot-0-0",
+    "x": 0,
+    "y": 0,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-1-0": {
+    "id": "plot-1-0",
+    "x": 1,
+    "y": 0,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-2-0": {
+    "id": "plot-2-0",
+    "x": 2,
+    "y": 0,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-3-0": {
+    "id": "plot-3-0",
+    "x": 3,
+    "y": 0,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-4-0": {
+    "id": "plot-4-0",
+    "x": 4,
+    "y": 0,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-5-0": {
+    "id": "plot-5-0",
+    "x": 5,
+    "y": 0,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-6-0": {
+    "id": "plot-6-0",
+    "x": 6,
+    "y": 0,
+    "status": "building",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": "b1"
+  },
+  "plot-7-0": {
+    "id": "plot-7-0",
+    "x": 7,
+    "y": 0,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-0-1": {
+    "id": "plot-0-1",
+    "x": 0,
+    "y": 1,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-1-1": {
+    "id": "plot-1-1",
+    "x": 1,
+    "y": 1,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-2-1": {
+    "id": "plot-2-1",
+    "x": 2,
+    "y": 1,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-3-1": {
+    "id": "plot-3-1",
+    "x": 3,
+    "y": 1,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-4-1": {
+    "id": "plot-4-1",
+    "x": 4,
+    "y": 1,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-5-1": {
+    "id": "plot-5-1",
+    "x": 5,
+    "y": 1,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-6-1": {
+    "id": "plot-6-1",
+    "x": 6,
+    "y": 1,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-7-1": {
+    "id": "plot-7-1",
+    "x": 7,
+    "y": 1,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-0-2": {
+    "id": "plot-0-2",
+    "x": 0,
+    "y": 2,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-1-2": {
+    "id": "plot-1-2",
+    "x": 1,
+    "y": 2,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-2-2": {
+    "id": "plot-2-2",
+    "x": 2,
+    "y": 2,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-3-2": {
+    "id": "plot-3-2",
+    "x": 3,
+    "y": 2,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-4-2": {
+    "id": "plot-4-2",
+    "x": 4,
+    "y": 2,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-5-2": {
+    "id": "plot-5-2",
+    "x": 5,
+    "y": 2,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-6-2": {
+    "id": "plot-6-2",
+    "x": 6,
+    "y": 2,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-7-2": {
+    "id": "plot-7-2",
+    "x": 7,
+    "y": 2,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-0-3": {
+    "id": "plot-0-3",
+    "x": 0,
+    "y": 3,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-1-3": {
+    "id": "plot-1-3",
+    "x": 1,
+    "y": 3,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-2-3": {
+    "id": "plot-2-3",
+    "x": 2,
+    "y": 3,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-3-3": {
+    "id": "plot-3-3",
+    "x": 3,
+    "y": 3,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-4-3": {
+    "id": "plot-4-3",
+    "x": 4,
+    "y": 3,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-5-3": {
+    "id": "plot-5-3",
+    "x": 5,
+    "y": 3,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-6-3": {
+    "id": "plot-6-3",
+    "x": 6,
+    "y": 3,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-7-3": {
+    "id": "plot-7-3",
+    "x": 7,
+    "y": 3,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-0-4": {
+    "id": "plot-0-4",
+    "x": 0,
+    "y": 4,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-1-4": {
+    "id": "plot-1-4",
+    "x": 1,
+    "y": 4,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-2-4": {
+    "id": "plot-2-4",
+    "x": 2,
+    "y": 4,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-3-4": {
+    "id": "plot-3-4",
+    "x": 3,
+    "y": 4,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-4-4": {
+    "id": "plot-4-4",
+    "x": 4,
+    "y": 4,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-5-4": {
+    "id": "plot-5-4",
+    "x": 5,
+    "y": 4,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-6-4": {
+    "id": "plot-6-4",
+    "x": 6,
+    "y": 4,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-7-4": {
+    "id": "plot-7-4",
+    "x": 7,
+    "y": 4,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-0-5": {
+    "id": "plot-0-5",
+    "x": 0,
+    "y": 5,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-1-5": {
+    "id": "plot-1-5",
+    "x": 1,
+    "y": 5,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-2-5": {
+    "id": "plot-2-5",
+    "x": 2,
+    "y": 5,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-3-5": {
+    "id": "plot-3-5",
+    "x": 3,
+    "y": 5,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-4-5": {
+    "id": "plot-4-5",
+    "x": 4,
+    "y": 5,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-5-5": {
+    "id": "plot-5-5",
+    "x": 5,
+    "y": 5,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-6-5": {
+    "id": "plot-6-5",
+    "x": 6,
+    "y": 5,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-7-5": {
+    "id": "plot-7-5",
+    "x": 7,
+    "y": 5,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-0-6": {
+    "id": "plot-0-6",
+    "x": 0,
+    "y": 6,
+    "status": "building",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": "b2"
+  },
+  "plot-1-6": {
+    "id": "plot-1-6",
+    "x": 1,
+    "y": 6,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-2-6": {
+    "id": "plot-2-6",
+    "x": 2,
+    "y": 6,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-3-6": {
+    "id": "plot-3-6",
+    "x": 3,
+    "y": 6,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-4-6": {
+    "id": "plot-4-6",
+    "x": 4,
+    "y": 6,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-5-6": {
+    "id": "plot-5-6",
+    "x": 5,
+    "y": 6,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-6-6": {
+    "id": "plot-6-6",
+    "x": 6,
+    "y": 6,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-7-6": {
+    "id": "plot-7-6",
+    "x": 7,
+    "y": 6,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-0-7": {
+    "id": "plot-0-7",
+    "x": 0,
+    "y": 7,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-1-7": {
+    "id": "plot-1-7",
+    "x": 1,
+    "y": 7,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-2-7": {
+    "id": "plot-2-7",
+    "x": 2,
+    "y": 7,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-3-7": {
+    "id": "plot-3-7",
+    "x": 3,
+    "y": 7,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-4-7": {
+    "id": "plot-4-7",
+    "x": 4,
+    "y": 7,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-5-7": {
+    "id": "plot-5-7",
+    "x": 5,
+    "y": 7,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-6-7": {
+    "id": "plot-6-7",
+    "x": 6,
+    "y": 7,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  },
+  "plot-7-7": {
+    "id": "plot-7-7",
+    "x": 7,
+    "y": 7,
+    "status": "empty",
+    "cropId": null,
+    "plantedAt": null,
+    "buildingId": null
+  }
+}

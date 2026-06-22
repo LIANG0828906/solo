@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/completionoverlay.tsx","./src/components/gameboard.tsx","./src/components/hud.tsx","./src/components/note.tsx","./src/components/player.tsx","./src/constants/index.ts","./src/store/gamestore.ts","./src/types/index.ts","./src/utils/audioplayer.ts","./src/utils/mazegenerator.ts"],"version":"5.8.3"}

@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/kanbanboard.tsx","./src/components/modal.tsx","./src/components/taskcard.tsx","./src/data/taskstore.ts"],"version":"5.8.3"}

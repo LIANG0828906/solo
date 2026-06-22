@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>SPH 流体粒子沙盒</title>
+    <style>
+      @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: 'JetBrains Mono', monospace;
+        background: #0f0f1a;
+        color: #e8e8f0;
+        user-select: none;
+      }
+
+      #app {
+        position: relative;
+        width: 100vw;
+        height: 100vh;
+      }
+
+      canvas {
+        position: absolute;
+        top: 0;
+        left: 0;
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+
+      #hud {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        padding: 10px 14px;
+        background: rgba(0, 0, 0, 0.55);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 8px;
+        font-size: 13px;
+        line-height: 1.7;
+        pointer-events: none;
+        backdrop-filter: blur(8px);
+        z-index: 10;
+      }
+
+      #hud .label {
+        color: #8a8aa0;
+        margin-right: 6px;
+      }
+
+      #hud .value {
+        color: #e8e8f0;
+      }
+
+      #hud .fps.low {
+        color: #ff5252;
+        animation: blink 0.8s infinite alternate;
+      }
+
+      @keyframes blink {
+        from { opacity: 1; }
+        to { opacity: 0.35; }
+      }
+
+      #toolbar {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 280px;
+        padding: 18px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 14px;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        z-index: 10;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s;
+      }
+
+      #toolbar.collapsed {
+        transform: translateX(calc(100% + 24px));
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      #toolbar h2 {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 16px;
+        color: #e8e8f0;
+        letter-spacing: 0.5px;
+      }
+
+      .slider-group {
+        margin-bottom: 18px;
+      }
+
+      .slider-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 6px;
+      }
+
+      .slider-label {
+        font-size: 12px;
+        color: #b0b0c8;
+      }
+
+      .slider-value {
+        font-size: 12px;
+        font-weight: 600;
+        color: #64dcff;
+        min-width: 36px;
+        text-align: right;
+      }
+
+      .slider-track {
+        position: relative;
+        height: 22px;
+      }
+
+      .slider-ticks {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        display: flex;
+        justify-content: space-between;
+        pointer-events: none;
+      }
+
+      .slider-ticks span {
+        width: 1px;
+        height: 6px;
+        background: rgba(255, 255, 255, 0.2);
+        margin-top: 8px;
+      }
+
+      input[type="range"] {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 22px;
+        margin: 0;
+        -webkit-appearance: none;
+        appearance: none;
+        background: transparent;
+        cursor: pointer;
+      }
+
+      input[type="range"]::-webkit-slider-runnable-track {
+        height: 4px;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 2px;
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        background: #64dcff;
+        border-radius: 50%;
+        margin-top: -6px;
+        box-shadow: 0 0 8px rgba(100, 220, 255, 0.5);
+        transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+      }
+
+      input[type="range"]:active::-webkit-slider-thumb {
+        transform: scale(1.35);
+        box-shadow: 0 0 16px rgba(100, 220, 255, 0.8);
+      }
+
+      input[type="range"]::-moz-range-track {
+        height: 4px;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 2px;
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        background: #64dcff;
+        border: none;
+        border-radius: 50%;
+        box-shadow: 0 0 8px rgba(100, 220, 255, 0.5);
+        transition: transform 0.15s cubic-bezier(0.68, -0.55, 0.27, 1.55);
+      }
+
+      input[type="range"]:active::-moz-range-thumb {
+        transform: scale(1.35);
+      }
+
+      .hint {
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        font-size: 11px;
+        line-height: 1.8;
+        color: #7a7a90;
+      }
+
+      .hint kbd {
+        display: inline-block;
+        padding: 1px 6px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 4px;
+        font-size: 10px;
+        color: #b0b0c8;
+      }
+
+      #toolbar-toggle {
+        display: none;
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 44px;
+        height: 44px;
+        border: none;
+        border-radius: 12px;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        cursor: pointer;
+        z-index: 10;
+        color: #64dcff;
+        font-size: 20px;
+        align-items: center;
+        justify-content: center;
+        transition: transform 0.2s;
+      }
+
+      #toolbar-toggle:hover {
+        transform: scale(1.08);
+      }
+
+      #toolbar-toggle.visible {
+        display: flex;
+      }
+
+      @media (max-width: 1024px) {
+        #toolbar {
+          width: 240px;
+        }
+      }
+
+      @media (max-width: 768px) {
+        #toolbar {
+          top: 68px;
+          width: calc(100% - 32px);
+          right: 16px;
+        }
+        #toolbar-toggle.visible {
+          display: flex;
+        }
+        #toolbar {
+          transform: translateX(calc(100% + 32px));
+          opacity: 0;
+          pointer-events: none;
+        }
+        #toolbar.expanded {
+          transform: translateX(0);
+          opacity: 1;
+          pointer-events: auto;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <canvas id="canvas"></canvas>
+
+      <div id="hud">
+        <div><span class="label">粒子数:</span><span class="value" id="particle-count">0</span></div>
+        <div><span class="label">FPS:</span><span class="value fps" id="fps">60</span></div>
+      </div>
+
+      <button id="toolbar-toggle" title="显示/隐藏工具栏">⚙</button>
+
+      <div id="toolbar">
+        <h2>流体参数</h2>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <span class="slider-label">重力强度</span>
+            <span class="slider-value" id="gravity-value">30</span>
+          </div>
+          <div class="slider-track">
+            <div class="slider-ticks"><span></span><span></span><span></span><span></span><span></span></div>
+            <input type="range" id="gravity" min="0" max="100" value="30" step="1" />
+          </div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <span class="slider-label">粘滞系数</span>
+            <span class="slider-value" id="viscosity-value">50</span>
+          </div>
+          <div class="slider-track">
+            <div class="slider-ticks"><span></span><span></span><span></span><span></span><span></span></div>
+            <input type="range" id="viscosity" min="0" max="200" value="50" step="1" />
+          </div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <span class="slider-label">粒子大小</span>
+            <span class="slider-value" id="size-value">4</span>
+          </div>
+          <div class="slider-track">
+            <div class="slider-ticks"><span></span><span></span><span></span><span></span><span></span></div>
+            <input type="range" id="size" min="2" max="8" value="4" step="1" />
+          </div>
+        </div>
+
+        <div class="slider-group">
+          <div class="slider-header">
+            <span class="slider-label">喷射速率</span>
+            <span class="slider-value" id="emit-value">8</span>
+          </div>
+          <div class="slider-track">
+            <div class="slider-ticks"><span></span><span></span><span></span><span></span><span></span></div>
+            <input type="range" id="emit" min="1" max="30" value="8" step="1" />
+          </div>
+        </div>
+
+        <div class="hint">
+          <div><kbd>左键</kbd> 拖拽喷射水流</div>
+          <div><kbd>右键</kbd> 拖拽喷射烟雾</div>
+          <div><kbd>拖拽</kbd> 障碍物移动位置</div>
+        </div>
+      </div>
+    </div>
+
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

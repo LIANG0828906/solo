@@ -1,0 +1,32 @@
+:root {
+  --color-bg-primary: #0f0a2e;
+  --color-bg-secondary: #1e1b4b;
+  --color-bg-gradient-start: #0f0a2e;
+  --color-bg-gradient-end: #4c1d95;
+  --color-accent-primary: #8b5cf6;
+  --color-accent-secondary: #a78bfa;
+  --color-accent-glow: rgba(139, 92, 246, 0.5);
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #cbd5e1;
+  --color-text-muted: #94a3b8;
+  --color-card-bg: rgba(255, 255, 255, 0.08);
+  --color-card-hover: rgba(255, 255, 255, 0.12);
+  --color-border: rgba(255, 255, 255, 0.12);
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+  --color-danger: #f87171;
+  --color-high-priority: #f97316;
+  --color-medium-priority: #eab308;
+  --color-low-priority: #22c55e;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 20px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 30px rgba(139, 92, 246, 0.4);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.3s ease;
+  --transition-slow: 0.5s ease;
+}

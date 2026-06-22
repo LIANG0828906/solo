@@ -1,0 +1,141 @@
+.page {
+  padding: 24px;
+  max-width: 800px;
+  margin: 0 auto;
+  height: 100%;
+  overflow-y: auto;
+}
+
+.title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 24px;
+  color: #fff;
+}
+
+.section {
+  margin-bottom: 32px;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 8px;
+}
+
+.sectionDesc {
+  font-size: 13px;
+  color: #888;
+  margin-bottom: 16px;
+}
+
+.actionList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.actionCard {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: #1A1A2E;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+}
+
+.actionCard:hover {
+  background: #222238;
+}
+
+.actionCard.active {
+  background: rgba(0, 255, 136, 0.08);
+  border-color: rgba(0, 255, 136, 0.3);
+}
+
+.actionIcon {
+  font-size: 32px;
+  width: 56px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 12px;
+  flex-shrink: 0;
+}
+
+.actionInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.actionName {
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 4px;
+}
+
+.actionDesc {
+  font-size: 13px;
+  color: #888;
+}
+
+.checkMark {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #00FF88;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.statCard {
+  padding: 20px;
+  background: #1A1A2E;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.statValue {
+  font-size: 28px;
+  font-weight: 700;
+  color: #00FF88;
+  margin-bottom: 4px;
+}
+
+.statLabel {
+  font-size: 12px;
+  color: #888;
+}
+
+.about {
+  padding: 20px;
+  background: #1A1A2E;
+  border-radius: 12px;
+}
+
+.about p {
+  font-size: 14px;
+  color: #A0A0B0;
+}
+
+.aboutDesc {
+  font-size: 12px !important;
+  color: #666 !important;
+  margin-top: 4px;
+}

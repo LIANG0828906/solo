@@ -1,0 +1,163 @@
+.detailed-sim-view {
+  width: 100%;
+}
+
+.detailed-sim-empty {
+  text-align: center;
+  padding: 20px;
+  color: #666;
+  font-size: 13px;
+}
+
+.sim-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.timeline-item {
+  display: flex;
+  gap: 12px;
+}
+
+.timeline-connector {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 32px;
+  flex-shrink: 0;
+}
+
+.step-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.step-dot:hover {
+  transform: scale(1.15);
+}
+
+.step-dot.active {
+  transform: scale(1.2);
+  border: 2px solid #ffd700;
+}
+
+.step-icon {
+  font-size: 14px;
+}
+
+.timeline-line {
+  flex: 1;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.3) 0%, rgba(255,255,255,0.1) 100%);
+  margin: 4px 0;
+  min-height: 20px;
+}
+
+.timeline-content {
+  flex: 1;
+  padding-bottom: 16px;
+  min-width: 0;
+}
+
+.step-card {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 10px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.step-card:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.step-card.active {
+  background: rgba(255, 215, 0, 0.1);
+}
+
+.step-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.step-index {
+  font-size: 11px;
+  color: #b0bec5;
+  font-weight: 600;
+}
+
+.step-action {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+}
+
+.step-description {
+  font-size: 12px;
+  color: #fff;
+  line-height: 1.4;
+  margin-bottom: 8px;
+}
+
+.step-stats {
+  display: flex;
+  gap: 12px;
+  font-size: 11px;
+  color: #b0bec5;
+}
+
+.step-board-preview {
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.preview-label {
+  font-size: 10px;
+  color: #666;
+  margin-bottom: 6px;
+  text-align: center;
+}
+
+.mini-board {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  grid-template-rows: repeat(8, 1fr);
+  gap: 1px;
+  aspect-ratio: 1;
+  max-width: 160px;
+  margin: 0 auto;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
+  padding: 2px;
+}
+
+.mini-cell {
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 1px;
+}
+
+.mini-cell.enemy-zone {
+  background: rgba(255, 87, 34, 0.05);
+}
+
+.mini-cell.player-zone {
+  background: rgba(0, 230, 118, 0.03);
+}
+
+.mini-unit {
+  width: 100%;
+  height: 100%;
+  border-radius: 1px;
+}

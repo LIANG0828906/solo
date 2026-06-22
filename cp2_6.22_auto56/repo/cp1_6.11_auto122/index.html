@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DNA 双螺旋结构可视化编辑器</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app">
+    <canvas id="canvas"></canvas>
+    <div id="fps-counter">
+      <span id="fps-value">60</span> FPS
+    </div>
+    <div id="preset-buttons">
+      <button class="preset-btn" data-preset="healthy">健康段</button>
+      <button class="preset-btn" data-preset="mutation">突变段</button>
+      <button class="preset-btn" data-preset="custom">自定义序列</button>
+    </div>
+    <div id="sequence-editor">
+      <div class="editor-title">碱基序列编辑器</div>
+      <div id="sequence-list"></div>
+      <div id="base-picker" class="hidden">
+        <div class="picker-title">选择碱基</div>
+        <div class="picker-buttons">
+          <button class="base-btn base-a" data-base="A">A</button>
+          <button class="base-btn base-t" data-base="T">T</button>
+          <button class="base-btn base-c" data-base="C">C</button>
+          <button class="base-btn base-g" data-base="G">G</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

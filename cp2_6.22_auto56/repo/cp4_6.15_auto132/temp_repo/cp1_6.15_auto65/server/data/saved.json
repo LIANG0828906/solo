@@ -1,0 +1,17 @@
+[
+  {
+    "transitionDuration": 0.6,
+    "rotationSpeed": 0.8,
+    "shape": "sphere",
+    "colorStart": "#ff0000",
+    "density": 25000,
+    "attenuation": 0.5,
+    "colorEnd": "#0000ff",
+    "colorMid": "#00ff00",
+    "name": "??????",
+    "pulseAmplitude": 0.25,
+    "particleSize": 2,
+    "id": "c5b3aa2d-5cef-4257-8c75-84d9d500c590",
+    "savedAt": "2026-06-15T06:29:04.657Z"
+  }
+]

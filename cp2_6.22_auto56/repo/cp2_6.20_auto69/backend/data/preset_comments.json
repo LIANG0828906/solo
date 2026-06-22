@@ -1,0 +1,50 @@
+[
+  {
+    "id": "p1",
+    "content": "论点清晰",
+    "type": "positive",
+    "createdAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "p2",
+    "content": "语言流畅",
+    "type": "positive",
+    "createdAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "p3",
+    "content": "结构完整",
+    "type": "positive",
+    "createdAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "p4",
+    "content": "富有创意",
+    "type": "positive",
+    "createdAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "p5",
+    "content": "论据不足",
+    "type": "improvement",
+    "createdAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "p6",
+    "content": "语法有误",
+    "type": "improvement",
+    "createdAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "p7",
+    "content": "逻辑混乱",
+    "type": "improvement",
+    "createdAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "p8",
+    "content": "字数不够",
+    "type": "improvement",
+    "createdAt": "2026-06-20T02:13:32.424228"
+  }
+]

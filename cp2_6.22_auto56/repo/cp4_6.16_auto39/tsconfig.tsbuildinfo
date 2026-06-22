@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/components/playlistcard.tsx","./src/components/playlisteditor.tsx","./src/data/mocksongs.ts","./src/hooks/usedebounce.ts","./src/pages/detailpage.tsx","./src/pages/homepage.tsx","./src/store/playliststore.ts","./src/utils/colors.ts"],"version":"5.9.3"}

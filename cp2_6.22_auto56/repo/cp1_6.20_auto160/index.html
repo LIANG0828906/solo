@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>抽象几何雕塑预览器</title>
+  <link rel="stylesheet" href="./src/style.css" />
+</head>
+<body>
+  <div class="app-container">
+    <div id="preview-container" class="preview-container"></div>
+    <div id="controls-panel" class="controls-panel">
+      <h2 class="panel-title">参数控制</h2>
+      <div class="sliders-container">
+        <div class="slider-group" data-param="thickness">
+          <div class="slider-header">
+            <span class="slider-label">厚度</span>
+            <span class="slider-value">1.0</span>
+          </div>
+          <div class="slider-track">
+            <input type="range" min="0.2" max="2.0" step="0.01" value="1.0" />
+          </div>
+        </div>
+        <div class="slider-group" data-param="bend">
+          <div class="slider-header">
+            <span class="slider-label">弯曲度</span>
+            <span class="slider-value">90°</span>
+          </div>
+          <div class="slider-track">
+            <input type="range" min="0" max="180" step="1" value="90" />
+          </div>
+        </div>
+        <div class="slider-group" data-param="tilt">
+          <div class="slider-header">
+            <span class="slider-label">倾斜角度</span>
+            <span class="slider-value">0°</span>
+          </div>
+          <div class="slider-track">
+            <input type="range" min="-45" max="45" step="1" value="0" />
+          </div>
+        </div>
+        <div class="slider-group" data-param="texture">
+          <div class="slider-header">
+            <span class="slider-label">纹理密度</span>
+            <span class="slider-value">5</span>
+          </div>
+          <div class="slider-track">
+            <input type="range" min="1" max="10" step="1" value="5" />
+          </div>
+        </div>
+        <div class="slider-group" data-param="twist">
+          <div class="slider-header">
+            <span class="slider-label">扭曲强度</span>
+            <span class="slider-value">1.0</span>
+          </div>
+          <div class="slider-track">
+            <input type="range" min="0" max="2.0" step="0.01" value="1.0" />
+          </div>
+        </div>
+        <div class="slider-group" data-param="colorPhase">
+          <div class="slider-header">
+            <span class="slider-label">颜色相位</span>
+            <span class="slider-value">210°</span>
+          </div>
+          <div class="slider-track">
+            <input type="range" min="0" max="360" step="1" value="210" />
+          </div>
+        </div>
+      </div>
+      <div class="buttons-container">
+        <button id="btn-reset" class="control-btn btn-reset">
+          <span class="btn-label">重置参数</span>
+          <span class="btn-pulse"></span>
+        </button>
+        <button id="btn-random" class="control-btn btn-random">
+          <span class="btn-label">随机生成</span>
+        </button>
+        <button id="btn-screenshot" class="control-btn btn-screenshot">
+          <span class="btn-label">截图保存</span>
+          <span class="btn-progress"></span>
+        </button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

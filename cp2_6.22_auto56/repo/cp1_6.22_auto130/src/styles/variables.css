@@ -1,0 +1,38 @@
+:root {
+  --bg-page: #F8FAFC;
+  --bg-sandbox: #FFFFFF;
+  --bg-panel: #FFFFFF;
+  --text-primary: #1E293B;
+  --text-secondary: #475569;
+  --border-color: #E2E8F0;
+  --primary-blue: #2563EB;
+  --accent-blue: #3B82F6;
+  --flash-blue: #E0F2FE;
+  --tab-active-bg: #334155;
+  --tab-active-text: #FFFFFF;
+  --tab-inactive-bg: #F1F5F9;
+  --tab-inactive-text: #1E293B;
+  --scrollbar-track: #E2E8F0;
+  --scrollbar-thumb: #475569;
+  --shadow-focus: rgba(59, 130, 246, 0.3);
+  --sandbox-width: 70%;
+  --panel-width: 360px;
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --transition-fast: 0.15s ease;
+  --transition-normal: 0.2s ease;
+  --transition-slow: 0.3s ease;
+}
+
+@media (min-width: 768px) and (max-width: 1199px) {
+  :root {
+    --sandbox-width: 60%;
+    --panel-width: 300px;
+  }
+}

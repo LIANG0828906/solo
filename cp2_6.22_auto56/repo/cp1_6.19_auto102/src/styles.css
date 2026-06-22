@@ -1,0 +1,73 @@
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background: #1A1C1D;
+  font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+.app-container {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  overflow: hidden;
+  background: #1A1C1D;
+}
+
+.viewport-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 75%;
+  height: 100%;
+  background: #1A1C1D;
+}
+
+.control-panel-container {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 25%;
+  min-width: 280px;
+  height: 100%;
+  background: #1A1C1D;
+  padding: 20px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #fff;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+@media (max-width: 900px) {
+  .viewport-container {
+    width: 100%;
+    height: 65%;
+  }
+  .control-panel-container {
+    width: 100%;
+    height: 35%;
+    top: auto;
+    bottom: 0;
+    min-width: 0;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 12px;
+    gap: 12px;
+  }
+  .control-panel-container > * {
+    flex: 1;
+    min-width: 200px;
+  }
+}

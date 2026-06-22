@@ -1,0 +1,273 @@
+import type { Movie } from './types';
+
+const poster = (seed: string) =>
+  `https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=${encodeURIComponent(
+    `movie poster, cinematic, ${seed}, dark mood, dramatic lighting, 2:3 aspect ratio`
+  )}&image_size=portrait_2_3`;
+
+export const sampleMovies: Movie[] = [
+  {
+    id: '1',
+    poster: poster('interstellar space sci-fi'),
+    titleCn: '星际穿越',
+    titleEn: 'Interstellar',
+    director: '克里斯托弗·诺兰',
+    year: 2014,
+    watchDate: '2024-03-15',
+    rating: 9,
+    comment:
+      '震撼人心的太空史诗，亲情与科学的完美融合。汉斯·季默的配乐让整部电影的情感张力达到了极致。黑洞的视觉效果堪称影史之最。',
+    categories: ['科幻', '剧情'],
+    watchHistory: [
+      {
+        id: 'h1-1',
+        date: '2024-03-15',
+        comment: '第一次观看，完全被震撼到了。',
+        rating: 9,
+      },
+      {
+        id: 'h1-2',
+        date: '2025-01-20',
+        comment: '二刷发现了更多细节，对时间的隐喻理解更深了。',
+        rating: 10,
+      },
+    ],
+  },
+  {
+    id: '2',
+    poster: poster('spirited away anime japanese'),
+    titleCn: '千与千寻',
+    titleEn: 'Spirited Away',
+    director: '宫崎骏',
+    year: 2001,
+    watchDate: '2023-08-10',
+    rating: 10,
+    comment:
+      '宫崎骏的巅峰之作，每一帧都是艺术品。千寻的成长历程让人感动，无脸男的孤独令人心碎。久石让的音乐永远是加分项。',
+    categories: ['动画', '剧情'],
+    watchHistory: [
+      {
+        id: 'h2-1',
+        date: '2023-08-10',
+        comment: '重温经典，依旧感动。',
+        rating: 10,
+      },
+    ],
+  },
+  {
+    id: '3',
+    poster: poster('the dark knight batman'),
+    titleCn: '黑暗骑士',
+    titleEn: 'The Dark Knight',
+    director: '克里斯托弗·诺兰',
+    year: 2008,
+    watchDate: '2024-06-22',
+    rating: 9,
+    comment:
+      '希斯·莱杰的小丑是影史上最伟大的反派表演之一。影片探讨了正义与秩序的边界，深度远超一般超级英雄电影。',
+    categories: ['动作', '剧情'],
+    watchHistory: [
+      {
+        id: 'h3-1',
+        date: '2022-11-05',
+        comment: '重温小丑的表演，依然震撼。',
+        rating: 9,
+      },
+    ],
+  },
+  {
+    id: '4',
+    poster: poster('parasite korean thriller'),
+    titleCn: '寄生虫',
+    titleEn: 'Parasite',
+    director: '奉俊昊',
+    year: 2019,
+    watchDate: '2024-09-05',
+    rating: 9,
+    comment:
+      '对阶级差异的辛辣讽刺，节奏把控炉火纯青。前半段黑色幽默，后半段急转直下的悲剧，结局令人久久不能平静。',
+    categories: ['剧情'],
+    watchHistory: [
+      {
+        id: 'h4-1',
+        date: '2020-02-10',
+        comment: '奥斯卡最佳影片实至名归。',
+        rating: 8,
+      },
+    ],
+  },
+  {
+    id: '5',
+    poster: poster('shawshank redemption prison'),
+    titleCn: '肖申克的救赎',
+    titleEn: 'The Shawshank Redemption',
+    director: '弗兰克·德拉邦特',
+    year: 1994,
+    watchDate: '2023-11-18',
+    rating: 10,
+    comment:
+      '希望是美好的事物，也许是世上最美好的事物。关于自由、希望和友谊的永恒寓言，每次看都有新的感悟。',
+    categories: ['剧情'],
+    watchHistory: [
+      {
+        id: 'h5-1',
+        date: '2020-05-10',
+        comment: '大学时期第一次看。',
+        rating: 9,
+      },
+      {
+        id: 'h5-2',
+        date: '2023-11-18',
+        comment: '工作后再看，对体制化有了更深体会。',
+        rating: 10,
+      },
+    ],
+  },
+  {
+    id: '6',
+    poster: poster('your name anime romance'),
+    titleCn: '你的名字',
+    titleEn: 'Your Name',
+    director: '新海诚',
+    year: 2016,
+    watchDate: '2024-02-14',
+    rating: 8,
+    comment:
+      '画面美到令人窒息，时间线的交错叙事非常巧妙。RADWIMPS的配乐和剧情完美契合，最后阶梯相遇的场景让人泪目。',
+    categories: ['动画', '爱情'],
+    watchHistory: [
+      {
+        id: 'h6-1',
+        date: '2017-03-04',
+        comment: '第一次看，结局哭了。',
+        rating: 9,
+      },
+    ],
+  },
+  {
+    id: '7',
+    poster: poster('mad max fury road action'),
+    titleCn: '疯狂的麦克斯4：狂暴之路',
+    titleEn: 'Mad Max: Fury Road',
+    director: '乔治·米勒',
+    year: 2015,
+    watchDate: '2024-07-30',
+    rating: 8,
+    comment:
+      '两小时不间断的追逐大戏，视觉奇观层出不穷。女性主义的内核包裹在极致的动作场面之下，动作片的巅峰之作。',
+    categories: ['动作', '科幻'],
+    watchHistory: [
+      {
+        id: 'h7-1',
+        date: '2015-09-12',
+        comment: '影院看的，全程喘不过气。',
+        rating: 8,
+      },
+    ],
+  },
+  {
+    id: '8',
+    poster: poster('get out horror thriller'),
+    titleCn: '逃出绝命镇',
+    titleEn: 'Get Out',
+    director: '乔丹·皮尔',
+    year: 2017,
+    watchDate: '2024-10-31',
+    rating: 8,
+    comment:
+      '用恐怖片外壳包裹种族议题的社会寓言。悬念层层递进，结尾的反转既意外又合理。乔丹·皮尔的导演处女作一鸣惊人。',
+    categories: ['恐怖', '剧情'],
+    watchHistory: [
+      {
+        id: 'h8-1',
+        date: '2018-05-20',
+        comment: '阳光底下的恐怖，细思极恐。',
+        rating: 8,
+      },
+    ],
+  },
+  {
+    id: '9',
+    poster: poster('la la land musical romance'),
+    titleCn: '爱乐之城',
+    titleEn: 'La La Land',
+    director: '达米恩·查泽雷',
+    year: 2016,
+    watchDate: '2024-04-12',
+    rating: 8,
+    comment:
+      '献给追梦者的情书。瑞恩·高斯林和艾玛·斯通的化学反应令人信服，开场的高速公路歌舞是近年最棒的长镜头之一。',
+    categories: ['爱情', '剧情'],
+    watchHistory: [
+      {
+        id: 'h9-1',
+        date: '2017-02-24',
+        comment: '情人节和朋友一起看的。',
+        rating: 9,
+      },
+    ],
+  },
+  {
+    id: '10',
+    poster: poster('planet earth documentary nature'),
+    titleCn: '地球脉动 第二季',
+    titleEn: 'Planet Earth II',
+    director: 'BBC',
+    year: 2016,
+    watchDate: '2023-12-25',
+    rating: 10,
+    comment:
+      '纪录片的天花板。每一帧画面都美得令人窒息，配乐恢弘大气。城市那一集的蜥蜴追逐蛇群是我看过最紧张的片段。',
+    categories: ['纪录片'],
+    watchHistory: [
+      {
+        id: 'h10-1',
+        date: '2017-01-01',
+        comment: '新年夜全家一起看的。',
+        rating: 10,
+      },
+    ],
+  },
+  {
+    id: '11',
+    poster: poster('superbad comedy teen'),
+    titleCn: '超级坏',
+    titleEn: 'Superbad',
+    director: '格雷格·莫托拉',
+    year: 2007,
+    watchDate: '2025-03-20',
+    rating: 7,
+    comment:
+      '青春喜剧的经典。塞斯·罗根和埃文·戈登伯格的剧本充满了真实的青春期焦虑和爆笑对话， McLovin这个角色太绝了。',
+    categories: ['喜剧'],
+    watchHistory: [
+      {
+        id: 'h11-1',
+        date: '2010-07-15',
+        comment: '大学宿舍里和室友一起笑到肚子疼。',
+        rating: 8,
+      },
+    ],
+  },
+  {
+    id: '12',
+    poster: poster('arrival alien sci-fi'),
+    titleCn: '降临',
+    titleEn: 'Arrival',
+    director: '丹尼斯·维伦纽瓦',
+    year: 2016,
+    watchDate: '2024-08-14',
+    rating: 9,
+    comment:
+      '关于语言、时间和命运的诗意科幻。维伦纽瓦的镜头语言沉稳大气，艾米·亚当斯的表演内敛而有力量。结局的非线性叙事令人拍案叫绝。',
+    categories: ['科幻', '剧情'],
+    watchHistory: [
+      {
+        id: 'h12-1',
+        date: '2016-11-18',
+        comment: '和语言学专业的朋友一起看的，讨论了很久。',
+        rating: 9,
+      },
+    ],
+  },
+];

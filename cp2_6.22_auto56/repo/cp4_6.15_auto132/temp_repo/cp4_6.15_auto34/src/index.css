@@ -1,0 +1,229 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --accent-blue: #4FC3F7;
+  --bg-dark-1: #1a1a2e;
+  --bg-dark-2: #16213e;
+  --panel-bg: rgba(20, 25, 40, 0.6);
+  --text-primary: #e8eaf0;
+  --text-secondary: #a0a8b8;
+  --ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html,
+body,
+#root {
+  width: 100%;
+  height: 100%;
+  font-family: 'Quicksand', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: linear-gradient(135deg, var(--bg-dark-1) 0%, var(--bg-dark-2) 100%);
+  color: var(--text-primary);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.region-selector {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  padding: 24px 20px;
+  flex-wrap: wrap;
+}
+
+.region-btn {
+  padding: 10px 24px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.3s var(--ease-standard);
+  user-select: none;
+}
+
+.region-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--text-primary);
+  transform: translateY(-1px);
+}
+
+.region-btn.active {
+  background: var(--accent-blue);
+  color: #0a0a1a;
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 20px rgba(79, 195, 247, 0.5), 0 0 40px rgba(79, 195, 247, 0.2);
+  font-weight: 600;
+}
+
+.scene-wrapper {
+  position: relative;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 20px;
+}
+
+.scene-canvas-container {
+  position: relative;
+  width: 100%;
+  max-width: 1400px;
+  height: 80vh;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.scene-canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  cursor: crosshair;
+}
+
+.overlay-mask {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: #000;
+  opacity: 0;
+  transition: opacity 2s var(--ease-standard);
+  z-index: 5;
+}
+
+.overlay-mask.active {
+  opacity: 1;
+}
+
+.lightning-flash {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.95);
+  opacity: 0;
+  z-index: 4;
+}
+
+.lightning-flash.active {
+  animation: lightning-blink 100ms steps(1) forwards;
+}
+
+@keyframes lightning-blink {
+  0% {
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+.screen-shake {
+  animation: shake 0.3s var(--ease-standard);
+}
+
+@keyframes shake {
+  0%, 100% { transform: translate(0, 0); }
+  20% { transform: translate(-4px, 2px); }
+  40% { transform: translate(4px, -2px); }
+  60% { transform: translate(-3px, -1px); }
+  80% { transform: translate(3px, 1px); }
+}
+
+.status-panel {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 32px;
+  padding: 16px 32px;
+  margin: 0 20px 20px;
+  background: var(--panel-bg);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.status-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.status-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.status-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.visibility-bar {
+  width: 180px;
+  height: 10px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.visibility-fill {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 1s var(--ease-standard), background 1s var(--ease-standard);
+}
+
+@media (max-width: 768px) {
+  .region-selector {
+    gap: 8px;
+    padding: 16px 12px;
+  }
+
+  .region-btn {
+    padding: 8px 16px;
+    font-size: 12px;
+  }
+
+  .scene-canvas-container {
+    height: 70vh;
+  }
+
+  .status-panel {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    padding: 16px 20px;
+    margin: 0 12px 12px;
+  }
+}

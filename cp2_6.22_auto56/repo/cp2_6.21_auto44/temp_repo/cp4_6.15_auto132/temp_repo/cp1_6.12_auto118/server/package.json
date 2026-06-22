@@ -1,0 +1,14 @@
+{
+  "name": "story-chain-server",
+  "version": "1.0.0",
+  "description": "Story Chain Game - Server",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "uuid": "^9.0.0"
+  }
+}

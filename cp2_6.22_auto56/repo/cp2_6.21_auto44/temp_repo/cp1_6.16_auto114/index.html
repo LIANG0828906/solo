@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>社区共享菜园 · 生长可视化平台</title>
+    <style>
+      html, body, #root {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        background-color: #FAF0E6;
+        background-image:
+          radial-gradient(circle at 20% 10%, rgba(143, 188, 143, 0.18) 0, transparent 40%),
+          radial-gradient(circle at 80% 90%, rgba(210, 180, 140, 0.25) 0, transparent 45%),
+          repeating-linear-gradient(
+            135deg,
+            rgba(222, 184, 135, 0.05) 0px,
+            rgba(222, 184, 135, 0.05) 2px,
+            transparent 2px,
+            transparent 14px
+          );
+        font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', system-ui, -apple-system, sans-serif;
+        color: #3E2723;
+      }
+    </style>
+    <script type="module">
+      if (import.meta.hot?.on) {
+        import.meta.hot.on('vite:error', (error) => {
+          if (error.err) {
+            console.error(
+              [error.err.message, error.err.frame].filter(Boolean).join('\n'),
+            )
+          }
+        })
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

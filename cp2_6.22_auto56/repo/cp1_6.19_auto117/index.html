@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>城市天际线生长模拟与日照阴影分析</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      background: #0a0a1a;
+      color: #ffffff;
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    .control-panel {
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      width: 280px;
+      background: rgba(26, 26, 46, 0.6);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 16px;
+      padding: 20px;
+      z-index: 100;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      overflow: hidden;
+    }
+
+    .control-panel.collapsed {
+      width: 56px;
+      height: 56px;
+      padding: 0;
+      cursor: pointer;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .control-panel.collapsed .panel-header,
+    .control-panel.collapsed .panel-content {
+      display: none;
+    }
+
+    .panel-icon {
+      font-size: 20px;
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+    }
+
+    .collapsed-icon {
+      display: none;
+      width: 100%;
+      height: 100%;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+
+    .control-panel.collapsed .collapsed-icon {
+      display: flex;
+    }
+
+    .slider-group {
+      margin-bottom: 16px;
+    }
+
+    .slider-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.9);
+    }
+
+    .slider-value {
+      background: rgba(255, 255, 255, 0.1);
+      padding: 2px 8px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      min-width: 40px;
+      text-align: center;
+      transition: transform 0.2s ease;
+    }
+
+    .slider-value.pulse {
+      transform: scale(1.2);
+    }
+
+    input[type="range"] {
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.5);
+      transition: transform 0.2s ease;
+    }
+
+    input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.1);
+    }
+
+    input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border-radius: 50%;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 2px 8px rgba(102, 126, 234, 0.5);
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.7);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin: 16px 0 10px 0;
+    }
+
+    .section-title:first-child {
+      margin-top: 0;
+    }
+
+    .layout-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .layout-btn {
+      flex: 1;
+      height: 44px;
+      background: rgba(255, 255, 255, 0.1);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    .layout-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: rgba(255, 255, 255, 0.3);
+    }
+
+    .layout-btn.active {
+      background: linear-gradient(135deg, rgba(102, 126, 234, 0.3), rgba(118, 75, 162, 0.3));
+      border-color: #667eea;
+    }
+
+    .layout-icon {
+      display: grid;
+      gap: 2px;
+    }
+
+    .layout-icon.grid {
+      grid-template-columns: repeat(3, 6px);
+      grid-template-rows: repeat(3, 6px);
+    }
+
+    .layout-icon.random {
+      position: relative;
+      width: 18px;
+      height: 18px;
+    }
+
+    .layout-icon.ring {
+      position: relative;
+      width: 18px;
+      height: 18px;
+    }
+
+    .layout-dot {
+      width: 6px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.8);
+      border-radius: 50%;
+    }
+
+    .layout-btn.active .layout-dot {
+      background: #667eea;
+    }
+
+    .layout-icon.random .dot1 {
+      position: absolute;
+      top: 0;
+      left: 4px;
+    }
+    .layout-icon.random .dot2 {
+      position: absolute;
+      top: 4px;
+      right: 0;
+    }
+    .layout-icon.random .dot3 {
+      position: absolute;
+      bottom: 2px;
+      left: 0;
+    }
+    .layout-icon.random .dot4 {
+      position: absolute;
+      bottom: 0;
+      right: 3px;
+    }
+    .layout-icon.random .dot5 {
+      position: absolute;
+      top: 8px;
+      left: 8px;
+    }
+
+    .layout-icon.ring .r-dot1 { position: absolute; top: 0; left: 50%; transform: translateX(-50%); }
+    .layout-icon.ring .r-dot2 { position: absolute; top: 25%; right: 0; }
+    .layout-icon.ring .r-dot3 { position: absolute; bottom: 25%; right: 0; }
+    .layout-icon.ring .r-dot4 { position: absolute; bottom: 0; left: 50%; transform: translateX(-50%); }
+    .layout-icon.ring .r-dot5 { position: absolute; bottom: 25%; left: 0; }
+    .layout-icon.ring .r-dot6 { position: absolute; top: 25%; left: 0; }
+    .layout-icon.ring .r-dot7 { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); }
+
+    .action-buttons {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .action-btn {
+      flex: 1;
+      height: 38px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border: none;
+      border-radius: 10px;
+      color: white;
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .action-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+    }
+
+    .action-btn:active {
+      transform: translateY(0);
+    }
+
+    .fps-counter {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(26, 26, 46, 0.6);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+      z-index: 100;
+    }
+
+    .fps-value {
+      color: #667eea;
+      font-weight: 600;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <div class="control-panel collapsed" id="controlPanel">
+    <div class="collapsed-icon">
+      <span>☀️🏙️</span>
+    </div>
+    <div class="panel-content">
+      <div class="panel-header">
+        <span class="panel-icon">🏙️</span>
+        <span class="panel-title">城市日照模拟</span>
+      </div>
+
+      <div class="section-title">建筑参数</div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>建筑密度</span>
+          <span class="slider-value" id="densityValue">30</span>
+        </div>
+        <input type="range" id="densitySlider" min="10" max="50" value="30" step="1" />
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>最大高度</span>
+          <span class="slider-value" id="heightValue">15</span>
+        </div>
+        <input type="range" id="heightSlider" min="5" max="20" value="15" step="1" />
+      </div>
+
+      <div class="section-title">布局模式</div>
+      <div class="layout-buttons">
+        <button class="layout-btn active" data-layout="grid" title="网格布局">
+          <div class="layout-icon grid">
+            <div class="layout-dot"></div><div class="layout-dot"></div><div class="layout-dot"></div>
+            <div class="layout-dot"></div><div class="layout-dot"></div><div class="layout-dot"></div>
+            <div class="layout-dot"></div><div class="layout-dot"></div><div class="layout-dot"></div>
+          </div>
+        </button>
+        <button class="layout-btn" data-layout="random" title="随机布局">
+          <div class="layout-icon random">
+            <div class="layout-dot dot1"></div>
+            <div class="layout-dot dot2"></div>
+            <div class="layout-dot dot3"></div>
+            <div class="layout-dot dot4"></div>
+            <div class="layout-dot dot5"></div>
+          </div>
+        </button>
+        <button class="layout-btn" data-layout="ring" title="环形布局">
+          <div class="layout-icon ring">
+            <div class="layout-dot r-dot1"></div>
+            <div class="layout-dot r-dot2"></div>
+            <div class="layout-dot r-dot3"></div>
+            <div class="layout-dot r-dot4"></div>
+            <div class="layout-dot r-dot5"></div>
+            <div class="layout-dot r-dot6"></div>
+            <div class="layout-dot r-dot7"></div>
+          </div>
+        </button>
+      </div>
+
+      <div class="section-title">太阳参数</div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>方位角</span>
+          <span class="slider-value" id="azimuthValue">45</span>
+        </div>
+        <input type="range" id="azimuthSlider" min="0" max="360" value="45" step="1" />
+      </div>
+
+      <div class="slider-group">
+        <div class="slider-label">
+          <span>高度角</span>
+          <span class="slider-value" id="altitudeValue">45</span>
+        </div>
+        <input type="range" id="altitudeSlider" min="15" max="75" value="45" step="1" />
+      </div>
+
+      <div class="section-title">操作</div>
+      <div class="action-buttons">
+        <button class="action-btn" id="snapshotBtn">
+          <span>📷</span> 快照
+        </button>
+        <button class="action-btn" id="resetViewBtn">
+          <span>🎯</span> 重置
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="fps-counter">
+    FPS: <span class="fps-value" id="fpsValue">60</span>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

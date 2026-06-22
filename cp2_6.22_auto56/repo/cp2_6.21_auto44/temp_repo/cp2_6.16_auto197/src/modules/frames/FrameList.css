@@ -1,0 +1,225 @@
+.frame-list-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--bg-panel);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.frame-count {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: rgba(59, 130, 246, 0.1);
+  border-bottom: 1px solid var(--border-color);
+  font-size: 11px;
+}
+
+.bulk-info {
+  color: var(--accent-blue);
+  font-weight: 500;
+}
+
+.bulk-duration {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  color: var(--text-secondary);
+}
+
+.bulk-duration input {
+  width: 50px;
+  padding: 3px 6px;
+  background: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-size: 11px;
+}
+
+.bulk-duration input:focus {
+  border-color: var(--accent-blue);
+}
+
+.btn-small {
+  padding: 4px 8px;
+  background: var(--bg-button);
+  border: 1px solid var(--border-color);
+  border-radius: 3px;
+  color: var(--text-primary);
+  font-size: 11px;
+  transition: background 0.15s ease;
+}
+
+.btn-small:hover {
+  background: var(--bg-button-hover);
+}
+
+.btn-danger {
+  color: var(--accent-red);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.btn-danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+}
+
+.frame-list-actions {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.btn-full {
+  width: 100%;
+}
+
+.frame-grid {
+  flex: 1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 8px;
+  padding: 12px;
+  overflow-y: auto;
+  align-content: start;
+}
+
+.frame-thumb {
+  position: relative;
+  background: var(--bg-primary);
+  border: 2px solid var(--border-color);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  overflow: hidden;
+}
+
+.frame-thumb:hover {
+  transform: scale(1.1);
+  z-index: 10;
+  border-color: var(--accent-blue);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.frame-thumb.selected {
+  border-color: var(--accent-blue);
+  box-shadow: 0 0 0 2px var(--accent-blue), 0 0 12px rgba(59, 130, 246, 0.5);
+}
+
+.frame-thumb.deleting {
+  transform: scale(0.8);
+  opacity: 0;
+}
+
+.frame-thumb-image {
+  aspect-ratio: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-primary);
+  padding: 4px;
+}
+
+.frame-thumb-image img {
+  max-width: 100%;
+  max-height: 100%;
+  image-rendering: pixelated;
+}
+
+.frame-thumb-info {
+  padding: 4px 6px;
+  background: rgba(0, 0, 0, 0.3);
+  border-top: 1px solid var(--border-color);
+}
+
+.frame-thumb-info input {
+  width: 100%;
+  padding: 2px 4px;
+  background: var(--bg-input);
+  border: 1px solid var(--accent-blue);
+  border-radius: 2px;
+  color: var(--text-primary);
+  font-size: 10px;
+}
+
+.frame-name {
+  display: block;
+  font-size: 10px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.frame-duration {
+  display: block;
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+.frame-delete-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(239, 68, 68, 0.8);
+  border-radius: 3px;
+  color: white;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.frame-thumb:hover .frame-delete-btn {
+  opacity: 1;
+}
+
+.frame-delete-btn:hover {
+  background: var(--accent-red);
+}
+
+.frame-index {
+  position: absolute;
+  bottom: 26px;
+  left: 4px;
+  font-size: 9px;
+  color: white;
+  background: rgba(0, 0, 0, 0.6);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.empty-state {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 20px;
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.empty-state p {
+  font-size: 12px;
+}
+
+.empty-hint {
+  font-size: 11px !important;
+  color: var(--text-muted);
+  opacity: 0.7;
+}

@@ -1,0 +1,1 @@
+{"root":["./src/main.tsx","./src/types.ts","./src/vite-env.d.ts","./src/clonary/clonelibrary.tsx","./src/clonary/storageservice.ts","./src/editor/animationrenderer.ts","./src/editor/pathmanager.ts","./src/editor/svgeditor.tsx"],"version":"5.8.3"}

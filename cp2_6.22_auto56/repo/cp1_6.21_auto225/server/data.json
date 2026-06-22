@@ -1,0 +1,63 @@
+{
+  "users": [
+    {
+      "id": "c694856a-a696-435b-89ac-c9d11b8333db",
+      "username": "demo_user",
+      "password": "demo1234"
+    }
+  ],
+  "plans": [
+    {
+      "id": "12e50ef8-5693-4724-8a4b-5fbf1aacc6c3",
+      "userId": "c694856a-a696-435b-89ac-c9d11b8333db",
+      "name": "上肢推力日A",
+      "exercises": [
+        {
+          "id": "1eba905e-9862-4ca0-a35c-fda1bcc494d0",
+          "name": "杠铃卧推",
+          "defaultSets": 4,
+          "minReps": 8,
+          "maxReps": 12,
+          "order": 0
+        },
+        {
+          "id": "1c4f627d-4fd1-484d-8149-584be743eade",
+          "name": "哑铃肩推",
+          "defaultSets": 4,
+          "minReps": 8,
+          "maxReps": 12,
+          "order": 1
+        },
+        {
+          "id": "0d94449f-1278-48d8-ad8e-305ae6d3b853",
+          "name": "双杠臂屈伸",
+          "defaultSets": 4,
+          "minReps": 8,
+          "maxReps": 12,
+          "order": 2
+        },
+        {
+          "id": "c8a9177e-dc2c-46d0-83b0-b9bd2d02b02e",
+          "name": "绳索夹胸",
+          "defaultSets": 4,
+          "minReps": 8,
+          "maxReps": 12,
+          "order": 3
+        },
+        {
+          "id": "4770b258-070e-47eb-90c5-122970079673",
+          "name": "哑铃侧平举",
+          "defaultSets": 4,
+          "minReps": 8,
+          "maxReps": 12,
+          "order": 4
+        }
+      ],
+      "createdAt": "2026-06-21T10:23:11.710Z"
+    }
+  ],
+  "records": [],
+  "tokens": {
+    "2353a8a3-4e4c-4da2-bbb1-c927f3bd5b6a": "c694856a-a696-435b-89ac-c9d11b8333db"
+  }
+}

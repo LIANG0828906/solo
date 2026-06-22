@@ -1,0 +1,14 @@
+{
+  "name": "2d-physics-terrain-simulator",
+  "version": "1.0.0",
+  "description": "2D角色物理碰撞与动态地形交互模拟器",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vite": "^5.2.0"
+  }
+}

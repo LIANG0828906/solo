@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>塔防路径编辑器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0a0515;
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      color: #e0d0ff;
+    }
+    #app {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+    canvas {
+      display: block;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+    .panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 280px;
+      padding: 18px;
+      background: rgba(20, 10, 40, 0.7);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(160, 120, 255, 0.25);
+      border-top: 1px solid rgba(200, 170, 255, 0.4);
+      border-left: 1px solid rgba(200, 170, 255, 0.35);
+      border-radius: 14px;
+      box-shadow:
+        0 8px 32px rgba(60, 20, 140, 0.4),
+        0 2px 8px rgba(0, 0, 0, 0.3),
+        inset 0 1px 0 rgba(200, 170, 255, 0.1);
+      filter: drop-shadow(0 4px 12px rgba(80, 40, 180, 0.35));
+      z-index: 10;
+    }
+    .info-panel {
+      top: auto;
+      bottom: 20px;
+    }
+    .panel h2 {
+      font-size: 16px;
+      margin-bottom: 14px;
+      color: #c8a8ff;
+      text-shadow: 0 0 8px rgba(160, 120, 255, 0.5);
+      border-bottom: 1px solid rgba(160, 120, 255, 0.2);
+      padding-bottom: 8px;
+    }
+    .panel label {
+      display: block;
+      font-size: 12px;
+      margin-bottom: 6px;
+      color: #b098e0;
+    }
+    .panel input[type="range"] {
+      width: 100%;
+      margin-bottom: 14px;
+      accent-color: #a078ff;
+    }
+    .panel button {
+      width: 100%;
+      padding: 8px 12px;
+      margin-bottom: 8px;
+      background: rgba(120, 80, 220, 0.4);
+      border: 1px solid rgba(160, 120, 255, 0.4);
+      color: #e0d0ff;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.2s;
+    }
+    .panel button:hover {
+      background: rgba(160, 120, 255, 0.5);
+      box-shadow: 0 0 12px rgba(160, 120, 255, 0.4);
+    }
+    .panel .row {
+      display: flex;
+      gap: 8px;
+    }
+    .panel .row button {
+      flex: 1;
+    }
+    .info-row {
+      font-size: 12px;
+      margin-bottom: 8px;
+      color: #c8b0f0;
+      font-family: 'Consolas', monospace;
+    }
+    .info-row span {
+      color: #a0f0ff;
+      text-shadow: 0 0 4px rgba(100, 200, 255, 0.3);
+    }
+    .hint {
+      font-size: 11px;
+      color: #8870b0;
+      margin-top: 10px;
+      line-height: 1.5;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <canvas id="gameCanvas"></canvas>
+    <div id="controlPanel" class="panel"></div>
+    <div id="infoPanel" class="panel info-panel"></div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

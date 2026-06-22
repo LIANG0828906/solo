@@ -1,0 +1,444 @@
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  font-family: 'Noto Sans SC', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+#root {
+  width: 100%;
+  height: 100%;
+}
+
+canvas {
+  display: block;
+}
+
+/* ============ 滑块样式 ============ */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(100, 140, 255, 0.2);
+  outline: none;
+  cursor: pointer;
+  transition: background 0.2s ease-out;
+  border: none;
+}
+
+input[type="range"]:hover {
+  background: rgba(100, 160, 255, 0.3);
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4a7aff 0%, #6a9aff 100%);
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  transition: all 0.2s ease-out;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.4),
+    0 0 4px rgba(74, 122, 255, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  width: 18px;
+  height: 18px;
+  background: linear-gradient(135deg, #5a8aff 0%, #7aaaff 100%);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.5),
+    0 0 10px rgba(74, 122, 255, 0.7),
+    0 0 20px rgba(74, 122, 255, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  transform: scale(1.05);
+}
+
+input[type="range"]::-webkit-slider-thumb:active {
+  transform: scale(0.95);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.4),
+    0 0 6px rgba(74, 122, 255, 0.6),
+    inset 0 1px 1px rgba(255, 255, 255, 0.25);
+}
+
+input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #4a7aff 0%, #6a9aff 100%);
+  cursor: pointer;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  transition: all 0.2s ease-out;
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.4),
+    0 0 4px rgba(74, 122, 255, 0.5),
+    inset 0 1px 1px rgba(255, 255, 255, 0.3);
+}
+
+input[type="range"]::-moz-range-thumb:hover {
+  width: 18px;
+  height: 18px;
+  background: linear-gradient(135deg, #5a8aff 0%, #7aaaff 100%);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.5),
+    0 0 10px rgba(74, 122, 255, 0.7),
+    0 0 20px rgba(74, 122, 255, 0.35),
+    inset 0 1px 1px rgba(255, 255, 255, 0.4);
+  transform: scale(1.05);
+}
+
+input[type="range"]::-moz-range-track {
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(100, 140, 255, 0.2);
+  border: none;
+}
+
+/* ============ 通用按钮悬停 ============ */
+button {
+  position: relative;
+  overflow: hidden;
+}
+
+button::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(120, 180, 255, 0.25),
+    transparent
+  );
+  transition: left 0.4s ease-out;
+  pointer-events: none;
+}
+
+button:hover {
+  filter: brightness(1.25);
+  transform: scale(1.02);
+  box-shadow:
+    0 0 0 1px rgba(100, 160, 255, 0.35),
+    0 0 12px rgba(80, 140, 255, 0.25),
+    0 0 24px rgba(60, 120, 220, 0.12);
+}
+
+button:hover::before {
+  left: 100%;
+}
+
+button:active {
+  transform: scale(0.98);
+  transition: transform 0.1s ease;
+}
+
+/* ============ 文件上传区悬停 ============ */
+.upload-zone {
+  position: relative;
+  transition: all 0.3s ease-out;
+}
+
+.upload-zone::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2px;
+  background: linear-gradient(135deg, rgba(100, 160, 255, 0) 0%, rgba(100, 160, 255, 0) 100%);
+  -webkit-mask:
+    linear-gradient(#fff 0 0) content-box,
+    linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+  transition: all 0.3s ease-out;
+}
+
+.upload-zone:hover {
+  transform: scale(1.02);
+  background: rgba(80, 140, 255, 0.08) !important;
+  border-color: rgba(100, 180, 255, 0.5) !important;
+  box-shadow:
+    0 0 16px rgba(80, 140, 255, 0.2),
+    0 0 32px rgba(60, 120, 220, 0.08);
+}
+
+.upload-zone:hover::after {
+  background: linear-gradient(135deg, rgba(100, 160, 255, 0.4) 0%, rgba(180, 120, 255, 0.3) 100%);
+}
+
+.upload-zone.dragging {
+  transform: scale(1.03);
+  background: rgba(100, 180, 255, 0.12) !important;
+  border-color: rgba(100, 200, 255, 0.7) !important;
+  box-shadow:
+    0 0 20px rgba(100, 180, 255, 0.3),
+    0 0 40px rgba(80, 160, 255, 0.15);
+}
+
+/* ============ 颜色映射按钮 ============ */
+.colormap-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s ease-out;
+}
+
+.colormap-btn::after {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease-out;
+  box-shadow: 0 0 8px rgba(100, 160, 255, 0.4);
+}
+
+.colormap-btn:hover {
+  transform: scale(1.06);
+  border-color: rgba(120, 180, 255, 0.55) !important;
+  background: rgba(80, 140, 255, 0.12) !important;
+  box-shadow:
+    0 0 0 1px rgba(100, 160, 255, 0.3),
+    0 0 10px rgba(80, 140, 255, 0.25);
+}
+
+.colormap-btn:hover::after {
+  opacity: 1;
+}
+
+/* ============ 开始/暂停/重启按钮 ============ */
+.action-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.3s ease-out;
+}
+
+.action-btn::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.3s ease-out;
+  background: linear-gradient(135deg, rgba(100, 160, 255, 0.15), rgba(160, 120, 255, 0.1));
+  filter: blur(8px);
+  z-index: -1;
+}
+
+.action-btn:hover {
+  transform: scale(1.02);
+  border-color: rgba(120, 180, 255, 0.6) !important;
+  box-shadow:
+    0 0 0 1px rgba(100, 160, 255, 0.4),
+    0 0 14px rgba(80, 140, 255, 0.3),
+    0 0 28px rgba(100, 120, 255, 0.15);
+}
+
+.action-btn:hover::after {
+  opacity: 1;
+}
+
+/* ============ 折叠按钮 ============ */
+.collapse-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s ease-out;
+}
+
+.collapse-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(100, 160, 255, 0.2),
+    transparent
+  );
+  transform: translateX(-100%);
+  transition: transform 0.4s ease-out;
+}
+
+.collapse-btn:hover {
+  transform: scale(1.08);
+  border-color: rgba(120, 180, 255, 0.5) !important;
+  background: rgba(30, 30, 60, 0.8) !important;
+  color: rgba(180, 210, 255, 0.95) !important;
+  box-shadow:
+    0 0 0 1px rgba(100, 160, 255, 0.3),
+    0 0 10px rgba(80, 140, 255, 0.25);
+}
+
+.collapse-btn:hover::before {
+  transform: translateX(100%);
+}
+
+/* ============ 导出工具栏按钮 ============ */
+.export-btn {
+  position: relative;
+  overflow: hidden;
+  transition: all 0.25s ease-out;
+}
+
+.export-btn::after {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease-out;
+  background: radial-gradient(
+    circle at center,
+    rgba(100, 160, 255, 0.25) 0%,
+    transparent 70%
+  );
+}
+
+.export-btn:hover {
+  transform: scale(1.08);
+  border-color: rgba(120, 180, 255, 0.55) !important;
+  background: rgba(40, 40, 80, 0.6) !important;
+  color: rgba(200, 220, 255, 0.95) !important;
+  box-shadow:
+    0 0 0 1px rgba(100, 160, 255, 0.35),
+    0 0 12px rgba(80, 140, 255, 0.3),
+    0 0 24px rgba(60, 120, 220, 0.15);
+}
+
+.export-btn:hover::after {
+  opacity: 1;
+}
+
+/* ============ 控制面板折叠过渡 ============ */
+.panel-wrapper {
+  transition: width 0.3s ease-out !important;
+}
+
+/* ============ 面板触发条（收起时显示） ============ */
+.panel-trigger {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  transform: translateY(-50%);
+  width: 6px;
+  height: 120px;
+  background: rgba(10, 10, 30, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 0 4px 4px 0;
+  z-index: 99;
+  cursor: pointer;
+  transition: all 0.25s ease-out;
+  box-shadow: 1px 0 6px rgba(0, 0, 0, 0.2);
+}
+
+.panel-trigger::before {
+  content: '';
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 4px solid rgba(160, 190, 255, 0.5);
+  transition: all 0.25s ease-out;
+}
+
+.panel-trigger:hover {
+  width: 12px;
+  background: rgba(30, 30, 60, 0.7);
+  box-shadow:
+    2px 0 10px rgba(0, 0, 0, 0.25),
+    0 0 12px rgba(80, 140, 255, 0.2);
+  border-right: 1px solid rgba(100, 160, 255, 0.4);
+}
+
+.panel-trigger:hover::before {
+  right: 3px;
+  border-left-color: rgba(200, 220, 255, 0.9);
+  filter: drop-shadow(0 0 4px rgba(100, 160, 255, 0.6));
+}
+
+/* ============ 控件组分隔线 ============ */
+.control-separator {
+  height: 1px;
+  width: 100%;
+  background: rgba(100, 140, 255, 0.15);
+  margin: 0;
+  position: relative;
+}
+
+.control-separator::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(100, 140, 255, 0.15) 20%,
+    rgba(100, 140, 255, 0.15) 80%,
+    transparent 100%
+  );
+}
+
+/* ============ 闪光动画（截图） ============ */
+@keyframes flashEffect {
+  0% {
+    transform: translate(-50%, -50%) scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(60);
+    opacity: 0;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.3;
+  }
+}
+
+/* ============ 滚动条 ============ */
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(100, 140, 255, 0.2);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(100, 140, 255, 0.4);
+}

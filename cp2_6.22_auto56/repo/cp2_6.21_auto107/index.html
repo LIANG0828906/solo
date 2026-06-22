@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>太空星云粒子系统</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0a0a1a;
+      font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+      color: #e0e0e0;
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    canvas {
+      display: block;
+    }
+
+    .title {
+      position: absolute;
+      top: 24px;
+      left: 32px;
+      font-size: 22px;
+      font-weight: 300;
+      letter-spacing: 4px;
+      color: #d0d8e8;
+      text-shadow: 0 0 12px rgba(200, 210, 240, 0.3);
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .control-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      width: 280px;
+      padding: 24px;
+      background: rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 16px;
+      z-index: 20;
+    }
+
+    .control-panel h2 {
+      font-size: 15px;
+      font-weight: 400;
+      letter-spacing: 2px;
+      color: #a0b0c8;
+      margin-bottom: 20px;
+      text-align: center;
+    }
+
+    .control-group {
+      margin-bottom: 18px;
+    }
+
+    .control-group label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+      color: #8899aa;
+      margin-bottom: 8px;
+    }
+
+    .control-group label span.value {
+      color: #c0d0e0;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .control-group input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.1);
+      outline: none;
+      transition: box-shadow 0.3s ease;
+    }
+
+    .control-group input[type="range"]:hover {
+      box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.3);
+    }
+
+    .control-group input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #4d96ff;
+      cursor: pointer;
+      box-shadow: 0 0 6px rgba(77, 150, 255, 0.5);
+      transition: box-shadow 0.3s ease;
+    }
+
+    .control-group input[type="range"]::-webkit-slider-thumb:hover {
+      box-shadow: 0 0 12px rgba(77, 150, 255, 0.8);
+    }
+
+    .control-group input[type="range"]::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #4d96ff;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 6px rgba(77, 150, 255, 0.5);
+    }
+
+    .event-log {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      width: 360px;
+      max-height: 220px;
+      overflow-y: auto;
+      padding: 14px;
+      background: rgba(0, 0, 0, 0.5);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 12px;
+      z-index: 20;
+      font-size: 12px;
+      line-height: 1.8;
+    }
+
+    .event-log h3 {
+      font-size: 12px;
+      font-weight: 400;
+      letter-spacing: 1px;
+      color: #667788;
+      margin-bottom: 8px;
+    }
+
+    .event-log .log-entry {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: #778899;
+      padding: 2px 0;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .event-log .log-entry .timestamp {
+      color: #556677;
+      font-variant-numeric: tabular-nums;
+      flex-shrink: 0;
+    }
+
+    .event-log .log-entry .color-tag {
+      display: inline-block;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .event-log .log-entry .pid {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .event-log::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .event-log::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .event-log::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 2px;
+    }
+
+    .fps-counter {
+      position: absolute;
+      top: 24px;
+      right: 320px;
+      font-size: 12px;
+      color: #556677;
+      font-variant-numeric: tabular-nums;
+      z-index: 10;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="title">太空星云粒子系统</div>
+    <div class="fps-counter" id="fps">0 FPS</div>
+    <div class="control-panel">
+      <h2>参数控制</h2>
+      <div class="control-group">
+        <label>引力强度 <span class="value" id="gravity-value">0.8</span></label>
+        <input type="range" id="gravity" min="0" max="5" step="0.1" value="0.8" />
+      </div>
+      <div class="control-group">
+        <label>粒子速度 <span class="value" id="speed-value">1.0x</span></label>
+        <input type="range" id="speed" min="0.5" max="3" step="0.1" value="1.0" />
+      </div>
+      <div class="control-group">
+        <label>碰撞弹性 <span class="value" id="elasticity-value">0.30</span></label>
+        <input type="range" id="elasticity" min="0" max="1" step="0.05" value="0.3" />
+      </div>
+    </div>
+    <div class="event-log" id="event-log">
+      <h3>碰撞事件日志</h3>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,33 @@
+{
+  "name": "photo-delivery-platform",
+  "version": "1.0.0",
+  "description": "摄影师作品交付与授权管理平台",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "server": "node server/index.js",
+    "client": "vite",
+    "build": "tsc && vite build"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "express": "^4.18.2",
+    "typescript": "^5.2.2",
+    "vite": "^5.0.8",
+    "@vitejs/plugin-react": "^4.2.1",
+    "uuid": "^9.0.1",
+    "cors": "^2.8.5",
+    "body-parser": "^1.20.2",
+    "sharp": "^0.33.1",
+    "multer": "^1.4.5-lts.1",
+    "axios": "^1.6.2",
+    "react-masonry-css": "^1.0.16"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@types/uuid": "^9.0.7",
+    "concurrently": "^8.2.2"
+  }
+}

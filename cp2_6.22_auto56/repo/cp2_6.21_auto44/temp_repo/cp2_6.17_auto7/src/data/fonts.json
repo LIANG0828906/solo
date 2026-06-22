@@ -1,0 +1,162 @@
+[
+  {
+    "id": "1",
+    "name": "Playfair Display",
+    "googleFontName": "Playfair Display",
+    "category": "serif",
+    "variants": { "weights": 6, "italics": 2 },
+    "tags": ["heading", "decorative"]
+  },
+  {
+    "id": "2",
+    "name": "Merriweather",
+    "googleFontName": "Merriweather",
+    "category": "serif",
+    "variants": { "weights": 4, "italics": 2 },
+    "tags": ["body", "heading"]
+  },
+  {
+    "id": "3",
+    "name": "Lora",
+    "googleFontName": "Lora",
+    "category": "serif",
+    "variants": { "weights": 2, "italics": 2 },
+    "tags": ["body", "heading"]
+  },
+  {
+    "id": "4",
+    "name": "Noto Serif",
+    "googleFontName": "Noto Serif",
+    "category": "serif",
+    "variants": { "weights": 5, "italics": 1 },
+    "tags": ["body", "heading"]
+  },
+  {
+    "id": "5",
+    "name": "Roboto",
+    "googleFontName": "Roboto",
+    "category": "sans-serif",
+    "variants": { "weights": 6, "italics": 2 },
+    "tags": ["body", "heading"]
+  },
+  {
+    "id": "6",
+    "name": "Open Sans",
+    "googleFontName": "Open Sans",
+    "category": "sans-serif",
+    "variants": { "weights": 6, "italics": 2 },
+    "tags": ["body", "heading"]
+  },
+  {
+    "id": "7",
+    "name": "Montserrat",
+    "googleFontName": "Montserrat",
+    "category": "sans-serif",
+    "variants": { "weights": 9, "italics": 1 },
+    "tags": ["heading", "poster"]
+  },
+  {
+    "id": "8",
+    "name": "Poppins",
+    "googleFontName": "Poppins",
+    "category": "sans-serif",
+    "variants": { "weights": 9, "italics": 1 },
+    "tags": ["heading", "decorative"]
+  },
+  {
+    "id": "9",
+    "name": "Lato",
+    "googleFontName": "Lato",
+    "category": "sans-serif",
+    "variants": { "weights": 4, "italics": 2 },
+    "tags": ["body", "heading"]
+  },
+  {
+    "id": "10",
+    "name": "Raleway",
+    "googleFontName": "Raleway",
+    "category": "sans-serif",
+    "variants": { "weights": 9, "italics": 1 },
+    "tags": ["heading", "decorative"]
+  },
+  {
+    "id": "11",
+    "name": "Dancing Script",
+    "googleFontName": "Dancing Script",
+    "category": "handwriting",
+    "variants": { "weights": 4, "italics": 0 },
+    "tags": ["decorative", "poster"]
+  },
+  {
+    "id": "12",
+    "name": "Pacifico",
+    "googleFontName": "Pacifico",
+    "category": "handwriting",
+    "variants": { "weights": 1, "italics": 0 },
+    "tags": ["decorative", "poster"]
+  },
+  {
+    "id": "13",
+    "name": "Caveat",
+    "googleFontName": "Caveat",
+    "category": "handwriting",
+    "variants": { "weights": 3, "italics": 0 },
+    "tags": ["decorative", "body"]
+  },
+  {
+    "id": "14",
+    "name": "Fira Code",
+    "googleFontName": "Fira Code",
+    "category": "monospace",
+    "variants": { "weights": 5, "italics": 0 },
+    "tags": ["code", "body"]
+  },
+  {
+    "id": "15",
+    "name": "Source Code Pro",
+    "googleFontName": "Source Code Pro",
+    "category": "monospace",
+    "variants": { "weights": 7, "italics": 0 },
+    "tags": ["code", "body"]
+  },
+  {
+    "id": "16",
+    "name": "JetBrains Mono",
+    "googleFontName": "JetBrains Mono",
+    "category": "monospace",
+    "variants": { "weights": 5, "italics": 1 },
+    "tags": ["code", "heading"]
+  },
+  {
+    "id": "17",
+    "name": "Bebas Neue",
+    "googleFontName": "Bebas Neue",
+    "category": "display",
+    "variants": { "weights": 1, "italics": 0 },
+    "tags": ["poster", "heading"]
+  },
+  {
+    "id": "18",
+    "name": "Abril Fatface",
+    "googleFontName": "Abril Fatface",
+    "category": "display",
+    "variants": { "weights": 1, "italics": 0 },
+    "tags": ["poster", "decorative"]
+  },
+  {
+    "id": "19",
+    "name": "Righteous",
+    "googleFontName": "Righteous",
+    "category": "display",
+    "variants": { "weights": 1, "italics": 0 },
+    "tags": ["poster", "heading"]
+  },
+  {
+    "id": "20",
+    "name": "Lobster",
+    "googleFontName": "Lobster",
+    "category": "display",
+    "variants": { "weights": 1, "italics": 0 },
+    "tags": ["decorative", "poster"]
+  }
+]

@@ -1,0 +1,244 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #1E3A5F;
+  --color-primary-light: #2A4A75;
+  --color-primary-dark: #152A47;
+  --color-primary-50: #E8EDF3;
+  --color-primary-100: #D1DBE7;
+  --color-primary-200: #A3B7CF;
+  --color-primary-300: #7593B7;
+  --color-primary-400: #476F9F;
+  --color-primary-500: #1E3A5F;
+  --color-primary-600: #182E4C;
+  --color-primary-700: #122339;
+  --color-primary-800: #0C1726;
+  --color-primary-900: #060C13;
+
+  --color-secondary: #FF7F50;
+  --color-secondary-light: #FF9A75;
+  --color-secondary-dark: #E66A3D;
+  --color-secondary-50: #FFF3EE;
+  --color-secondary-100: #FFE7DD;
+  --color-secondary-200: #FFCFBC;
+  --color-secondary-300: #FFB79A;
+  --color-secondary-400: #FF9F79;
+  --color-secondary-500: #FF7F50;
+  --color-secondary-600: #E66A3D;
+  --color-secondary-700: #CC5A33;
+  --color-secondary-800: #B34B2A;
+  --color-secondary-900: #993C21;
+
+  --color-background: #0F172A;
+  --color-surface: #1E293B;
+  --color-text: #F1F5F9;
+  --color-text-muted: #94A3B8;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background-color: var(--color-background);
+  color: var(--color-text);
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.glass {
+  background: rgba(30, 58, 95, 0.25);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 16px;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeOut {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes bounce {
+  0%, 20%, 50%, 80%, 100% {
+    transform: translateY(0);
+  }
+  40% {
+    transform: translateY(-20px);
+  }
+  60% {
+    transform: translateY(-10px);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-fadeOut {
+  animation: fadeOut 0.3s ease-out forwards;
+}
+
+.animate-scaleIn {
+  animation: scaleIn 0.3s ease-out forwards;
+}
+
+.animate-bounce {
+  animation: bounce 1s ease infinite;
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+.animate-slideIn {
+  animation: slideIn 0.4s ease-out forwards;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-primary-400);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary-300);
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-primary-400) var(--color-surface);
+}
+
+::selection {
+  background-color: var(--color-secondary);
+  color: var(--color-text);
+}
+
+.btn-selected {
+  background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-600));
+  border-color: var(--color-secondary);
+  box-shadow: 0 0 0 2px var(--color-secondary), 0 4px 20px rgba(255, 127, 80, 0.3);
+  color: var(--color-text);
+  transform: translateY(-1px);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.btn-selected:hover {
+  box-shadow: 0 0 0 2px var(--color-secondary), 0 6px 25px rgba(255, 127, 80, 0.4);
+}
+
+.chart-animate {
+  transition: all 0.8s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chart-animate path,
+.chart-animate rect,
+.chart-animate circle {
+  transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.chart-animate:hover path,
+.chart-animate:hover rect,
+.chart-animate:hover circle {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@layer utilities {
+  .text-gradient {
+    background: linear-gradient(135deg, var(--color-secondary), var(--color-secondary-light));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .bg-glass {
+    background: rgba(30, 58, 95, 0.25);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .bg-gradient-primary {
+    background: linear-gradient(135deg, var(--color-primary-500), var(--color-primary-700));
+  }
+
+  .bg-gradient-secondary {
+    background: linear-gradient(135deg, var(--color-secondary-500), var(--color-secondary-700));
+  }
+
+  .hover-lift {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+  }
+
+  .hover-lift:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  }
+}

@@ -1,0 +1,100 @@
+[
+  {
+    "id": "a3e5b011-5260-4678-8a1d-eea6cef2fc56",
+    "resumeId": "6c68c771-b91a-4f61-9c80-4714292df77d",
+    "difficulty": "beginner",
+    "questions": [
+      {
+        "id": "5385ad4c-3592-4a61-986a-bb6874ef3cb8",
+        "question": "请解释React Fiber架构的原理及其对调度的影响。",
+        "category": "technical_depth",
+        "keywords": [
+          "fiber",
+          "调度",
+          "优先级",
+          "时间切片",
+          "可中断"
+        ],
+        "answer": "虚拟DOM是React的核心机制，通过diff算法和reconciliation过程来优化性能，减少对真实DOM的操作",
+        "score": 1,
+        "timeSpent": 45.0,
+        "feedback": {
+          "rating": 1,
+          "keywordMatch": 0.0,
+          "suggestions": [
+            "建议更深入地回答问题，涵盖更多关键知识点",
+            "可以补充以下要点：fiber, 调度, 优先级"
+          ]
+        }
+      },
+      {
+        "id": "54fc8975-902e-4202-9d32-ff254d8ada8b",
+        "question": "Nuxt.js提供了哪些核心能力？适合什么类型的项目？",
+        "category": "domain_knowledge",
+        "keywords": [
+          "SSR",
+          "SSG",
+          "路由",
+          "SEO",
+          "全栈"
+        ],
+        "answer": null,
+        "score": null,
+        "timeSpent": null,
+        "feedback": null
+      },
+      {
+        "id": "03106b1a-5ec3-47aa-9de2-7dd153ef8e6d",
+        "question": "请比较Express、Koa和Fastify框架的特点。",
+        "category": "domain_knowledge",
+        "keywords": [
+          "Express",
+          "Koa",
+          "Fastify",
+          "中间件",
+          "性能"
+        ],
+        "answer": null,
+        "score": null,
+        "timeSpent": null,
+        "feedback": null
+      },
+      {
+        "id": "c18ab22a-9518-4986-b450-2fc6bd2c13ef",
+        "question": "如果一个Python服务出现内存泄漏，你会如何定位和解决？",
+        "category": "logical_thinking",
+        "keywords": [
+          "内存分析",
+          "引用计数",
+          "循环引用",
+          "gc",
+          "工具"
+        ],
+        "answer": null,
+        "score": null,
+        "timeSpent": null,
+        "feedback": null
+      },
+      {
+        "id": "f31d7c62-07ec-4934-b825-f4a8347d1e22",
+        "question": "在代码评审中，你如何指出同事代码中的潜在问题而不伤害团队氛围？",
+        "category": "communication",
+        "keywords": [
+          "建设性",
+          "具体",
+          "尊重",
+          "建议",
+          "改进"
+        ],
+        "answer": null,
+        "score": null,
+        "timeSpent": null,
+        "feedback": null
+      }
+    ],
+    "status": "in_progress",
+    "totalScore": 0,
+    "createdAt": "2026-06-20T06:08:55.469767",
+    "completedAt": null
+  }
+]

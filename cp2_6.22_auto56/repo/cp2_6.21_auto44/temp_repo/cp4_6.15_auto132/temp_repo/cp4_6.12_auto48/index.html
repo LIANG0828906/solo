@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>3D地质剖面与矿物分布可视化</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      html, body, #root {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        background: #0a0a1a;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      }
+      .app-container {
+        display: flex;
+        width: 100vw;
+        height: 100vh;
+        position: relative;
+      }
+      .canvas-container {
+        flex: 1;
+        position: relative;
+        overflow: hidden;
+      }
+      .canvas-container canvas {
+        display: block;
+        width: 100% !important;
+        height: 100% !important;
+      }
+      @media (max-width: 768px) {
+        .app-container {
+          flex-direction: column;
+        }
+        .canvas-container {
+          height: 100%;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

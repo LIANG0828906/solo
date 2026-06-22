@@ -1,0 +1,58 @@
+:root {
+  --bg-primary: #263238;
+  --bg-sidebar: #37474F;
+  --text-primary: #FFFFFF;
+  --text-secondary: #B0BEC5;
+  --text-hint: #90A4AE;
+
+  --label-positive: #C8E6C9;
+  --label-negative: #FFCDD2;
+  --label-neutral: #FFF9C4;
+  --label-Person: #E1BEE7;
+  --label-Org: #B3E5FC;
+  --label-Location: #C8E6C9;
+
+  --status-pending: #FFA726;
+  --status-annotated: #42A5F5;
+  --status-reviewed: #66BB6A;
+
+  --category-object: #26A69A;
+  --category-defect: #EF5350;
+  --category-logo: #7E57C2;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: system-ui, -apple-system, sans-serif;
+  color: var(--text-primary);
+  background-color: var(--bg-primary);
+  overflow: hidden;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #263238;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #546E7A;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #78909C;
+}
+
+.sidebar {
+  width: 240px;
+  background-color: var(--bg-sidebar);
+}

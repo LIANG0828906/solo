@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/dailyreport.tsx","./src/components/interruptlog.tsx","./src/components/timerpanel.tsx","./src/hooks/usetimer.ts","./src/store/timerstore.ts"],"version":"5.8.3"}

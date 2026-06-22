@@ -1,0 +1,230 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>AuroraWave - 3D 极光粒子波动可视化</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html, body {
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+        background: linear-gradient(180deg, #0A0A2E 0%, #1A1A3E 100%);
+      }
+
+      #app {
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+
+      #canvas-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      #canvas-container canvas {
+        display: block;
+      }
+
+      #fps-panel {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        padding: 8px 12px;
+        background: rgba(0, 0, 0, 0.5);
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 600;
+        color: #00FF88;
+        font-variant-numeric: tabular-nums;
+        z-index: 10;
+        user-select: none;
+        pointer-events: none;
+        transition: color 0.3s ease;
+      }
+
+      #fps-panel.warning {
+        color: #FF4444;
+        animation: fps-blink 0.5s ease-in-out infinite;
+      }
+
+      @keyframes fps-blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+      }
+
+      #control-panel {
+        position: absolute;
+        top: 16px;
+        right: 16px;
+        width: 280px;
+        padding: 16px;
+        background: rgba(26, 26, 46, 0.85);
+        border-radius: 12px;
+        backdrop-filter: blur(8px);
+        z-index: 10;
+        user-select: none;
+      }
+
+      #control-panel h2 {
+        font-size: 16px;
+        font-weight: 600;
+        color: #FFFFFF;
+        margin-bottom: 16px;
+        letter-spacing: 0.5px;
+      }
+
+      .control-item {
+        margin-bottom: 16px;
+      }
+
+      .control-item:last-child {
+        margin-bottom: 0;
+      }
+
+      .control-label {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 8px;
+      }
+
+      .control-label span {
+        font-size: 12px;
+        color: #C0C0C0;
+      }
+
+      .control-value {
+        font-size: 12px;
+        color: #C0C0C0;
+        font-variant-numeric: tabular-nums;
+      }
+
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 100%;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 2px;
+        outline: none;
+        cursor: pointer;
+        transition: background 0.2s ease;
+      }
+
+      input[type="range"]:hover {
+        background: rgba(255, 255, 255, 0.25);
+      }
+
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        background: #FF6B6B;
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(255, 107, 107, 0.4);
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+      }
+
+      input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.15);
+        box-shadow: 0 3px 10px rgba(255, 107, 107, 0.6);
+      }
+
+      input[type="range"]::-webkit-slider-thumb:active {
+        transform: scale(1.05);
+      }
+
+      input[type="range"]::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        background: #FF6B6B;
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 6px rgba(255, 107, 107, 0.4);
+      }
+
+      select {
+        width: 100%;
+        padding: 8px 12px;
+        font-size: 12px;
+        color: #C0C0C0;
+        background: rgba(255, 255, 255, 0.08);
+        border: 1px solid rgba(255, 255, 255, 0.15);
+        border-radius: 6px;
+        outline: none;
+        cursor: pointer;
+        transition: background 0.2s ease, border-color 0.2s ease;
+      }
+
+      select:hover {
+        background: rgba(255, 255, 255, 0.12);
+        border-color: rgba(255, 107, 107, 0.5);
+      }
+
+      select:focus {
+        border-color: #FF6B6B;
+      }
+
+      select option {
+        background: #1A1A2E;
+        color: #C0C0C0;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="canvas-container"></div>
+      <div id="fps-panel">-- FPS</div>
+      <div id="control-panel">
+        <h2>AuroraWave</h2>
+        <div class="control-item">
+          <div class="control-label">
+            <span>波幅</span>
+            <span class="control-value" id="amplitude-value">0.5</span>
+          </div>
+          <input type="range" id="amplitude-slider" min="0.1" max="2.0" step="0.1" value="0.5" />
+        </div>
+        <div class="control-item">
+          <div class="control-label">
+            <span>波速</span>
+            <span class="control-value" id="speed-value">0.8</span>
+          </div>
+          <input type="range" id="speed-slider" min="0.2" max="2.0" step="0.1" value="0.8" />
+        </div>
+        <div class="control-item">
+          <div class="control-label">
+            <span>粒子数量</span>
+            <span class="control-value" id="count-value">5000</span>
+          </div>
+          <input type="range" id="count-slider" min="1000" max="10000" step="500" value="5000" />
+        </div>
+        <div class="control-item">
+          <div class="control-label">
+            <span>颜色主题</span>
+          </div>
+          <select id="theme-select">
+            <option value="aurora">极光蓝紫粉</option>
+            <option value="fire">火焰红橙黄</option>
+            <option value="ocean">海洋蓝绿青</option>
+          </select>
+        </div>
+      </div>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

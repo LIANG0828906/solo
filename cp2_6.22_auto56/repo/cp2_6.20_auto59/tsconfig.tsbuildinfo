@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/audioengine.ts","./src/controlpanel.tsx","./src/particlecanvas.tsx","./src/wavecanvas.tsx","./src/main.tsx","./src/types.ts","./src/vite-env.d.ts"],"version":"5.8.3"}

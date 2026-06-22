@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>KaleidoSnap - 万花筒视觉生成器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #e0e0e0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .main-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
+      padding: 32px 352px 32px 32px;
+      gap: 32px;
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      aspect-ratio: 1 / 1;
+      max-width: min(70vh, calc(100vw - 400px));
+      max-height: 85vh;
+      width: 100%;
+      box-shadow: 0 20px 60px rgba(0, 210, 255, 0.15),
+                  0 0 0 1px rgba(0, 210, 255, 0.1);
+      border-radius: 16px;
+      overflow: hidden;
+      background: #0f0f1a;
+    }
+
+    .canvas-wrapper canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .canvas-wrapper.mirror-transition canvas {
+      transform: scale(0.92) rotate(2.5deg);
+    }
+
+    .upload-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: rgba(15, 15, 26, 0.92);
+      backdrop-filter: blur(6px);
+      cursor: pointer;
+      transition: background 0.2s ease;
+      z-index: 10;
+      gap: 16px;
+    }
+
+    .upload-overlay:hover {
+      background: rgba(15, 15, 26, 0.85);
+    }
+
+    .upload-overlay.hidden {
+      display: none;
+      pointer-events: none;
+    }
+
+    .upload-overlay.dragging {
+      background: rgba(0, 210, 255, 0.12);
+      outline: 2px dashed #00d2ff;
+      outline-offset: -12px;
+    }
+
+    .upload-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: rgba(0, 210, 255, 0.1);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 32px;
+      color: #00d2ff;
+      border: 1px solid rgba(0, 210, 255, 0.3);
+      transition: transform 0.2s ease;
+    }
+
+    .upload-overlay:hover .upload-icon {
+      transform: translateY(-2px);
+    }
+
+    .upload-text {
+      font-size: 15px;
+      color: rgba(255, 255, 255, 0.75);
+      letter-spacing: 0.3px;
+    }
+
+    .upload-text strong {
+      color: #00d2ff;
+      font-weight: 600;
+    }
+
+    .upload-hint {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.35);
+    }
+
+    #file-input {
+      display: none;
+    }
+
+    .export-btn {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      background: rgba(0, 210, 255, 0.1);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(0, 210, 255, 0.35);
+      border-radius: 10px;
+      color: #00d2ff;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 0.4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      z-index: 20;
+    }
+
+    .export-btn:hover:not(:disabled) {
+      background: rgba(0, 210, 255, 0.18);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 20px rgba(0, 210, 255, 0.25);
+      border-color: rgba(0, 210, 255, 0.6);
+    }
+
+    .export-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .export-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    .sidebar {
+      position: fixed;
+      top: 0;
+      right: 0;
+      width: 320px;
+      height: 100vh;
+      background: rgba(255, 255, 255, 0.04);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-left: 1px solid rgba(255, 255, 255, 0.08);
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 28px;
+      overflow-y: auto;
+      z-index: 50;
+    }
+
+    .sidebar::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .sidebar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .sidebar::-webkit-scrollbar-thumb {
+      background: rgba(0, 210, 255, 0.2);
+      border-radius: 2px;
+    }
+
+    .sidebar-header {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .sidebar-title {
+      font-size: 20px;
+      font-weight: 700;
+      background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
+      -webkit-background-clip: text;
+      background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 0.5px;
+    }
+
+    .sidebar-subtitle {
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.4);
+      letter-spacing: 0.3px;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .control-label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      font-weight: 500;
+      color: rgba(255, 255, 255, 0.75);
+      letter-spacing: 0.2px;
+    }
+
+    .control-value {
+      font-size: 12px;
+      font-weight: 600;
+      color: #00d2ff;
+      font-variant-numeric: tabular-nums;
+      background: rgba(0, 210, 255, 0.08);
+      padding: 2px 8px;
+      border-radius: 6px;
+      min-width: 40px;
+      text-align: center;
+    }
+
+    .slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: rgba(255, 255, 255, 0.08);
+      outline: none;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .slider:hover {
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
+      cursor: pointer;
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(0, 210, 255, 0.3);
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+      box-shadow: 0 4px 14px rgba(0, 210, 255, 0.5);
+    }
+
+    .slider::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
+      cursor: pointer;
+      border: 2px solid rgba(255, 255, 255, 0.15);
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 8px rgba(0, 210, 255, 0.3);
+    }
+
+    .slider::-moz-range-thumb:hover {
+      transform: scale(1.15);
+      box-shadow: 0 4px 14px rgba(0, 210, 255, 0.5);
+    }
+
+    .select-wrapper {
+      position: relative;
+    }
+
+    .select-wrapper::after {
+      content: '';
+      position: absolute;
+      right: 14px;
+      top: 50%;
+      width: 8px;
+      height: 8px;
+      border-right: 2px solid rgba(0, 210, 255, 0.6);
+      border-bottom: 2px solid rgba(0, 210, 255, 0.6);
+      transform: translateY(-70%) rotate(45deg);
+      pointer-events: none;
+      transition: transform 0.2s ease;
+    }
+
+    .mirror-select {
+      width: 100%;
+      padding: 11px 40px 11px 14px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 10px;
+      color: rgba(255, 255, 255, 0.85);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      -webkit-appearance: none;
+      transition: all 0.2s ease;
+    }
+
+    .mirror-select:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(0, 210, 255, 0.3);
+    }
+
+    .mirror-select:focus {
+      border-color: rgba(0, 210, 255, 0.5);
+      box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.1);
+    }
+
+    .mirror-select option {
+      background: #1a1a2e;
+      color: #fff;
+    }
+
+    .reset-btn {
+      width: 100%;
+      padding: 12px;
+      margin-top: auto;
+      background: transparent;
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      color: rgba(255, 255, 255, 0.5);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .reset-btn:hover {
+      background: rgba(255, 255, 255, 0.04);
+      color: rgba(255, 255, 255, 0.75);
+      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-2px);
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0);
+      backdrop-filter: blur(0px);
+      -webkit-backdrop-filter: blur(0px);
+      display: flex;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      pointer-events: none;
+      transition: background 0.4s ease, backdrop-filter 0.4s ease, opacity 0.3s ease;
+    }
+
+    .modal-overlay.active {
+      background: rgba(0, 0, 0, 0.45);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    .modal {
+      width: 100%;
+      max-width: 420px;
+      background: linear-gradient(180deg, rgba(30, 30, 55, 0.98) 0%, rgba(22, 33, 62, 0.98) 100%);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 24px 24px 0 0;
+      padding: 28px;
+      transform: translateY(100%);
+      transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+      box-shadow: 0 -10px 60px rgba(0, 0, 0, 0.5);
+    }
+
+    .modal-overlay.active .modal {
+      transform: translateY(0);
+    }
+
+    @media (min-width: 769px) {
+      .modal-overlay {
+        align-items: center;
+      }
+      .modal {
+        border-radius: 20px;
+        max-width: 400px;
+      }
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 24px;
+    }
+
+    .modal-title {
+      font-size: 18px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .modal-close {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.6);
+      font-size: 18px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .modal-close:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      transform: rotate(90deg);
+    }
+
+    .modal-label {
+      font-size: 12px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.5);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      margin-bottom: 12px;
+    }
+
+    .resolution-options {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-bottom: 24px;
+    }
+
+    .resolution-option {
+      padding: 14px 8px;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: 12px;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      transition: all 0.2s ease;
+    }
+
+    .resolution-option:hover {
+      background: rgba(255, 255, 255, 0.06);
+      transform: translateY(-2px);
+    }
+
+    .resolution-option.active {
+      background: rgba(0, 210, 255, 0.1);
+      border-color: rgba(0, 210, 255, 0.5);
+      box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.1);
+    }
+
+    .resolution-size {
+      font-size: 15px;
+      font-weight: 700;
+      color: #fff;
+    }
+
+    .resolution-sub {
+      font-size: 10px;
+      color: rgba(255, 255, 255, 0.4);
+    }
+
+    .resolution-option.active .resolution-size {
+      color: #00d2ff;
+    }
+
+    .confirm-btn {
+      width: 100%;
+      padding: 14px;
+      background: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
+      border: none;
+      border-radius: 12px;
+      color: #0a0a15;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      letter-spacing: 0.4px;
+      transition: all 0.2s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .confirm-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0, 210, 255, 0.35);
+    }
+
+    .confirm-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .progress-ring-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px 0;
+      margin-bottom: 20px;
+      min-height: 80px;
+    }
+
+    .progress-ring {
+      width: 64px;
+      height: 64px;
+      transform: rotate(-90deg);
+    }
+
+    .progress-ring-bg {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.08);
+      stroke-width: 4;
+    }
+
+    .progress-ring-fg {
+      fill: none;
+      stroke: url(#progressGradient);
+      stroke-width: 4;
+      stroke-linecap: round;
+      stroke-dasharray: 188.496;
+      stroke-dashoffset: 188.496;
+      transition: stroke-dashoffset 0.1s linear;
+    }
+
+    .progress-ring-fg.complete {
+      animation: pulse 0.6s ease-out;
+    }
+
+    @keyframes pulse {
+      0% { filter: drop-shadow(0 0 0 rgba(0, 210, 255, 0)); }
+      50% { filter: drop-shadow(0 0 16px rgba(0, 210, 255, 0.8)); }
+      100% { filter: drop-shadow(0 0 0 rgba(0, 210, 255, 0)); }
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    @media (max-width: 768px) {
+      .main-container {
+        padding: 20px 16px 140px 16px;
+      }
+
+      .canvas-wrapper {
+        max-width: 92vw;
+        max-height: calc(100vh - 180px);
+      }
+
+      .sidebar {
+        position: fixed;
+        top: auto;
+        right: auto;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        height: auto;
+        max-height: 130px;
+        border-left: none;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        padding: 14px 16px;
+        flex-direction: row;
+        gap: 0;
+        overflow-x: auto;
+        overflow-y: hidden;
+      }
+
+      .sidebar-header,
+      .reset-btn {
+        display: none;
+      }
+
+      .control-group {
+        flex-shrink: 0;
+        width: 160px;
+        padding: 0 12px;
+        border-left: 1px solid rgba(255, 255, 255, 0.06);
+      }
+
+      .control-group:first-of-type {
+        border-left: none;
+        padding-left: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="main-container">
+      <div class="canvas-wrapper" id="canvas-wrapper">
+        <button class="export-btn" id="export-btn" disabled>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          导出图片
+        </button>
+        <canvas id="main-canvas"></canvas>
+        <div class="upload-overlay" id="upload-overlay">
+          <div class="upload-icon">✦</div>
+          <div class="upload-text">
+            点击或拖拽图片到此处<br />
+            <strong>KaleidoSnap</strong> 将为您生成万花筒效果
+          </div>
+          <div class="upload-hint">支持 JPG / PNG / WEBP · 推荐方形图片</div>
+        </div>
+        <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp" />
+      </div>
+    </div>
+
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="sidebar-title">KaleidoSnap</div>
+        <div class="sidebar-subtitle">万花筒视觉生成器 v1.0</div>
+      </div>
+
+      <div class="control-group" data-control="ringCount">
+        <div class="control-label">
+          <span>同心环数量</span>
+          <span class="control-value" id="value-ringCount">8</span>
+        </div>
+        <input type="range" class="slider" id="slider-ringCount"
+               min="4" max="12" step="1" value="8" />
+      </div>
+
+      <div class="control-group" data-control="rotationSpeedBase">
+        <div class="control-label">
+          <span>旋转速度基准</span>
+          <span class="control-value" id="value-rotationSpeedBase">2.0x</span>
+        </div>
+        <input type="range" class="slider" id="slider-rotationSpeedBase"
+               min="1" max="5" step="0.5" value="2" />
+      </div>
+
+      <div class="control-group" data-control="mirrorMode">
+        <div class="control-label">
+          <span>镜像对称模式</span>
+          <span class="control-value" id="value-mirrorMode">无镜像</span>
+        </div>
+        <div class="select-wrapper">
+          <select class="mirror-select" id="select-mirrorMode">
+            <option value="none">无镜像</option>
+            <option value="horizontal">左右镜像</option>
+            <option value="vertical">上下镜像</option>
+            <option value="quad">四重镜像</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="control-group" data-control="dividerOpacity">
+        <div class="control-label">
+          <span>分割线透明度</span>
+          <span class="control-value" id="value-dividerOpacity">60%</span>
+        </div>
+        <input type="range" class="slider" id="slider-dividerOpacity"
+               min="0" max="100" step="1" value="60" />
+      </div>
+
+      <button class="reset-btn" id="reset-btn">↺ 重置所有参数</button>
+    </aside>
+
+    <div class="modal-overlay" id="modal-overlay">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title">导出高清图片</div>
+          <button class="modal-close" id="modal-close">✕</button>
+        </div>
+
+        <div class="modal-label">选择分辨率</div>
+        <div class="resolution-options" id="resolution-options">
+          <div class="resolution-option" data-resolution="256">
+            <span class="resolution-size">256²</span>
+            <span class="resolution-sub">小图预览</span>
+          </div>
+          <div class="resolution-option active" data-resolution="512">
+            <span class="resolution-size">512²</span>
+            <span class="resolution-sub">社交分享</span>
+          </div>
+          <div class="resolution-option" data-resolution="1024">
+            <span class="resolution-size">1024²</span>
+            <span class="resolution-sub">高清打印</span>
+          </div>
+        </div>
+
+        <div class="progress-ring-wrap hidden" id="progress-wrap">
+          <svg class="progress-ring" viewBox="0 0 64 64">
+            <defs>
+              <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#00d2ff" />
+                <stop offset="100%" stop-color="#3a7bd5" />
+              </linearGradient>
+            </defs>
+            <circle class="progress-ring-bg" cx="32" cy="32" r="30" />
+            <circle class="progress-ring-fg" id="progress-ring-fg" cx="32" cy="32" r="30" />
+          </svg>
+        </div>
+
+        <button class="confirm-btn" id="confirm-export-btn">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="18" height="18">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          确认下载 PNG
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

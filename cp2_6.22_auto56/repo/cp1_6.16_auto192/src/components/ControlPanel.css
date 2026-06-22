@@ -1,0 +1,158 @@
+.control-panel {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 24px;
+  padding: 24px;
+  background: #FFFFFF;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  max-width: 900px;
+  margin: 0 auto;
+  flex-wrap: wrap;
+  box-sizing: border-box;
+}
+
+.control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+  min-width: 150px;
+}
+
+.control-label {
+  font-size: 14px;
+  color: #666;
+  font-weight: 500;
+  font-family: Arial, sans-serif;
+}
+
+.control-select {
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  background: #fff;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+  transition: border-color 0.2s ease;
+}
+
+.control-select:hover {
+  border-color: #bbb;
+}
+
+.control-select:focus {
+  outline: none;
+  border-color: #E57373;
+}
+
+.speed-group {
+  flex: 1.5;
+}
+
+.speed-value {
+  color: #E57373;
+  font-weight: bold;
+}
+
+.speed-slider {
+  width: 100%;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #eee;
+  border-radius: 3px;
+  outline: none;
+  cursor: pointer;
+}
+
+.speed-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #E57373;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.speed-slider::-webkit-slider-thumb:hover {
+  background: #D32F2F;
+}
+
+.speed-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: #E57373;
+  border-radius: 50%;
+  cursor: pointer;
+  border: none;
+  transition: background-color 0.2s ease;
+}
+
+.speed-slider::-moz-range-thumb:hover {
+  background: #D32F2F;
+}
+
+.reset-group {
+  flex: 0 0 auto;
+  align-items: center;
+}
+
+.reset-button {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #E57373;
+  color: white;
+  border: none;
+  cursor: pointer;
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  line-height: 1;
+  padding: 0;
+}
+
+.reset-button:hover {
+  background: #D32F2F;
+  transform: rotate(180deg);
+}
+
+.reset-button:active {
+  transform: rotate(180deg) scale(0.9);
+}
+
+@media (max-width: 768px) {
+  .control-panel {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    padding: 16px;
+    box-shadow: none;
+    border-radius: 8px;
+  }
+
+  .control-group {
+    width: 100%;
+    min-width: unset;
+  }
+
+  .control-label {
+    font-size: 11.9px;
+  }
+
+  .control-select {
+    font-size: 11.9px;
+    padding: 8px 10px;
+  }
+
+  .reset-group {
+    align-items: flex-start;
+  }
+}

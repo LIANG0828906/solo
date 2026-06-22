@@ -1,0 +1,71 @@
+.app-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: row;
+  gap: 16px;
+  padding: 16px;
+  background: #0F0F23;
+  overflow: hidden;
+}
+
+.left-column {
+  width: 340px;
+  height: 100%;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.center-column {
+  flex: 1;
+  height: 100%;
+  min-width: 0;
+}
+
+.right-column {
+  width: 280px;
+  height: 100%;
+  flex-shrink: 0;
+}
+
+/* Mobile / small screen layout */
+.app-container.mobile {
+  flex-direction: column;
+  overflow-y: auto;
+  height: 100%;
+  padding: 12px;
+  gap: 12px;
+}
+
+.mobile-top-section {
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.mobile-top-section .left-column {
+  width: 100%;
+  height: 300px;
+}
+
+.mobile-scene-section {
+  width: 100%;
+  height: 700px;
+  flex-shrink: 0;
+}
+
+.mobile-bottom-section {
+  width: 100%;
+  flex-shrink: 0;
+}
+
+.mobile-bottom-section .control-panel {
+  width: 100%;
+  height: auto;
+  max-height: 400px;
+}
+
+.mobile-stats-section {
+  width: 100%;
+  flex-shrink: 0;
+}

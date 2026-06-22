@@ -1,0 +1,85 @@
+@keyframes greenFlash {
+  0% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 20px 10px rgba(34, 197, 94, 0.3);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+.green-flash {
+  animation: greenFlash 0.3s ease-out;
+}
+
+.excerpt-card:hover {
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.12);
+  transform: translateY(-4px);
+}
+
+.excerpt-card:hover .delete-btn {
+  opacity: 1;
+}
+
+.delete-btn:hover {
+  background-color: #FEE2E2;
+  color: #EF4444;
+}
+
+.book-item:hover {
+  background-color: rgba(59, 130, 246, 0.05);
+}
+
+.tag-bar:hover {
+  opacity: 1;
+  transform: scaleY(1.1);
+}
+
+textarea:focus, input:focus {
+  border-color: #3B82F6;
+}
+
+.add-btn:hover:not(:disabled) {
+  background-color: #2563EB;
+  transform: translateY(-1px);
+}
+
+.clear-btn:hover {
+  background-color: rgba(59, 130, 246, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  min-width: 900px;
+  min-height: 100vh;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
+}

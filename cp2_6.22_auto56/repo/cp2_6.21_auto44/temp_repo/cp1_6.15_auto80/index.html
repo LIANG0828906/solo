@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gesture Magic Tower Defense</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #1a0a2e;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    #game-container {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+    #ui-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 15px 20px;
+      background: linear-gradient(180deg, rgba(26, 10, 46, 0.9) 0%, rgba(26, 10, 46, 0) 100%);
+      color: #a0c4ff;
+      font-size: 16px;
+      text-align: center;
+      z-index: 100;
+      pointer-events: none;
+      text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    }
+    #ui-overlay .hint {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 16px;
+      background: rgba(42, 74, 127, 0.6);
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+    #video-feed {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 200px;
+      height: 150px;
+      border-radius: 4px;
+      border: 2px solid #2a4a7f;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+      z-index: 50;
+      transform: scaleX(-1);
+      object-fit: cover;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="ui-overlay">
+      <div class="hint">✋ 双手在摄像头前操作 | 五指张开: 瞄准 | 握拳: 建塔 | 食指指向: 施法</div>
+    </div>
+    <video id="video-feed" autoplay muted playsinline></video>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,92 @@
+.invoice-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  border: 2px solid transparent;
+}
+
+.invoice-card:hover {
+  background-color: #F1F3F5;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+.invoice-card.status-overdue {
+  border-color: #E74C3C;
+}
+
+.invoice-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.invoice-number {
+  font-weight: 600;
+  font-size: 14px;
+  color: #2C3E50;
+}
+
+.status-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.invoice-card-body {
+  margin-bottom: 12px;
+}
+
+.customer-name {
+  font-size: 16px;
+  font-weight: 500;
+  color: #2C3E50;
+  margin-bottom: 8px;
+}
+
+.invoice-amount,
+.invoice-balance {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.amount-label,
+.balance-label {
+  font-size: 13px;
+  color: #7F8C8D;
+}
+
+.amount-value {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2C3E50;
+}
+
+.balance-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: #E67E22;
+}
+
+.invoice-card-footer {
+  padding-top: 10px;
+  border-top: 1px solid #F1F3F5;
+}
+
+.due-date {
+  font-size: 12px;
+  color: #95A5A6;
+}
+
+@media (max-width: 768px) {
+  .invoice-card {
+    padding: 16px;
+  }
+}

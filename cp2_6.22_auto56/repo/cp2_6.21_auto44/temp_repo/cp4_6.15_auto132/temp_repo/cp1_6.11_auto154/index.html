@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, minimum-scale=800, minimum-height=600" />
+  <title>地壳运动与板块碰撞模拟器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0A0A14;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    #app {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      min-width: 800px;
+      min-height: 600px;
+      background: linear-gradient(180deg, #0A0A14 0%, #0F1A2E 100%);
+    }
+
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    #canvas-container canvas {
+      display: block;
+    }
+
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #FFFFFF;
+      font-size: 18px;
+      letter-spacing: 2px;
+      z-index: 1000;
+      opacity: 1;
+      transition: opacity 0.8s ease;
+    }
+
+    #loading.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #loading::after {
+      content: '';
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      margin-left: 8px;
+      background: #4488FF;
+      border-radius: 50%;
+      animation: pulse 1.2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.3; transform: scale(0.8); }
+      50% { opacity: 1; transform: scale(1.2); }
+    }
+
+    #ui-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    #ui-overlay > * {
+      pointer-events: auto;
+    }
+
+    .info-panel {
+      position: absolute;
+      top: 24px;
+      right: 24px;
+      padding: 16px 20px;
+      background: rgba(10, 10, 20, 0.85);
+      border: 1px solid rgba(68, 136, 255, 0.3);
+      border-radius: 8px;
+      color: #FFFFFF;
+      backdrop-filter: blur(10px);
+      opacity: 0;
+      transform: translateX(20px);
+      transition: all 0.3s ease;
+      min-width: 180px;
+    }
+
+    .info-panel.visible {
+      opacity: 1;
+      transform: translateX(0);
+    }
+
+    .info-panel .title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #FFD700;
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .info-panel .row {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      margin: 6px 0;
+      color: #CCCCCC;
+    }
+
+    .info-panel .row .label {
+      color: #888888;
+      margin-right: 16px;
+    }
+
+    .info-panel .row .value {
+      color: #FFFFFF;
+      font-weight: 500;
+    }
+
+    .time-control {
+      position: absolute;
+      left: 24px;
+      bottom: 24px;
+    }
+
+    .time-label {
+      color: #FFFFFF;
+      font-size: 13px;
+      margin-bottom: 8px;
+      opacity: 0.9;
+      transition: opacity 0.3s ease;
+    }
+
+    .progress-bar {
+      width: 200px;
+      height: 8px;
+      background: #2A2A3A;
+      border-radius: 4px;
+      overflow: hidden;
+      cursor: pointer;
+      position: relative;
+      transition: all 0.3s ease;
+    }
+
+    .progress-bar:hover {
+      transform: scaleY(1.2);
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #FFFFFF 0%, #4488FF 100%);
+      border-radius: 4px;
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+
+    .speed-control {
+      position: absolute;
+      right: 24px;
+      bottom: 24px;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+
+    .speed-label {
+      color: #FFFFFF;
+      font-size: 13px;
+      margin-bottom: 8px;
+      opacity: 0.9;
+      transition: opacity 0.3s ease;
+    }
+
+    .slider-container {
+      width: 150px;
+      height: 6px;
+      background: #2A2A3A;
+      border-radius: 3px;
+      position: relative;
+      cursor: pointer;
+      margin-bottom: 12px;
+    }
+
+    .slider-fill {
+      height: 100%;
+      background: #4488FF;
+      border-radius: 3px;
+      width: 50%;
+    }
+
+    .slider-thumb {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 12px;
+      height: 12px;
+      background: #4488FF;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      transition: all 0.2s ease;
+      box-shadow: 0 0 10px rgba(68, 136, 255, 0.5);
+    }
+
+    .slider-thumb:hover {
+      transform: translate(-50%, -50%) scale(1.2);
+      box-shadow: 0 0 15px rgba(68, 136, 255, 0.8);
+    }
+
+    .control-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .ctrl-btn {
+      width: 60px;
+      height: 24px;
+      background: #3A3A4A;
+      border: none;
+      border-radius: 4px;
+      color: #FFFFFF;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+    }
+
+    .ctrl-btn:hover {
+      background: #5A5A6A;
+    }
+
+    .ctrl-btn:active {
+      transform: scale(0.95);
+    }
+
+    .ctrl-btn.active {
+      background: #4488FF;
+    }
+
+    @media (max-width: 900px) {
+      .time-control { left: 16px; bottom: 16px; }
+      .speed-control { right: 16px; bottom: 16px; }
+      .info-panel { top: 16px; right: 16px; }
+      .progress-bar { width: 160px; }
+      .slider-container { width: 120px; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    <div id="loading">加载中</div>
+    <div id="ui-overlay">
+      <div class="info-panel" id="info-panel">
+        <div class="title" id="plate-name">--</div>
+        <div class="row">
+          <span class="label">运动速度</span>
+          <span class="value" id="plate-speed">--</span>
+        </div>
+        <div class="row">
+          <span class="label">平均海拔</span>
+          <span class="value" id="plate-elevation">--</span>
+        </div>
+      </div>
+
+      <div class="time-control">
+        <div class="time-label" id="time-label">2.0亿年前</div>
+        <div class="progress-bar" id="progress-bar">
+          <div class="progress-fill" id="progress-fill"></div>
+        </div>
+      </div>
+
+      <div class="speed-control">
+        <div class="speed-label" id="speed-label">速度：1.0x</div>
+        <div class="slider-container" id="speed-slider">
+          <div class="slider-fill" id="slider-fill"></div>
+          <div class="slider-thumb" id="slider-thumb"></div>
+        </div>
+        <div class="control-buttons">
+          <button class="ctrl-btn" id="reverse-btn">倒放</button>
+          <button class="ctrl-btn active" id="play-btn">暂停</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

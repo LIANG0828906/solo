@@ -1,0 +1,13 @@
+.progress-bar {
+  width: 100%;
+  background-color: var(--color-secondary-light);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-bar__fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--color-accent), var(--color-accent-dark));
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}

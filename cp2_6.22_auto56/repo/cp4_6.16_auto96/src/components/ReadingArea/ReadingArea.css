@@ -1,0 +1,157 @@
+.reading-area {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  background-color: var(--bg-primary);
+}
+
+.reading-area-container {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: 48px 32px 80px;
+  position: relative;
+}
+
+.reading-area.slide-enter-left {
+  animation: slideInFromRight 0.3s ease-out;
+}
+
+.reading-area.slide-enter-right {
+  animation: slideInFromLeft 0.3s ease-out;
+}
+
+.reading-area.slide-exit-left {
+  animation: slideOutToLeft 0.15s ease-in forwards;
+}
+
+.reading-area.slide-exit-right {
+  animation: slideOutToRight 0.15s ease-in forwards;
+}
+
+@keyframes slideInFromRight {
+  from {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInFromLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOutToLeft {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-40px);
+  }
+}
+
+@keyframes slideOutToRight {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(40px);
+  }
+}
+
+.reading-chapter-title {
+  font-family: 'Noto Serif SC', 'Source Han Serif SC', Georgia, serif;
+  font-size: 28px;
+  font-weight: 600;
+  color: var(--text-primary);
+  text-align: center;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.reading-chapter-subtitle {
+  font-size: 14px;
+  color: var(--text-muted);
+  text-align: center;
+  margin-bottom: 40px;
+}
+
+.reading-content {
+  font-family: 'Noto Serif SC', 'Source Han Serif SC', Georgia, serif;
+  font-size: 17px;
+  line-height: 2;
+  color: var(--text-primary);
+  text-align: justify;
+  position: relative;
+}
+
+.reading-content p {
+  margin: 0 0 1.5em 0;
+  text-indent: 2em;
+  position: relative;
+}
+
+.highlight-span {
+  border-radius: 2px;
+  cursor: pointer;
+  transition: filter 0.15s ease;
+  position: relative;
+}
+
+.highlight-span:hover {
+  filter: brightness(0.95);
+}
+
+.highlight-yellow {
+  background-color: var(--highlight-yellow);
+}
+
+.highlight-green {
+  background-color: var(--highlight-green);
+}
+
+.highlight-pink {
+  background-color: var(--highlight-pink);
+}
+
+.highlight-note-marker {
+  position: absolute;
+  right: -4px;
+  bottom: 2px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--accent-blue);
+  border: 2px solid var(--bg-primary);
+  z-index: 1;
+}
+
+.selection-toolbar-wrapper {
+  position: fixed;
+  z-index: 1000;
+  pointer-events: none;
+}
+
+.selection-toolbar-wrapper > * {
+  pointer-events: auto;
+}
+
+.note-popup-wrapper {
+  position: fixed;
+  z-index: 1001;
+}

@@ -1,0 +1,566 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>光之编年史 - Chronicle of Light</title>
+    <style>
+      :root {
+        --bg-start: #1A1A2E;
+        --bg-end: #16213E;
+        --gold: #FFD700;
+        --amber: #FFB300;
+        --orange: #FF5722;
+        --purple: #8E24AA;
+        --text: #E0E0E0;
+      }
+
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      html, body {
+        width: 100%;
+        height: 100%;
+        min-width: 1024px;
+        overflow: hidden;
+        background: linear-gradient(135deg, var(--bg-start) 0%, var(--bg-end) 100%);
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+        color: var(--text);
+      }
+
+      #app {
+        position: relative;
+        width: 100%;
+        height: 100%;
+      }
+
+      #canvas-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+      }
+
+      .control-panel {
+        position: absolute;
+        top: 24px;
+        left: 24px;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-radius: 12px;
+        padding: 16px;
+        width: 260px;
+        z-index: 10;
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      }
+
+      .panel-title {
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 14px;
+        color: var(--gold);
+        letter-spacing: 0.5px;
+      }
+
+      .filter-section {
+        margin-bottom: 16px;
+      }
+
+      .filter-label {
+        font-size: 12px;
+        color: #999;
+        margin-bottom: 8px;
+        display: flex;
+        justify-content: space-between;
+      }
+
+      .filter-label span {
+        color: var(--gold);
+      }
+
+      .range-slider-container {
+        position: relative;
+        height: 24px;
+        margin-bottom: 4px;
+      }
+
+      .range-slider-track {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 100%;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 2px;
+      }
+
+      .range-slider-fill {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        height: 4px;
+        background: linear-gradient(90deg, var(--amber), var(--gold), var(--purple));
+        border-radius: 2px;
+      }
+
+      .range-slider-container input[type="range"] {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 24px;
+        -webkit-appearance: none;
+        appearance: none;
+        background: transparent;
+        pointer-events: none;
+      }
+
+      .range-slider-container input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--gold);
+        border: 2px solid #fff;
+        cursor: pointer;
+        pointer-events: auto;
+        box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+        transition: transform 0.15s ease;
+      }
+
+      .range-slider-container input[type="range"]::-webkit-slider-thumb:hover {
+        transform: scale(1.2);
+      }
+
+      .range-slider-container input[type="range"]::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: var(--gold);
+        border: 2px solid #fff;
+        cursor: pointer;
+        pointer-events: auto;
+        box-shadow: 0 0 8px rgba(255, 215, 0, 0.6);
+      }
+
+      .range-slider-container input[type="range"].min-slider {
+        z-index: 3;
+      }
+
+      .range-slider-container input[type="range"].max-slider {
+        z-index: 4;
+      }
+
+      .button-group {
+        display: flex;
+        gap: 8px;
+      }
+
+      .btn {
+        flex: 1;
+        padding: 10px 12px;
+        font-size: 12px;
+        font-weight: 500;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        letter-spacing: 0.3px;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, rgba(255, 215, 0, 0.2), rgba(255, 183, 0, 0.2));
+        color: var(--gold);
+        border: 1px solid rgba(255, 215, 0, 0.3);
+      }
+
+      .btn-primary:hover {
+        background: linear-gradient(135deg, rgba(255, 215, 0, 0.35), rgba(255, 183, 0, 0.35));
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(255, 215, 0, 0.2);
+      }
+
+      .btn-secondary {
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--text);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .btn-secondary:hover {
+        background: rgba(255, 255, 255, 0.12);
+        transform: translateY(-1px);
+      }
+
+      .legend {
+        margin-top: 14px;
+        padding-top: 14px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+      }
+
+      .legend-title {
+        font-size: 11px;
+        color: #888;
+        margin-bottom: 10px;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 6px;
+        font-size: 12px;
+      }
+
+      .legend-color {
+        width: 12px;
+        height: 12px;
+        border-radius: 3px;
+        box-shadow: 0 0 6px currentColor;
+      }
+
+      .info-panel {
+        position: absolute;
+        top: 24px;
+        right: 24px;
+        width: 280px;
+        background: rgba(255, 255, 255, 0.15);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border: 1px solid rgba(255, 255, 255, 0.3);
+        border-radius: 12px;
+        padding: 20px;
+        z-index: 10;
+        transform: translateX(100px);
+        opacity: 0;
+        transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+        pointer-events: none;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      }
+
+      .info-panel.visible {
+        transform: translateX(0);
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .info-panel-close {
+        position: absolute;
+        top: 12px;
+        right: 12px;
+        width: 24px;
+        height: 24px;
+        border: none;
+        background: rgba(255, 255, 255, 0.1);
+        color: #ccc;
+        border-radius: 50%;
+        cursor: pointer;
+        font-size: 14px;
+        line-height: 1;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s ease;
+      }
+
+      .info-panel-close:hover {
+        background: rgba(255, 255, 255, 0.2);
+        color: #fff;
+      }
+
+      .info-year {
+        font-size: 11px;
+        color: var(--gold);
+        letter-spacing: 2px;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+      }
+
+      .info-name {
+        font-size: 20px;
+        font-weight: 700;
+        color: #fff;
+        margin-bottom: 8px;
+        line-height: 1.3;
+      }
+
+      .info-style {
+        display: inline-block;
+        padding: 4px 10px;
+        background: rgba(255, 215, 0, 0.15);
+        color: var(--gold);
+        border-radius: 12px;
+        font-size: 11px;
+        margin-bottom: 14px;
+        border: 1px solid rgba(255, 215, 0, 0.25);
+      }
+
+      .info-divider {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.15);
+        margin-bottom: 14px;
+      }
+
+      .info-desc {
+        font-size: 14px;
+        line-height: 1.6;
+        color: #E0E0E0;
+      }
+
+      .timeline-container {
+        position: absolute;
+        bottom: 32px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: calc(100% - 120px);
+        max-width: 1200px;
+        z-index: 10;
+      }
+
+      .timeline-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+        padding: 0 4px;
+      }
+
+      .timeline-title {
+        font-size: 12px;
+        color: #999;
+        letter-spacing: 1px;
+      }
+
+      .timeline-year-display {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--gold);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .timeline-track-wrapper {
+        position: relative;
+        padding: 0 10px;
+      }
+
+      .timeline-track {
+        position: relative;
+        height: 4px;
+        background: rgba(255, 255, 255, 0.15);
+        border-radius: 2px;
+      }
+
+      .timeline-progress {
+        position: absolute;
+        top: 0;
+        left: 0;
+        height: 100%;
+        background: linear-gradient(90deg, var(--amber) 0%, var(--orange) 50%, var(--purple) 100%);
+        border-radius: 2px;
+        width: 0%;
+        transition: width 0.1s linear;
+      }
+
+      .timeline-dots {
+        position: absolute;
+        top: 50%;
+        left: 0;
+        width: 100%;
+        height: 0;
+        transform: translateY(-50%);
+      }
+
+      .timeline-dot {
+        position: absolute;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        transform: translateX(-50%) translateY(-50%);
+        cursor: pointer;
+        transition: all 0.2s ease;
+        box-shadow: 0 0 4px currentColor;
+        z-index: 2;
+      }
+
+      .timeline-dot:hover {
+        width: 10px;
+        height: 10px;
+        box-shadow: 0 0 12px currentColor;
+      }
+
+      .timeline-dot.active {
+        width: 12px;
+        height: 12px;
+        box-shadow: 0 0 16px currentColor, 0 0 24px currentColor;
+      }
+
+      .timeline-slider {
+        position: absolute;
+        top: 50%;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--gold);
+        border: 3px solid #fff;
+        transform: translateX(-50%) translateY(-50%);
+        cursor: grab;
+        z-index: 5;
+        box-shadow: 0 0 12px rgba(255, 215, 0, 0.8), 0 0 24px rgba(255, 215, 0, 0.4);
+        transition: box-shadow 0.2s ease;
+      }
+
+      .timeline-slider:hover,
+      .timeline-slider.dragging {
+        cursor: grabbing;
+        box-shadow: 0 0 16px rgba(255, 215, 0, 1), 0 0 32px rgba(255, 215, 0, 0.6);
+      }
+
+      .timeline-labels {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 12px;
+        padding: 0 4px;
+      }
+
+      .timeline-label {
+        font-size: 11px;
+        color: #666;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .brand-title {
+        position: absolute;
+        top: 24px;
+        right: 50%;
+        transform: translateX(50%);
+        z-index: 5;
+        text-align: center;
+        pointer-events: none;
+      }
+
+      .brand-title h1 {
+        font-size: 22px;
+        font-weight: 300;
+        letter-spacing: 8px;
+        color: rgba(255, 255, 255, 0.85);
+        text-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+      }
+
+      .brand-title p {
+        font-size: 10px;
+        letter-spacing: 4px;
+        color: rgba(255, 255, 255, 0.4);
+        margin-top: 4px;
+      }
+
+      .building-halo {
+        position: absolute;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: radial-gradient(circle, rgba(255, 215, 0, 0.5) 0%, rgba(255, 215, 0, 0) 70%);
+        pointer-events: none;
+        transform: translate(-50%, -50%);
+        opacity: 0;
+        transition: opacity 0.5s ease-out;
+        z-index: 3;
+      }
+
+      .building-halo.visible {
+        opacity: 1;
+      }
+
+      #snapshot-canvas {
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app">
+      <div id="canvas-container"></div>
+
+      <div class="brand-title">
+        <h1>光之编年史</h1>
+        <p>CHRONICLE OF LIGHT</p>
+      </div>
+
+      <div class="control-panel" id="control-panel">
+        <div class="panel-title">操作面板</div>
+
+        <div class="filter-section">
+          <div class="filter-label">
+            年代筛选
+            <span id="year-range-text">1800 - 2024</span>
+          </div>
+          <div class="range-slider-container" id="range-slider">
+            <div class="range-slider-track"></div>
+            <div class="range-slider-fill" id="range-fill"></div>
+            <input type="range" class="min-slider" id="year-min" min="1800" max="2024" value="1800" step="1" />
+            <input type="range" class="max-slider" id="year-max" min="1800" max="2024" value="2024" step="1" />
+          </div>
+        </div>
+
+        <div class="button-group">
+          <button class="btn btn-primary" id="btn-reset">重置视角</button>
+          <button class="btn btn-secondary" id="btn-snapshot">导出快照</button>
+        </div>
+
+        <div class="legend">
+          <div class="legend-title">建筑年代图例</div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: #FFB300; color: #FFB300;"></div>
+            <span>19世纪及以前</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: #FF5722; color: #FF5722;"></div>
+            <span>20世纪 (1901-2000)</span>
+          </div>
+          <div class="legend-item">
+            <div class="legend-color" style="background: #8E24AA; color: #8E24AA;"></div>
+            <span>21世纪 (2001-今)</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="info-panel" id="info-panel">
+        <button class="info-panel-close" id="info-close">×</button>
+        <div class="info-year" id="info-year">1889</div>
+        <div class="info-name" id="info-name">埃菲尔铁塔</div>
+        <div class="info-style" id="info-style">工业风 / 现代主义</div>
+        <div class="info-divider"></div>
+        <div class="info-desc" id="info-desc">位于法国巴黎战神广场，是世界著名的铁镂空结构铁塔，以设计师古斯塔夫·埃菲尔命名。</div>
+      </div>
+
+      <div class="timeline-container" id="timeline-container">
+        <div class="timeline-header">
+          <div class="timeline-title">历史时间轴 · 1800 - 2024</div>
+          <div class="timeline-year-display" id="timeline-year">2024</div>
+        </div>
+        <div class="timeline-track-wrapper" id="timeline-track-wrapper">
+          <div class="timeline-track">
+            <div class="timeline-progress" id="timeline-progress"></div>
+            <div class="timeline-dots" id="timeline-dots"></div>
+            <div class="timeline-slider" id="timeline-slider"></div>
+          </div>
+        </div>
+        <div class="timeline-labels">
+          <span class="timeline-label">1800</span>
+          <span class="timeline-label">1850</span>
+          <span class="timeline-label">1900</span>
+          <span class="timeline-label">1950</span>
+          <span class="timeline-label">2000</span>
+          <span class="timeline-label">2024</span>
+        </div>
+      </div>
+
+      <canvas id="snapshot-canvas"></canvas>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

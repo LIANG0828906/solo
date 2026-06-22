@@ -1,0 +1,50 @@
+[
+  {
+    "id": "4c6ecd25-ca99-4a4a-ba9a-c5c17053a192",
+    "name": "????",
+    "date": "2024-12-30",
+    "duration": 60,
+    "location": "????",
+    "capacity": 20,
+    "participants": [],
+    "createdAt": "2026-06-15T05:52:51.919Z"
+  },
+  {
+    "id": "d3a48f9a-0f9f-40da-aff5-cb8882148771",
+    "name": "2024社区技术分享会",
+    "date": "2024-12-20",
+    "duration": 120,
+    "location": "社区活动中心A厅",
+    "capacity": 50,
+    "participants": [
+      {
+        "id": "418c489d-ecab-4caa-a33f-6c96137d95f4",
+        "name": "张三",
+        "phone": "13800138001",
+        "enrolledAt": "2026-06-15T05:52:32.773Z",
+        "signedIn": false
+      }
+    ],
+    "createdAt": "2026-06-15T05:52:32.773Z"
+  },
+  {
+    "id": "5f733f05-3ba4-4549-8577-8d6f73748f01",
+    "name": "亲子手工DIY活动",
+    "date": "2024-12-25",
+    "duration": 90,
+    "location": "社区文化站",
+    "capacity": 30,
+    "participants": [],
+    "createdAt": "2026-06-15T05:52:32.773Z"
+  },
+  {
+    "id": "0c2e39da-ea7b-458d-b60f-fe9ecc720b6d",
+    "name": "老年人健康讲座",
+    "date": "2024-12-28",
+    "duration": 60,
+    "location": "社区卫生服务中心",
+    "capacity": 40,
+    "participants": [],
+    "createdAt": "2026-06-15T05:52:32.773Z"
+  }
+]

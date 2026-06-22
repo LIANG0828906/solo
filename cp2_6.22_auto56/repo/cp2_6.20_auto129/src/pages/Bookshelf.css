@@ -1,0 +1,120 @@
+.bookshelf-page {
+  padding: 24px 32px;
+  min-height: 100vh;
+}
+
+.bookshelf-header {
+  display: flex;
+  align-items: baseline;
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+.bookshelf-title {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1a1a2e;
+  margin: 0;
+}
+
+.bookshelf-count {
+  font-size: 14px;
+  color: #999;
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 400px;
+}
+
+.books-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 24px;
+}
+
+.book-card-wrapper {
+  break-inside: avoid;
+}
+
+.book-card {
+  background: white;
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.book-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
+}
+
+.book-cover-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 12px;
+  overflow: hidden;
+  margin-bottom: 12px;
+  transition: transform 0.3s ease;
+}
+
+.book-card:hover .book-cover-container {
+  transform: translateY(-5px);
+}
+
+.book-cover {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.progress-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.book-card:hover .progress-overlay {
+  opacity: 1;
+}
+
+.progress-ring {
+  width: 60px;
+  height: 60px;
+}
+
+.book-info {
+  text-align: center;
+}
+
+.book-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 6px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.book-author {
+  font-size: 13px;
+  color: #999;
+  margin: 0 0 8px 0;
+}
+
+.book-added {
+  font-size: 11px;
+  color: #bbb;
+  margin: 0;
+}

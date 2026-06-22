@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>六角战棋</title>
+  <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+  <div id="app">
+    <div id="status-bar">
+      <div id="network-status">
+        <span id="status-dot" class="status-dot connected"></span>
+        <span id="status-text">已连接</span>
+        <span id="latency">延迟: 100ms</span>
+      </div>
+    </div>
+    <div id="game-container">
+      <div id="canvas-container">
+        <canvas id="game-canvas"></canvas>
+      </div>
+      <div id="info-panel">
+        <div id="turn-indicator">
+          <div id="turn-banner">
+            <span id="turn-number">回合 1</span>
+            <span id="current-player">蓝方回合</span>
+          </div>
+        </div>
+        <div id="unit-info">
+          <div id="unit-avatar"></div>
+          <div id="unit-details">
+            <div id="unit-name">选择一个单位</div>
+            <div class="stat-bar">
+              <div class="stat-label">生命值</div>
+              <div class="stat-track"><div id="hp-bar" class="stat-fill hp"></div></div>
+              <div id="hp-text">0/0</div>
+            </div>
+            <div class="stat-bar">
+              <div class="stat-label">攻击力</div>
+              <div class="stat-track"><div id="atk-bar" class="stat-fill atk"></div></div>
+              <div id="atk-text">0</div>
+            </div>
+            <div class="stat-bar">
+              <div class="stat-label">防御力</div>
+              <div class="stat-track"><div id="def-bar" class="stat-fill def"></div></div>
+              <div id="def-text">0</div>
+            </div>
+            <div class="stat-bar">
+              <div class="stat-label">移动步数</div>
+              <div class="stat-track"><div id="move-bar" class="stat-fill move"></div></div>
+              <div id="move-text">0/0</div>
+            </div>
+          </div>
+        </div>
+        <div id="action-buttons">
+          <button id="end-turn-btn" class="action-btn">结束回合</button>
+          <button id="undo-move-btn" class="action-btn secondary">撤销移动</button>
+        </div>
+      </div>
+    </div>
+    <div id="game-over-overlay" class="hidden">
+      <div id="game-over-content">
+        <h1 id="winner-text">蓝方获胜!</h1>
+        <button id="restart-btn" class="action-btn">重新开始</button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

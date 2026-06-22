@@ -1,0 +1,565 @@
+:root {
+  --wine-red: #722f37;
+  --gold: #c9a84c;
+  --beige: #f5e6c4;
+  --dark-gold: #a68b3b;
+  --cream: #fff8e7;
+}
+
+* {
+  font-family: 'Noto Serif SC', serif;
+}
+
+body {
+  background-color: var(--beige);
+  color: #333;
+}
+
+.app-container {
+  max-width: 1600px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.header {
+  background: linear-gradient(135deg, var(--wine-red) 0%, #5a252c 100%);
+  color: var(--gold);
+  padding: 24px;
+  border-radius: 12px;
+  margin-bottom: 24px;
+  border: 3px solid var(--gold);
+  box-shadow: 0 4px 20px rgba(114, 47, 55, 0.3);
+}
+
+.header h1 {
+  font-size: 2.2rem;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 4px;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.header .subtitle {
+  text-align: center;
+  font-size: 1rem;
+  color: var(--beige);
+  margin-top: 8px;
+  opacity: 0.9;
+}
+
+.main-layout {
+  display: grid;
+  grid-template-columns: 3fr 4fr 5fr;
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .main-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.column {
+  background: var(--cream);
+  border-radius: 12px;
+  padding: 20px;
+  border: 2px solid var(--gold);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.column-title {
+  color: var(--wine-red);
+  font-size: 1.3rem;
+  font-weight: 600;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--gold);
+}
+
+.section-title {
+  color: var(--wine-red);
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin: 16px 0 12px;
+}
+
+.drinks-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+.drink-card {
+  background: white;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  padding: 16px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.drink-card:hover:not(.disabled) {
+  animation: glow 2s infinite;
+  transform: translateY(-2px);
+}
+
+.drink-card.selected {
+  border-color: var(--gold);
+  border-width: 2px;
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(201, 168, 76, 0.4);
+}
+
+.drink-card.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  background: #f0f0f0;
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 4px var(--gold);
+  }
+  50% {
+    box-shadow: 0 0 12px var(--gold);
+  }
+}
+
+.drink-name {
+  font-weight: 600;
+  color: var(--wine-red);
+  font-size: 1.1rem;
+}
+
+.drink-price {
+  color: var(--dark-gold);
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.drink-stock {
+  font-size: 0.85rem;
+  color: #666;
+  margin-top: 4px;
+}
+
+.stock-warning {
+  color: #c0392b;
+  font-weight: 600;
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+.vessels-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+}
+
+.vessel-card {
+  background: white;
+  border: 2px solid var(--beige);
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.vessel-card:hover {
+  border-color: var(--gold);
+}
+
+.vessel-card.selected {
+  border-color: var(--gold);
+  background: var(--beige);
+}
+
+.vessel-name {
+  font-weight: 600;
+  color: var(--wine-red);
+  font-size: 0.95rem;
+}
+
+.vessel-price {
+  color: var(--dark-gold);
+  font-size: 0.85rem;
+  margin-top: 4px;
+}
+
+.shichen-select {
+  width: 100%;
+  padding: 12px;
+  border: 2px solid var(--gold);
+  border-radius: 8px;
+  background: white;
+  font-size: 1rem;
+  color: #333;
+  cursor: pointer;
+}
+
+.shichen-clock {
+  width: 100%;
+  max-width: 220px;
+  margin: 0 auto;
+  aspect-ratio: 1;
+  position: relative;
+}
+
+.shichen-clock svg {
+  width: 100%;
+  height: 100%;
+}
+
+.shichen-sector {
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.shichen-sector:hover {
+  opacity: 0.8;
+}
+
+.shichen-sector.selected {
+  fill: var(--gold);
+  stroke: var(--wine-red);
+  stroke-width: 2;
+}
+
+.quantity-input {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+}
+
+.quantity-input button {
+  width: 40px;
+  height: 40px;
+  border: 2px solid var(--gold);
+  background: white;
+  border-radius: 8px;
+  font-size: 1.2rem;
+  cursor: pointer;
+  color: var(--wine-red);
+  font-weight: 600;
+  transition: all 0.1s ease;
+}
+
+.quantity-input button:hover {
+  background: var(--beige);
+}
+
+.quantity-input button:active {
+  transform: scale(0.95);
+}
+
+.quantity-input input {
+  width: 80px;
+  padding: 8px;
+  border: 2px solid var(--gold);
+  border-radius: 8px;
+  text-align: center;
+  font-size: 1rem;
+}
+
+.payment-section {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--gold);
+}
+
+.payment-option {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding: 12px;
+  background: white;
+  border-radius: 8px;
+  border: 1px solid var(--beige);
+}
+
+.payment-option input[type="number"] {
+  width: 80px;
+  padding: 6px;
+  border: 2px solid var(--gold);
+  border-radius: 6px;
+  text-align: center;
+}
+
+.payment-option label {
+  flex: 1;
+  font-weight: 500;
+  color: var(--wine-red);
+}
+
+.payment-value {
+  color: var(--dark-gold);
+  font-weight: 600;
+  min-width: 80px;
+  text-align: right;
+}
+
+.btn {
+  background: linear-gradient(135deg, var(--wine-red) 0%, #5a252c 100%);
+  color: var(--gold);
+  border: 2px solid var(--gold);
+  padding: 14px 28px;
+  border-radius: 8px;
+  font-size: 1.05rem;
+  font-weight: 600;
+  cursor: pointer;
+  width: 100%;
+  transition: all 0.1s ease;
+  letter-spacing: 2px;
+}
+
+.btn:hover {
+  opacity: 0.9;
+}
+
+.btn:active {
+  transform: scale(0.95);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: white;
+  color: var(--wine-red);
+}
+
+.bill-panel {
+  background: white;
+  border: 2px solid var(--gold);
+  border-radius: 12px;
+  padding: 20px;
+  margin-top: 16px;
+}
+
+.bill-title {
+  color: var(--wine-red);
+  font-size: 1.2rem;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 16px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--gold);
+}
+
+.bill-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px dotted var(--beige);
+}
+
+.bill-row:last-child {
+  border-bottom: none;
+}
+
+.bill-total {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 2px solid var(--gold);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--wine-red);
+}
+
+.bill-change {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--beige);
+  border-radius: 8px;
+}
+
+.change-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 4px 0;
+}
+
+.error-message {
+  background: #ffebee;
+  color: #c62828;
+  padding: 12px;
+  border-radius: 8px;
+  margin: 12px 0;
+  border: 1px solid #ef9a9a;
+}
+
+.gamble-popup {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: white;
+  border: 3px solid var(--gold);
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+  min-width: 320px;
+  text-align: center;
+}
+
+.gamble-title {
+  color: var(--wine-red);
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.gamble-result {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: var(--dark-gold);
+  margin: 12px 0;
+}
+
+.gamble-svg {
+  width: 100%;
+  max-width: 280px;
+  height: 100px;
+  margin: 0 auto;
+}
+
+.ledger-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.ledger-table th {
+  background: var(--wine-red);
+  color: var(--gold);
+  padding: 10px 8px;
+  text-align: left;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+
+.ledger-table td {
+  padding: 8px;
+  border-bottom: 1px solid var(--beige);
+}
+
+.ledger-table tbody tr:hover {
+  background: var(--beige);
+}
+
+.ledger-table tr.new-record {
+  animation: highlight 2s ease-out forwards;
+}
+
+@keyframes highlight {
+  0% { background: rgba(201, 168, 76, 0.4); }
+  100% { background: transparent; }
+}
+
+.ledger-table .gamble-row {
+  background: #fff3e0;
+}
+
+.ledger-table .gamble-row:hover {
+  background: #ffe0b2;
+}
+
+.ledger-container {
+  max-height: 500px;
+  overflow-y: auto;
+  border: 1px solid var(--gold);
+  border-radius: 8px;
+}
+
+.filter-section {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.filter-section input {
+  padding: 8px;
+  border: 2px solid var(--gold);
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
+.summary-section {
+  margin-top: 16px;
+  padding: 16px;
+  background: var(--beige);
+  border-radius: 8px;
+}
+
+.summary-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-weight: 500;
+}
+
+.summary-total {
+  font-size: 1.1rem;
+  color: var(--wine-red);
+  font-weight: 600;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 2px solid var(--gold);
+}
+
+.profit-positive {
+  color: #2e7d32;
+  font-weight: 600;
+}
+
+.input-field {
+  width: 100%;
+  padding: 10px;
+  border: 2px solid var(--gold);
+  border-radius: 8px;
+  font-size: 1rem;
+  margin-bottom: 12px;
+}
+
+.input-field:focus {
+  outline: none;
+  border-color: var(--wine-red);
+}
+
+.info-text {
+  color: #666;
+  font-size: 0.85rem;
+  line-height: 1.5;
+}
+
+.horse {
+  animation: gallop 0.5s infinite alternate;
+}
+
+.horse:nth-child(2) {
+  animation-delay: 0.25s;
+}
+
+@keyframes gallop {
+  from { transform: translateY(0); }
+  to { transform: translateY(-5px); }
+}
+
+.dust {
+  animation: dust 0.8s infinite;
+}
+
+@keyframes dust {
+  0% { opacity: 1; transform: translateX(0); }
+  100% { opacity: 0; transform: translateX(20px); }
+}

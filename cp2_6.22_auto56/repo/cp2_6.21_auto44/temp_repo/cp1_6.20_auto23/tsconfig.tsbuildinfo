@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/debugpanel/debugpanel.tsx","./src/debugpanel/logviewer.tsx","./src/previewengine/deviceframe.tsx","./src/previewengine/previewengine.tsx","./src/previewengine/types.ts"],"version":"5.8.3"}

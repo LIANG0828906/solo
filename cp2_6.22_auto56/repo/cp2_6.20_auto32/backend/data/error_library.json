@@ -1,0 +1,27 @@
+{
+  "spelling": [
+    { "wrong": "在再", "correct": "在", "message": "注意'在'和'再'的区别" },
+    { "wrong": "的得", "correct": "的", "message": "定语后用'的'" },
+    { "wrong": "地得", "correct": "地", "message": "状语后用'地'" },
+    { "wrong": "幅副", "correct": "幅", "message": '量词使用错误，应为"一幅"' },
+    { "wrong": "做为", "correct": "作为", "message": "应为'作为'" },
+    { "wrong": "既使", "correct": "即使", "message": "应为'即使'" },
+    { "wrong": "既然", "correct": "既然", "message": "注意用法" },
+    { "wrong": "必需", "correct": "必须", "message": "副词用'必须'" },
+    { "wrong": "反映", "correct": "反应", "message": "此处应为'反应'" },
+    { "wrong": "度过", "correct": "渡过", "message": '指时间用"度过"' }
+  ],
+  "punctuation": [
+    { "pattern": "。。", "replacement": "。", "message": "重复的句号" },
+    { "pattern": ",,", "replacement": ",", "message": "重复的逗号" },
+    { "pattern": "！！", "replacement": "！", "message": "避免重复使用感叹号" },
+    { "pattern": "？？", "replacement": "？", "message": "避免重复使用问号" },
+    { "pattern": "……", "replacement": "……", "message": "省略号使用正确" }
+  ],
+  "grammar": [
+    { "pattern": "因为...所以...", "type": "conjunction", "message": "可以考虑用'因此'使句式更简洁" },
+    { "pattern": "虽然...但是...", "type": "conjunction", "message": "注意转折关联词的正确搭配" },
+    { "pattern": "不但...而且...", "type": "conjunction", "message": "递进关系使用正确" },
+    { "pattern": "不仅...还...", "type": "conjunction", "message": "递进关系使用正确" }
+  ]
+}

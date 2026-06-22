@@ -1,0 +1,246 @@
+.editor-container {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.editor-input-section {
+  animation: fadeInUp 0.4s ease;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.section-title {
+  color: var(--primary-color);
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 8px;
+  font-weight: 500;
+  color: var(--text-color);
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  background-color: rgba(255, 255, 255, 0.9);
+  font-size: 14px;
+  transition: all var(--transition-fast);
+  resize: vertical;
+}
+
+.form-input:focus,
+.form-textarea:focus {
+  outline: none;
+  border-color: var(--primary-color);
+  box-shadow: 0 0 0 3px rgba(139, 157, 163, 0.2);
+}
+
+.form-input:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.tag-input-container {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.add-tag-btn {
+  padding: 12px 20px;
+  background-color: var(--primary-color);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  white-space: nowrap;
+}
+
+.add-tag-btn:hover:not(:disabled) {
+  background-color: var(--accent-color);
+  transform: translateY(-1px);
+}
+
+.add-tag-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.tags-display {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background-color: var(--tag-bg);
+  color: var(--text-color);
+  border-radius: 20px;
+  font-size: 13px;
+  animation: fadeIn 0.3s ease;
+}
+
+.tag-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--text-color);
+  opacity: 0.6;
+  transition: opacity var(--transition-fast);
+}
+
+.tag-remove:hover {
+  opacity: 1;
+}
+
+.difficulty-buttons {
+  display: flex;
+  gap: 12px;
+}
+
+.difficulty-btn {
+  flex: 1;
+  padding: 12px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all var(--transition-fast);
+  background-color: rgba(255, 255, 255, 0.9);
+}
+
+.difficulty-btn.easy:hover {
+  border-color: var(--easy-color);
+  background-color: rgba(107, 142, 107, 0.1);
+}
+
+.difficulty-btn.medium:hover {
+  border-color: var(--medium-color);
+  background-color: rgba(230, 162, 60, 0.1);
+}
+
+.difficulty-btn.hard:hover {
+  border-color: var(--hard-color);
+  background-color: rgba(217, 83, 79, 0.1);
+}
+
+.difficulty-btn.easy.active {
+  background-color: var(--easy-color);
+  color: white;
+  border-color: var(--easy-color);
+}
+
+.difficulty-btn.medium.active {
+  background-color: var(--medium-color);
+  color: white;
+  border-color: var(--medium-color);
+}
+
+.difficulty-btn.hard.active {
+  background-color: var(--hard-color);
+  color: white;
+  border-color: var(--hard-color);
+}
+
+.submit-btn {
+  width: 100%;
+  padding: 14px;
+  background-color: var(--accent-color);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.submit-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(196, 167, 125, 0.4);
+}
+
+.submit-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.preview-section {
+  opacity: 0;
+  max-height: 0;
+  overflow: hidden;
+  transition: all 0.5s ease;
+}
+
+.preview-section.visible {
+  opacity: 1;
+  max-height: 1000px;
+}
+
+.preview-card {
+  padding: 24px;
+  border-radius: var(--border-radius);
+  margin-bottom: 16px;
+  animation: fadeIn 0.4s ease;
+}
+
+.preview-card.front {
+  background-color: white;
+  border: 2px solid var(--primary-color);
+}
+
+.preview-card.back {
+  background-color: var(--card-back-bg);
+  border: 2px dashed var(--accent-color);
+}
+
+.preview-label {
+  font-size: 12px;
+  color: var(--primary-color);
+  font-weight: 600;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+
+.preview-content {
+  font-size: 16px;
+  line-height: 1.6;
+  color: var(--text-color);
+  min-height: 60px;
+}
+
+.preview-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}

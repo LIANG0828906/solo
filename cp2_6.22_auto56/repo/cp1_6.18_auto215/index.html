@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>手写识别笔记本</title>
+  <link rel="stylesheet" href="/src/styles.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="toolbar">
+      <div class="toolbar-left">
+        <button class="tool-btn" id="btn-clear" title="清空 (右滑清空)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z"/>
+          </svg>
+        </button>
+        <button class="tool-btn" id="btn-undo" title="撤销 (Ctrl+Z)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 7v6h6M3 13a9 9 0 109-9 9 9 0 00-6.7 2.8"/>
+          </svg>
+        </button>
+        <button class="tool-btn" id="btn-redo" title="重做 (Ctrl+Y)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 7v6h-6M21 13a9 9 0 11-9-9 9 9 0 016.7 2.8"/>
+          </svg>
+        </button>
+      </div>
+      <div class="toolbar-title">✏️ 手写识别笔记本</div>
+      <div class="toolbar-right">
+        <div class="candidate-container" id="candidate-bar">
+          <button class="candidate-btn" data-idx="0">—</button>
+          <button class="candidate-btn" data-idx="1">—</button>
+          <button class="candidate-btn" data-idx="2">—</button>
+        </div>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <section class="writing-panel">
+        <div class="canvas-wrapper" id="canvas-wrapper">
+          <canvas id="writing-canvas" width="600" height="400"></canvas>
+        </div>
+        <div class="candidate-container bottom-candidates">
+          <button class="candidate-btn large" data-idx="0">—</button>
+          <button class="candidate-btn large" data-idx="1">—</button>
+          <button class="candidate-btn large" data-idx="2">—</button>
+        </div>
+        <div class="hint-text" id="hint-text">
+          💡 提示：在画板上书写字符 · 右滑清空 · Ctrl+Z撤销 · Ctrl+Y重做 · 点击候选字符确认
+        </div>
+      </section>
+
+      <section class="editor-panel">
+        <div class="editor-header">
+          <span class="editor-label">📝 识别结果</span>
+          <span class="editor-stats" id="editor-stats">0 字符</span>
+        </div>
+        <textarea 
+          id="text-editor" 
+          class="text-editor"
+          placeholder="在此显示识别结果，可直接编辑..."
+          spellcheck="false"
+        ></textarea>
+      </section>
+    </main>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

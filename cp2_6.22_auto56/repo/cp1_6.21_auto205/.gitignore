@@ -1,0 +1,8 @@
+node_modules
+dist
+.DS_Store
+*.log
+.vscode
+.idea
+server/data/*.json
+!server/data/snippets.json

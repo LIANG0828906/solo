@@ -1,0 +1,565 @@
+[
+  {
+    "id": "quiz-001",
+    "courseId": "course-001",
+    "title": "React 基础测验",
+    "questions": [
+      {
+        "id": "q1-1",
+        "question": "React 是由哪家公司开发和维护的？",
+        "options": ["Google", "Facebook", "Microsoft", "Apple"],
+        "correctIndex": 1,
+        "difficulty": "easy",
+        "hint": "React 最初是在 2013 年由这家社交网络巨头开源的。"
+      },
+      {
+        "id": "q1-2",
+        "question": "在 JSX 中，应该使用哪个属性来设置 CSS 类名？",
+        "options": ["class", "className", "styleClass", "cssClass"],
+        "correctIndex": 1,
+        "difficulty": "easy",
+        "hint": "因为 `class` 在 JavaScript 中是保留关键字。"
+      },
+      {
+        "id": "q1-3",
+        "question": "以下哪个 Hook 用于管理组件状态？",
+        "options": ["useEffect", "useState", "useContext", "useRef"],
+        "correctIndex": 1,
+        "difficulty": "easy",
+        "hint": "这个 Hook 返回一个状态值和一个更新该状态的函数。"
+      },
+      {
+        "id": "q1-4",
+        "question": "React 组件的名称必须以什么开头？",
+        "options": ["小写字母", "大写字母", "下划线", "数字"],
+        "correctIndex": 1,
+        "difficulty": "easy",
+        "hint": "这样 React 才能区分自定义组件和 HTML 标签。"
+      },
+      {
+        "id": "q1-5",
+        "question": "useEffect 的依赖数组为空时，什么时候会执行？",
+        "options": ["每次渲染后", "仅在组件挂载时", "仅在组件卸载时", "永不执行"],
+        "correctIndex": 1,
+        "difficulty": "medium",
+        "hint": "空依赖数组意味着这个 effect 不依赖任何 props 或 state。"
+      },
+      {
+        "id": "q1-6",
+        "question": "虚拟 DOM 的主要优势是什么？",
+        "options": ["完全替代真实 DOM", "减少直接 DOM 操作提高性能", "支持更多 CSS 属性", "简化 AJAX 请求"],
+        "correctIndex": 1,
+        "difficulty": "medium",
+        "hint": "通过比较新旧虚拟 DOM 树，只更新必要的部分。"
+      },
+      {
+        "id": "q1-7",
+        "question": "在 React 中，如何正确地更新基于前一个状态的新状态？",
+        "options": [
+          "setState(count + 1)",
+          "setState(prev => prev + 1)",
+          "state.count = state.count + 1",
+          "setState({ count: count + 1 })"
+        ],
+        "correctIndex": 1,
+        "difficulty": "medium",
+        "hint": "当新状态依赖于旧状态时，应该使用函数式更新。"
+      },
+      {
+        "id": "q1-8",
+        "question": "以下哪个不是 React 的核心特性？",
+        "options": ["组件化", "虚拟 DOM", "双向数据绑定", "单向数据流"],
+        "correctIndex": 2,
+        "difficulty": "medium",
+        "hint": "这是 Angular 和 Vue 的特性，React 使用的是另一种数据流方式。"
+      },
+      {
+        "id": "q1-9",
+        "question": "Props 和 State 的主要区别是什么？",
+        "options": [
+          "Props 是可变的，State 是不可变的",
+          "Props 由父组件传入，State 由组件内部管理",
+          "Props 只能是字符串，State 可以是任意类型",
+          "Props 用于样式，State 用于数据"
+        ],
+        "correctIndex": 1,
+        "difficulty": "hard",
+        "hint": "Props 是组件的输入，State 是组件的内部记忆。"
+      },
+      {
+        "id": "q1-10",
+        "question": "useEffect 的清理函数在什么时候执行？",
+        "options": [
+          "组件挂载时",
+          "组件卸载时和依赖项变化前",
+          "每次渲染后",
+          "仅在错误发生时"
+        ],
+        "correctIndex": 1,
+        "difficulty": "hard",
+        "hint": "清理函数用于取消订阅、移除事件监听器等清理工作。"
+      },
+      {
+        "id": "q1-11",
+        "question": "以下哪种方式可以在 JSX 中嵌入 JavaScript 表达式？",
+        "options": ["用圆括号 ()", "用花括号 {}", "用方括号 []", "用尖括号 <>"],
+        "correctIndex": 1,
+        "difficulty": "easy",
+        "hint": "这是 JSX 中嵌入表达式的标准语法。"
+      },
+      {
+        "id": "q1-12",
+        "question": "React 事件处理函数的命名惯例是什么？",
+        "options": ["全小写", "蛇形命名", "驼峰命名", "帕斯卡命名"],
+        "correctIndex": 2,
+        "difficulty": "easy",
+        "hint": "例如 onClick、onChange、onSubmit。"
+      }
+    ]
+  },
+  {
+    "id": "quiz-002",
+    "courseId": "course-002",
+    "title": "TypeScript 进阶测验",
+    "questions": [
+      {
+        "id": "q2-1",
+        "question": "TypeScript 是什么？",
+        "options": [
+          "一种新的编程语言",
+          "JavaScript 的超集",
+          "一个 JavaScript 框架",
+          "一个数据库查询语言"
+        ],
+        "correctIndex": 1,
+        "difficulty": "easy",
+        "hint": "TypeScript 为 JavaScript 添加了可选的静态类型。"
+      },
+      {
+        "id": "q2-2",
+        "question": "如何定义一个字符串类型的变量？",
+        "options": ["let x: String", "let x: string", "let x = string", "var x: str"],
+        "correctIndex": 1,
+        "difficulty": "easy",
+        "hint": "基本类型使用小写，如 string、number、boolean。"
+      },
+      {
+        "id": "q2-3",
+        "question": "以下哪个是联合类型的正确写法？",
+        "options": [
+          "let x: string & number",
+          "let x: string | number",
+          "let x: string + number",
+          "let x: (string, number)"
+        ],
+        "correctIndex": 1,
+        "difficulty": "easy",
+        "hint": "使用竖线符号表示类型可以是其中之一。"
+      },
+      {
+        "id": "q2-4",
+        "question": "interface 和 type 的主要区别是什么？",
+        "options": [
+          "interface 更快",
+          "interface 可以被继承和声明合并",
+          "type 更安全",
+          "interface 只能定义函数类型"
+        ],
+        "correctIndex": 1,
+        "difficulty": "medium",
+        "hint": "多个同名 interface 会自动合并，而 type 别名不行。"
+      },
+      {
+        "id": "q2-5",
+        "question": "泛型的主要作用是什么？",
+        "options": [
+          "提高代码执行速度",
+          "创建可复用的组件同时保持类型安全",
+          "减少代码体积",
+          "简化语法"
+        ],
+        "correctIndex": 1,
+        "difficulty": "medium",
+        "hint": "泛型允许我们在定义时不指定具体类型，使用时再指定。"
+      },
+      {
+        "id": "q2-6",
+        "question": "如何定义一个可选属性？",
+        "options": [
+          "name: string | undefined",
+          "name?: string",
+          "optional name: string",
+          "name: optional string"
+        ],
+        "correctIndex": 1,
+        "difficulty": "easy",
+        "hint": "在属性名后添加一个问号。"
+      },
+      {
+        "id": "q2-7",
+        "question": "以下哪个是正确的泛型函数定义？",
+        "options": [
+          "function identity<T>(arg: T): T { return arg; }",
+          "function identity(arg: <T>): T { return arg; }",
+          "function identity<T>(arg): T { return arg; }",
+          "function identity(arg: T): T { return arg; }"
+        ],
+        "correctIndex": 0,
+        "difficulty": "medium",
+        "hint": "类型参数放在函数名后面，用尖括号包裹。"
+      },
+      {
+        "id": "q2-8",
+        "question": "`keyof` 操作符的作用是什么？",
+        "options": [
+          "获取对象的键值对",
+          "获取类型的所有属性名组成的联合类型",
+          "创建新的键",
+          "删除对象的属性"
+        ],
+        "correctIndex": 1,
+        "difficulty": "hard",
+        "hint": "例如 `keyof { a: string; b: number }` 得到 `'a' | 'b'`。"
+      },
+      {
+        "id": "q2-9",
+        "question": "如何定义一个元组类型 [string, number]？",
+        "options": [
+          "let arr: [string, number] = ['hello', 42]",
+          "let arr: (string, number) = ['hello', 42]",
+          "let arr: string | number = ['hello', 42]",
+          "let arr: {string, number} = ['hello', 42]"
+        ],
+        "correctIndex": 0,
+        "difficulty": "medium",
+        "hint": "元组使用方括号语法，每个位置的类型是确定的。"
+      },
+      {
+        "id": "q2-10",
+        "question": "`Partial<T>` 工具类型的作用是什么？",
+        "options": [
+          "将 T 的所有属性变为必需的",
+          "将 T 的所有属性变为可选的",
+          "移除 T 的所有属性",
+          "复制 T 的所有属性"
+        ],
+        "correctIndex": 1,
+        "difficulty": "hard",
+        "hint": "Partial 是 TypeScript 内置的工具类型之一。"
+      },
+      {
+        "id": "q2-11",
+        "question": "TypeScript 编译后的代码是什么？",
+        "options": ["Java 字节码", "JavaScript 代码", "机器码", "C++ 代码"],
+        "correctIndex": 1,
+        "difficulty": "easy",
+        "hint": "TypeScript 最终会被编译为浏览器可执行的代码。"
+      },
+      {
+        "id": "q2-12",
+        "question": "`never` 类型表示什么？",
+        "options": [
+          "空值",
+          "永远不会发生的值的类型",
+          "任意类型",
+          "未定义的值"
+        ],
+        "correctIndex": 1,
+        "difficulty": "hard",
+        "hint": "例如抛出异常的函数或无限循环的返回类型。"
+      }
+    ]
+  },
+  {
+    "id": "quiz-003",
+    "courseId": "course-003",
+    "title": "项目管理实战测验",
+    "questions": [
+      {
+        "id": "q3-1",
+        "question": "敏捷开发的核心价值中，哪一项是最高优先级？",
+        "options": [
+          "流程和工具",
+          "个体和交互",
+          "详尽的文档",
+          "遵循计划"
+        ],
+        "correctIndex": 1,
+        "difficulty": "easy",
+        "hint": "敏捷强调人与人之间的沟通和协作。"
+      },
+      {
+        "id": "q3-2",
+        "question": "Scrum 框架中，谁负责定义产品待办列表的优先级？",
+        "options": ["Scrum Master", "开发团队", "产品负责人", "项目经理"],
+        "correctIndex": 2,
+        "difficulty": "easy",
+        "hint": "这个角色代表业务方，负责最大化产品价值。"
+      },
+      {
+        "id": "q3-3",
+        "question": "用户故事的标准模板是什么？",
+        "options": [
+          "作为 [角色]，我想要 [功能]，以便于 [价值]",
+          "系统需要 [功能]，满足 [需求]",
+          "[功能] 应该 [行为]",
+          "用户需要 [功能]，因为 [原因]"
+        ],
+        "correctIndex": 0,
+        "difficulty": "easy",
+        "hint": "用户故事强调角色、功能和价值三个要素。"
+      },
+      {
+        "id": "q3-4",
+        "question": "Sprint Retrospective 的主要目的是什么？",
+        "options": [
+          "演示已完成的功能",
+          "规划下一个 Sprint",
+          "团队反思和持续改进",
+          "分配任务"
+        ],
+        "correctIndex": 2,
+        "difficulty": "medium",
+        "hint": "这是 Scrum 中持续改进的关键环节。"
+      },
+      {
+        "id": "q3-5",
+        "question": "以下哪项不属于 INVEST 原则？",
+        "options": ["Independent", "Negotiable", "Valuable", "Complex"],
+        "correctIndex": 3,
+        "difficulty": "medium",
+        "hint": "INVEST 是 Independent, Negotiable, Valuable, Estimable, Small, Testable 的缩写。"
+      },
+      {
+        "id": "q3-6",
+        "question": "Daily Standup 会议通常持续多长时间？",
+        "options": ["30-60 分钟", "15 分钟以内", "1-2 小时", "全天"],
+        "correctIndex": 1,
+        "difficulty": "easy",
+        "hint": "这是一个快速同步会议，需要保持简短高效。"
+      },
+      {
+        "id": "q3-7",
+        "question": "燃尽图（Burndown Chart）显示的是什么？",
+        "options": [
+          "团队成员的工作量",
+          "Sprint 中剩余工作量随时间的变化",
+          "项目的成本消耗",
+          "代码提交频率"
+        ],
+        "correctIndex": 1,
+        "difficulty": "medium",
+        "hint": "这是一个可视化工具，帮助团队了解 Sprint 进展。"
+      },
+      {
+        "id": "q3-8",
+        "question": "Scrum Master 的主要职责是什么？",
+        "options": [
+          "分配任务给团队成员",
+          "确保团队遵循 Scrum 流程，移除障碍",
+          "编写产品需求文档",
+          "进行技术决策"
+        ],
+        "correctIndex": 1,
+        "difficulty": "medium",
+        "hint": "Scrum Master 是服务型领导，不是项目经理。"
+      },
+      {
+        "id": "q3-9",
+        "question": "什么是 Sprint 的时间盒（Timeboxing）？",
+        "options": [
+          "Sprint 必须在固定时间内完成",
+          "Sprint 可以无限延长",
+          "Sprint 时间根据工作量调整",
+          "Sprint 结束后可以加时"
+        ],
+        "correctIndex": 0,
+        "difficulty": "medium",
+        "hint": "时间盒是敏捷开发的重要实践，确保可预测性。"
+      },
+      {
+        "id": "q3-10",
+        "question": "验收标准（Acceptance Criteria）的主要作用是什么？",
+        "options": [
+          "描述功能的技术实现细节",
+          "定义功能完成的条件和测试依据",
+          "估算开发时间",
+          "记录团队讨论"
+        ],
+        "correctIndex": 1,
+        "difficulty": "hard",
+        "hint": "验收标准确保所有人对功能完成的定义达成共识。"
+      },
+      {
+        "id": "q3-11",
+        "question": "在敏捷开发中，需求变化应该如何处理？",
+        "options": [
+          "完全拒绝变更",
+          "欢迎变更，即使是在开发后期",
+          "只在 Sprint 开始前接受变更",
+          "需要额外付费才能变更"
+        ],
+        "correctIndex": 1,
+        "difficulty": "medium",
+        "hint": "敏捷宣言明确提到响应变化高于遵循计划。"
+      },
+      {
+        "id": "q3-12",
+        "question": "速度（Velocity）是指什么？",
+        "options": [
+          "团队的工作时间",
+          "团队在一个 Sprint 中完成的故事点数",
+          "代码提交的速度",
+          "项目的进度百分比"
+        ],
+        "correctIndex": 1,
+        "difficulty": "hard",
+        "hint": "速度是团队产能的度量，用于规划未来的 Sprint。"
+      }
+    ]
+  },
+  {
+    "id": "quiz-004",
+    "courseId": "course-001",
+    "title": "React 高级测验",
+    "questions": [
+      {
+        "id": "q4-1",
+        "question": "React.memo 的作用是什么？",
+        "options": [
+          "存储用户数据",
+          "记忆化组件，避免不必要的重渲染",
+          "创建全局状态",
+          "处理异步请求"
+        ],
+        "correctIndex": 1,
+        "difficulty": "hard",
+        "hint": "这是一个性能优化的高阶组件。"
+      },
+      {
+        "id": "q4-2",
+        "question": "useCallback 和 useMemo 的区别是什么？",
+        "options": [
+          "useCallback 记忆化函数，useMemo 记忆化计算结果",
+          "useCallback 记忆化计算结果，useMemo 记忆化函数",
+          "它们完全相同",
+          "useCallback 用于类组件，useMemo 用于函数组件"
+        ],
+        "correctIndex": 0,
+        "difficulty": "hard",
+        "hint": "虽然都是性能优化，但优化的对象不同。"
+      },
+      {
+        "id": "q4-3",
+        "question": "React Context 主要用于解决什么问题？",
+        "options": [
+          "性能问题",
+          "props 层层传递的问题",
+          "异步数据获取",
+          "样式管理"
+        ],
+        "correctIndex": 1,
+        "difficulty": "medium",
+        "hint": "当多个层级的组件需要访问相同数据时使用。"
+      },
+      {
+        "id": "q4-4",
+        "question": "useRef 的特点是什么？",
+        "options": [
+          "更新时会触发重渲染",
+          "更新时不会触发重渲染",
+          "只能存储 DOM 引用",
+          "只能在类组件中使用"
+        ],
+        "correctIndex": 1,
+        "difficulty": "medium",
+        "hint": "useRef 返回的对象在整个组件生命周期中保持不变。"
+      },
+      {
+        "id": "q4-5",
+        "question": "React 18 中引入的并发特性是什么？",
+        "options": [
+          "Server Components",
+          "Concurrent Rendering",
+          "Suspense for Data Fetching",
+          "以上都是"
+        ],
+        "correctIndex": 3,
+        "difficulty": "hard",
+        "hint": "React 18 带来了多个重要的新特性。"
+      }
+    ]
+  },
+  {
+    "id": "quiz-005",
+    "courseId": "course-002",
+    "title": "TypeScript 高级特性测验",
+    "questions": [
+      {
+        "id": "q5-1",
+        "question": "`ReturnType<T>` 工具类型的作用是什么？",
+        "options": [
+          "获取函数的参数类型",
+          "获取函数的返回类型",
+          "创建新的函数类型",
+          "检查函数是否存在"
+        ],
+        "correctIndex": 1,
+        "difficulty": "hard",
+        "hint": "这是一个条件类型的典型应用。"
+      },
+      {
+        "id": "q5-2",
+        "question": "如何定义一个只读数组？",
+        "options": [
+          "const arr: readonly number[] = [1, 2, 3]",
+          "const arr: ReadOnlyArray<number> = [1, 2, 3]",
+          "const arr: frozen number[] = [1, 2, 3]",
+          "const arr: immute number[] = [1, 2, 3]"
+        ],
+        "correctIndex": 0,
+        "difficulty": "medium",
+        "hint": "使用 readonly 修饰符可以创建只读数组。"
+      },
+      {
+        "id": "q5-3",
+        "question": "`infer` 关键字的作用是什么？",
+        "options": [
+          "定义新的类型",
+          "在条件类型中推断类型",
+          "类型断言",
+          "类型守卫"
+        ],
+        "correctIndex": 1,
+        "difficulty": "hard",
+        "hint": "infer 允许我们在条件类型中提取和使用类型。"
+      },
+      {
+        "id": "q5-4",
+        "question": "模板字面量类型是什么？",
+        "options": [
+          "一种字符串模板语法",
+          "基于字符串字面量类型创建新类型的方式",
+          "HTML 模板",
+          "React 组件类型"
+        ],
+        "correctIndex": 1,
+        "difficulty": "hard",
+        "hint": "TypeScript 4.1 引入的特性，如 `type Greeting = `Hello ${string}`;`"
+      },
+      {
+        "id": "q5-5",
+        "question": "`as const` 断言的作用是什么？",
+        "options": [
+          "将值转换为常量",
+          "将对象或数组推断为只读的字面量类型",
+          "定义常量变量",
+          "类型转换"
+        ],
+        "correctIndex": 1,
+        "difficulty": "hard",
+        "hint": "例如 `const arr = [1, 2, 3] as const;` 会得到 readonly [1, 2, 3] 类型。"
+      }
+    ]
+  }
+]

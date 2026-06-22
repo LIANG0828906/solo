@@ -1,0 +1,78 @@
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: linear-gradient(135deg, #f5f0eb 0%, #e8e3de 100%);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 420px;
+  padding: 40px;
+}
+
+.auth-header {
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.auth-logo {
+  font-size: 32px;
+  font-weight: 700;
+  font-family: -apple-system, BlinkMacSystemFont, 'San Francisco', sans-serif;
+  color: #5a6b57;
+  letter-spacing: 4px;
+  margin-bottom: 8px;
+}
+
+.auth-subtitle {
+  font-size: 14px;
+  color: #999;
+}
+
+.auth-form {
+  margin-bottom: 24px;
+}
+
+.auth-error {
+  background-color: #f5e0e0;
+  color: #b86b6b;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 13px;
+  margin-bottom: 16px;
+}
+
+.auth-btn {
+  width: 100%;
+  margin-top: 8px;
+}
+
+.auth-footer {
+  text-align: center;
+  font-size: 14px;
+  color: #888;
+}
+
+.auth-link {
+  color: #8fa88a;
+  font-weight: 500;
+  margin-left: 4px;
+  transition: color 0.2s ease;
+}
+
+.auth-link:hover {
+  color: #6b8a66;
+}
+
+@media (max-width: 480px) {
+  .auth-card {
+    padding: 28px 24px;
+  }
+
+  .auth-logo {
+    font-size: 28px;
+  }
+}

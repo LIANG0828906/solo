@@ -1,0 +1,82 @@
+.countdown-timer {
+  position: relative;
+  display: inline-block;
+}
+
+.progress-ring {
+  transition: stroke-dashoffset 0.05s linear, stroke 0.3s ease,
+    filter 0.3s ease;
+}
+
+.countdown-text {
+  font-family: 'Ma Shan Zheng', cursive;
+  font-weight: bold;
+  font-size: 36px;
+}
+
+.countdown-timer.urgent .countdown-text {
+  fill: #c8102e;
+  animation: textPulse 0.5s ease-in-out infinite alternate;
+}
+
+.countdown-timer.critical .countdown-text {
+  animation: textPulse 0.2s ease-in-out infinite alternate;
+}
+
+.pulse-ring {
+  transform-origin: 90px 90px;
+}
+
+.pulse-ring-1 {
+  animation: ringPulse 0.5s ease-in-out infinite;
+}
+
+.pulse-ring-2 {
+  animation: ringPulse 0.3s ease-in-out infinite;
+  animation-delay: 0.1s;
+}
+
+@keyframes textPulse {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(1.05);
+    opacity: 0.8;
+  }
+}
+
+@keyframes ringPulse {
+  0% {
+    opacity: 0.8;
+    r: 74;
+  }
+  50% {
+    opacity: 0.3;
+    r: 78;
+  }
+  100% {
+    opacity: 0;
+    r: 82;
+  }
+}
+
+.countdown-timer.urgent svg {
+  filter: drop-shadow(0 0 8px rgba(200, 16, 46, 0.4));
+}
+
+.countdown-timer.critical svg {
+  filter: drop-shadow(0 0 15px rgba(200, 16, 46, 0.7));
+}
+
+@media (max-width: 768px) {
+  .countdown-timer svg {
+    width: 70px;
+    height: 70px;
+  }
+
+  .countdown-timer .countdown-text {
+    font-size: 20px;
+  }
+}

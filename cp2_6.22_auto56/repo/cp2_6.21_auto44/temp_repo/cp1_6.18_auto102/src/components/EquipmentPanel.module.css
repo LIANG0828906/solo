@@ -1,0 +1,287 @@
+.panel {
+  width: 300px;
+  background: #1B263B;
+  border-radius: 12px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+  max-height: calc(100vh - 40px);
+}
+
+.title {
+  font-family: 'Orbitron', monospace;
+  font-size: 18px;
+  font-weight: 700;
+  color: #76B5C2;
+  margin: 0;
+  text-align: center;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.input {
+  width: 100%;
+  background: #0D1321;
+  border: 1px solid #4A6FA5;
+  border-radius: 6px;
+  color: #E0E1DD;
+  font-size: 13px;
+  padding: 8px 10px;
+  outline: none;
+  font-family: 'Noto Sans SC', sans-serif;
+  box-sizing: border-box;
+}
+
+.input::placeholder {
+  color: #4A6FA5;
+}
+
+.input:focus {
+  border-color: #76B5C2;
+}
+
+.select {
+  width: 100%;
+  background: #0D1321;
+  border: 1px solid #4A6FA5;
+  border-radius: 6px;
+  color: #E0E1DD;
+  font-size: 13px;
+  padding: 8px 10px;
+  outline: none;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+}
+
+.select:focus {
+  border-color: #76B5C2;
+}
+
+.addBtn {
+  width: 100%;
+  background: #76B5C2;
+  color: #0D1321;
+  border: none;
+  border-radius: 6px;
+  padding: 8px;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
+  transition: background 0.2s ease;
+}
+
+.addBtn:hover {
+  background: #5a9aab;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.filterBtn {
+  background: #0D1321;
+  border: 1px solid #4A6FA5;
+  border-radius: 4px;
+  color: #E0E1DD;
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: 'Noto Sans SC', sans-serif;
+}
+
+.filterBtn:hover {
+  border-color: #76B5C2;
+}
+
+.filterActive {
+  background: rgba(118, 181, 194, 0.15);
+  border-color: #76B5C2;
+  color: #76B5C2;
+}
+
+.statusFilter {
+  background: #0D1321;
+  border: 1px solid #4A6FA5;
+  border-radius: 4px;
+  color: #E0E1DD;
+  font-size: 11px;
+  padding: 4px 6px;
+  outline: none;
+  font-family: 'Noto Sans SC', sans-serif;
+  cursor: pointer;
+  flex: 1;
+  min-width: 70px;
+}
+
+.equipmentList {
+  flex: 1;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.equipmentWrapper {
+  position: relative;
+}
+
+.equipmentWrapper .deleteBtn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  background: none;
+  border: none;
+  color: #E76F51;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  padding: 2px 4px;
+}
+
+.equipmentWrapper:hover .deleteBtn {
+  opacity: 0.7;
+}
+
+.equipmentWrapper:hover .deleteBtn:hover {
+  opacity: 1;
+}
+
+.emptyList {
+  text-align: center;
+  color: #4A6FA5;
+  font-size: 13px;
+  padding: 20px 0;
+}
+
+.shake {
+  animation: shake 50ms ease;
+}
+
+@keyframes shake {
+  0% { transform: translateX(0); }
+  25% { transform: translateX(1px); }
+  75% { transform: translateX(-1px); }
+  100% { transform: translateX(0); }
+}
+
+.planSection {
+  border-top: 1px solid #2D4059;
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.planTitle {
+  font-family: 'Orbitron', monospace;
+  font-size: 14px;
+  color: #76B5C2;
+  margin: 0;
+}
+
+.planInput {
+  display: flex;
+  gap: 6px;
+}
+
+.planInput .input {
+  flex: 1;
+}
+
+.saveBtn {
+  background: #2A9D8F;
+  color: #E0E1DD;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
+  transition: background 0.2s ease;
+  flex-shrink: 0;
+}
+
+.saveBtn:hover {
+  background: #238578;
+}
+
+.planList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 120px;
+  overflow-y: auto;
+}
+
+.planItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #0D1321;
+  border-radius: 8px;
+  padding: 6px 10px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.planName {
+  color: #E0E1DD;
+  font-size: 13px;
+  cursor: pointer;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.planName:hover {
+  color: #76B5C2;
+}
+
+.planDeleteBtn {
+  background: none;
+  border: none;
+  color: #E76F51;
+  font-size: 12px;
+  cursor: pointer;
+  opacity: 0.6;
+  padding: 0 4px;
+}
+
+.planDeleteBtn:hover {
+  opacity: 1;
+}
+
+.exportBtn {
+  width: 100%;
+  background: #0D1321;
+  border: 1px solid #4A6FA5;
+  border-radius: 6px;
+  color: #76B5C2;
+  padding: 8px;
+  font-size: 13px;
+  cursor: pointer;
+  font-family: 'Noto Sans SC', sans-serif;
+  transition: all 0.2s ease;
+}
+
+.exportBtn:hover {
+  border-color: #76B5C2;
+  background: rgba(118, 181, 194, 0.1);
+}
+
+@media (max-width: 900px) {
+  .panel {
+    width: 100%;
+    max-height: none;
+  }
+}

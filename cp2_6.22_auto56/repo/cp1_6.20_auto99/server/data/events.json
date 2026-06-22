@@ -1,0 +1,311 @@
+{
+  "events": [
+    {
+      "id": "earthquake",
+      "name": "大地震颤",
+      "type": "disaster",
+      "typeLabel": "自然灾害",
+      "minEra": 0,
+      "description": "大地突然剧烈摇晃，部民们惊恐地目睹房屋坍塌、巨石滚落。地震造成了严重的破坏，必须立即做出抉择。",
+      "options": [
+        {
+          "id": "rebuild",
+          "text": "倾尽全力修复（消耗10木材、5石器）",
+          "effects": { "wood": -10, "stone": -5, "population": -2 },
+          "resultText": "部民们团结一心重建家园，虽然损失了物资，但保住了大部分人口。"
+        },
+        {
+          "id": "evacuate",
+          "text": "紧急撤离到高地（损失部分建筑）",
+          "effects": { "population": -1, "randomBuildingDestroy": 1 },
+          "resultText": "及时撤离避免了更大伤亡，但一座建筑在地震中沦为废墟。"
+        },
+        {
+          "id": "pray",
+          "text": "祭祀神灵祈求庇佑",
+          "effects": { "food": -5, "population": -3 },
+          "resultText": "祭祀消耗了大量食物，然而神灵的庇佑似乎并不够强，仍有部民罹难。"
+        }
+      ]
+    },
+    {
+      "id": "flood",
+      "name": "洪水泛滥",
+      "type": "disaster",
+      "typeLabel": "自然灾害",
+      "minEra": 1,
+      "description": "连日暴雨导致河水暴涨，浑浊的洪水席卷了聚居地的边缘地带。田野被淹没，储粮仓岌岌可危。",
+      "options": [
+        {
+          "id": "dam",
+          "text": "加固堤坝抵御洪水（消耗8木材）",
+          "effects": { "wood": -8, "food": -3 },
+          "resultText": "加固的堤坝成功阻挡了洪水，仅损失了少量食物储备。"
+        },
+        {
+          "id": "saveFood",
+          "text": "优先抢救粮食储备",
+          "effects": { "population": -2, "randomBuildingDestroy": 1 },
+          "resultText": "粮食被保住了，但有两人在洪水中失踪，一座建筑被冲毁。"
+        }
+      ]
+    },
+    {
+      "id": "plague",
+      "name": "瘟疫蔓延",
+      "type": "disaster",
+      "typeLabel": "自然灾害",
+      "minEra": 1,
+      "description": "一种不明疾病在聚居地迅速蔓延，患者发热不止、身体虚弱。巫医束手无策，必须采取措施遏制瘟疫。",
+      "options": [
+        {
+          "id": "quarantine",
+          "text": "严格隔离患者（损失部分劳动力）",
+          "effects": { "populationPercent": -0.1, "food": -5 },
+          "resultText": "隔离措施有效遏制了瘟疫，仅有一成人口因病去世。"
+        },
+        {
+          "id": "herbal",
+          "text": "搜集草药全力救治（消耗10食物入药）",
+          "effects": { "food": -10, "populationPercent": -0.05 },
+          "resultText": "草药疗法见效显著，仅5%的人口不幸病逝。"
+        },
+        {
+          "id": "ignore",
+          "text": "听天由命节省资源",
+          "effects": { "populationPercent": -0.2 },
+          "resultText": "瘟疫无情地夺走了五分之一部民的生命，聚居地哀鸿遍野。"
+        }
+      ]
+    },
+    {
+      "id": "nomad_raid",
+      "name": "游牧入侵",
+      "type": "diplomacy",
+      "typeLabel": "外交事件",
+      "minEra": 0,
+      "description": "一群游牧战士骑着快马出现在地平线上，他们挥舞着武器，叫喊着索要贡品，否则将纵兵劫掠。",
+      "options": [
+        {
+          "id": "tribute",
+          "text": "献上贡品换取和平（15食物、5石器）",
+          "effects": { "food": -15, "stone": -5, "status": { "name": "和平协定", "turns": 10, "effect": "游牧侵扰概率降低" } },
+          "resultText": "游牧首领满意地收下贡品，承诺十年内不再来犯。"
+        },
+        {
+          "id": "fight",
+          "text": "拿起武器奋起抵抗",
+          "effects": { "population": -3, "stone": 10, "wood": 8 },
+          "resultText": "经过惨烈战斗，部民们击退了入侵者，还缴获了一些物资！"
+        },
+        {
+          "id": "negotiate",
+          "text": "提议贸易结盟",
+          "effects": { "food": -5, "wood": -5, "status": { "name": "贸易协定", "turns": 15, "perTurn": { "food": 2 } } },
+          "resultText": "游牧首领接受了结盟提议，双方建立贸易关系，每回合获得额外食物。"
+        }
+      ]
+    },
+    {
+      "id": "merchant_trade",
+      "name": "商队到访",
+      "type": "diplomacy",
+      "typeLabel": "外交事件",
+      "minEra": 1,
+      "description": "一支远方商队风尘仆仆地来到聚居地，他们带着异域货物，希望与你们进行贸易。",
+      "options": [
+        {
+          "id": "buyStone",
+          "text": "以木材换取石器（10木材换15石器）",
+          "effects": { "wood": -10, "stone": 15 },
+          "resultText": "交易顺利完成，石器储备大大增加。"
+        },
+        {
+          "id": "buyFood",
+          "text": "以石器换取食物（5石器换20食物）",
+          "effects": { "stone": -5, "food": 20 },
+          "resultText": "用石器换来了大量食物，部民们可以饱餐一顿了。"
+        },
+        {
+          "id": "decline",
+          "text": "婉拒交易，保持资源",
+          "effects": {},
+          "resultText": "商队遗憾地离去，也许下次还会再来。"
+        }
+      ]
+    },
+    {
+      "id": "envoy_alliance",
+      "name": "使者联盟",
+      "type": "diplomacy",
+      "typeLabel": "外交事件",
+      "minEra": 2,
+      "description": "邻邦派遣使者前来，带来了结盟的提议。他们愿意共享技术，但要求你们提供援助。",
+      "options": [
+        {
+          "id": "alliance",
+          "text": "接受联盟（提供10食物、5石器援助）",
+          "effects": { "food": -10, "stone": -5, "status": { "name": "技术联盟", "turns": 20, "perTurn": { "science": 1 } }, "techBoost": 0.1 },
+          "resultText": "联盟达成！邻邦分享了先进技术，科技发展速度提升。"
+        },
+        {
+          "id": "counter",
+          "text": "提出平等互惠条款",
+          "effects": { "status": { "name": "互惠同盟", "turns": 15, "perTurn": { "food": 1, "wood": 1 } } },
+          "resultText": "经过谈判，双方建立了平等的互惠关系，每回合获得少量资源。"
+        },
+        {
+          "id": "refuse",
+          "text": "保持独立自主",
+          "effects": { "status": { "name": "独立自主", "turns": 10, "effect": "外交事件频率降低" } },
+          "resultText": "你们坚持独立自主的路线，使者悻悻离去。"
+        }
+      ]
+    },
+    {
+      "id": "drought",
+      "name": "严重干旱",
+      "type": "disaster",
+      "typeLabel": "自然灾害",
+      "minEra": 1,
+      "description": "数月未降一滴雨，河流干涸、庄稼枯萎。食物产量急剧下降，必须采取措施应对。",
+      "options": [
+        {
+          "id": "irrigate",
+          "text": "修建灌溉设施（消耗12木材）",
+          "effects": { "wood": -12, "food": -5 },
+          "resultText": "灌溉工程缓解了灾情，虽然付出了代价，但收成不至于全无。"
+        },
+        {
+          "id": "hunt",
+          "text": "加大狩猎采集力度",
+          "effects": { "population": -1, "food": 10 },
+          "effectText": "一名猎人在野外遭遇猛兽不幸身亡，但猎获了不少食物。",
+          "resultText": "加大狩猎力度补充了食物，但付出了生命的代价。"
+        },
+        {
+          "id": "ration",
+          "text": "实行食物配给制",
+          "effects": { "populationPercent": -0.08, "food": 8 },
+          "resultText": "严格的配给制让资源勉强支撑，仅有少数体弱的部民没能熬过去。"
+        }
+      ]
+    },
+    {
+      "id": "wildfire",
+      "name": "山林大火",
+      "type": "disaster",
+      "typeLabel": "自然灾害",
+      "minEra": 0,
+      "description": "闪电点燃了山林，熊熊大火迅速蔓延，火光冲天。如果不及时处理，森林资源将化为灰烬。",
+      "options": [
+        {
+          "id": "firebreak",
+          "text": "开辟防火带阻止蔓延（消耗5石器）",
+          "effects": { "stone": -5, "wood": 15 },
+          "resultText": "防火带有效阻止了火势，清理火场还获得了不少木材！"
+        },
+        {
+          "id": "escape",
+          "text": "放弃森林全力撤离",
+          "effects": { "wood": -8, "population": -1 },
+          "resultText": "仓促撤离中损失了部分木材和一名部民，但保住了聚居地主体。"
+        }
+      ]
+    },
+    {
+      "id": "refugees",
+      "name": "难民投奔",
+      "type": "diplomacy",
+      "typeLabel": "外交事件",
+      "minEra": 1,
+      "description": "一群衣衫褴褛的难民来到聚居地，他们是被战火和饥荒驱赶的流民，希望能被收留。",
+      "options": [
+        {
+          "id": "accept",
+          "text": "敞开胸怀接纳他们（消耗15食物）",
+          "effects": { "food": -15, "population": 6 },
+          "resultText": "难民们感激涕零，加入了聚居地，人口大幅增加！"
+        },
+        {
+          "id": "limited",
+          "text": "只接收青壮年劳动力（消耗8食物）",
+          "effects": { "food": -8, "population": 3 },
+          "resultText": "接收了强壮的劳动力，老弱病残继续流浪。人口适度增长。"
+        },
+        {
+          "id": "reject",
+          "text": "资源有限，无力接济",
+          "effects": { "status": { "name": "冷酷名声", "turns": 8, "effect": "外交选择声望降低" } },
+          "resultText": "难民被拒之门外，部民中有人开始质疑你们的道义。"
+        }
+      ]
+    },
+    {
+      "id": "bountiful_harvest",
+      "name": "天赐丰收",
+      "type": "blessing",
+      "typeLabel": "天赐祥瑞",
+      "minEra": 0,
+      "description": "今年风调雨顺、万物茂盛，田野里的庄稼结出了前所未有的饱满果实，林中的猎物也格外丰盛。",
+      "options": [
+        {
+          "id": "celebrate",
+          "text": "举办盛大庆典感谢上苍（消耗5食物）",
+          "effects": { "food": -5, "foodBonus": 25, "population": 1 },
+          "resultText": "庆典鼓舞了人心，部民们干劲十足，食物大获丰收！"
+        },
+        {
+          "id": "store",
+          "text": "全部储备以备不时之需",
+          "effects": { "food": 30 },
+          "resultText": "丰收的粮食被悉数入库，为未来的艰难时期做好了准备。"
+        }
+      ]
+    },
+    {
+      "id": "ore_discovery",
+      "name": "矿脉发现",
+      "type": "blessing",
+      "typeLabel": "天赐祥瑞",
+      "minEra": 1,
+      "description": "部民在附近山脉偶然发现了裸露的矿脉，这是发展手工业的绝佳机会！",
+      "options": [
+        {
+          "id": "mine",
+          "text": "立即组织开采（消耗8食物维持矿工）",
+          "effects": { "food": -8, "stone": 25 },
+          "resultText": "矿工们辛勤劳作，开采出了大量石器！"
+        },
+        {
+          "id": "careful",
+          "text": "谨慎勘察规划长期开采",
+          "effects": { "stone": 12, "status": { "name": "规划矿区", "turns": 12, "perTurn": { "stone": 2 } } },
+          "resultText": "精心规划了矿区，未来一段时期内石器产出稳定增加。"
+        }
+      ]
+    },
+    {
+      "id": "scholar_visit",
+      "name": "学者游历",
+      "type": "diplomacy",
+      "typeLabel": "外交事件",
+      "minEra": 2,
+      "description": "一位博学多识的学者途经此地，他愿意以智慧换取庇护。",
+      "options": [
+        {
+          "id": "hire",
+          "text": "以优厚待遇聘请（10食物、10石器）",
+          "effects": { "food": -10, "stone": -10, "techBoost": 0.2, "status": { "name": "学者坐镇", "turns": 25, "perTurn": { "science": 2 } } },
+          "resultText": "学者留了下来，科技发展突飞猛进！"
+        },
+        {
+          "id": "lecture",
+          "text": "邀请他讲学数日（消耗5食物）",
+          "effects": { "food": -5, "techBoost": 0.08 },
+          "resultText": "学者的讲座启发了部民，科技有所进步。"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>QuantumClash - 量子对战</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #0a0a2e;
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+    }
+    #gameCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+    .hint-bar {
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 12px 20px;
+      background: rgba(0, 0, 0, 0.5);
+      color: rgba(255, 255, 255, 0.7);
+      text-align: center;
+      font-size: 14px;
+      backdrop-filter: blur(4px);
+      pointer-events: none;
+      z-index: 10;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <div class="hint-bar">放置阶段：点击空格子选择位置 → 选择颜色 | 测量阶段：点击叠加态粒子触发坍缩</div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

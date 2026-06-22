@@ -1,0 +1,99 @@
+.status-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 30%;
+  height: 44px;
+  background: rgba(26, 26, 46, 0.9);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(0, 212, 255, 0.15);
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  gap: 16px;
+  z-index: 60;
+  transition: right 0.3s ease;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #aaa;
+  font-size: 12px;
+}
+
+.status-item svg {
+  color: #00d4ff;
+  opacity: 0.8;
+}
+
+.status-label {
+  color: #666;
+}
+
+.status-value {
+  color: #e0e0e0;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.status-value.highlight {
+  color: #00d4ff;
+}
+
+.status-value.running {
+  color: #00ff88;
+}
+
+.status-value.paused {
+  color: #ff9500;
+}
+
+.status-divider {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.status-spacer {
+  flex: 1;
+}
+
+.fps-item {
+  gap: 8px;
+}
+
+.fps-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #00ff88;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.fps-value.good {
+  color: #00ff88;
+}
+
+.fps-value.low {
+  color: #ff4444;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+@media (max-width: 768px) {
+  .status-bar {
+    right: 0;
+    padding: 0 12px;
+    gap: 10px;
+  }
+  
+  .status-item span:not(.status-value) {
+    display: none;
+  }
+}

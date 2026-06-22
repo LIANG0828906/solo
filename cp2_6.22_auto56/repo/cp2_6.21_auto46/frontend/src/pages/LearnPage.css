@@ -1,0 +1,145 @@
+.learn-page {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.learn-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.learn-stats {
+  display: flex;
+  gap: 12px;
+}
+
+.stat-badge {
+  background-color: #e8f0e6;
+  color: #5a6b57;
+  padding: 6px 14px;
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.learn-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  gap: 16px;
+  color: #999;
+}
+
+.loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #e8e3de;
+  border-top-color: #8fa88a;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.learn-empty {
+  text-align: center;
+  padding: 60px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.learn-complete {
+  text-align: center;
+  padding: 48px 24px;
+  margin-bottom: 24px;
+}
+
+.complete-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.complete-title {
+  font-size: 24px;
+  font-weight: 600;
+  color: #5a6b57;
+  margin-bottom: 12px;
+}
+
+.complete-text {
+  font-size: 15px;
+  color: #666;
+  margin-bottom: 24px;
+  line-height: 1.6;
+}
+
+.complete-text strong {
+  color: #8fa88a;
+  font-size: 18px;
+}
+
+.complete-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.learn-tips {
+  margin-top: 24px;
+  padding: 20px;
+}
+
+.tips-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #555;
+  margin-bottom: 12px;
+}
+
+.tips-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.tips-list li {
+  font-size: 13px;
+  color: #777;
+  padding: 4px 0;
+  padding-left: 16px;
+  position: relative;
+}
+
+.tips-list li::before {
+  content: '•';
+  position: absolute;
+  left: 0;
+  color: #8fa88a;
+  font-weight: bold;
+}
+
+@media (max-width: 768px) {
+  .learn-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .complete-actions {
+    flex-direction: column;
+  }
+
+  .complete-actions .btn {
+    width: 100%;
+  }
+}

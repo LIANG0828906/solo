@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D 海洋模拟器 - Ocean Simulator</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    #app { width: 100vw; height: 100vh; }
+    canvas { display: block; }
+
+    .control-panel {
+      position: fixed;
+      left: 24px;
+      bottom: 24px;
+      padding: 20px;
+      border-radius: 12px;
+      background: rgba(255, 255, 255, 0.1);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      color: white;
+      width: 280px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+      user-select: none;
+      z-index: 10;
+    }
+    .control-panel h3 {
+      font-size: 14px;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: #E2E8F0;
+      letter-spacing: 0.5px;
+    }
+    .control-group {
+      margin-bottom: 14px;
+    }
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      margin-bottom: 8px;
+      color: #CBD5E1;
+    }
+    .control-value {
+      background: rgba(59, 130, 246, 0.2);
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: #93C5FD;
+      min-width: 36px;
+      text-align: center;
+    }
+    .custom-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: #334155;
+      border-radius: 3px;
+      outline: none;
+      cursor: pointer;
+    }
+    .custom-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #3B82F6;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+    }
+    .custom-slider::-webkit-slider-thumb:hover {
+      width: 20px;
+      height: 20px;
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.8);
+    }
+    .custom-slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #3B82F6;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.5);
+    }
+    .custom-slider::-moz-range-thumb:hover {
+      width: 20px;
+      height: 20px;
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.8);
+    }
+    .reset-btn {
+      width: 100%;
+      margin-top: 6px;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 8px;
+      background: linear-gradient(135deg, #3B82F6, #2563EB);
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      letter-spacing: 0.5px;
+    }
+    .reset-btn:hover {
+      filter: brightness(1.2);
+      box-shadow: 0 4px 16px rgba(59, 130, 246, 0.4);
+    }
+    .reset-btn:active {
+      transform: translateY(1px);
+      filter: brightness(1.1);
+    }
+    .hint-text {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: rgba(226, 232, 240, 0.6);
+      font-size: 12px;
+      padding: 8px 16px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+      z-index: 10;
+      pointer-events: none;
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div class="hint-text">拖拽旋转视角 · 鼠标移动控制太阳方位 · 滚轮缩放</div>
+  <div class="control-panel">
+    <h3>🌊 海洋控制面板</h3>
+    <div class="control-group">
+      <div class="control-label">
+        <span>波浪幅度</span>
+        <span class="control-value" id="amp-value">1.5</span>
+      </div>
+      <input type="range" id="amplitude" class="custom-slider" min="0.5" max="3.0" step="0.1" value="1.5" />
+    </div>
+    <div class="control-group">
+      <div class="control-label">
+        <span>波浪频率</span>
+        <span class="control-value" id="freq-value">1.0</span>
+      </div>
+      <input type="range" id="frequency" class="custom-slider" min="0.5" max="2.0" step="0.1" value="1.0" />
+    </div>
+    <button class="reset-btn" id="reset-camera">重置视角</button>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

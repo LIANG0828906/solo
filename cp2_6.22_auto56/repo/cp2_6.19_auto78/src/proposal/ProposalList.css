@@ -1,0 +1,300 @@
+.proposal-list-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 24px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  gap: 20px;
+}
+
+.header-content {
+  flex: 1;
+}
+
+.page-title {
+  font-size: 32px;
+  font-weight: 700;
+  color: #2c3e50;
+  margin: 0 0 8px 0;
+}
+
+.page-subtitle {
+  font-size: 14px;
+  color: #95a5a6;
+  margin: 0;
+}
+
+.search-bar {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.search-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.search-input-wrapper svg {
+  position: absolute;
+  left: 14px;
+  width: 18px;
+  height: 18px;
+  color: #95a5a6;
+  pointer-events: none;
+}
+
+.search-input {
+  width: 280px;
+  padding: 12px 40px 12px 42px;
+  border: 2px solid #ecf0f1;
+  border-radius: 10px;
+  font-size: 14px;
+  color: #2c3e50;
+  transition: border-color 0.2s ease;
+  font-family: inherit;
+}
+
+.search-input:focus {
+  outline: none;
+  border-color: #1abc9c;
+}
+
+.search-input::placeholder {
+  color: #bdc3c7;
+}
+
+.clear-btn {
+  position: absolute;
+  right: 12px;
+  width: 20px;
+  height: 20px;
+  border: none;
+  background: #bdc3c7;
+  color: white;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s ease;
+}
+
+.clear-btn:hover {
+  background: #95a5a6;
+}
+
+.search-btn {
+  padding: 12px 24px;
+  border: none;
+  background: #1abc9c;
+  color: white;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.search-btn:hover {
+  background: #16a085;
+  transform: translateY(-1px);
+}
+
+.filter-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.filter-label {
+  font-size: 14px;
+  color: #7f8c8d;
+  font-weight: 500;
+}
+
+.filter-buttons {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filter-btn {
+  padding: 8px 18px;
+  border: 2px solid #ecf0f1;
+  background: white;
+  color: #7f8c8d;
+  border-radius: 20px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+}
+
+.filter-btn:hover {
+  border-color: #1abc9c;
+  color: #1abc9c;
+}
+
+.filter-btn.active {
+  background: #1abc9c;
+  border-color: #1abc9c;
+  color: white;
+}
+
+.filter-btn.status-btn.active {
+  background: #f39c12;
+  border-color: #f39c12;
+}
+
+.admin-hint {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-badge {
+  padding: 6px 12px;
+  background: linear-gradient(135deg, #9b59b6, #8e44ad);
+  color: white;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.hint-text {
+  font-size: 13px;
+  color: #95a5a6;
+}
+
+.proposals-masonry {
+  column-count: 3;
+  column-gap: 24px;
+}
+
+.load-more-sentinel {
+  padding: 40px 0;
+  text-align: center;
+  column-span: all;
+}
+
+.loading-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: #95a5a6;
+  font-size: 14px;
+}
+
+.loading-spinner-small {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #ecf0f1;
+  border-top-color: #1abc9c;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.no-more {
+  color: #bdc3c7;
+  font-size: 13px;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 80px 20px;
+  color: #bdc3c7;
+  column-span: all;
+}
+
+.empty-state svg {
+  width: 64px;
+  height: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.empty-state p {
+  margin: 0;
+  font-size: 15px;
+}
+
+@media (max-width: 1024px) {
+  .proposals-masonry {
+    column-count: 2;
+  }
+}
+
+@media (max-width: 768px) {
+  .proposal-list-page {
+    padding: 20px 16px;
+  }
+
+  .page-header {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+  }
+
+  .page-title {
+    font-size: 24px;
+  }
+
+  .search-bar {
+    width: 100%;
+  }
+
+  .search-input {
+    width: 100%;
+    flex: 1;
+    padding: 14px 40px 14px 42px;
+    font-size: 15px;
+  }
+
+  .search-input-wrapper {
+    flex: 1;
+  }
+
+  .search-btn {
+    padding: 14px 20px;
+    font-size: 15px;
+  }
+
+  .filter-bar {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .filter-group {
+    flex-wrap: wrap;
+  }
+
+  .proposals-masonry {
+    column-count: 1;
+    column-gap: 0;
+  }
+}

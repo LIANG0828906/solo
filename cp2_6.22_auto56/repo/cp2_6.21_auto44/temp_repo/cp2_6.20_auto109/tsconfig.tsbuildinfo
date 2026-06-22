@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/empty.tsx","./src/components/editor/bteditor.tsx","./src/components/editor/gridmap.tsx","./src/hooks/usetheme.ts","./src/lib/utils.ts","./src/modules/battle-engine.ts","./src/modules/behavior-tree.ts","./src/pages/home.tsx","./src/store/usegamestore.ts"],"version":"5.8.3"}

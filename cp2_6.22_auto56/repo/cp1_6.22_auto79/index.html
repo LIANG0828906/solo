@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>手势3D艺术沙盘</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Noto Sans SC', 'Orbitron', sans-serif;
+      background: #050515;
+      color: #e0e0ff;
+    }
+
+    #app {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    #canvas-container {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    #canvas-container canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    #video-hidden {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1px;
+      height: 1px;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    #loading-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(ellipse at center, #0a0a2e 0%, #1a0a3e 50%, #050515 100%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      transition: opacity 0.5s ease;
+    }
+
+    #loading-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .loading-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 2.2rem;
+      font-weight: 700;
+      background: linear-gradient(90deg, #00d4ff, #a855f7, #ff00ea);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 2rem;
+      letter-spacing: 0.1em;
+      animation: glow 2s ease-in-out infinite alternate;
+    }
+
+    @keyframes glow {
+      from { filter: drop-shadow(0 0 8px rgba(0, 212, 255, 0.5)); }
+      to { filter: drop-shadow(0 0 20px rgba(168, 85, 247, 0.8)); }
+    }
+
+    .loading-spinner {
+      width: 60px;
+      height: 60px;
+      border: 3px solid rgba(0, 212, 255, 0.2);
+      border-top-color: #00d4ff;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      margin-top: 1.5rem;
+      font-size: 0.95rem;
+      color: rgba(168, 85, 247, 0.9);
+      letter-spacing: 0.05em;
+    }
+
+    #permission-prompt {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: rgba(10, 10, 46, 0.85);
+      backdrop-filter: blur(15px);
+      -webkit-backdrop-filter: blur(15px);
+      border: 1px solid rgba(0, 212, 255, 0.3);
+      border-radius: 16px;
+      padding: 2.5rem;
+      text-align: center;
+      z-index: 900;
+      max-width: 420px;
+      box-shadow: 0 0 40px rgba(0, 212, 255, 0.15), inset 0 0 20px rgba(168, 85, 247, 0.05);
+      display: none;
+    }
+
+    #permission-prompt.visible {
+      display: block;
+    }
+
+    .prompt-icon {
+      font-size: 3rem;
+      margin-bottom: 1rem;
+    }
+
+    .prompt-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: #00d4ff;
+      margin-bottom: 0.8rem;
+    }
+
+    .prompt-desc {
+      font-size: 0.9rem;
+      color: rgba(224, 224, 255, 0.75);
+      line-height: 1.6;
+      margin-bottom: 1.8rem;
+    }
+
+    .prompt-btn {
+      background: linear-gradient(135deg, #00d4ff, #a855f7);
+      border: none;
+      color: #fff;
+      padding: 0.85rem 2.2rem;
+      border-radius: 12px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      letter-spacing: 0.05em;
+    }
+
+    .prompt-btn:hover {
+      transform: scale(1.08);
+      box-shadow: 0 0 25px rgba(0, 212, 255, 0.6);
+    }
+
+    #control-panel {
+      position: fixed;
+      top: 24px;
+      left: 24px;
+      width: 320px;
+      background: rgba(10, 10, 46, 0.55);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 212, 255, 0.25);
+      border-radius: 16px;
+      padding: 1.4rem;
+      z-index: 100;
+      box-shadow: 0 0 30px rgba(0, 212, 255, 0.1),
+                  inset 0 0 25px rgba(168, 85, 247, 0.04);
+      transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    #control-panel.collapsed {
+      transform: translateX(calc(-100% - 12px));
+    }
+
+    #control-panel.collapsed .panel-toggle {
+      transform: rotate(180deg);
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.4rem;
+    }
+
+    .panel-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 1.05rem;
+      font-weight: 600;
+      background: linear-gradient(90deg, #00d4ff, #a855f7);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 0.08em;
+    }
+
+    .panel-toggle {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: rgba(0, 212, 255, 0.12);
+      border: 1px solid rgba(0, 212, 255, 0.35);
+      color: #00d4ff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.25s ease;
+      font-size: 1rem;
+    }
+
+    .panel-toggle:hover {
+      background: rgba(0, 212, 255, 0.25);
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.4);
+    }
+
+    .section-label {
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(168, 85, 247, 0.85);
+      margin-bottom: 0.7rem;
+      font-weight: 500;
+    }
+
+    .color-section {
+      margin-bottom: 1.6rem;
+    }
+
+    .color-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .color-swatch {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .color-swatch:hover {
+      transform: scale(1.12);
+    }
+
+    .color-swatch.selected {
+      border-color: #fff;
+      box-shadow: 0 0 14px currentColor, 0 0 0 2px rgba(255, 255, 255, 0.2);
+    }
+
+    .custom-color-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .custom-color-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: conic-gradient(#ff0000, #ff8800, #ffff00, #00ff00, #00ffff, #0088ff, #8800ff, #ff0088, #ff0000);
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      overflow: hidden;
+      flex-shrink: 0;
+    }
+
+    .custom-color-btn::after {
+      content: '+';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1rem;
+      font-weight: 700;
+      color: #fff;
+      text-shadow: 0 0 4px rgba(0, 0, 0, 0.8);
+    }
+
+    .custom-color-btn:hover {
+      transform: scale(1.1);
+      box-shadow: 0 0 18px rgba(255, 255, 255, 0.35);
+    }
+
+    .custom-color-input {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+      pointer-events: none;
+    }
+
+    .color-label {
+      font-size: 0.82rem;
+      color: rgba(224, 224, 255, 0.6);
+    }
+
+    .size-section {
+      margin-bottom: 1.6rem;
+    }
+
+    .brush-preview-wrap {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 56px;
+      margin-bottom: 10px;
+    }
+
+    .brush-preview {
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0, 212, 255, 0.85) 0%, rgba(0, 212, 255, 0.3) 60%, transparent 100%);
+      transition: all 0.15s ease;
+      box-shadow: 0 0 15px rgba(0, 212, 255, 0.6);
+    }
+
+    .size-slider-wrap {
+      position: relative;
+      padding: 4px 0;
+    }
+
+    .size-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: linear-gradient(90deg, #00d4ff, #a855f7, #ff00ea);
+      outline: none;
+      cursor: pointer;
+    }
+
+    .size-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+      box-shadow: 0 0 12px rgba(0, 212, 255, 0.9), 0 0 24px rgba(168, 85, 247, 0.6);
+      border: 2px solid rgba(255, 255, 255, 0.9);
+      transition: transform 0.15s ease;
+    }
+
+    .size-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.15);
+    }
+
+    .size-slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: #fff;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 12px rgba(0, 212, 255, 0.9);
+    }
+
+    .size-values {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 6px;
+      font-size: 0.72rem;
+      color: rgba(224, 224, 255, 0.5);
+    }
+
+    .clear-btn {
+      width: 100%;
+      padding: 0.85rem 1rem;
+      background: linear-gradient(135deg, rgba(255, 0, 100, 0.15), rgba(168, 85, 247, 0.15));
+      border: 1px solid rgba(255, 0, 100, 0.4);
+      border-radius: 12px;
+      color: #ff64a8;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 0.88rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .clear-btn:hover {
+      transform: scale(1.05);
+      background: linear-gradient(135deg, rgba(255, 0, 100, 0.28), rgba(168, 85, 247, 0.28));
+      box-shadow: 0 0 22px rgba(255, 0, 100, 0.45);
+    }
+
+    .gesture-hints {
+      margin-top: 1.4rem;
+      padding-top: 1.2rem;
+      border-top: 1px solid rgba(0, 212, 255, 0.15);
+    }
+
+    .gesture-hints .section-label {
+      margin-bottom: 0.8rem;
+    }
+
+    .hint-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 10px;
+      font-size: 0.78rem;
+      color: rgba(224, 224, 255, 0.7);
+      line-height: 1.5;
+    }
+
+    .hint-icon {
+      font-size: 1.1rem;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .hint-text strong {
+      color: #00d4ff;
+      font-weight: 500;
+    }
+
+    .status-bar {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      background: rgba(10, 10, 46, 0.55);
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      border: 1px solid rgba(0, 212, 255, 0.2);
+      border-radius: 10px;
+      padding: 0.6rem 1rem;
+      z-index: 100;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 0.8rem;
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #ff4444;
+      box-shadow: 0 0 8px #ff4444;
+      transition: all 0.3s ease;
+    }
+
+    .status-dot.active {
+      background: #00ff88;
+      box-shadow: 0 0 10px #00ff88;
+      animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    .gesture-indicator {
+      color: #a855f7;
+      font-family: 'Orbitron', sans-serif;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+    }
+
+    @media (max-width: 768px) {
+      #control-panel {
+        top: auto;
+        left: 0;
+        bottom: 0;
+        width: 100%;
+        border-radius: 20px 20px 0 0;
+        padding: 1.2rem;
+        transition: transform 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      }
+
+      #control-panel.collapsed {
+        transform: translateY(calc(100% + 12px));
+      }
+
+      .color-swatch,
+      .custom-color-btn {
+        width: 48px;
+        height: 48px;
+      }
+
+      .clear-btn {
+        padding: 1rem;
+        min-height: 52px;
+        font-size: 0.95rem;
+      }
+
+      .panel-toggle {
+        width: 48px;
+        height: 48px;
+        font-size: 1.2rem;
+      }
+
+      .gesture-hints {
+        display: none;
+      }
+
+      .status-bar {
+        bottom: auto;
+        top: 16px;
+        right: 16px;
+        left: auto;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+    <video id="video-hidden" autoplay playsinline muted></video>
+
+    <div id="loading-overlay">
+      <div class="loading-title">3D ART SANDBOX</div>
+      <div class="loading-spinner"></div>
+      <div class="loading-text" id="loading-text">正在初始化...</div>
+    </div>
+
+    <div id="permission-prompt">
+      <div class="prompt-icon">✋</div>
+      <div class="prompt-title">开启摄像头权限</div>
+      <div class="prompt-desc">
+        本应用需要访问您的摄像头以捕捉手部动作，<br>
+        在三维空间中创作粒子艺术。<br>
+        所有数据仅在本地处理，不会上传。
+      </div>
+      <button class="prompt-btn" id="permission-btn">允许访问</button>
+    </div>
+
+    <aside id="control-panel">
+      <div class="panel-header">
+        <div class="panel-title">控制面板</div>
+        <button class="panel-toggle" id="panel-toggle" title="折叠面板">›</button>
+      </div>
+
+      <div class="color-section">
+        <div class="section-label">颜色选择</div>
+        <div class="color-grid" id="color-grid">
+        </div>
+        <div class="custom-color-wrap">
+          <label class="custom-color-btn" for="custom-color" title="自定义颜色"></label>
+          <input type="color" id="custom-color" class="custom-color-input" value="#00d4ff">
+          <span class="color-label">自定义吸色器</span>
+        </div>
+      </div>
+
+      <div class="size-section">
+        <div class="section-label">笔刷大小</div>
+        <div class="brush-preview-wrap">
+          <div class="brush-preview" id="brush-preview"></div>
+        </div>
+        <div class="size-slider-wrap">
+          <input type="range" id="size-slider" class="size-slider" min="1" max="20" value="6" step="1">
+          <div class="size-values">
+            <span>1px</span>
+            <span id="size-value">6px</span>
+            <span>20px</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="clear-btn" id="clear-btn">
+        <span>✕</span>
+        <span>清除画布</span>
+      </button>
+
+      <div class="gesture-hints">
+        <div class="section-label">手势说明</div>
+        <div class="hint-item">
+          <span class="hint-icon">🖐️</span>
+          <span class="hint-text"><strong>张开手掌</strong> 开始绘制粒子轨迹</span>
+        </div>
+        <div class="hint-item">
+          <span class="hint-icon">✊</span>
+          <span class="hint-text"><strong>握拳</strong> 暂停绘制</span>
+        </div>
+        <div class="hint-item">
+          <span class="hint-icon">👌</span>
+          <span class="hint-text"><strong>五指捏合</strong> 清空画布 + 爆炸效果</span>
+        </div>
+        <div class="hint-item">
+          <span class="hint-icon">✌️</span>
+          <span class="hint-text"><strong>食指中指并拢</strong> 拖拽旋转场景</span>
+        </div>
+      </div>
+    </aside>
+
+    <div class="status-bar">
+      <div class="status-dot" id="status-dot"></div>
+      <span class="gesture-indicator" id="gesture-indicator">等待手势</span>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

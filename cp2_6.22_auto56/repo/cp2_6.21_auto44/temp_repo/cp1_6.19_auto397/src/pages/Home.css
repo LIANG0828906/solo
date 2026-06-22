@@ -1,0 +1,95 @@
+.home-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 24px 32px;
+  min-height: calc(100vh - 80px);
+}
+
+.home-header {
+  text-align: center;
+  margin-bottom: 32px;
+  animation: fade-in 0.6s ease-out;
+}
+
+.home-title {
+  font-size: 32px;
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  margin-bottom: 8px;
+}
+
+.home-subtitle {
+  font-size: 15px;
+  color: var(--color-gray-dark);
+}
+
+.home-gallery {
+  column-count: 4;
+  column-gap: 20px;
+}
+
+.home-gallery > * {
+  break-inside: avoid;
+  margin-bottom: 20px;
+}
+
+.home-sentinel {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 32px 0;
+}
+
+.home-loading {
+  display: flex;
+  gap: 8px;
+}
+
+.loading-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  animation: bounce-dot 1.4s infinite ease-in-out both;
+}
+
+.loading-dot:nth-child(1) {
+  animation-delay: -0.32s;
+}
+
+.loading-dot:nth-child(2) {
+  animation-delay: -0.16s;
+}
+
+.home-no-more {
+  font-size: 13px;
+  color: var(--color-gray-dark);
+}
+
+@media (max-width: 1024px) {
+  .home-gallery {
+    column-count: 3;
+  }
+}
+
+@media (max-width: 768px) {
+  .home-page {
+    padding: 16px;
+  }
+
+  .home-title {
+    font-size: 24px;
+  }
+
+  .home-gallery {
+    column-count: 2;
+    column-gap: 12px;
+  }
+
+  .home-gallery > * {
+    margin-bottom: 12px;
+  }
+}

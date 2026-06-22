@@ -1,0 +1,105 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background-color: #1a1a2e;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-family: 'Courier New', monospace;
+  overflow: hidden;
+}
+
+.game-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+}
+
+.game-canvas {
+  border: 2px solid #ffffff;
+  border-radius: 4px;
+  background-color: #1a1a2e;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+.fps-display {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  font-size: 12px;
+  color: #45B7D1;
+  background-color: #00000066;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  z-index: 100;
+  transition: all 0.1s ease;
+}
+
+.fps-display.slow {
+  color: #FF6B6B;
+  font-size: 14px;
+}
+
+.skills-container {
+  display: flex;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.skill-slot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.skill-icon {
+  font-size: 16px;
+  color: #ffffff;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cooldown-bar {
+  width: 120px;
+  height: 12px;
+  background-color: #2d2d44;
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.cooldown-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #FF6B6B, #4ECDC4);
+  transition: width 0.05s linear;
+}
+
+.cooldown-fill.ready {
+  background: #00b4d8;
+}
+
+.cooldown-fill.flash {
+  animation: flash 0.3s steps(2, end);
+}
+
+@keyframes flash {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}

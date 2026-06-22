@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>分子结构交互查看器</title>
+  <link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+  <div id="app">
+    <div id="loading">
+      <div class="loading-spinner"></div>
+      <p>加载中...</p>
+    </div>
+    <canvas id="canvas-container"></canvas>
+
+    <div id="toolbar" class="glass">
+      <div class="toolbar-title">分子查看器</div>
+      <select id="molecule-select">
+        <option value="">-- 选择分子 --</option>
+      </select>
+      <div class="toolbar-tools">
+        <button id="btn-measure" title="测量工具">📏 测量</button>
+        <button id="btn-clip" title="剖切工具">✂️ 剖切</button>
+        <button id="btn-reset" title="重置视角">🔄 重置</button>
+      </div>
+    </div>
+
+    <button id="panel-toggle" class="panel-toggle hidden">
+      <span>◀</span>
+    </button>
+
+    <div id="side-panel">
+      <div class="panel-header">
+        <span class="panel-title">分子数据</span>
+        <button id="panel-collapse" title="收起面板">◀</button>
+      </div>
+      <div class="panel-content">
+        <div id="molecule-tree"></div>
+      </div>
+      <div id="detail-panel">
+        <div class="detail-title">详细信息</div>
+        <div id="detail-content" class="detail-empty">点击原子或化学键查看详情</div>
+      </div>
+    </div>
+
+    <div id="measurement-label" class="measurement-label hidden">
+      <span id="measurement-text">0.000 Å</span>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,217 @@
+{
+  "products": [
+    {
+      "id": "p1",
+      "name": "手工陶瓷花瓶",
+      "description": "纯手工拉坯烧制，每一件都独一无二，釉色温润如玉，适合家居装饰与花艺搭配",
+      "category": "陶艺",
+      "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=handmade%20ceramic%20vase%20artisan%20craft%20studio%20photography&image_size=square",
+      "costPrice": 45.00,
+      "stock": 32,
+      "createdAt": "2026-06-01T08:00:00.000Z",
+      "updatedAt": "2026-06-18T10:30:00.000Z"
+    },
+    {
+      "id": "p2",
+      "name": "毛线编织围巾",
+      "description": "精选澳洲美利奴羊毛，手工编织松软厚实，冬季保暖必备单品",
+      "category": "编织",
+      "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=handmade%20knitted%20wool%20scarf%20cozy%20craft&image_size=square",
+      "costPrice": 30.00,
+      "stock": 58,
+      "createdAt": "2026-06-02T09:00:00.000Z",
+      "updatedAt": "2026-06-17T14:20:00.000Z"
+    },
+    {
+      "id": "p3",
+      "name": "实木创意书立",
+      "description": "榫卯结构无胶拼接，黑胡桃木与白蜡木双色搭配，书房里的艺术品",
+      "category": "木工",
+      "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=handmade%20wooden%20bookend%20walnut%20craft&image_size=square",
+      "costPrice": 25.00,
+      "stock": 41,
+      "createdAt": "2026-06-03T07:30:00.000Z",
+      "updatedAt": "2026-06-19T09:15:00.000Z"
+    },
+    {
+      "id": "p4",
+      "name": "苏绣双面手帕",
+      "description": "苏州非遗传承人手工刺绣，双面不同图案，真丝缎面细腻光泽",
+      "category": "刺绣",
+      "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=suzhou%20embroidery%20handkerchief%20silk%20traditional&image_size=square",
+      "costPrice": 60.00,
+      "stock": 15,
+      "createdAt": "2026-06-04T11:00:00.000Z",
+      "updatedAt": "2026-06-16T16:45:00.000Z"
+    },
+    {
+      "id": "p5",
+      "name": "手工皮革钱包",
+      "description": "植鞣牛皮手工缝制，越用越有味道，精致车线与黄铜五金件",
+      "category": "皮具",
+      "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=handmade%20leather%20wallet%20craftsman%20brown&image_size=square",
+      "costPrice": 55.00,
+      "stock": 23,
+      "createdAt": "2026-06-05T13:00:00.000Z",
+      "updatedAt": "2026-06-20T08:00:00.000Z"
+    },
+    {
+      "id": "p6",
+      "name": "琉璃渐变吊坠",
+      "description": "高温窑变琉璃，每件色彩流动各异，配925银链可调节长度",
+      "category": "珠宝",
+      "imageUrl": "https://trae-api-cn.mchost.guru/api/ide/v1/text_to_image?prompt=handmade%20glass%20pendant%20jewelry%20gradient&image_size=square",
+      "costPrice": 40.00,
+      "stock": 37,
+      "createdAt": "2026-06-06T10:00:00.000Z",
+      "updatedAt": "2026-06-19T11:30:00.000Z"
+    }
+  ],
+  "pricingRules": [
+    {
+      "id": "r1",
+      "productId": "p1",
+      "type": "daily",
+      "price": 128.00,
+      "startTime": "2026-01-01T00:00:00.000Z",
+      "endTime": "2026-12-31T23:59:59.000Z",
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "r2",
+      "productId": "p1",
+      "type": "flash_sale",
+      "price": 89.00,
+      "startTime": "2026-06-20T00:00:00.000Z",
+      "endTime": "2026-06-22T23:59:59.000Z",
+      "createdAt": "2026-06-18T10:00:00.000Z"
+    },
+    {
+      "id": "r3",
+      "productId": "p1",
+      "type": "member",
+      "price": 108.00,
+      "startTime": "2026-01-01T00:00:00.000Z",
+      "endTime": "2026-12-31T23:59:59.000Z",
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "r4",
+      "productId": "p2",
+      "type": "daily",
+      "price": 88.00,
+      "startTime": "2026-01-01T00:00:00.000Z",
+      "endTime": "2026-12-31T23:59:59.000Z",
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "r5",
+      "productId": "p2",
+      "type": "flash_sale",
+      "price": 59.00,
+      "startTime": "2026-06-19T08:00:00.000Z",
+      "endTime": "2026-06-21T20:00:00.000Z",
+      "createdAt": "2026-06-17T10:00:00.000Z"
+    },
+    {
+      "id": "r6",
+      "productId": "p2",
+      "type": "member",
+      "price": 75.00,
+      "startTime": "2026-01-01T00:00:00.000Z",
+      "endTime": "2026-12-31T23:59:59.000Z",
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "r7",
+      "productId": "p3",
+      "type": "daily",
+      "price": 68.00,
+      "startTime": "2026-01-01T00:00:00.000Z",
+      "endTime": "2026-12-31T23:59:59.000Z",
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "r8",
+      "productId": "p3",
+      "type": "member",
+      "price": 58.00,
+      "startTime": "2026-01-01T00:00:00.000Z",
+      "endTime": "2026-12-31T23:59:59.000Z",
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "r9",
+      "productId": "p4",
+      "type": "daily",
+      "price": 198.00,
+      "startTime": "2026-01-01T00:00:00.000Z",
+      "endTime": "2026-12-31T23:59:59.000Z",
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "r10",
+      "productId": "p4",
+      "type": "flash_sale",
+      "price": 149.00,
+      "startTime": "2026-06-20T10:00:00.000Z",
+      "endTime": "2026-06-20T22:00:00.000Z",
+      "createdAt": "2026-06-19T08:00:00.000Z"
+    },
+    {
+      "id": "r11",
+      "productId": "p4",
+      "type": "member",
+      "price": 168.00,
+      "startTime": "2026-01-01T00:00:00.000Z",
+      "endTime": "2026-12-31T23:59:59.000Z",
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "r12",
+      "productId": "p5",
+      "type": "daily",
+      "price": 168.00,
+      "startTime": "2026-01-01T00:00:00.000Z",
+      "endTime": "2026-12-31T23:59:59.000Z",
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "r13",
+      "productId": "p5",
+      "type": "member",
+      "price": 145.00,
+      "startTime": "2026-01-01T00:00:00.000Z",
+      "endTime": "2026-12-31T23:59:59.000Z",
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "r14",
+      "productId": "p6",
+      "type": "daily",
+      "price": 118.00,
+      "startTime": "2026-01-01T00:00:00.000Z",
+      "endTime": "2026-12-31T23:59:59.000Z",
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    },
+    {
+      "id": "r15",
+      "productId": "p6",
+      "type": "flash_sale",
+      "price": 79.00,
+      "startTime": "2026-06-20T08:00:00.000Z",
+      "endTime": "2026-06-23T23:59:59.000Z",
+      "createdAt": "2026-06-19T12:00:00.000Z"
+    },
+    {
+      "id": "r16",
+      "productId": "p6",
+      "type": "member",
+      "price": 99.00,
+      "startTime": "2026-01-01T00:00:00.000Z",
+      "endTime": "2026-12-31T23:59:59.000Z",
+      "createdAt": "2026-01-01T00:00:00.000Z"
+    }
+  ],
+  "sales": []
+}

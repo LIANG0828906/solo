@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>🌱 微型植物生长模拟器</title>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue",
+        Arial, "PingFang SC", "Microsoft YaHei", sans-serif;
+      color: #ffffff;
+      background: #1B3A2D;
+      background: radial-gradient(
+        ellipse at 50% 40%,
+        #1B3A2D 0%,
+        #223328 35%,
+        #2a271f 65%,
+        #2D1B14 100%
+      );
+    }
+
+    body {
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .app-title {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 50;
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: 2px;
+      color: rgba(255, 255, 255, 0.9);
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.6), 0 0 20px rgba(127, 255, 0, 0.2);
+      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    .canvas-container {
+      flex: 0 0 auto;
+      width: 100%;
+      height: 80%;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .canvas-bottom-space {
+      flex: 1 1 auto;
+      width: 100%;
+      background: linear-gradient(
+        to bottom,
+        rgba(43, 39, 31, 0.9) 0%,
+        #2D1B14 100%
+      );
+      min-height: 60px;
+    }
+
+    .three-canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+      outline: none;
+    }
+
+    .control-panel {
+      position: fixed;
+      right: 20px;
+      bottom: calc(20% + 20px);
+      width: 320px;
+      min-height: 360px;
+      background: rgba(20, 20, 20, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      border-radius: 12px;
+      box-shadow:
+        0 10px 40px rgba(0, 0, 0, 0.5),
+        0 0 0 1px rgba(127, 255, 0, 0.08) inset,
+        0 0 30px rgba(127, 255, 0, 0.05);
+      color: #ffffff;
+      font-size: 14px;
+      z-index: 100;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.35s ease, opacity 0.35s ease;
+    }
+
+    .control-panel::before {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 1px;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(127, 255, 0, 0.4),
+        transparent
+      );
+      pointer-events: none;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background: linear-gradient(
+        180deg,
+        rgba(127, 255, 0, 0.06) 0%,
+        transparent 100%
+      );
+    }
+
+    .panel-title {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      color: #e8ffe8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .collapse-btn {
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      background: rgba(255, 255, 255, 0.05);
+      color: #7FFF00;
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+    }
+
+    .collapse-btn:hover {
+      background: rgba(127, 255, 0, 0.15);
+      border-color: #7FFF00;
+      transform: scale(1.05);
+    }
+
+    .panel-content-wrapper {
+      padding: 14px 16px 18px;
+      overflow-y: auto;
+      flex: 1;
+      transition: max-height 0.35s ease, opacity 0.35s ease, padding 0.35s ease;
+      max-height: 1200px;
+    }
+
+    .progress-section {
+      margin-bottom: 14px;
+    }
+
+    .progress-labels {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 13px;
+    }
+
+    .stage-label {
+      color: #7FFF00;
+      font-weight: 500;
+    }
+
+    .day-label {
+      color: rgba(255, 255, 255, 0.75);
+      font-variant-numeric: tabular-nums;
+    }
+
+    .progress-track {
+      width: 100%;
+      height: 8px;
+      background: rgba(74, 74, 74, 0.6);
+      border-radius: 6px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.4);
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 6px;
+      background: linear-gradient(
+        90deg,
+        #7FFF00 0%,
+        #6EE62E 40%,
+        #FFD700 75%,
+        #FF4500 100%
+      );
+      box-shadow: 0 0 12px rgba(127, 255, 0, 0.4);
+      transition: width 0.5s ease;
+      position: relative;
+    }
+
+    .progress-fill::after {
+      content: "";
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 50%;
+      background: linear-gradient(
+        180deg,
+        rgba(255, 255, 255, 0.25),
+        transparent
+      );
+      border-radius: 6px 6px 0 0;
+    }
+
+    .info-panel {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px 16px;
+      padding: 10px 12px;
+      background: rgba(127, 255, 0, 0.06);
+      border: 1px solid rgba(127, 255, 0, 0.15);
+      border-radius: 8px;
+      margin-bottom: 16px;
+      font-size: 12.5px;
+    }
+
+    .info-item {
+      color: rgba(255, 255, 255, 0.85);
+      flex: 1;
+      min-width: 80px;
+    }
+
+    .info-item span:last-child {
+      color: #7FFF00;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+      margin-left: 2px;
+    }
+
+    .slider-group, .angle-group {
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+    }
+
+    .angle-group {
+      margin-top: 14px;
+      padding-top: 14px;
+      border-top: 1px dashed rgba(255, 255, 255, 0.12);
+    }
+
+    .slider-group label, .angle-group label {
+      display: grid;
+      grid-template-columns: 1fr 50px;
+      grid-template-rows: auto auto;
+      grid-template-areas:
+        "slabel svalue"
+        "sslider sslider";
+      row-gap: 6px;
+      align-items: center;
+      width: 100%;
+    }
+
+    .slider-label {
+      grid-area: slabel;
+      color: rgba(255, 255, 255, 0.9);
+      font-size: 14px;
+      white-space: nowrap;
+    }
+
+    .slider-value {
+      grid-area: svalue;
+      justify-self: end;
+      color: #7FFF00;
+      font-weight: 600;
+      font-size: 13px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .slider {
+      grid-area: sslider;
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      background: #4A4A4A;
+      border-radius: 6px;
+      outline: none;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      background: #7FFF00;
+      border-radius: 50%;
+      cursor: pointer;
+      box-shadow:
+        0 0 0 2px rgba(0, 0, 0, 0.4),
+        0 0 12px rgba(127, 255, 0, 0.5);
+      transition: all 0.15s ease;
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow:
+        0 0 0 3px rgba(0, 0, 0, 0.4),
+        0 0 20px rgba(127, 255, 0, 0.8);
+    }
+
+    .slider::-moz-range-thumb {
+      width: 18px;
+      height: 18px;
+      background: #7FFF00;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid rgba(0, 0, 0, 0.4);
+      box-shadow: 0 0 12px rgba(127, 255, 0, 0.5);
+      transition: all 0.15s ease;
+    }
+
+    .slider::-moz-range-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .spectrum-slider {
+      background: linear-gradient(
+        90deg,
+        #FFFFFF 0%,
+        #FFF5B0 40%,
+        #FFE066 70%,
+        #FFD700 100%
+      ) !important;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    .spectrum-slider::-webkit-slider-thumb {
+      border: 2px solid rgba(0, 0, 0, 0.5) !important;
+    }
+
+    @media (max-width: 768px) {
+      .app-title {
+        font-size: 16px;
+        top: 12px;
+      }
+
+      .control-panel {
+        right: 0 !important;
+        left: 0 !important;
+        bottom: 0 !important;
+        width: 100% !important;
+        min-height: auto !important;
+        border-radius: 14px 14px 0 0;
+        border-bottom: none;
+        border-left: none;
+        border-right: none;
+      }
+
+      .control-panel.mobile .panel-content-wrapper {
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+      }
+
+      .info-panel {
+        font-size: 12px;
+      }
+
+      .slider::-webkit-slider-thumb {
+        width: 22px;
+        height: 22px;
+      }
+    }
+
+    .panel-content-wrapper::-webkit-scrollbar {
+      width: 6px;
+    }
+    .panel-content-wrapper::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .panel-content-wrapper::-webkit-scrollbar-thumb {
+      background: rgba(127, 255, 0, 0.3);
+      border-radius: 3px;
+    }
+    .panel-content-wrapper::-webkit-scrollbar-thumb:hover {
+      background: rgba(127, 255, 0, 0.5);
+    }
+  </style>
+</head>
+<body>
+  <div class="app-title">🌿 微型室内植物生长模拟器 · Plant Growth Simulator</div>
+  <div class="canvas-container"></div>
+  <div class="canvas-bottom-space"></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

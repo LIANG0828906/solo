@@ -1,0 +1,83 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+:root {
+  --bg-primary: #1E1E2E;
+  --bg-secondary: #2A2A3E;
+  --bg-tertiary: #35354A;
+  --primary: #89B4FA;
+  --accent: #F9E2AF;
+  --error: #F38BA8;
+  --success: #A6E3A1;
+  --text-primary: #CDD6F4;
+  --text-secondary: #9399B2;
+  --divider: #45475A;
+}
+
+html, body, #root {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  outline: none;
+}
+
+@keyframes pulse {
+  0%, 100% { background-color: rgba(249, 226, 175, 0.3); }
+  50% { background-color: rgba(249, 226, 175, 0.6); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.95); }
+}
+
+@keyframes valueFlash {
+  0% { background-color: rgba(249, 226, 175, 0.4); }
+  100% { background-color: transparent; }
+}
+
+@keyframes press {
+  0% { transform: scale(1); }
+  50% { transform: scale(0.92); }
+  100% { transform: scale(1); }
+}
+
+@keyframes loadingFill {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
+.scrollbar::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.scrollbar::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+.scrollbar::-webkit-scrollbar-thumb {
+  background: var(--divider);
+  border-radius: 4px;
+}
+
+.scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary);
+}

@@ -1,0 +1,188 @@
+.game-container {
+  font-family: 'Press Start 2P', monospace;
+  user-select: none;
+}
+
+.overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(26, 26, 46, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.menu-box {
+  background-color: #0F3460;
+  border: 3px solid #00FF00;
+  border-radius: 8px;
+  padding: 40px 50px;
+  text-align: center;
+  box-shadow: 0 0 30px rgba(0, 255, 0, 0.3);
+  max-width: 400px;
+}
+
+.game-title {
+  font-size: 36px;
+  color: #FFE66D;
+  margin: 0 0 10px 0;
+  text-shadow: 0 0 10px rgba(255, 230, 109, 0.5);
+  letter-spacing: 2px;
+}
+
+.game-subtitle {
+  font-size: 10px;
+  color: #00FFFF;
+  margin: 0 0 30px 0;
+  letter-spacing: 1px;
+}
+
+.pause-title {
+  font-size: 28px;
+  color: #FFE66D;
+  margin: 0 0 30px 0;
+}
+
+.gameover-title {
+  font-size: 28px;
+  color: #E94560;
+  margin: 0 0 30px 0;
+  text-shadow: 0 0 10px rgba(233, 69, 96, 0.5);
+}
+
+.win-title {
+  font-size: 28px;
+  color: #00FF00;
+  margin: 0 0 30px 0;
+  text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
+}
+
+.mode-selector {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 30px;
+  justify-content: center;
+}
+
+.mode-option {
+  padding: 12px 16px;
+  background-color: #16213E;
+  border: 2px solid #16213E;
+  border-radius: 4px;
+  color: #888;
+  font-size: 9px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.mode-option:hover {
+  border-color: #00FF00;
+  color: #fff;
+}
+
+.mode-option.active {
+  border-color: #00FF00;
+  background-color: rgba(0, 255, 0, 0.1);
+  color: #00FF00;
+}
+
+.game-btn {
+  display: block;
+  width: 100%;
+  padding: 14px 30px;
+  margin: 10px 0;
+  font-family: 'Press Start 2P', monospace;
+  font-size: 12px;
+  border: 2px solid #00FF00;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.15s;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.game-btn.primary {
+  background-color: transparent;
+  color: #00FF00;
+}
+
+.game-btn.primary:hover {
+  background-color: rgba(0, 255, 0, 0.15);
+  box-shadow: 0 0 15px rgba(0, 255, 0, 0.4);
+}
+
+.game-btn.primary:active {
+  transform: scale(0.95);
+}
+
+.game-btn.secondary {
+  background-color: transparent;
+  color: #888;
+  border-color: #555;
+}
+
+.game-btn.secondary:hover {
+  border-color: #888;
+  color: #fff;
+}
+
+.game-btn.secondary:active {
+  transform: scale(0.95);
+}
+
+.controls-info {
+  margin-top: 25px;
+  font-size: 8px;
+  color: #666;
+  line-height: 2;
+}
+
+.controls-info p {
+  margin: 4px 0;
+}
+
+.pause-btn {
+  position: absolute;
+  top: 70px;
+  right: 20px;
+  width: 40px;
+  height: 40px;
+  border: 2px solid #00FF00;
+  border-radius: 4px;
+  background-color: rgba(0, 255, 0, 0.1);
+  color: #00FF00;
+  font-size: 16px;
+  cursor: pointer;
+  font-family: 'Press Start 2P', monospace;
+  z-index: 10;
+  transition: all 0.15s;
+}
+
+.pause-btn:hover {
+  background-color: rgba(0, 255, 0, 0.25);
+  box-shadow: 0 0 10px rgba(0, 255, 0, 0.4);
+}
+
+.pause-btn:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 600px) {
+  .menu-box {
+    padding: 30px 20px;
+    margin: 20px;
+  }
+
+  .game-title {
+    font-size: 24px;
+  }
+
+  .game-btn {
+    font-size: 10px;
+    padding: 12px 20px;
+  }
+}

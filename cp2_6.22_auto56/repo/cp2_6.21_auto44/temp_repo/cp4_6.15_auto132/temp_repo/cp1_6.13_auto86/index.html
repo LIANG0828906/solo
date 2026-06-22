@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>绘图应用</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <aside class="sidebar-left" id="layerPanel">
+      <div class="sidebar-header">
+        <h3>图层</h3>
+        <button class="add-layer-btn" title="添加图层">+</button>
+      </div>
+      <div class="layer-list" id="layerList"></div>
+    </aside>
+    
+    <main class="main-content">
+      <div class="toolbar">
+        <div class="tool-group">
+          <button class="tool-btn active" data-tool="brush" title="画笔">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20.71 4.04a1 1 0 0 0-1.42 0l-1.18 1.18-3.54-3.54a1 1 0 0 0-1.42 0L3.71 11.12a1 1 0 0 0 0 1.42l3.54 3.54-1.18 1.18a1 1 0 0 0 0 1.42l2.12 2.12a1 1 0 0 0 1.42 0l1.18-1.18 3.54 3.54a1 1 0 0 0 1.42 0l9.44-9.44a1 1 0 0 0 0-1.42l-4.48-4.48z"/>
+            </svg>
+          </button>
+          <button class="tool-btn" data-tool="eraser" title="橡皮擦">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M15.14 3c-.51 0-1.02.2-1.41.59L2.59 14.73c-.78.78-.78 2.05 0 2.83L5.03 20H14c1.66 0 3-1.34 3-3V6.86c0-.51-.2-1.02-.59-1.41l-1.27-1.27c-.38-.38-.89-.59-1.4-.59zM13 18H7.82l-2.83-2.83L13 8.34V18z"/>
+            </svg>
+          </button>
+          <button class="tool-btn" data-tool="dip" title="蘸墨 (R)">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M3 21h18v-2H3v2zm2-4h14v-2H5v2zm2-4h10v-2H7v2zm2-4h6V7H9v2z"/>
+            </svg>
+          </button>
+        </div>
+        
+        <div class="zoom-group">
+          <button class="zoom-btn" data-action="zoom-out" title="缩小">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 13H5v-2h14v2z"/>
+            </svg>
+          </button>
+          <span class="zoom-value" id="zoomValue">100%</span>
+          <button class="zoom-btn" data-action="zoom-in" title="放大">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/>
+            </svg>
+          </button>
+          <input type="range" class="zoom-slider" id="zoomSlider" min="50" max="400" value="100" step="10">
+        </div>
+        
+        <div class="undo-group">
+          <button class="undo-btn" id="undoBtn" title="撤销 (Ctrl+Z)">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.31 0 6 2.69 6 6s-2.69 6-6 6c-1.01 0-1.97-.25-2.8-.7l-1.46 1.46C8.91 23.54 10.63 24 12.5 24c4.42 0 8-3.58 8-8s-3.58-8-8-8z"/>
+            </svg>
+          </button>
+          <span class="undo-count" id="undoCount">撤销 (0/20)</span>
+        </div>
+        
+        <div class="ink-info">
+          <div class="ink-bar-container">
+            <div class="ink-bar" id="inkBar"></div>
+          </div>
+          <span class="ink-value" id="inkValue">墨量: 100%</span>
+        </div>
+      </div>
+      
+      <div class="canvas-container" id="canvasContainer">
+        <canvas id="mainCanvas"></canvas>
+      </div>
+    </main>
+    
+    <aside class="sidebar-right" id="colorPanel">
+      <div class="sidebar-header">
+        <h3>调色板</h3>
+      </div>
+      
+      <div class="hue-ring-container">
+        <canvas id="hueRing"></canvas>
+        <div class="hue-pointer" id="huePointer"></div>
+      </div>
+      
+      <div class="sl-panel-container">
+        <canvas id="slPanel"></canvas>
+        <div class="sl-pointer" id="slPointer"></div>
+      </div>
+      
+      <div class="recent-colors">
+        <h4>最近使用</h4>
+        <div class="color-grid" id="colorGrid"></div>
+      </div>
+      
+      <div class="opacity-control">
+        <label>透明度</label>
+        <input type="range" class="opacity-slider" id="opacitySlider" min="0" max="100" value="100">
+        <span class="opacity-value" id="opacityValue">100%</span>
+      </div>
+      
+      <div class="current-color">
+        <div class="color-preview" id="colorPreview"></div>
+        <span class="color-hex" id="colorHex">#000000</span>
+      </div>
+    </aside>
+  </div>
+  
+  <div class="floating-panel left" id="floatingLayerPanel">
+    <button class="float-btn" id="floatLayerBtn">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z"/>
+      </svg>
+    </button>
+  </div>
+  
+  <div class="floating-panel right" id="floatingColorPanel">
+    <button class="float-btn" id="floatColorBtn">
+      <svg viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+      </svg>
+    </button>
+  </div>
+  
+  <script type="module" src="main.js"></script>
+</body>
+</html>

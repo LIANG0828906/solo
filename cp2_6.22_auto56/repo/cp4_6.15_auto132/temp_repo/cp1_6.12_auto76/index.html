@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>微缩城市景观沙盘编辑器</title>
+  <link rel="stylesheet" href="/src/styles.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="top-nav">
+      <div class="nav-title">
+        <span class="logo-icon">🏙️</span>
+        <span>微缩城市沙盘编辑器</span>
+      </div>
+      <button id="toggleDayNight" class="day-night-btn">
+        <span id="dayNightIcon">🌙</span>
+        <span id="dayNightText">夜间模式</span>
+      </button>
+    </header>
+
+    <div class="main-content">
+      <aside id="toolbar" class="toolbar">
+        <div class="toolbar-title">建造工具</div>
+        <div class="tool-list" id="toolList"></div>
+        <div class="toolbar-hint">
+          <div>🖱️ 左键拖拽：平移</div>
+          <div>🖱️ 滚轮：缩放</div>
+          <div>🖱️ 右键拖拽：旋转</div>
+          <div>⌨️ Delete键：删除选中</div>
+        </div>
+      </aside>
+
+      <main class="canvas-container">
+        <canvas id="sceneCanvas"></canvas>
+        <div id="forbiddenIcon" class="forbidden-icon hidden">⛔</div>
+      </main>
+
+      <aside class="info-panel">
+        <div class="panel-title">沙盘统计</div>
+        <div class="stat-item">
+          <span class="stat-label">🏢 建筑总数</span>
+          <span class="stat-value" id="buildingCount">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">📊 楼层总和</span>
+          <span class="stat-value" id="floorCount">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">🌳 树木数量</span>
+          <span class="stat-value" id="treeCount">0</span>
+        </div>
+        <div class="stat-item">
+          <span class="stat-label">💡 灯光数量</span>
+          <span class="stat-value" id="lampCount">0</span>
+        </div>
+        <div class="panel-tip">
+          提示：点击工具后在地面点击放置
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

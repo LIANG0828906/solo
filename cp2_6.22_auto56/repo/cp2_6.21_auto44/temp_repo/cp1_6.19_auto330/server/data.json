@@ -1,0 +1,76 @@
+{
+  "users": [
+    { "id": "user-1", "name": "张三", "avatar": "👤", "points": 120 },
+    { "id": "user-2", "name": "李四", "avatar": "👩", "points": 85 },
+    { "id": "user-3", "name": "王五", "avatar": "🧑", "points": 200 }
+  ],
+  "categories": {
+    "transport": {
+      "label": "交通",
+      "items": [
+        { "id": "walk", "label": "步行", "unit": "公里", "factor": 0 },
+        { "id": "bus", "label": "公交", "unit": "公里", "factor": 0.08 },
+        { "id": "car", "label": "自驾", "unit": "公里", "factor": 0.2 },
+        { "id": "flight", "label": "航班", "unit": "公里", "factor": 0.255 }
+      ]
+    },
+    "food": {
+      "label": "饮食",
+      "items": [
+        { "id": "vegan", "label": "素食", "unit": "次", "factor": 0.5 },
+        { "id": "meat", "label": "肉食", "unit": "次", "factor": 2.5 },
+        { "id": "delivery", "label": "外卖", "unit": "次", "factor": 3.0 }
+      ]
+    },
+    "electricity": {
+      "label": "用电",
+      "items": [
+        { "id": "kwh", "label": "度数", "unit": "度", "factor": 0.5 }
+      ]
+    }
+  },
+  "challenges": [
+    {
+      "id": "challenge-1",
+      "name": "一周无肉日",
+      "description": "连续7天选择素食，减少肉类消费带来的碳排放",
+      "targetDays": 7,
+      "points": 100,
+      "participants": 12,
+      "deadline": "2026-07-31T23:59:59.000Z",
+      "category": "food"
+    },
+    {
+      "id": "challenge-2",
+      "name": "连续五天骑行上班",
+      "description": "连续5天选择步行或公交出行，告别自驾",
+      "targetDays": 5,
+      "points": 150,
+      "participants": 8,
+      "deadline": "2026-07-15T23:59:59.000Z",
+      "category": "transport"
+    },
+    {
+      "id": "challenge-3",
+      "name": "节电达人",
+      "description": "30天内每日用电不超过5度，培养节能习惯",
+      "targetDays": 30,
+      "points": 200,
+      "participants": 5,
+      "deadline": "2026-08-31T23:59:59.000Z",
+      "category": "electricity"
+    },
+    {
+      "id": "challenge-4",
+      "name": "碳中和先锋",
+      "description": "累计减少碳排放超过50公斤，成为碳中和先锋",
+      "targetDays": 1,
+      "points": 50,
+      "participants": 20,
+      "deadline": "2026-12-31T23:59:59.000Z",
+      "category": "all"
+    }
+  ],
+  "activities": [],
+  "userChallenges": []
+}

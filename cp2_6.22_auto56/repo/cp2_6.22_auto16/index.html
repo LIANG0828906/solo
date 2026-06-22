@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>太空资源采集与舰队管理沙盒</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #0a0520; font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif; }
+    #app { position: relative; width: 100%; height: 100%; }
+    canvas { display: block; }
+
+    .glass-panel {
+      position: absolute;
+      background: rgba(15, 23, 52, 0.55);
+      backdrop-filter: blur(14px);
+      -webkit-backdrop-filter: blur(14px);
+      border: 1px solid rgba(80, 180, 255, 0.35);
+      border-radius: 12px;
+      box-shadow:
+        0 0 20px rgba(80, 180, 255, 0.12),
+        inset 0 0 20px rgba(80, 180, 255, 0.05);
+      color: #cfe8ff;
+      overflow: hidden;
+    }
+    .glass-panel::before {
+      content: '';
+      position: absolute; inset: 0;
+      border-radius: 12px;
+      pointer-events: none;
+      box-shadow: 0 0 1px rgba(80, 180, 255, 0.6) inset;
+    }
+
+    #left-panel {
+      top: 16px; left: 16px; bottom: 16px;
+      width: 280px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel-section {
+      padding: 14px 16px;
+      border-bottom: 1px solid rgba(80, 180, 255, 0.15);
+    }
+    .panel-section:last-child { border-bottom: none; flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    .panel-title {
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      color: #6bc8ff;
+      text-transform: uppercase;
+      margin-bottom: 10px;
+      display: flex; align-items: center; gap: 8px;
+    }
+    .panel-title::before {
+      content: ''; display: inline-block;
+      width: 4px; height: 14px;
+      background: linear-gradient(180deg, #6bc8ff, #3b82f6);
+      border-radius: 2px;
+    }
+
+    .btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      padding: 8px 14px;
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.3), rgba(139, 92, 246, 0.3));
+      border: 1px solid rgba(107, 200, 255, 0.5);
+      border-radius: 6px;
+      color: #e6f4ff;
+      font-size: 12px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      letter-spacing: 0.5px;
+    }
+    .btn:hover {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.5), rgba(139, 92, 246, 0.5));
+      box-shadow: 0 0 12px rgba(107, 200, 255, 0.4);
+      transform: translateY(-1px);
+    }
+    .btn:disabled {
+      opacity: 0.4; cursor: not-allowed;
+      transform: none; box-shadow: none;
+    }
+    .btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn-small { padding: 5px 10px; font-size: 11px; }
+
+    .input-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+    .input-row label { font-size: 11px; color: #8fb8dc; min-width: 60px; }
+    .input-row select, .input-row input {
+      flex: 1;
+      background: rgba(10, 18, 42, 0.7);
+      border: 1px solid rgba(80, 180, 255, 0.3);
+      border-radius: 4px;
+      color: #cfe8ff;
+      padding: 5px 8px;
+      font-size: 12px;
+      outline: none;
+    }
+    .input-row select:focus, .input-row input:focus {
+      border-color: #6bc8ff;
+      box-shadow: 0 0 6px rgba(107, 200, 255, 0.3);
+    }
+
+    .scroll-list {
+      flex: 1;
+      overflow-y: auto;
+      padding-right: 4px;
+      margin-top: 4px;
+    }
+    .scroll-list::-webkit-scrollbar { width: 5px; }
+    .scroll-list::-webkit-scrollbar-track { background: rgba(10, 18, 42, 0.5); border-radius: 3px; }
+    .scroll-list::-webkit-scrollbar-thumb { background: rgba(107, 200, 255, 0.3); border-radius: 3px; }
+    .scroll-list::-webkit-scrollbar-thumb:hover { background: rgba(107, 200, 255, 0.5); }
+
+    .card {
+      background: rgba(10, 18, 42, 0.6);
+      border: 1px solid rgba(80, 180, 255, 0.2);
+      border-radius: 8px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .card:hover {
+      border-color: rgba(107, 200, 255, 0.6);
+      box-shadow: 0 4px 16px rgba(107, 200, 255, 0.2);
+      transform: translateY(-2px);
+      background: rgba(20, 35, 70, 0.7);
+    }
+    .card-title {
+      font-size: 12px;
+      font-weight: 600;
+      color: #e6f4ff;
+      margin-bottom: 6px;
+      display: flex; justify-content: space-between; align-items: center;
+    }
+    .card-info { font-size: 11px; color: #8fb8dc; line-height: 1.7; }
+    .tag {
+      display: inline-block;
+      padding: 1px 7px;
+      border-radius: 10px;
+      font-size: 10px;
+      font-weight: 600;
+    }
+    .tag-iron { background: rgba(255, 140, 60, 0.2); color: #ffb070; border: 1px solid rgba(255, 140, 60, 0.4); }
+    .tag-crystal { background: rgba(96, 165, 250, 0.2); color: #93c5fd; border: 1px solid rgba(96, 165, 250, 0.4); }
+    .tag-gas { background: rgba(74, 222, 128, 0.2); color: #86efac; border: 1px solid rgba(74, 222, 128, 0.4); }
+    .tag-level { background: rgba(250, 204, 21, 0.2); color: #fde047; border: 1px solid rgba(250, 204, 21, 0.4); }
+    .tag-idle { background: rgba(148, 163, 184, 0.2); color: #cbd5e1; }
+    .tag-moving { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+    .tag-harvest { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+    .tag-return { background: rgba(168, 85, 247, 0.2); color: #c4b5fd; }
+    .tag-fight { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+
+    #minimap-panel {
+      top: 16px; right: 16px;
+      width: 200px; height: 200px;
+      padding: 10px;
+    }
+    #minimap {
+      width: 100%; height: 100%;
+      background: rgba(5, 10, 30, 0.8);
+      border-radius: 6px;
+      border: 1px solid rgba(80, 180, 255, 0.2);
+    }
+
+    #stats-panel {
+      bottom: 16px; right: 16px;
+      width: 260px;
+      padding: 14px 16px;
+    }
+    .stat-row {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 5px 0;
+      border-bottom: 1px dashed rgba(80, 180, 255, 0.12);
+      font-size: 12px;
+    }
+    .stat-row:last-child { border-bottom: none; }
+    .stat-label { color: #8fb8dc; display: flex; align-items: center; gap: 6px; }
+    .stat-value { color: #e6f4ff; font-weight: 600; font-variant-numeric: tabular-nums; transition: color 0.3s; }
+    .stat-value.flash { color: #fde047; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+
+    #combat-popup {
+      position: absolute;
+      pointer-events: none;
+      z-index: 9999;
+      font-weight: 700;
+      font-size: 18px;
+      text-shadow: 0 0 8px currentColor, 0 2px 4px rgba(0,0,0,0.6);
+      animation: popupRise 1.2s ease-out forwards;
+    }
+    @keyframes popupRise {
+      0% { opacity: 0; transform: translateY(10px) scale(0.8); }
+      20% { opacity: 1; transform: translateY(0) scale(1.15); }
+      100% { opacity: 0; transform: translateY(-50px) scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+
+  <div id="left-panel" class="glass-panel">
+    <div class="panel-section">
+      <div class="panel-title">舰队调度</div>
+      <div class="input-row">
+        <label>所属基地</label>
+        <select id="fleet-base-select"></select>
+      </div>
+      <div class="input-row">
+        <label>飞船数量</label>
+        <input type="number" id="fleet-ship-count" min="1" max="5" value="3" />
+      </div>
+      <div class="input-row">
+        <label>采集目标</label>
+        <select id="fleet-target-select">
+          <option value="auto">自动选择最近</option>
+          <option value="iron">铁矿</option>
+          <option value="crystal">水晶</option>
+          <option value="gas">气体</option>
+        </select>
+      </div>
+      <div class="btn-row">
+        <button class="btn" id="btn-create-fleet">创建舰队</button>
+      </div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">基地列表</div>
+      <div class="scroll-list" id="base-list"></div>
+    </div>
+
+    <div class="panel-section">
+      <div class="panel-title">舰队状态</div>
+      <div class="scroll-list" id="fleet-list"></div>
+    </div>
+  </div>
+
+  <div id="minimap-panel" class="glass-panel">
+    <div class="panel-title" style="margin-bottom: 8px;">地图预览</div>
+    <canvas id="minimap" width="180" height="160"></canvas>
+  </div>
+
+  <div id="stats-panel" class="glass-panel">
+    <div class="panel-title">全局统计</div>
+    <div class="stat-row">
+      <span class="stat-label"><span class="dot" style="background:#ff8c3c"></span>铁矿总采集</span>
+      <span class="stat-value" id="stat-iron">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label"><span class="dot" style="background:#60a5fa"></span>水晶总采集</span>
+      <span class="stat-value" id="stat-crystal">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label"><span class="dot" style="background:#4ade80"></span>气体总采集</span>
+      <span class="stat-value" id="stat-gas">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">🚀 活跃舰队</span>
+      <span class="stat-value" id="stat-fleets">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">🏠 基地总数</span>
+      <span class="stat-value" id="stat-bases">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">⚔️ 海盗击退</span>
+      <span class="stat-value" id="stat-pirates">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">⏱️ 运行时间</span>
+      <span class="stat-value" id="stat-time">00:00</span>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

@@ -1,0 +1,1273 @@
+:root {
+  --color-bg: #FFFAF0;
+  --color-primary: #E85D3A;
+  --color-secondary: #6B8E23;
+  --color-text: #2D2D2D;
+  --color-text-light: #666666;
+  --color-white: #FFFFFF;
+  --color-border: #E8E8E8;
+  --color-shadow: rgba(0, 0, 0, 0.1);
+  --color-shadow-hover: rgba(0, 0, 0, 0.15);
+  --border-radius: 12px;
+  --transition-speed: 0.2s;
+  --transition-timing: ease-in-out;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  transition: all var(--transition-speed) var(--transition-timing);
+}
+
+input, textarea, select {
+  font-family: inherit;
+  font-size: 14px;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all var(--transition-speed) var(--transition-timing);
+}
+
+.btn-primary {
+  background-color: var(--color-primary);
+  color: var(--color-white);
+}
+
+.btn-primary:hover {
+  background-color: #d45030;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px var(--color-shadow-hover);
+}
+
+.btn-secondary {
+  background-color: var(--color-secondary);
+  color: var(--color-white);
+}
+
+.btn-secondary:hover {
+  background-color: #5a7a1e;
+  transform: translateY(-1px);
+}
+
+.btn-outline {
+  background-color: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+}
+
+.btn-outline:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.btn-text {
+  padding: 5px 10px;
+  color: var(--color-primary);
+}
+
+.btn-text:hover {
+  background-color: rgba(232, 93, 58, 0.1);
+}
+
+.card {
+  background-color: var(--color-white);
+  border-radius: var(--border-radius);
+  box-shadow: 0 2px 8px var(--color-shadow);
+  transition: all var(--transition-speed) var(--transition-timing);
+  overflow: hidden;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px var(--color-shadow-hover);
+}
+
+.recipe-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+@media (max-width: 1023px) {
+  .recipe-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+  }
+}
+
+@media (max-width: 767px) {
+  .recipe-grid {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+}
+
+.masonry-grid {
+  columns: 3;
+  column-gap: 16px;
+}
+
+.masonry-item {
+  break-inside: avoid;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 1023px) {
+  .masonry-grid {
+    columns: 2;
+  }
+}
+
+@media (max-width: 767px) {
+  .masonry-grid {
+    columns: 1;
+  }
+}
+
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  background-color: var(--color-bg);
+  transition: all var(--transition-speed) var(--transition-timing);
+}
+
+.navbar.scrolled {
+  background-color: rgba(255, 250, 240, 0.85);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 2px 20px var(--color-shadow);
+}
+
+.navbar-content {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.logo {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--color-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nav-links {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+
+.nav-link {
+  color: var(--color-text);
+  font-weight: 500;
+  transition: color var(--transition-speed) var(--transition-timing);
+}
+
+.nav-link:hover,
+.nav-link.active {
+  color: var(--color-primary);
+}
+
+.nav-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.user-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.main-content {
+  padding-top: 80px;
+  min-height: 100vh;
+}
+
+.recipe-card {
+  cursor: pointer;
+  position: relative;
+}
+
+.recipe-card-image {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.recipe-card-content {
+  padding: 16px;
+}
+
+.recipe-card-title {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--color-text);
+}
+
+.recipe-card-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.recipe-card-difficulty {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.star {
+  color: #ddd;
+  font-size: 16px;
+}
+
+.star.filled {
+  color: #FFD700;
+}
+
+.recipe-card-author {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--color-text-light);
+}
+
+.recipe-card-author img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+
+.recipe-card-hover-actions {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(to bottom, rgba(0,0,0,0.1), rgba(0,0,0,0.3));
+  opacity: 0;
+  transition: opacity var(--transition-speed) var(--transition-timing);
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  padding: 12px;
+  gap: 8px;
+}
+
+.recipe-card:hover .recipe-card-hover-actions {
+  opacity: 1;
+}
+
+.hover-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  transition: all var(--transition-speed) var(--transition-timing);
+}
+
+.hover-btn:hover {
+  background-color: var(--color-white);
+  transform: scale(1.1);
+}
+
+.hover-btn.active {
+  color: var(--color-primary);
+}
+
+.filters-bar {
+  background-color: var(--color-white);
+  border-radius: var(--border-radius);
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px var(--color-shadow);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-items: center;
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.filter-group label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text-light);
+}
+
+.filter-group select,
+.filter-group input {
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background-color: var(--color-white);
+  font-size: 14px;
+  outline: none;
+  transition: border-color var(--transition-speed) var(--transition-timing);
+}
+
+.filter-group select:focus,
+.filter-group input:focus {
+  border-color: var(--color-primary);
+}
+
+.recipe-detail {
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 32px;
+  padding: 24px 0;
+}
+
+@media (max-width: 1023px) {
+  .recipe-detail {
+    grid-template-columns: 1fr;
+  }
+}
+
+.recipe-detail-main {
+  order: 1;
+}
+
+.recipe-detail-sidebar {
+  order: 2;
+  position: sticky;
+  top: 100px;
+  align-self: flex-start;
+}
+
+@media (max-width: 1023px) {
+  .recipe-detail-sidebar {
+    order: -1;
+    position: static;
+  }
+}
+
+.recipe-detail-header {
+  margin-bottom: 24px;
+}
+
+.recipe-detail-title {
+  font-size: 32px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.recipe-detail-info {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  color: var(--color-text-light);
+  font-size: 14px;
+}
+
+.recipe-detail-info-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.recipe-detail-description {
+  margin: 20px 0;
+  font-size: 16px;
+  line-height: 1.8;
+  color: var(--color-text-light);
+}
+
+.steps-gallery {
+  margin-top: 32px;
+}
+
+.steps-gallery h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.step-card {
+  background-color: var(--color-white);
+  border-radius: var(--border-radius);
+  overflow: hidden;
+  box-shadow: 0 2px 8px var(--color-shadow);
+  margin-bottom: 16px;
+  break-inside: avoid;
+}
+
+.step-card-image {
+  width: 100%;
+  cursor: pointer;
+  transition: transform var(--transition-speed) var(--transition-timing);
+}
+
+.step-card-image:hover {
+  transform: scale(1.02);
+}
+
+.step-card-content {
+  padding: 16px;
+}
+
+.step-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+
+.step-description {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--color-text);
+}
+
+.ingredients-card {
+  background-color: var(--color-white);
+  border-radius: var(--border-radius);
+  padding: 24px;
+  box-shadow: 0 2px 8px var(--color-shadow);
+  margin-bottom: 20px;
+}
+
+.ingredients-card h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ingredients-list {
+  list-style: none;
+}
+
+.ingredient-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--color-border);
+  font-size: 14px;
+}
+
+.ingredient-item:last-child {
+  border-bottom: none;
+}
+
+.ingredient-name {
+  color: var(--color-text);
+}
+
+.ingredient-amount {
+  color: var(--color-text-light);
+  font-weight: 500;
+}
+
+.action-buttons {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+
+.action-buttons .btn {
+  flex: 1;
+}
+
+.comments-section {
+  margin-top: 48px;
+  background-color: var(--color-white);
+  border-radius: var(--border-radius);
+  padding: 24px;
+  box-shadow: 0 2px 8px var(--color-shadow);
+}
+
+.comments-section h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.comment-form {
+  margin-bottom: 24px;
+}
+
+.comment-form textarea {
+  width: 100%;
+  min-height: 100px;
+  padding: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  resize: vertical;
+  outline: none;
+  transition: border-color var(--transition-speed) var(--transition-timing);
+}
+
+.comment-form textarea:focus {
+  border-color: var(--color-primary);
+}
+
+.comment-form-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.rating-input {
+  display: flex;
+  gap: 4px;
+}
+
+.rating-star {
+  font-size: 24px;
+  cursor: pointer;
+  color: #ddd;
+  transition: color var(--transition-speed) var(--transition-timing);
+}
+
+.rating-star:hover,
+.rating-star.active {
+  color: #FFD700;
+}
+
+.emoji-picker {
+  position: relative;
+}
+
+.emoji-btn {
+  font-size: 20px;
+  padding: 6px;
+  border-radius: 6px;
+}
+
+.emoji-btn:hover {
+  background-color: var(--color-border);
+}
+
+.emoji-list {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  background-color: var(--color-white);
+  border-radius: 8px;
+  box-shadow: 0 4px 20px var(--color-shadow-hover);
+  padding: 8px;
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  z-index: 100;
+}
+
+.emoji-item {
+  font-size: 20px;
+  padding: 4px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color var(--transition-speed) var(--transition-timing);
+}
+
+.emoji-item:hover {
+  background-color: var(--color-bg);
+}
+
+.comment-item {
+  padding: 16px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.comment-item:last-child {
+  border-bottom: none;
+}
+
+.comment-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.comment-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.comment-info {
+  flex: 1;
+}
+
+.comment-username {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.comment-time {
+  font-size: 12px;
+  color: var(--color-text-light);
+}
+
+.comment-rating {
+  display: flex;
+  gap: 2px;
+}
+
+.comment-content {
+  font-size: 14px;
+  line-height: 1.7;
+  color: var(--color-text);
+  margin-left: 52px;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+.modal-image {
+  max-width: 100%;
+  max-height: 80vh;
+  object-fit: contain;
+}
+
+.modal-close {
+  position: absolute;
+  top: -40px;
+  right: 0;
+  color: var(--color-white);
+  font-size: 32px;
+  cursor: pointer;
+}
+
+.modal-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.2);
+  color: var(--color-white);
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background-color var(--transition-speed) var(--transition-timing);
+}
+
+.modal-nav:hover {
+  background-color: rgba(255, 255, 255, 0.3);
+}
+
+.modal-nav.prev {
+  left: 20px;
+}
+
+.modal-nav.next {
+  right: 20px;
+}
+
+.modal-step-info {
+  text-align: center;
+  color: var(--color-white);
+  margin-top: 16px;
+  font-size: 16px;
+}
+
+.share-modal {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background-color: var(--color-white);
+  border-radius: var(--border-radius);
+  padding: 32px;
+  z-index: 2000;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+}
+
+.share-modal h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 20px;
+}
+
+.share-link {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.share-link input {
+  flex: 1;
+  padding: 10px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 14px;
+  background-color: var(--color-bg);
+}
+
+.embed-code {
+  margin-top: 20px;
+}
+
+.embed-code h4 {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: var(--color-text-light);
+}
+
+.embed-code pre {
+  background-color: #f5f5f5;
+  padding: 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.embed-preview {
+  margin-top: 16px;
+  padding: 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--color-bg);
+  padding: 20px;
+}
+
+.auth-card {
+  background-color: var(--color-white);
+  border-radius: var(--border-radius);
+  padding: 40px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: 0 4px 20px var(--color-shadow);
+}
+
+.auth-card h2 {
+  font-size: 28px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 8px;
+  color: var(--color-primary);
+}
+
+.auth-subtitle {
+  text-align: center;
+  color: var(--color-text-light);
+  margin-bottom: 32px;
+  font-size: 14px;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  margin-bottom: 8px;
+  color: var(--color-text);
+}
+
+.form-group input,
+.form-group textarea,
+.form-group select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color var(--transition-speed) var(--transition-timing);
+}
+
+.form-group input:focus,
+.form-group textarea:focus,
+.form-group select:focus {
+  border-color: var(--color-primary);
+}
+
+.form-group textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.form-error {
+  color: var(--color-primary);
+  font-size: 13px;
+  margin-top: 6px;
+}
+
+.auth-submit {
+  width: 100%;
+  padding: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.auth-footer {
+  text-align: center;
+  margin-top: 24px;
+  font-size: 14px;
+  color: var(--color-text-light);
+}
+
+.auth-footer a {
+  color: var(--color-primary);
+  font-weight: 500;
+}
+
+.recipe-form-page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 40px 20px;
+}
+
+.recipe-form-page h2 {
+  font-size: 28px;
+  font-weight: 700;
+  margin-bottom: 32px;
+}
+
+.recipe-form-section {
+  background-color: var(--color-white);
+  border-radius: var(--border-radius);
+  padding: 24px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px var(--color-shadow);
+}
+
+.recipe-form-section h3 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 20px;
+  color: var(--color-primary);
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 767px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+.image-upload {
+  border: 2px dashed var(--color-border);
+  border-radius: 8px;
+  padding: 32px;
+  text-align: center;
+  cursor: pointer;
+  transition: all var(--transition-speed) var(--transition-timing);
+}
+
+.image-upload:hover {
+  border-color: var(--color-primary);
+  background-color: rgba(232, 93, 58, 0.05);
+}
+
+.image-upload-preview {
+  position: relative;
+  display: inline-block;
+}
+
+.image-upload-preview img {
+  max-width: 100%;
+  max-height: 300px;
+  border-radius: 8px;
+  object-fit: cover;
+}
+
+.image-upload-remove {
+  position: absolute;
+  top: -10px;
+  right: -10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+}
+
+.ingredient-row {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 12px;
+  align-items: flex-start;
+}
+
+.ingredient-row .ingredient-name {
+  flex: 2;
+  position: relative;
+}
+
+.ingredient-row .ingredient-amount {
+  flex: 1;
+}
+
+.ingredient-row .ingredient-remove {
+  width: 40px;
+  height: 40px;
+  border-radius: 6px;
+  background-color: #f5f5f5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color var(--transition-speed) var(--transition-timing);
+}
+
+.ingredient-row .ingredient-remove:hover {
+  background-color: #ffe0e0;
+  color: var(--color-primary);
+}
+
+.ingredient-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background-color: var(--color-white);
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px var(--color-shadow);
+  z-index: 100;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.ingredient-suggestion-item {
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color var(--transition-speed) var(--transition-timing);
+}
+
+.ingredient-suggestion-item:hover {
+  background-color: var(--color-bg);
+}
+
+.add-ingredient-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--color-primary);
+  font-size: 14px;
+  font-weight: 500;
+  padding: 8px 0;
+}
+
+.step-item {
+  background-color: var(--color-bg);
+  border-radius: 8px;
+  padding: 16px;
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.step-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.step-number-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: var(--color-primary);
+  color: var(--color-white);
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.step-remove-btn {
+  color: var(--color-text-light);
+  font-size: 14px;
+  padding: 6px 12px;
+  border-radius: 4px;
+}
+
+.step-remove-btn:hover {
+  background-color: #ffe0e0;
+  color: var(--color-primary);
+}
+
+.step-images {
+  display: flex;
+  gap: 12px;
+  margin-top: 12px;
+  flex-wrap: wrap;
+}
+
+.step-image-item {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.step-image-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.step-image-remove {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.5);
+  color: var(--color-white);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.step-image-add {
+  width: 100px;
+  height: 100px;
+  border: 2px dashed var(--color-border);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 24px;
+  color: var(--color-text-light);
+  transition: all var(--transition-speed) var(--transition-timing);
+}
+
+.step-image-add:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+
+.add-step-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 16px;
+  border: 2px dashed var(--color-border);
+  border-radius: 8px;
+  color: var(--color-text-light);
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.add-step-btn:hover {
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background-color: rgba(232, 93, 58, 0.05);
+}
+
+.form-submit-buttons {
+  display: flex;
+  gap: 16px;
+  justify-content: flex-end;
+  margin-top: 32px;
+}
+
+.form-submit-buttons .btn {
+  min-width: 120px;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 80px 20px;
+  color: var(--color-text-light);
+}
+
+.empty-state-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.empty-state-text {
+  font-size: 16px;
+  margin-bottom: 24px;
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 60px;
+  color: var(--color-text-light);
+}
+
+.loading-spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid var(--color-border);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  margin-right: 12px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.toast {
+  position: fixed;
+  top: 80px;
+  right: 20px;
+  padding: 14px 20px;
+  border-radius: 8px;
+  background-color: var(--color-white);
+  box-shadow: 0 4px 20px var(--color-shadow-hover);
+  z-index: 3000;
+  font-size: 14px;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.toast.success {
+  border-left: 4px solid var(--color-secondary);
+}
+
+.toast.error {
+  border-left: 4px solid var(--color-primary);
+}

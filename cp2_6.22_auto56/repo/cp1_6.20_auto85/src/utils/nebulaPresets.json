@@ -1,0 +1,41 @@
+[
+  {
+    "id": "builtin-spiral",
+    "name": "螺旋星云",
+    "isBuiltIn": true,
+    "params": {
+      "particleCount": 8000,
+      "gravity": 1.5,
+      "turbulence": 0.8,
+      "dissipation": 0.01,
+      "colorShift": 0.3,
+      "morphology": "spiral"
+    }
+  },
+  {
+    "id": "builtin-elliptical",
+    "name": "椭圆星云",
+    "isBuiltIn": true,
+    "params": {
+      "particleCount": 8000,
+      "gravity": 2.0,
+      "turbulence": 0.4,
+      "dissipation": 0.005,
+      "colorShift": 0.5,
+      "morphology": "elliptical"
+    }
+  },
+  {
+    "id": "builtin-irregular",
+    "name": "不规则星云",
+    "isBuiltIn": true,
+    "params": {
+      "particleCount": 8000,
+      "gravity": 0.8,
+      "turbulence": 2.0,
+      "dissipation": 0.02,
+      "colorShift": 0.7,
+      "morphology": "irregular"
+    }
+  }
+]

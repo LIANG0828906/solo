@@ -1,0 +1,21 @@
+.app-container {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  position: relative;
+}
+
+.scene-container {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 30%;
+  bottom: 0;
+  transition: right 0.3s ease;
+}
+
+@media (max-width: 768px) {
+  .scene-container {
+    right: 0;
+  }
+}

@@ -1,0 +1,133 @@
+.info-panel-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, 0);
+  backdrop-filter: blur(0px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  transition: background-color 0.3s ease, backdrop-filter 0.3s ease;
+}
+
+.info-panel-overlay.visible {
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(5px);
+}
+
+.info-panel-content {
+  width: 400px;
+  max-width: 90%;
+  height: auto;
+  max-height: 80vh;
+  background-color: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: 16px;
+  border: 1px solid rgba(212, 175, 55, 0.3);
+  padding: 32px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  position: relative;
+  overflowY: auto;
+  transform: scale(0.7);
+  opacity: 0;
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), opacity 0.3s ease;
+}
+
+.info-panel-content.visible {
+  transform: scale(1);
+  opacity: 1;
+}
+
+.info-panel-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background-color: rgba(212, 175, 55, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #d4af37;
+  fontSize: 18px;
+  transition: all 0.3s;
+}
+
+.info-panel-body {
+  display: flex;
+  flex-direction: row-reverse;
+  gap: 24px;
+  min-height: 200px;
+}
+
+.info-panel-title {
+  writing-mode: vertical-rl;
+  text-orientation: upright;
+  font-family: 'KaiTi', 'STKaiti', serif;
+  color: #f5deb3;
+  font-size: 20px;
+  line-height: 1.8;
+  letter-spacing: 4px;
+  font-weight: bold;
+  border-right: 2px solid #d4af37;
+  padding-right: 16px;
+  height: fit-content;
+  max-height: 300px;
+}
+
+.info-panel-details {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.info-panel-detail {
+  font-family: 'KaiTi', 'STKaiti', serif;
+  color: #d4af37;
+  font-size: 14px;
+}
+
+.info-panel-label {
+  margin-right: 8px;
+}
+
+.info-panel-value {
+  color: #f5deb3;
+}
+
+.info-panel-divider {
+  margin-top: 8px;
+  padding-top: 16px;
+  border-top: 1px solid rgba(212, 175, 55, 0.3);
+}
+
+.info-panel-description {
+  font-family: 'KaiTi', 'STKaiti', serif;
+  color: #f5deb3;
+  font-size: 15px;
+  line-height: 1.8;
+  text-indent: 2em;
+}
+
+.info-panel-bottom-line {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #d4af37, transparent);
+}
+
+@media (max-width: 768px) {
+  .info-panel-content {
+    width: 90%;
+  }
+}

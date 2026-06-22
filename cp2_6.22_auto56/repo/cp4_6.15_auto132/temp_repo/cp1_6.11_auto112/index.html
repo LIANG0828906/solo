@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>智能植物病害诊断器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;600;700&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+  <script type="module" src="/src/main.ts"></script>
+  <style>
+    :root {
+      --primary: #4CAF50;
+      --primary-dark: #388E3C;
+      --secondary: #9C27B0;
+      --danger: #F44336;
+      --warning: #FF9800;
+      --success: #4CAF50;
+      --info: #2196F3;
+      --info-dark: #1A78C2;
+      --bg-main: #F5F5F5;
+      --bg-canvas: #E8E8E8;
+      --bg-panel: #FAFAFA;
+      --bg-history: #F0F0F0;
+      --bg-tooltip: #FFF9C4;
+      --text-primary: #333333;
+      --text-secondary: #555555;
+      --text-light: #FFFFFF;
+      --nav-bg: #333333;
+      --border-light: #E0E0E0;
+      --shadow-soft: 0 2px 8px rgba(0, 0, 0, 0.1);
+      --shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.15);
+      --shadow-tooltip: 3px 3px 6px rgba(0, 0, 0, 0.15);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--bg-main);
+      color: var(--text-primary);
+      line-height: 1.6;
+      height: 100%;
+      overflow-x: hidden;
+    }
+
+    h1, h2, h3, h4 {
+      font-family: 'Lora', serif;
+      font-weight: 600;
+    }
+
+    .app-container {
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+      padding-top: 60px;
+    }
+
+    .navbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 60px;
+      background-color: var(--nav-bg);
+      color: var(--text-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 100;
+      box-shadow: var(--shadow-soft);
+    }
+
+    .navbar h1 {
+      font-size: 22px;
+      letter-spacing: 1px;
+    }
+
+    .navbar h1::before {
+      content: "🌿 ";
+      margin-right: 8px;
+    }
+
+    .main-content {
+      display: flex;
+      flex: 1;
+      padding: 24px;
+      gap: 24px;
+      min-height: 600px;
+      justify-content: center;
+      align-items: flex-start;
+      animation: fadeIn 0.5s ease;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .left-section {
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .upload-area {
+      width: 600px;
+      padding: 24px;
+      background-color: var(--bg-panel);
+      border-radius: 8px;
+      box-shadow: var(--shadow-soft);
+      transition: all 0.3s ease;
+    }
+
+    .upload-area:hover {
+      box-shadow: var(--shadow-hover);
+    }
+
+    .upload-zone {
+      border: 2px dashed var(--border-light);
+      border-radius: 8px;
+      padding: 32px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      background-color: var(--bg-main);
+    }
+
+    .upload-zone:hover,
+    .upload-zone.dragover {
+      border-color: var(--primary);
+      background-color: rgba(76, 175, 80, 0.05);
+    }
+
+    .upload-zone.dragover {
+      transform: scale(1.01);
+    }
+
+    .upload-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+    }
+
+    .upload-text {
+      color: var(--text-secondary);
+      font-size: 14px;
+      margin-bottom: 8px;
+    }
+
+    .upload-hint {
+      color: #999;
+      font-size: 12px;
+    }
+
+    .upload-btn {
+      display: inline-block;
+      padding: 10px 24px;
+      background-color: var(--primary);
+      color: var(--text-light);
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      margin-top: 12px;
+      font-family: 'Noto Sans SC', sans-serif;
+    }
+
+    .upload-btn:hover {
+      background-color: var(--primary-dark);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .upload-btn:active {
+      transform: scale(0.95);
+    }
+
+    #file-input {
+      display: none;
+    }
+
+    .canvas-container {
+      width: 600px;
+      height: 500px;
+      position: relative;
+      background-color: var(--bg-canvas);
+      background-image: 
+        linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px);
+      background-size: 20px 20px;
+      border-radius: 8px;
+      box-shadow: var(--shadow-soft);
+      overflow: hidden;
+    }
+
+    #main-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    .canvas-placeholder {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: #999;
+      pointer-events: none;
+    }
+
+    .canvas-placeholder-icon {
+      font-size: 64px;
+      margin-bottom: 16px;
+      opacity: 0.5;
+    }
+
+    .tooltip {
+      position: fixed;
+      background-color: var(--bg-tooltip);
+      color: var(--text-primary);
+      padding: 8px 12px;
+      border-radius: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+      box-shadow: var(--shadow-tooltip);
+      white-space: nowrap;
+    }
+
+    .tooltip.visible {
+      opacity: 1;
+    }
+
+    .report-panel {
+      width: 300px;
+      background-color: var(--bg-panel);
+      border-radius: 8px;
+      padding: 20px;
+      box-shadow: var(--shadow-soft);
+      transition: all 0.3s ease;
+    }
+
+    .report-panel:hover {
+      box-shadow: var(--shadow-hover);
+    }
+
+    .report-title {
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .report-title::before {
+      content: "📋";
+    }
+
+    .report-section {
+      margin-bottom: 20px;
+    }
+
+    .report-label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      margin-bottom: 6px;
+    }
+
+    .report-value {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .report-value.spot-count {
+      font-size: 28px;
+      font-weight: 700;
+      color: var(--danger);
+    }
+
+    .severity-tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 80px;
+      height: 24px;
+      border-radius: 4px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--text-light);
+    }
+
+    .severity-tag.mild {
+      background-color: var(--success);
+    }
+
+    .severity-tag.moderate {
+      background-color: var(--warning);
+    }
+
+    .severity-tag.severe {
+      background-color: var(--danger);
+    }
+
+    .suggestions-list {
+      list-style: none;
+      padding: 0;
+    }
+
+    .suggestions-list li {
+      position: relative;
+      padding-left: 20px;
+      margin-bottom: 10px;
+      font-size: 14px;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .suggestions-list li::before {
+      content: "•";
+      position: absolute;
+      left: 0;
+      color: var(--primary);
+      font-weight: bold;
+    }
+
+    .reanalyze-btn {
+      width: 120px;
+      height: 40px;
+      background-color: var(--info);
+      color: var(--text-light);
+      border: none;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      font-family: 'Noto Sans SC', sans-serif;
+    }
+
+    .reanalyze-btn:hover:not(:disabled) {
+      background-color: var(--info-dark);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-soft);
+    }
+
+    .reanalyze-btn:active:not(:disabled) {
+      transform: scale(0.95);
+    }
+
+    .reanalyze-btn:disabled {
+      background-color: #CCC;
+      cursor: not-allowed;
+    }
+
+    .report-placeholder {
+      text-align: center;
+      color: #999;
+      padding: 40px 20px;
+    }
+
+    .report-placeholder-icon {
+      font-size: 48px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+
+    .history-section {
+      background-color: var(--bg-history);
+      padding: 16px 24px;
+      overflow-x: auto;
+      overflow-y: hidden;
+      height: 120px;
+      scroll-behavior: smooth;
+      will-change: transform;
+    }
+
+    .history-section::-webkit-scrollbar {
+      height: 6px;
+    }
+
+    .history-section::-webkit-scrollbar-track {
+      background: #E0E0E0;
+      border-radius: 3px;
+    }
+
+    .history-section::-webkit-scrollbar-thumb {
+      background: #BDBDBD;
+      border-radius: 3px;
+    }
+
+    .history-section::-webkit-scrollbar-thumb:hover {
+      background: #9E9E9E;
+    }
+
+    .history-title {
+      font-size: 14px;
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+      position: sticky;
+      left: 0;
+      background-color: var(--bg-history);
+      z-index: 1;
+      padding-bottom: 4px;
+    }
+
+    .history-container {
+      display: flex;
+      gap: 0;
+      align-items: flex-start;
+      min-width: min-content;
+      padding-bottom: 8px;
+    }
+
+    .history-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 8px 16px;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      border-left: 1px solid var(--border-light);
+      min-width: 120px;
+      animation: slideIn 0.3s ease;
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateX(-10px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+
+    .history-item:first-child {
+      border-left: none;
+    }
+
+    .history-item:hover {
+      background-color: rgba(255, 255, 255, 0.5);
+    }
+
+    .history-item.active {
+      background-color: rgba(76, 175, 80, 0.1);
+    }
+
+    .history-thumbnail {
+      width: 64px;
+      height: 64px;
+      border-radius: 4px;
+      object-fit: cover;
+      margin-bottom: 8px;
+      background-color: #DDD;
+    }
+
+    .history-disease {
+      font-size: 12px;
+      color: var(--text-primary);
+      margin-bottom: 4px;
+      text-align: center;
+      max-width: 100px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .history-empty {
+      color: #999;
+      font-size: 13px;
+      padding: 20px;
+    }
+
+    .loading-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.8);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 10;
+      border-radius: 8px;
+    }
+
+    .loading-spinner {
+      width: 40px;
+      height: 40px;
+      border: 3px solid var(--border-light);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin-bottom: 12px;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .loading-text {
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    @media (max-width: 768px) {
+      .main-content {
+        flex-direction: column;
+        padding: 16px;
+        gap: 16px;
+      }
+
+      .left-section,
+      .upload-area,
+      .canvas-container {
+        width: 100%;
+      }
+
+      .canvas-container {
+        height: 400px;
+      }
+
+      .report-panel {
+        width: 100%;
+      }
+
+      .navbar h1 {
+        font-size: 18px;
+      }
+
+      .history-section {
+        padding: 12px 16px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-container">
+    <nav class="navbar">
+      <h1>智能植物病害诊断器</h1>
+    </nav>
+
+    <main class="main-content">
+      <div class="left-section">
+        <div class="upload-area">
+          <div class="upload-zone" id="upload-zone">
+            <div class="upload-icon">📁</div>
+            <p class="upload-text">点击或拖拽上传植物叶片照片</p>
+            <p class="upload-hint">支持 JPG / PNG 格式，建议尺寸 800×600 以上</p>
+            <button class="upload-btn" id="upload-btn">选择图片</button>
+            <input type="file" id="file-input" accept="image/jpeg,image/png" />
+          </div>
+        </div>
+
+        <div class="canvas-container" id="canvas-container">
+          <canvas id="main-canvas" width="600" height="500"></canvas>
+          <div class="canvas-placeholder" id="canvas-placeholder">
+            <div class="canvas-placeholder-icon">🌱</div>
+            <p>上传图片后在此显示分析结果</p>
+          </div>
+          <div class="loading-overlay" id="loading-overlay" style="display: none;">
+            <div class="loading-spinner"></div>
+            <p class="loading-text">正在分析图像...</p>
+          </div>
+        </div>
+      </div>
+
+      <aside class="report-panel" id="report-panel">
+        <h2 class="report-title">病害诊断报告</h2>
+        <div class="report-placeholder" id="report-placeholder">
+          <div class="report-placeholder-icon">📊</div>
+          <p>上传图片后自动生成诊断报告</p>
+        </div>
+        <div id="report-content" style="display: none;"></div>
+      </aside>
+    </main>
+
+    <footer class="history-section" id="history-section">
+      <div class="history-title">📜 历史记录</div>
+      <div class="history-container" id="history-container">
+        <div class="history-empty" id="history-empty">暂无分析记录</div>
+      </div>
+    </footer>
+  </div>
+
+  <div class="tooltip" id="tooltip"></div>
+</body>
+</html>

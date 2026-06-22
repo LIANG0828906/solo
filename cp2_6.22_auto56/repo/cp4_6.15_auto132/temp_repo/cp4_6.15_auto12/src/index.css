@@ -1,0 +1,171 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&family=Noto+Serif+SC:wght@400;600;700&display=swap');
+
+:root {
+  font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  background-color: #FFF8F0;
+  color: #3d301f;
+}
+
+.glass-effect {
+  background-color: rgba(255, 255, 255, 0.72);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
+  backdrop-filter: blur(14px) saturate(180%);
+  border-color: rgba(139, 111, 71, 0.1);
+}
+
+@supports not ((backdrop-filter: blur(14px)) or (-webkit-backdrop-filter: blur(14px))) {
+  .glass-effect {
+    background-color: rgba(255, 255, 255, 0.95);
+  }
+}
+
+@keyframes slide-out-left {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(-120%);
+    opacity: 0;
+  }
+}
+
+.slide-out-left {
+  animation: slide-out-left 320ms ease-in forwards;
+}
+
+@keyframes stepOut {
+  0% {
+    transform: translateX(0) rotateY(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-100%) rotateY(-15deg);
+    opacity: 0;
+  }
+}
+
+@keyframes stepIn {
+  0% {
+    transform: translateX(100%) rotateY(15deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes stepOutBack {
+  0% {
+    transform: translateX(0) rotateY(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(100%) rotateY(15deg);
+    opacity: 0;
+  }
+}
+
+@keyframes stepInBack {
+  0% {
+    transform: translateX(-100%) rotateY(-15deg);
+    opacity: 0;
+  }
+  100% {
+    transform: translateX(0) rotateY(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes timerPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(107, 142, 35, 0.5);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 14px rgba(107, 142, 35, 0);
+    transform: scale(1.03);
+  }
+}
+
+.timer-pulse {
+  animation: timerPulse 1s ease-in-out infinite;
+}
+
+.animate-step-out {
+  animation: stepOut 320ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-step-in {
+  animation: stepIn 320ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-step-out-back {
+  animation: stepOutBack 320ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.animate-step-in-back {
+  animation: stepInBack 320ms cubic-bezier(0.4, 0, 0.2, 1) forwards;
+}
+
+.perspective-container {
+  perspective: 1200px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #cbb07e transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background-color: #cbb07e;
+  border-radius: 3px;
+}
+
+.card-ingredient {
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(139, 111, 71, 0.1), 0 1px 3px rgba(139, 111, 71, 0.06);
+  transition: box-shadow 200ms ease, transform 200ms ease;
+}
+
+.card-ingredient:hover {
+  box-shadow: 0 6px 18px rgba(139, 111, 71, 0.15), 0 2px 6px rgba(139, 111, 71, 0.08);
+}
+
+.card-recipe {
+  border-radius: 16px;
+  background: #ffffff;
+  box-shadow: 0 4px 12px rgba(139, 111, 71, 0.12), 0 2px 4px rgba(139, 111, 71, 0.08);
+  transition: box-shadow 250ms ease, transform 250ms ease;
+}
+
+.card-recipe:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 14px 28px rgba(139, 111, 71, 0.2), 0 6px 12px rgba(139, 111, 71, 0.1);
+}
+

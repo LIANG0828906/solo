@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <title>简历</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    @page {
+      size: A4;
+      margin: 0;
+    }
+
+    body {
+      width: 210mm;
+      min-height: 297mm;
+      padding: 20mm 20mm;
+      font-family: {{ template.fonts.body }};
+      color: {{ template.colors.text }};
+      background: {{ template.colors.background }};
+      font-size: 12pt;
+      line-height: 1.5;
+    }
+
+    .resume-content {
+      display: flex;
+      flex-direction: column;
+      gap: 8mm;
+    }
+
+    .section-title {
+      font-size: 16pt;
+      font-weight: 700;
+      color: {{ template.colors.title }};
+      font-family: {{ template.fonts.heading }};
+      padding-bottom: 3mm;
+      border-bottom: 2px solid {{ template.colors.divider }};
+      margin-bottom: 5mm;
+      display: flex;
+      align-items: center;
+      gap: 3mm;
+    }
+
+    .title-accent {
+      width: 4px;
+      height: 18pt;
+      background: {{ template.colors.accent }};
+      border-radius: 2px;
+    }
+
+    .personal-header {
+      display: flex;
+      align-items: center;
+      gap: 8mm;
+      margin-bottom: 5mm;
+    }
+
+    .avatar {
+      width: 28mm;
+      height: 28mm;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid {{ template.colors.accent }};
+    }
+
+    .personal-text {
+      flex: 1;
+    }
+
+    .name {
+      font-size: 28pt;
+      font-weight: 700;
+      color: {{ template.colors.title }};
+      font-family: {{ template.fonts.heading }};
+      margin-bottom: 3mm;
+    }
+
+    .contact-info {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5mm;
+      font-size: 10pt;
+      color: #64748b;
+    }
+
+    .contact-item {
+      display: flex;
+      align-items: center;
+      gap: 2mm;
+    }
+
+    .summary {
+      padding: 4mm 5mm;
+      border-left: 4px solid {{ template.colors.accent }};
+      background: {{ template.colors.sectionBg }};
+      font-size: 10.5pt;
+      line-height: 1.6;
+      margin-bottom: 4mm;
+      border-radius: 0 2mm 2mm 0;
+    }
+
+    .section-divider {
+      height: 1px;
+      background: {{ template.colors.divider }};
+      margin-top: 4mm;
+    }
+
+    .entry-item {
+      margin-bottom: 5mm;
+    }
+
+    .entry-item:last-child {
+      margin-bottom: 0;
+    }
+
+    .entry-title-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 1mm;
+    }
+
+    .entry-title {
+      font-size: 12.5pt;
+      font-weight: 600;
+      color: {{ template.colors.title }};
+    }
+
+    .entry-date {
+      font-size: 10pt;
+      color: {{ template.colors.accent }};
+      font-weight: 500;
+    }
+
+    .entry-subtitle {
+      font-size: 10.5pt;
+      color: #64748b;
+      margin-bottom: 2mm;
+      font-weight: 500;
+    }
+
+    .entry-description {
+      font-size: 10.5pt;
+      line-height: 1.6;
+      white-space: pre-wrap;
+    }
+
+    .skills-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4mm 8mm;
+    }
+
+    .skill-tag-wrapper {
+      display: flex;
+      flex-direction: column;
+      gap: 1.5mm;
+    }
+
+    .skill-tag {
+      display: inline-block;
+      padding: 1.5mm 4mm;
+      background: {{ template.colors.sectionBg }};
+      color: {{ template.colors.title }};
+      border: 1px solid {{ template.colors.accent }};
+      border-radius: 2mm;
+      font-size: 10pt;
+      font-weight: 500;
+      width: fit-content;
+    }
+
+    .skill-bar-container {
+      height: 3mm;
+      background: #e2e8f0;
+      border-radius: 1.5mm;
+      overflow: hidden;
+    }
+
+    .skill-bar {
+      height: 100%;
+      background: {{ template.colors.accent }};
+      border-radius: 1.5mm;
+    }
+
+    .tech-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2mm;
+      margin-top: 3mm;
+    }
+
+    .tech-tag {
+      padding: 1mm 3mm;
+      background: {{ template.colors.sectionBg }};
+      color: {{ template.colors.accent }};
+      border-radius: 2mm;
+      font-size: 9pt;
+      font-weight: 500;
+    }
+
+    .custom-content-line {
+      font-size: 10.5pt;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      margin-bottom: 1mm;
+    }
+
+    .custom-content-line:last-child {
+      margin-bottom: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="resume-content">
+    {% for module in visible_modules %}
+      {% if module.type == 'personal' %}
+        <div class="resume-section">
+          <div class="personal-header">
+            {% if resume.personalInfo.avatar %}
+              <img src="{{ resume.personalInfo.avatar }}" alt="avatar" class="avatar" onerror="this.style.display='none'">
+            {% endif %}
+            <div class="personal-text">
+              <h1 class="name">{{ resume.personalInfo.name or '姓名' }}</h1>
+              <div class="contact-info">
+                {% if resume.personalInfo.email %}
+                  <span class="contact-item">📧 {{ resume.personalInfo.email }}</span>
+                {% endif %}
+                {% if resume.personalInfo.phone %}
+                  <span class="contact-item">📱 {{ resume.personalInfo.phone }}</span>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          {% if resume.personalInfo.summary %}
+            <div class="summary">{{ resume.personalInfo.summary }}</div>
+          {% endif %}
+          <div class="section-divider"></div>
+        </div>
+      {% endif %}
+
+      {% if module.type == 'education' %}
+        <div class="resume-section">
+          <h2 class="section-title">
+            <span class="title-accent"></span>
+            教育经历
+          </h2>
+          {% for edu in resume.education %}
+            <div class="entry-item">
+              <div class="entry-title-row">
+                <h3 class="entry-title">{{ edu.school or '学校名称' }}</h3>
+                <span class="entry-date">{{ edu.startDate }} - {{ edu.endDate }}</span>
+              </div>
+              <p class="entry-subtitle">
+                {{ edu.degree }}{% if edu.major %} · {{ edu.major }}{% endif %}
+              </p>
+              {% if edu.description %}
+                <p class="entry-description">{{ edu.description }}</p>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% if module.type == 'work' %}
+        <div class="resume-section">
+          <h2 class="section-title">
+            <span class="title-accent"></span>
+            工作经历
+          </h2>
+          {% for work in resume.workExperience %}
+            <div class="entry-item">
+              <div class="entry-title-row">
+                <h3 class="entry-title">{{ work.company or '公司名称' }}</h3>
+                <span class="entry-date">{{ work.startDate }} - {{ work.endDate }}</span>
+              </div>
+              <p class="entry-subtitle" style="color: {{ template.colors.accent }}">{{ work.position or '职位' }}</p>
+              {% if work.description %}
+                <p class="entry-description">{{ work.description }}</p>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% if module.type == 'skills' %}
+        <div class="resume-section">
+          <h2 class="section-title">
+            <span class="title-accent"></span>
+            技能标签
+          </h2>
+          <div class="skills-container">
+            {% for skill in resume.skills %}
+              <div class="skill-tag-wrapper">
+                <span class="skill-tag">{{ skill.name or '技能' }}</span>
+                <div class="skill-bar-container">
+                  <div class="skill-bar" style="width: {{ skill.level }}%"></div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+      {% if module.type == 'projects' %}
+        <div class="resume-section">
+          <h2 class="section-title">
+            <span class="title-accent"></span>
+            项目展示
+          </h2>
+          {% for project in resume.projects %}
+            <div class="entry-item">
+              <div class="entry-title-row">
+                <h3 class="entry-title">{{ project.name or '项目名称' }}</h3>
+                <span class="entry-date">{{ project.startDate }} - {{ project.endDate }}</span>
+              </div>
+              <p class="entry-subtitle" style="color: {{ template.colors.accent }}">{{ project.role or '角色' }}</p>
+              {% if project.description %}
+                <p class="entry-description">{{ project.description }}</p>
+              {% endif %}
+              {% if project.technologies %}
+                <div class="tech-tags">
+                  {% for tech in project.technologies %}
+                    <span class="tech-tag">{{ tech }}</span>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+
+      {% if module.type == 'custom' %}
+        {% for section in resume.customSections %}
+          <div class="resume-section">
+            <h2 class="section-title">
+              <span class="title-accent"></span>
+              {{ section.title or '自定义区块' }}
+            </h2>
+            {% if section.content %}
+              {% for line in section.content.split('\n') %}
+                <p class="custom-content-line">{{ line }}</p>
+              {% endfor %}
+            {% endif %}
+          </div>
+        {% endfor %}
+      {% endif %}
+    {% endfor %}
+  </div>
+</body>
+</html>

@@ -1,0 +1,90 @@
+{
+  "tasks": [
+    {
+      "id": "t1",
+      "title": "设计登录页面UI",
+      "description": "完成登录页面的视觉设计，包括表单、按钮和错误提示",
+      "assigneeId": "4",
+      "priority": "high",
+      "status": "todo",
+      "dueDate": "2026-06-25",
+      "createdAt": "2026-06-18",
+      "startDate": "2026-06-20"
+    },
+    {
+      "id": "t2",
+      "title": "实现用户认证API",
+      "description": "开发登录、注册和JWT验证接口",
+      "assigneeId": "3",
+      "priority": "urgent",
+      "status": "in-progress",
+      "dueDate": "2026-06-22",
+      "createdAt": "2026-06-15",
+      "startDate": "2026-06-18"
+    },
+    {
+      "id": "t3",
+      "title": "编写产品需求文档",
+      "description": "整理用户需求，输出详细的PRD文档",
+      "assigneeId": "1",
+      "priority": "medium",
+      "status": "done",
+      "dueDate": "2026-06-17",
+      "createdAt": "2026-06-10",
+      "completedAt": "2026-06-16T00:00:00.000Z",
+      "startDate": "2026-06-12"
+    },
+    {
+      "id": "t4",
+      "title": "开发任务看板组件",
+      "description": "使用React和dnd库实现可拖拽的看板",
+      "assigneeId": "2",
+      "priority": "high",
+      "status": "in-progress",
+      "dueDate": "2026-06-28",
+      "createdAt": "2026-06-17",
+      "startDate": "2026-06-19"
+    },
+    {
+      "id": "t5",
+      "title": "单元测试覆盖率提升",
+      "description": "将核心模块的单元测试覆盖率提升到80%以上",
+      "assigneeId": "5",
+      "priority": "low",
+      "status": "todo",
+      "dueDate": "2026-07-05",
+      "createdAt": "2026-06-19",
+      "startDate": "2026-06-25"
+    },
+    {
+      "id": "t6",
+      "title": "响应式布局优化",
+      "description": "优化移动端和平板设备的显示效果",
+      "assigneeId": "2",
+      "priority": "medium",
+      "status": "todo",
+      "dueDate": "2026-06-30",
+      "createdAt": "2026-06-18",
+      "startDate": "2026-06-26"
+    },
+    {
+      "id": "t7",
+      "title": "数据库架构设计",
+      "description": "设计用户、任务、项目等核心表结构",
+      "assigneeId": "3",
+      "priority": "medium",
+      "status": "done",
+      "dueDate": "2026-06-15",
+      "createdAt": "2026-06-08",
+      "completedAt": "2026-06-14T00:00:00.000Z",
+      "startDate": "2026-06-10"
+    }
+  ],
+  "teamMembers": [
+    { "id": "1", "name": "张伟", "role": "产品经理", "avatarColor": "#FF6B6B" },
+    { "id": "2", "name": "李娜", "role": "前端工程师", "avatarColor": "#4ECDC4" },
+    { "id": "3", "name": "王强", "role": "后端工程师", "avatarColor": "#45B7D1" },
+    { "id": "4", "name": "刘芳", "role": "UI设计师", "avatarColor": "#96CEB4" },
+    { "id": "5", "name": "陈明", "role": "测试工程师", "avatarColor": "#FFEAA7" }
+  ]
+}

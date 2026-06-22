@@ -1,0 +1,84 @@
+.presetContainer {
+  margin-bottom: 24px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.sectionIcon {
+  color: #7c8cf0;
+}
+
+.sectionTitle {
+  font-size: 16px;
+  font-weight: 600;
+  color: #d0d0e0;
+  margin: 0;
+}
+
+.presetGrid {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.presetCard {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  background: rgba(58, 58, 94, 0.35);
+  border: 2px solid transparent;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+  text-align: left;
+  font-family: inherit;
+}
+
+.presetCard:hover {
+  background: rgba(58, 58, 94, 0.55);
+  border-color: rgba(124, 140, 240, 0.4);
+  transform: translateX(2px);
+}
+
+.presetCard.active {
+  background: rgba(108, 124, 240, 0.18);
+  border-color: #7c8cf0;
+  box-shadow: 0 0 16px rgba(108, 124, 240, 0.2);
+}
+
+.presetIcon {
+  font-size: 24px;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.25);
+  border-radius: 8px;
+}
+
+.presetInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.presetName {
+  font-size: 14px;
+  font-weight: 600;
+  color: #e0e0f0;
+}
+
+.presetDesc {
+  font-size: 11px;
+  color: #787898;
+}

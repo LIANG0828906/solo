@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Auto200</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        transition: all 300ms ease-in-out;
+      }
+      body {
+        background: linear-gradient(135deg, #F0F4F8 0%, #D9E2EC 100%);
+        font-family: 'Poppins', sans-serif;
+        min-height: 100vh;
+        margin: 0;
+      }
+      #root {
+        min-height: 100vh;
+      }
+      @media (max-width: 768px) {
+        .dashboard-desktop { display: none !important; }
+        .dashboard-mobile { display: block !important; }
+        .main-layout {
+          grid-template-columns: 1fr !important;
+          padding: 16px !important;
+          gap: 16px !important;
+        }
+        .left-col { order: 1; }
+        .right-col { order: 2; }
+      }
+      @media (min-width: 769px) {
+        .dashboard-desktop { display: block; }
+        .dashboard-mobile { display: none !important; }
+      }
+      input[type="range"] {
+        -webkit-appearance: none;
+        appearance: none;
+        height: 6px;
+        border-radius: 3px;
+        background: #E5E7EB;
+        outline: none;
+      }
+      input[type="range"]::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #3B82F6;
+        cursor: pointer;
+        border: 2px solid #fff;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+      }
+      input[type="range"]::-moz-range-thumb {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        background: #3B82F6;
+        cursor: pointer;
+        border: 2px solid #fff;
+        box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+      }
+      button:hover { filter: brightness(0.95); }
+      .meal-card-hover:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 24px rgba(0,0,0,0.12) !important;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

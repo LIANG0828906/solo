@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>程序化地牢探险</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background: #1a1a1a;
+      font-family: monospace;
+      overflow: hidden;
+    }
+    #game-container {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    canvas {
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    #seed-input-container {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 400px;
+      height: 300px;
+      background: #ffffff;
+      border-radius: 16px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+      z-index: 100;
+    }
+    #seed-input-container h1 {
+      color: #2A2A2A;
+      font-size: 24px;
+      margin-bottom: 32px;
+      letter-spacing: 2px;
+    }
+    #seed-input {
+      width: 200px;
+      height: 48px;
+      font-size: 20px;
+      font-family: monospace;
+      text-align: center;
+      border: 3px solid #2A2A2A;
+      border-radius: 8px;
+      outline: none;
+      transition: all 0.2s ease;
+      margin-bottom: 24px;
+    }
+    #seed-input:focus {
+      border-color: #b8860b;
+      box-shadow: 0 0 16px rgba(184, 134, 11, 0.6);
+    }
+    #start-btn {
+      width: 200px;
+      height: 56px;
+      font-size: 20px;
+      font-family: monospace;
+      color: #ffffff;
+      background: linear-gradient(180deg, #8B0000 0%, #5c0000 100%);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      letter-spacing: 2px;
+    }
+    #start-btn:hover {
+      background: linear-gradient(180deg, #FF4040 0%, #cc0000 100%);
+      transform: scale(1.02);
+    }
+    #start-btn:active {
+      transform: scale(0.95);
+    }
+    #game-over-overlay, #victory-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+    }
+    #game-over-overlay h1, #victory-overlay h1 {
+      color: #ffffff;
+      font-size: 48px;
+      margin-bottom: 24px;
+      letter-spacing: 4px;
+    }
+    #victory-overlay p {
+      color: #C0C0C0;
+      font-size: 20px;
+      margin-bottom: 12px;
+    }
+    .overlay-btn {
+      width: 200px;
+      height: 56px;
+      font-size: 20px;
+      font-family: monospace;
+      color: #ffffff;
+      background: linear-gradient(180deg, #8B0000 0%, #5c0000 100%);
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      letter-spacing: 2px;
+      margin-top: 32px;
+    }
+    .overlay-btn:hover {
+      background: linear-gradient(180deg, #FF4040 0%, #cc0000 100%);
+      transform: scale(1.02);
+    }
+    .overlay-btn:active {
+      transform: scale(0.95);
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="seed-input-container">
+      <h1>地牢探险</h1>
+      <input type="number" id="seed-input" min="1" max="9999" value="1" />
+      <button id="start-btn">开始游戏</button>
+    </div>
+    <div id="game-over-overlay">
+      <h1>Game Over</h1>
+      <button class="overlay-btn" id="restart-btn">重新开始</button>
+    </div>
+    <div id="victory-overlay">
+      <h1>胜利!</h1>
+      <p id="victory-time">通关时间: 00:00</p>
+      <p id="victory-kills">击杀数: 0</p>
+      <button class="overlay-btn" id="victory-restart-btn">重新开始</button>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

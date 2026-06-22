@@ -1,0 +1,74 @@
+[
+  {
+    "id": "abd42141-89eb-4313-8425-d22d367a9f53",
+    "name": "月光石银饰耳环",
+    "price": 128,
+    "category": "手作饰品",
+    "stock": 12,
+    "image": "https://images.unsplash.com/photo-1535632787350-4e68ef0ac584?w=400&q=80",
+    "createdAt": 1781512447477
+  },
+  {
+    "id": "1d246d05-fff4-4979-bbff-89528f16d066",
+    "name": "手绘植物书签套装",
+    "price": 36,
+    "category": "文创文具",
+    "stock": 48,
+    "image": "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?w=400&q=80",
+    "createdAt": 1781512446477
+  },
+  {
+    "id": "977a68cb-a8c0-4a5a-8cb9-723b450393b3",
+    "name": "粗陶手捏咖啡杯",
+    "price": 98,
+    "category": "陶瓷器皿",
+    "stock": 3,
+    "image": "https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?w=400&q=80",
+    "createdAt": 1781512445477
+  },
+  {
+    "id": "d90caf8e-2806-4341-bfe1-621019b80063",
+    "name": "亚麻刺绣手拿包",
+    "price": 156,
+    "category": "布艺编织",
+    "stock": 8,
+    "image": "https://images.unsplash.com/photo-1590874103328-eac38a683ce7?w=400&q=80",
+    "createdAt": 1781512444477
+  },
+  {
+    "id": "63ad774c-838f-497b-8e6c-2d68cc481574",
+    "name": "城市剪影明信片",
+    "price": 22,
+    "category": "原创插画",
+    "stock": 60,
+    "image": "https://images.unsplash.com/photo-1481627834876-b7833e8f5570?w=400&q=80",
+    "createdAt": 1781512443477
+  },
+  {
+    "id": "430cd573-348b-4aa8-b5e6-6fd3c010d455",
+    "name": "珍珠编织手链",
+    "price": 88,
+    "category": "手作饰品",
+    "stock": 2,
+    "image": "https://images.unsplash.com/photo-1611652022419-a9419f74343d?w=400&q=80",
+    "createdAt": 1781512442477
+  },
+  {
+    "id": "98655e8e-9c4f-46bb-9411-eadec4020c38",
+    "name": "烫金封面手账本",
+    "price": 68,
+    "category": "文创文具",
+    "stock": 25,
+    "image": "https://images.unsplash.com/photo-1544816155-12df9643f363?w=400&q=80",
+    "createdAt": 1781512441477
+  },
+  {
+    "id": "8d83815e-8df0-4777-8cd5-86fade23acc5",
+    "name": "青瓷小茶盏",
+    "price": 58,
+    "category": "陶瓷器皿",
+    "stock": 18,
+    "image": "https://images.unsplash.com/photo-1558642084-fd07fae5282e?w=400&q=80",
+    "createdAt": 1781512440477
+  }
+]

@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>古代风水罗盘 · 气场模拟</title>
+  <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Ma Shan Zheng', 'STKaiti', 'KaiTi', 'LiSu', serif;
+      background: linear-gradient(135deg, #3E2723 0%, #5D4037 100%);
+    }
+
+    #app {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      background: #2C1A0E;
+    }
+
+    .title-bar {
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(180deg, rgba(93, 64, 55, 0.95) 0%, rgba(62, 39, 35, 0.95) 100%);
+      border-bottom: 2px solid #D4A574;
+      z-index: 10;
+    }
+
+    .title-bar h1 {
+      font-size: 28px;
+      color: #FFD700;
+      letter-spacing: 8px;
+      text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.6), 0 0 20px rgba(255, 215, 0, 0.3);
+    }
+
+    .main-container {
+      flex: 1;
+      display: flex;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .scene-container {
+      flex: 1;
+      position: relative;
+      border-right: 1px solid #D4A574;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+    }
+
+    .info-bubble {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 200px;
+      background: rgba(255, 248, 220, 0.9);
+      border: 1px solid #D2B48C;
+      border-radius: 12px;
+      padding: 14px 16px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+      z-index: 20;
+      opacity: 0;
+      transform: translateY(-20px);
+      pointer-events: none;
+      transition: opacity 0.2s ease, transform 0.3s ease-out;
+    }
+
+    .info-bubble.visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+
+    .info-bubble h3 {
+      font-size: 20px;
+      color: #8B4513;
+      margin-bottom: 8px;
+      text-align: center;
+      border-bottom: 1px dashed #D2B48C;
+      padding-bottom: 6px;
+    }
+
+    .info-bubble p {
+      font-size: 16px;
+      color: #5D4037;
+      line-height: 1.8;
+    }
+
+    .info-bubble .label {
+      color: #8B7355;
+      display: inline-block;
+      width: 60px;
+    }
+
+    .control-panel {
+      width: 220px;
+      background: rgba(44, 26, 14, 0.85);
+      border-left: 1px solid #D4A574;
+      padding: 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      overflow-y: auto;
+      z-index: 10;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .control-label {
+      color: #D4A574;
+      font-size: 15px;
+      letter-spacing: 2px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .control-value {
+      color: #FFD700;
+      font-size: 13px;
+    }
+
+    .slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: #4E342E;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #D4A574;
+      cursor: pointer;
+      transition: transform 0.15s ease, background 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 0 4px rgba(212, 165, 116, 0.5);
+    }
+
+    .slider::-webkit-slider-thumb:hover,
+    .slider:active::-webkit-slider-thumb {
+      transform: scale(1.2);
+      background: #FFD700;
+      box-shadow: 0 0 12px rgba(255, 215, 0, 0.7);
+    }
+
+    .slider::-moz-range-thumb {
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #D4A574;
+      cursor: pointer;
+      border: none;
+      transition: transform 0.15s ease, background 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .slider::-moz-range-thumb:hover {
+      transform: scale(1.2);
+      background: #FFD700;
+    }
+
+    .flow-selector {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .flow-options {
+      display: flex;
+      gap: 4px;
+    }
+
+    .flow-btn {
+      flex: 1;
+      padding: 6px 4px;
+      background: #4E342E;
+      border: 1px solid #6D4C41;
+      color: #D7CCC8;
+      font-family: inherit;
+      font-size: 12px;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      letter-spacing: 1px;
+    }
+
+    .flow-btn:hover {
+      background: #B8860B;
+      color: #FFF8DC;
+      transform: translateY(-2px);
+      border-color: #D4A574;
+    }
+
+    .flow-btn.active {
+      background: #D4A574;
+      color: #2C1A0E;
+      border-color: #FFD700;
+      box-shadow: 0 0 8px rgba(255, 215, 0, 0.4);
+    }
+
+    .action-buttons {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 4px;
+    }
+
+    .btn {
+      padding: 10px 12px;
+      background: linear-gradient(180deg, #8D6E63 0%, #6D4C41 100%);
+      border: 1px solid #D4A574;
+      color: #FFF8DC;
+      font-family: inherit;
+      font-size: 15px;
+      letter-spacing: 4px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+    }
+
+    .btn:hover {
+      background: linear-gradient(180deg, #B8860B 0%, #8B6914 100%);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(184, 134, 11, 0.4);
+    }
+
+    .btn:active {
+      transform: translateY(0);
+    }
+
+    .panel-divider {
+      height: 1px;
+      background: linear-gradient(90deg, transparent 0%, #D4A574 50%, transparent 100%);
+      margin: 4px 0;
+    }
+
+    @media (max-width: 768px) {
+      .main-container {
+        flex-direction: column;
+      }
+
+      .scene-container {
+        border-right: none;
+        border-bottom: 1px solid #D4A574;
+        width: 85%;
+        margin: 0 auto;
+      }
+
+      .control-panel {
+        width: 100%;
+        height: 70px;
+        flex-direction: row;
+        padding: 8px 10px;
+        gap: 10px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        border-left: none;
+        border-top: 1px solid #D4A574;
+        flex-wrap: nowrap;
+      }
+
+      .control-group {
+        min-width: 110px;
+        flex-shrink: 0;
+      }
+
+      .flow-selector {
+        min-width: 160px;
+        flex-shrink: 0;
+      }
+
+      .action-buttons {
+        flex-direction: row;
+        min-width: 200px;
+        margin-top: 0;
+        flex-shrink: 0;
+      }
+
+      .btn {
+        padding: 8px 10px;
+        font-size: 13px;
+        letter-spacing: 2px;
+        flex: 1;
+      }
+
+      .panel-divider {
+        width: 1px;
+        height: auto;
+        background: linear-gradient(180deg, transparent 0%, #D4A574 50%, transparent 100%);
+        margin: 0 2px;
+        flex-shrink: 0;
+      }
+
+      .title-bar h1 {
+        font-size: 20px;
+        letter-spacing: 4px;
+      }
+
+      .info-bubble {
+        width: 160px;
+        top: 10px;
+        left: 10px;
+        padding: 10px 12px;
+      }
+
+      .info-bubble h3 {
+        font-size: 16px;
+      }
+
+      .info-bubble p {
+        font-size: 13px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="title-bar">
+      <h1>古 代 风 水 罗 盘</h1>
+    </div>
+    <div class="main-container">
+      <div class="scene-container" id="scene-container">
+        <div id="canvas-container"></div>
+        <div class="info-bubble" id="info-bubble">
+          <h3 id="bubble-title">方位名称</h3>
+          <p><span class="label">八卦：</span><span id="bubble-trigram">—</span></p>
+          <p><span class="label">五行：</span><span id="bubble-element">—</span></p>
+        </div>
+      </div>
+      <aside class="control-panel" id="control-panel">
+        <div class="control-group">
+          <div class="control-label">
+            <span>时间流速</span>
+            <span class="control-value" id="time-value">1.0x</span>
+          </div>
+          <input type="range" class="slider" id="time-speed" min="0.5" max="3" step="0.5" value="1">
+        </div>
+
+        <div class="control-group">
+          <div class="control-label">
+            <span>气场强度</span>
+            <span class="control-value" id="qi-value">100%</span>
+          </div>
+          <input type="range" class="slider" id="qi-strength" min="0" max="150" step="10" value="100">
+        </div>
+
+        <div class="control-group">
+          <div class="control-label">
+            <span>粒子密度</span>
+            <span class="control-value" id="particle-value">500</span>
+          </div>
+          <input type="range" class="slider" id="particle-density" min="100" max="800" step="100" value="500">
+        </div>
+
+        <div class="panel-divider"></div>
+
+        <div class="flow-selector">
+          <div class="control-label">
+            <span>气场流向</span>
+          </div>
+          <div class="flow-options">
+            <button class="flow-btn active" data-flow="clockwise">顺时针</button>
+            <button class="flow-btn" data-flow="counter">逆时针</button>
+            <button class="flow-btn" data-flow="opposite">对冲</button>
+          </div>
+        </div>
+
+        <div class="panel-divider"></div>
+
+        <div class="action-buttons">
+          <button class="btn" id="reset-view">重置视角</button>
+          <button class="btn" id="export-screenshot">导出截图</button>
+        </div>
+      </aside>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

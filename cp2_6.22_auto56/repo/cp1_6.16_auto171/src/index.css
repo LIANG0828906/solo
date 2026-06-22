@@ -1,0 +1,94 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #F0F2F5;
+  min-width: 1024px;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.ant-layout-sider {
+  width: 220px !important;
+  max-width: 220px !important;
+  min-width: 220px !important;
+}
+
+.ant-menu {
+  transition: all 0.2s ease;
+}
+
+.ant-menu-item {
+  opacity: 0.8;
+  transition: opacity 0.2s ease;
+}
+
+.ant-menu-item:hover {
+  opacity: 1;
+}
+
+.ant-menu-item-selected {
+  opacity: 1;
+}
+
+button {
+  transition: transform 0.1s ease;
+}
+
+button:active {
+  transform: scale(0.95);
+}
+
+.chart-card {
+  transition: all 0.3s ease;
+}
+
+.chart-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  transform: translateY(-4px);
+}
+
+.question-item {
+  transition: all 0.3s ease;
+}
+
+.question-item:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.6s ease-out;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.progress-gradient {
+  background: linear-gradient(to right, #1890FF, #52C41A) !important;
+}
+
+.page-transition {
+  animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}

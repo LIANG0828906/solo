@@ -1,0 +1,20 @@
+[
+  {
+    "id": "comment-1ac26880",
+    "essayId": "essay-1-1",
+    "paragraphIndex": 0,
+    "content": "开篇点题，引出话题自然流畅",
+    "type": "positive",
+    "presetType": "论点清晰",
+    "createdAt": "2026-06-20T02:13:32.424228"
+  },
+  {
+    "id": "comment-c2b6c534",
+    "essayId": "essay-1-1",
+    "paragraphIndex": 2,
+    "content": "此处逻辑可以更清晰，建议增加过渡句",
+    "type": "improvement",
+    "presetType": null,
+    "createdAt": "2026-06-20T02:13:32.424228"
+  }
+]

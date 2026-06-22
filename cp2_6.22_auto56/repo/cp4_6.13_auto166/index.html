@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>GitCommitFlow - 代码贡献流可视化看板</title>
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif; background: #f1f5f9; color: #1e293b; overflow: hidden; height: 100vh; }
+
+    .navbar { position: fixed; top: 0; left: 0; right: 0; height: 56px; background: rgba(255,255,255,0.8); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: space-between; padding: 0 24px; z-index: 100; border-bottom: 1px solid rgba(226,232,240,0.6); }
+    .navbar-brand { font-size: 18px; font-weight: 700; color: #1e3a5f; letter-spacing: -0.3px; }
+    .navbar-info { font-size: 12px; color: #64748b; display: flex; gap: 16px; align-items: center; }
+    .navbar-info span { display: flex; align-items: center; gap: 4px; }
+
+    .main-container { display: flex; margin-top: 56px; height: calc(100vh - 56px); }
+
+    .canvas-area { flex: 1; position: relative; overflow: hidden; }
+    .canvas-area canvas { display: block; }
+
+    .upload-overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 10; background: rgba(241,245,249,0.95); transition: opacity 0.3s ease; }
+    .upload-overlay.hidden { opacity: 0; pointer-events: none; }
+    .upload-zone { width: 480px; height: 260px; border: 2px dashed #94a3b8; border-radius: 16px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; cursor: pointer; transition: all 0.2s ease; background: rgba(255,255,255,0.8); }
+    .upload-zone:hover, .upload-zone.dragover { border-color: #3b82f6; background: rgba(59,130,246,0.05); }
+    .upload-zone.dragover { box-shadow: 0 0 0 4px rgba(59,130,246,0.15); }
+    .upload-icon { font-size: 48px; color: #94a3b8; transition: color 0.2s; }
+    .upload-zone:hover .upload-icon, .upload-zone.dragover .upload-icon { color: #3b82f6; }
+    .upload-text { font-size: 15px; color: #475569; }
+    .upload-hint { font-size: 12px; color: #94a3b8; }
+    .upload-input { display: none; }
+
+    .alert-bar { position: fixed; top: 64px; left: 50%; transform: translateX(-50%); background: #ef4444; color: white; padding: 10px 20px; border-radius: 8px; font-size: 13px; display: flex; align-items: center; gap: 10px; z-index: 200; box-shadow: 0 4px 12px rgba(239,68,68,0.3); animation: slideDown 0.3s ease; }
+    .alert-bar .close-btn { background: none; border: none; color: white; cursor: pointer; font-size: 18px; line-height: 1; opacity: 0.8; transition: opacity 0.2s; }
+    .alert-bar .close-btn:hover { opacity: 1; }
+    @keyframes slideDown { from { opacity: 0; transform: translateX(-50%) translateY(-10px); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
+
+    .hover-card { position: absolute; background: white; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); padding: 12px 14px; font-size: 12px; z-index: 50; pointer-events: none; min-width: 220px; max-width: 300px; transition: opacity 0.15s ease; }
+    .hover-card-time { color: #1e3a5f; font-size: 13px; margin-bottom: 4px; }
+    .hover-card-author { font-weight: 600; margin-bottom: 4px; }
+    .hover-card-lines { margin-bottom: 4px; font-size: 12px; }
+    .hover-card-lines .added { color: #10b981; }
+    .hover-card-lines .deleted { color: #ef4444; }
+    .hover-card-msg { color: #64748b; font-size: 11px; line-height: 1.4; word-break: break-all; }
+
+    .sidebar { width: 280px; background: #f8fafc; border-left: 1px solid #e2e8f0; overflow-y: auto; padding: 20px 16px; flex-shrink: 0; }
+    .stat-section { margin-bottom: 20px; }
+    .stat-section-title { font-size: 11px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; }
+
+    .overview-card { background: white; border-radius: 12px; padding: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
+    .overview-count { font-size: 48px; font-weight: 700; color: #1e293b; line-height: 1; }
+    .overview-label { font-size: 12px; color: #64748b; margin-top: 4px; }
+    .overview-change { font-size: 12px; margin-top: 8px; display: flex; align-items: center; gap: 4px; }
+    .overview-change.up { color: #10b981; }
+    .overview-change.down { color: #ef4444; }
+
+    .author-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; }
+    .author-avatar { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-size: 13px; font-weight: 600; flex-shrink: 0; }
+    .author-info { flex: 1; min-width: 0; }
+    .author-name { font-size: 13px; font-weight: 500; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .author-badge { background: #e2e8f0; border-radius: 6px; padding: 2px 8px; font-size: 11px; color: #475569; white-space: nowrap; }
+
+    .heatmap-container { position: relative; }
+    .heatmap-grid { display: grid; grid-template-rows: repeat(7, 5px); grid-auto-flow: column; grid-auto-columns: 5px; gap: 2px; }
+    .heatmap-cell { width: 5px; height: 5px; border-radius: 1px; transition: transform 0.15s ease; }
+    .heatmap-cell:hover { transform: scale(1.8); }
+    .heatmap-tooltip { position: absolute; background: #1e293b; color: white; font-size: 11px; padding: 4px 8px; border-radius: 6px; pointer-events: none; white-space: nowrap; z-index: 60; }
+
+    .filter-btn { display: inline-flex; align-items: center; padding: 4px 12px; border-radius: 20px; border: none; font-size: 12px; cursor: pointer; transition: all 0.2s ease; background: #e5e7eb; color: #374151; margin: 0 4px 6px 0; }
+    .filter-btn.active { background: #3b82f6; color: white; }
+    .filter-btn:hover { opacity: 0.85; }
+
+    .detail-panel { position: fixed; bottom: 0; left: 0; right: 0; height: 200px; background: white; box-shadow: 0 -2px 12px rgba(0,0,0,0.1); z-index: 80; transform: translateY(100%); transition: transform 0.3s ease; display: flex; }
+    .detail-panel.open { transform: translateY(0); }
+    .detail-content { flex: 1; padding: 20px 24px; overflow-y: auto; }
+    .detail-message { font-size: 14px; line-height: 1.6; color: #1e293b; margin-bottom: 12px; }
+    .detail-files { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; }
+    .detail-file { display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px; background: #f1f5f9; border-radius: 6px; font-size: 12px; color: #475569; }
+    .detail-file-icon { font-size: 11px; }
+    .detail-sha { display: inline-flex; align-items: center; gap: 6px; }
+    .detail-sha-text { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 12px; color: #64748b; background: #f1f5f9; padding: 4px 10px; border-radius: 6px; }
+    .copy-sha-btn { background: #3b82f6; color: white; border: none; padding: 5px 14px; border-radius: 6px; font-size: 12px; cursor: pointer; transition: all 0.2s ease; }
+    .copy-sha-btn:hover { background: #2563eb; }
+    .copy-sha-btn.copied { background: #10b981; }
+    .shake-anim { animation: shake 0.4s ease; }
+    @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-3px)} 40%{transform:translateX(3px)} 60%{transform:translateX(-2px)} 80%{transform:translateX(2px)} }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="navbar-brand">GitCommitFlow</div>
+    <div class="navbar-info">
+      <span id="nav-count">0 条记录</span>
+      <span id="nav-time">--</span>
+    </div>
+  </nav>
+
+  <div class="main-container">
+    <div class="canvas-area" id="canvasArea">
+      <div class="upload-overlay" id="uploadOverlay">
+        <div class="upload-zone" id="uploadZone">
+          <div class="upload-icon">📂</div>
+          <div class="upload-text">点击或拖拽上传 Git 提交日志</div>
+          <div class="upload-hint">支持 JSON 格式</div>
+          <input type="file" class="upload-input" id="uploadInput" accept=".json" />
+        </div>
+      </div>
+      <canvas id="mainCanvas"></canvas>
+      <div class="hover-card" id="hoverCard" style="display:none;"></div>
+    </div>
+    <aside class="sidebar" id="sidebar"></aside>
+  </div>
+
+  <div class="detail-panel" id="detailPanel">
+    <div class="detail-content">
+      <div class="detail-message" id="detailMessage"></div>
+      <div class="detail-files" id="detailFiles"></div>
+      <div class="detail-sha">
+        <span class="detail-sha-text" id="detailSha"></span>
+        <button class="copy-sha-btn" id="copyShaBtn">复制 SHA</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

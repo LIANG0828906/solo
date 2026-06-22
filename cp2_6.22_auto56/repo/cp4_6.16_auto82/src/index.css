@@ -1,0 +1,147 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-parchment: #F5E6C8;
+  --color-parchment-dark: #E8D5B0;
+  --color-parchment-light: #FBF3E4;
+  --color-bark: #4A3B32;
+  --color-bark-light: #6B5B50;
+  --color-bark-muted: #8A7968;
+  --color-ink: #3A6B47;
+  --color-ink-light: #4E8A5E;
+  --color-gold: #C8A84E;
+  --color-gold-light: #E0C878;
+
+  font-family: Georgia, Cambria, 'Times New Roman', Times, serif;
+  line-height: 1.8;
+  font-weight: 400;
+  color: var(--color-bark);
+  background-color: var(--color-parchment);
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background-color: var(--color-parchment);
+  background-image:
+    radial-gradient(ellipse at 20% 50%, rgba(232, 213, 176, 0.6) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(251, 243, 228, 0.5) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 80%, rgba(232, 213, 176, 0.4) 0%, transparent 50%);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+@layer components {
+  .theme-card {
+    @apply bg-parchment-light rounded-lg p-6 shadow-md
+           transition-all duration-200 ease-out cursor-pointer
+           border border-parchment-dark/30;
+  }
+  .theme-card:hover {
+    @apply -translate-y-0.5 shadow-lg;
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(74, 59, 50, 0.15);
+  }
+
+  .work-card {
+    @apply bg-parchment-light rounded-lg p-5 border border-parchment-dark/20
+           transition-all duration-200 ease-out;
+  }
+  .work-card:hover {
+    @apply shadow-md border-parchment-dark/40;
+  }
+
+  .winner-card {
+    background: linear-gradient(var(--color-parchment-light), var(--color-parchment-light)) padding-box,
+                linear-gradient(135deg, var(--color-gold), var(--color-gold-light), var(--color-gold)) border-box;
+    border: 3px solid transparent;
+    border-radius: 0.75rem;
+  }
+
+  .btn-primary {
+    @apply bg-ink text-parchment-light px-5 py-2.5 rounded-lg font-sans font-medium
+           transition-all duration-200 ease-out
+           hover:bg-ink-light active:scale-[0.98]
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-secondary {
+    @apply bg-parchment text-bark border border-bark/20 px-5 py-2.5 rounded-lg font-sans font-medium
+           transition-all duration-200 ease-out
+           hover:bg-parchment-dark/50 active:scale-[0.98];
+  }
+
+  .input-field {
+    @apply w-full bg-parchment-light border border-parchment-dark/40 rounded-lg px-4 py-2.5
+           text-bark font-serif placeholder:text-bark-muted/60
+           focus:outline-none focus:ring-2 focus:ring-ink/30 focus:border-ink/50
+           transition-all duration-200;
+  }
+
+  .star-btn {
+    @apply w-10 h-10 rounded-full flex items-center justify-center
+           bg-parchment-dark/20 transition-all duration-150 cursor-pointer
+           hover:bg-gold-light/30;
+  }
+  .star-btn.active {
+    @apply bg-gold/20;
+  }
+  .star-btn.filling {
+    animation: star-fill 0.2s ease;
+  }
+
+  .prose-content {
+    font-family: Georgia, Cambria, 'Times New Roman', Times, serif;
+    line-height: 1.8;
+    text-indent: 2em;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .nav-link {
+    @apply font-sans text-sm px-4 py-2 rounded-md transition-colors duration-200
+           text-bark-light hover:text-ink hover:bg-parchment-dark/30;
+  }
+  .nav-link.active {
+    @apply text-ink bg-parchment-dark/40 font-medium;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-parchment-dark);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--color-bark-muted);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-bark-light);
+}
+
+@keyframes gradient-border {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+.animate-gradient-border {
+  background-size: 200% 200%;
+  animation: gradient-border 3s ease infinite;
+}

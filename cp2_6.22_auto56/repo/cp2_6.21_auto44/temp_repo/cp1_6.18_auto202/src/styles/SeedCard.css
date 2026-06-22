@@ -1,0 +1,126 @@
+.seed-card {
+  width: 100%;
+  min-width: 120px;
+  aspect-ratio: 1 / 1;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
+  border-radius: var(--border-radius-lg);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-medium);
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+}
+
+.seed-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 40%, rgba(212, 163, 115, 0.08) 100%);
+  opacity: 0;
+  transition: opacity var(--transition-medium);
+  pointer-events: none;
+}
+
+.seed-card:hover {
+  border-color: var(--color-primary);
+  box-shadow:
+    0 4px 16px rgba(212, 163, 115, 0.3),
+    0 2px 4px rgba(93, 64, 55, 0.08);
+  transform: translateY(-2px);
+}
+
+.seed-card:hover::before {
+  opacity: 1;
+}
+
+.seed-card:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.seed-bud-wrapper {
+  position: relative;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.seed-bud {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, var(--bud-color-end, #E6C8A6), var(--bud-color-start, #D4A373));
+  box-shadow:
+    inset -2px -2px 6px rgba(93, 64, 55, 0.15),
+    inset 2px 2px 6px rgba(255, 255, 255, 0.3),
+    0 2px 6px rgba(93, 64, 55, 0.1);
+  transition: transform var(--transition-medium);
+  position: relative;
+}
+
+.seed-bud::after {
+  content: '';
+  position: absolute;
+  top: 20%;
+  left: 25%;
+  width: 30%;
+  height: 30%;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.4);
+  filter: blur(1px);
+}
+
+.seed-card:hover .seed-bud {
+  transform: scale(1.2);
+}
+
+.seed-bud-shadow {
+  position: absolute;
+  bottom: -4px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 32px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, rgba(93, 64, 55, 0.2) 0%, transparent 70%);
+  transition: all var(--transition-medium);
+}
+
+.seed-card:hover .seed-bud-shadow {
+  width: 42px;
+  height: 10px;
+  opacity: 0.8;
+}
+
+.seed-name {
+  font-size: 14px;
+  color: var(--color-text-dark);
+  text-align: center;
+  font-weight: 500;
+  line-height: 1.3;
+  margin-bottom: 4px;
+  position: relative;
+  z-index: 1;
+  transition: color var(--transition-fast);
+}
+
+.seed-card:hover .seed-name {
+  color: var(--color-primary-dark);
+}
+
+.seed-author {
+  font-size: 11px;
+  color: var(--color-text-light);
+  text-align: center;
+  font-style: italic;
+  position: relative;
+  z-index: 1;
+}

@@ -1,0 +1,176 @@
+.orders-page {
+  width: 100%;
+}
+
+.filter-bar {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+  overflow-x: auto;
+  padding-bottom: 8px;
+}
+
+.filter-btn {
+  padding: 8px 16px;
+  background: #fff;
+  border: 1px solid #E8E0D6;
+  border-radius: 20px;
+  font-size: 13px;
+  color: #666;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.filter-btn:hover {
+  border-color: #E67E22;
+  color: #E67E22;
+}
+
+.filter-btn.active {
+  background: #E67E22;
+  border-color: #E67E22;
+  color: white;
+}
+
+.orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.order-card {
+  padding: 20px;
+}
+
+.order-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.order-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.order-id {
+  font-size: 16px;
+  font-weight: 700;
+  color: #333;
+}
+
+.order-customer {
+  font-size: 14px;
+  color: #666;
+  padding: 2px 8px;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.order-email {
+  font-size: 12px;
+  color: #999;
+}
+
+.order-status {
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.order-body {
+  margin-bottom: 16px;
+}
+
+.order-stats {
+  display: flex;
+  gap: 24px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #999;
+}
+
+.stat-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.order-progress {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.progress-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.step-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #E0E0E0;
+  transition: all 0.3s ease;
+}
+
+.progress-step.completed .step-dot {
+  background: #4CAF50;
+}
+
+.progress-step.current .step-dot {
+  background: #FF9800;
+  box-shadow: 0 0 0 4px rgba(255, 152, 0, 0.2);
+  animation: pulse-animation 1.5s infinite;
+}
+
+@keyframes pulse-animation {
+  0%, 100% {
+    box-shadow: 0 0 0 4px rgba(255, 152, 0, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(255, 152, 0, 0.1);
+  }
+}
+
+.progress-more {
+  font-size: 12px;
+  color: #ccc;
+  margin-left: 4px;
+}
+
+.order-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding-top: 16px;
+  border-top: 1px solid #F0EBE3;
+}
+
+.empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #999;
+}
+
+.empty-state p {
+  font-size: 14px;
+}

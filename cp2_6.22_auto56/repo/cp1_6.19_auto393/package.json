@@ -1,0 +1,33 @@
+{
+  "name": "book-exchange-app",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "start": "node server/src/app.ts",
+    "server": "npx tsx server/src/app.ts",
+    "check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "zustand": "^5.0.3",
+    "axios": "^1.7.7",
+    "express": "^4.21.2",
+    "cors": "^2.8.5",
+    "react-router-dom": "^7.3.0",
+    "lucide-react": "^0.511.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.4.1",
+    "typescript": "~5.8.3",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.19",
+    "@types/node": "^22.15.30",
+    "vite": "^6.3.5",
+    "tsx": "^4.20.3"
+  }
+}

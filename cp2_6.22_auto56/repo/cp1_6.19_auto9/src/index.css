@@ -1,0 +1,307 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #1E88E5;
+  --color-primary-dark: #1565C0;
+  --color-primary-light: #64B5F6;
+  --color-secondary: #F5F5F5;
+  --color-text: #212121;
+  --color-text-secondary: #757575;
+  --color-border: #E0E0E0;
+  --color-danger: #E53935;
+  --color-success: #43A047;
+  --color-warning: #FB8C00;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  background-color: #FAFAFA;
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg font-medium text-sm transition-all duration-200 relative overflow-hidden cursor-pointer select-none;
+    min-height: 40px;
+  }
+
+  .btn-primary {
+    @apply text-white;
+    background-color: var(--color-primary);
+  }
+  .btn-primary:hover {
+    background-color: var(--color-primary-dark);
+  }
+
+  .btn-secondary {
+    background-color: white;
+    color: var(--color-primary);
+    border: 1px solid var(--color-primary);
+  }
+  .btn-secondary:hover {
+    background-color: var(--color-secondary);
+  }
+
+  .btn-ghost {
+    background-color: transparent;
+    color: var(--color-text);
+  }
+  .btn-ghost:hover {
+    background-color: var(--color-secondary);
+  }
+
+  .btn-danger {
+    @apply text-white;
+    background-color: var(--color-danger);
+  }
+  .btn-danger:hover {
+    filter: brightness(0.9);
+  }
+
+  .card {
+    background-color: white;
+    border-radius: 12px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+  }
+  .card-hover:hover {
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    transform: translateY(-4px);
+  }
+
+  .input {
+    @apply w-full px-3 py-2 rounded-lg border text-sm outline-none transition-all;
+    border-color: var(--color-border);
+    background-color: white;
+  }
+  .input:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.15);
+  }
+
+  .textarea {
+    @apply w-full px-3 py-2 rounded-lg border text-sm outline-none transition-all resize-y;
+    border-color: var(--color-border);
+    background-color: white;
+    min-height: 80px;
+  }
+  .textarea:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.15);
+  }
+
+  .select {
+    @apply w-full px-3 py-2 rounded-lg border text-sm outline-none transition-all bg-white cursor-pointer;
+    border-color: var(--color-border);
+  }
+  .select:focus {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.15);
+  }
+
+  .badge {
+    @apply inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium;
+  }
+  .badge-primary {
+    background-color: rgba(30, 136, 229, 0.1);
+    color: var(--color-primary);
+  }
+  .badge-gray {
+    background-color: var(--color-secondary);
+    color: var(--color-text-secondary);
+  }
+}
+
+.ripple {
+  position: absolute;
+  border-radius: 50%;
+  background-color: rgba(255, 255, 255, 0.5);
+  transform: scale(0);
+  animation: ripple-animation 0.6s linear;
+  pointer-events: none;
+}
+.btn-secondary .ripple,
+.btn-ghost .ripple {
+  background-color: rgba(30, 136, 229, 0.2);
+}
+
+@keyframes ripple-animation {
+  to {
+    transform: scale(4);
+    opacity: 0;
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in-slow {
+  animation: fadeInSlow 0.4s ease-in-out;
+}
+
+@keyframes fadeInSlow {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.sortable-item {
+  cursor: grab;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+.sortable-item:active {
+  cursor: grabbing;
+}
+.sortable-dragging {
+  opacity: 0.5;
+  transform: scale(1.02);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #BDBDBD;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9E9E9E;
+}
+
+/* Switch/Toggle */
+.switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 24px;
+}
+.switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+.slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #ccc;
+  transition: 0.3s;
+  border-radius: 24px;
+}
+.slider:before {
+  position: absolute;
+  content: "";
+  height: 18px;
+  width: 18px;
+  left: 3px;
+  bottom: 3px;
+  background-color: white;
+  transition: 0.3s;
+  border-radius: 50%;
+}
+input:checked + .slider {
+  background-color: var(--color-primary);
+}
+input:checked + .slider:before {
+  transform: translateX(16px);
+}
+
+/* Radio/Checkbox custom styling */
+.radio-group label,
+.checkbox-group label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  margin-bottom: 8px;
+}
+.radio-group label:hover,
+.checkbox-group label:hover {
+  border-color: var(--color-primary);
+  background-color: rgba(30, 136, 229, 0.03);
+}
+.radio-group label.selected,
+.checkbox-group label.selected {
+  border-color: var(--color-primary);
+  background-color: rgba(30, 136, 229, 0.08);
+}
+
+.radio-group input[type="radio"],
+.checkbox-group input[type="checkbox"] {
+  accent-color: var(--color-primary);
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.required-mark {
+  color: var(--color-danger);
+  margin-left: 2px;
+}
+
+.survey-grid {
+  grid-template-columns: repeat(4, 1fr);
+}
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  .survey-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 768px) {
+  .editor-split {
+    flex-direction: column !important;
+  }
+  .editor-left {
+    width: 100% !important;
+  }
+  .editor-right {
+    width: 100% !important;
+  }
+  .survey-grid {
+    grid-template-columns: 1fr !important;
+  }
+}

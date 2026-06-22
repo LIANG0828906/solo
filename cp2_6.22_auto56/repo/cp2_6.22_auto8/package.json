@@ -1,0 +1,23 @@
+{
+  "name": "personal-ebook-library",
+  "version": "1.0.0",
+  "description": "个人电子书库Web应用",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "lit-html": "^3.1.0",
+    "lit-element": "^4.0.4",
+    "lit": "^3.1.0",
+    "pdfjs-dist": "^3.11.174",
+    "epubjs": "^0.3.93",
+    "localforage": "^1.10.0"
+  },
+  "devDependencies": {
+    "vite": "^5.0.10",
+    "typescript": "^5.3.3"
+  }
+}

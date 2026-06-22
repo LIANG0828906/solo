@@ -1,0 +1,161 @@
+{
+  "activities": [
+    {
+      "id": "a1b2c3d4",
+      "title": "《百年孤独》共读",
+      "bookTitle": "百年孤独",
+      "bookAuthor": "加西亚·马尔克斯",
+      "coverImage": "",
+      "startDate": "2026-06-01",
+      "endDate": "2026-06-30",
+      "description": "一起走进魔幻现实主义的巅峰之作，感受布恩迪亚家族七代人的传奇故事。",
+      "inviteCode": "READ2026",
+      "organizerId": "org001",
+      "ended": false,
+      "members": [
+        {
+          "id": "mem001",
+          "name": "张小明",
+          "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=zhangxiaoming",
+          "joinedAt": "2026-05-28T10:00:00.000Z"
+        },
+        {
+          "id": "mem002",
+          "name": "李雨晴",
+          "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=liyuqing",
+          "joinedAt": "2026-05-29T14:30:00.000Z"
+        },
+        {
+          "id": "mem003",
+          "name": "王浩然",
+          "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=wanghaoran",
+          "joinedAt": "2026-05-30T09:15:00.000Z"
+        }
+      ],
+      "checkIns": [
+        {
+          "id": "chk001",
+          "memberId": "mem001",
+          "memberName": "张小明",
+          "memberAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=zhangxiaoming",
+          "date": "2026-06-01",
+          "pages": 35,
+          "status": "reading",
+          "note": "开始阅读第一章，布恩迪亚家族的故事太吸引人了！",
+          "createdAt": "2026-06-01T20:00:00.000Z"
+        },
+        {
+          "id": "chk002",
+          "memberId": "mem001",
+          "memberName": "张小明",
+          "memberAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=zhangxiaoming",
+          "date": "2026-06-02",
+          "pages": 42,
+          "status": "reading",
+          "note": "魔幻现实主义的笔触令人着迷。",
+          "createdAt": "2026-06-02T21:00:00.000Z"
+        },
+        {
+          "id": "chk003",
+          "memberId": "mem001",
+          "memberName": "张小明",
+          "memberAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=zhangxiaoming",
+          "date": "2026-06-03",
+          "pages": 38,
+          "status": "reading",
+          "note": "家族的命运开始交织。",
+          "createdAt": "2026-06-03T19:30:00.000Z"
+        },
+        {
+          "id": "chk004",
+          "memberId": "mem002",
+          "memberName": "李雨晴",
+          "memberAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=liyuqing",
+          "date": "2026-06-01",
+          "pages": 28,
+          "status": "reading",
+          "note": "第一次读马尔克斯，很震撼！",
+          "createdAt": "2026-06-01T22:00:00.000Z"
+        },
+        {
+          "id": "chk005",
+          "memberId": "mem002",
+          "memberName": "李雨晴",
+          "memberAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=liyuqing",
+          "date": "2026-06-02",
+          "pages": 0,
+          "status": "unread",
+          "note": "",
+          "createdAt": "2026-06-02T23:00:00.000Z"
+        },
+        {
+          "id": "chk006",
+          "memberId": "mem002",
+          "memberName": "李雨晴",
+          "memberAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=liyuqing",
+          "date": "2026-06-03",
+          "pages": 50,
+          "status": "finished20",
+          "note": "已经读了20%，太棒了！",
+          "createdAt": "2026-06-03T20:00:00.000Z"
+        },
+        {
+          "id": "chk007",
+          "memberId": "mem003",
+          "memberName": "王浩然",
+          "memberAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=wanghaoran",
+          "date": "2026-06-01",
+          "pages": 25,
+          "status": "reading",
+          "note": "开篇就很精彩。",
+          "createdAt": "2026-06-01T21:00:00.000Z"
+        },
+        {
+          "id": "chk008",
+          "memberId": "mem003",
+          "memberName": "王浩然",
+          "memberAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=wanghaoran",
+          "date": "2026-06-02",
+          "pages": 30,
+          "status": "reading",
+          "note": "继续深入。",
+          "createdAt": "2026-06-02T20:00:00.000Z"
+        },
+        {
+          "id": "chk009",
+          "memberId": "mem003",
+          "memberName": "王浩然",
+          "memberAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=wanghaoran",
+          "date": "2026-06-03",
+          "pages": 28,
+          "status": "reading",
+          "note": "情节越来越复杂了。",
+          "createdAt": "2026-06-03T21:00:00.000Z"
+        },
+        {
+          "id": "chk010",
+          "memberId": "mem003",
+          "memberName": "王浩然",
+          "memberAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=wanghaoran",
+          "date": "2026-06-04",
+          "pages": 32,
+          "status": "reading",
+          "note": "",
+          "createdAt": "2026-06-04T19:00:00.000Z"
+        },
+        {
+          "id": "chk011",
+          "memberId": "mem003",
+          "memberName": "王浩然",
+          "memberAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=wanghaoran",
+          "date": "2026-06-05",
+          "pages": 27,
+          "status": "reading",
+          "note": "连续打卡5天了！",
+          "createdAt": "2026-06-05T20:00:00.000Z"
+        }
+      ],
+      "createdAt": "2026-05-28T00:00:00.000Z"
+    }
+  ]
+}

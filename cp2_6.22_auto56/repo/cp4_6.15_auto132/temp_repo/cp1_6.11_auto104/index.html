@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>街头野兽之王</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      font-family: 'Courier New', monospace;
+      background: linear-gradient(180deg, #0F0C29 0%, #302B63 50%, #24243E 100%);
+    }
+    #game-wrapper {
+      position: relative;
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #game-container {
+      position: relative;
+      width: min(100vw, calc(100vh * 1.5));
+      height: min(100vh, calc(100vw / 1.5));
+      max-width: 900px;
+      max-height: 600px;
+    }
+    #game-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
+    }
+    .control-panel {
+      position: absolute;
+      bottom: 12px;
+      background: rgba(0, 0, 0, 0.53);
+      color: #EEEEEE;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-family: 'Courier New', monospace;
+      line-height: 1.6;
+      pointer-events: none;
+    }
+    #p1-panel { left: 12px; }
+    #p2-panel { right: 12px; text-align: right; }
+    #overlay {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0, 0, 0, 0.65);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      z-index: 10;
+      transition: opacity 0.4s ease;
+    }
+    #overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+    #start-btn {
+      background: transparent;
+      color: #FFFFFF;
+      border: 2px solid #FFFFFF;
+      padding: 16px 48px;
+      font-size: 20px;
+      font-family: 'Courier New', monospace;
+      cursor: pointer;
+      letter-spacing: 4px;
+      transition: transform 0.1s ease, background 0.2s ease;
+    }
+    #start-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+    #start-btn:active {
+      transform: scale(0.95);
+    }
+    #game-title {
+      color: #FFFFFF;
+      font-size: 36px;
+      font-family: 'Courier New', monospace;
+      margin-bottom: 40px;
+      letter-spacing: 6px;
+      text-shadow: 0 0 16px rgba(120, 100, 255, 0.8);
+    }
+    #result-text {
+      color: #FFFFFF;
+      font-size: 28px;
+      font-family: 'Courier New', monospace;
+      margin-bottom: 30px;
+      display: none;
+      letter-spacing: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-wrapper">
+    <div id="game-container">
+      <canvas id="game-canvas" width="900" height="600"></canvas>
+
+      <div class="control-panel" id="p1-panel">
+        [1P]<br/>
+        WASD 移动<br/>
+        SPACE 普攻<br/>
+        E 技能卡
+      </div>
+      <div class="control-panel" id="p2-panel">
+        [2P]<br/>
+        方向键 移动<br/>
+        ENTER 普攻<br/>
+        1 技能卡
+      </div>
+
+      <div id="overlay">
+        <div id="game-title">街头野兽之王</div>
+        <div id="result-text"></div>
+        <button id="start-btn">开始游戏</button>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

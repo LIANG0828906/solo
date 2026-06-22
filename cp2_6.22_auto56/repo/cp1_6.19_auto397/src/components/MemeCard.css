@@ -1,0 +1,110 @@
+.meme-card {
+  width: 280px;
+  border-radius: var(--radius-card);
+  background: var(--color-white);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+  transition: all 0.3s ease;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+}
+
+.meme-card:hover {
+  transform: translateY(-8px);
+  box-shadow: var(--shadow-hover);
+}
+
+.meme-card-image-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1;
+  background: var(--color-gray-light);
+  overflow: hidden;
+}
+
+.meme-card-skeleton {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--color-gray) 25%,
+    var(--color-gray-light) 50%,
+    var(--color-gray) 75%
+  );
+  background-size: 200px 100%;
+  animation: skeleton-shimmer 1.5s infinite;
+}
+
+.meme-card-image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.meme-card-image.loaded {
+  opacity: 1;
+}
+
+.meme-card-stats {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.meme-card-like,
+.meme-card-comments {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.meme-card-like {
+  transition: transform 0.2s ease;
+}
+
+.meme-card-like .heart {
+  font-size: 14px;
+}
+
+.meme-card-like.liked .heart {
+  color: var(--color-like);
+}
+
+.meme-card-like.liking {
+  animation: pulse-heart 0.2s ease;
+}
+
+.meme-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.meme-card-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-gray-light);
+}
+
+.meme-card-author {
+  font-size: 13px;
+  color: var(--color-gray-dark);
+  font-weight: 500;
+}

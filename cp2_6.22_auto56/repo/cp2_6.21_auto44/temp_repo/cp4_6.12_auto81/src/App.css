@@ -1,0 +1,78 @@
+.app-root {
+  min-height: 100vh;
+  position: relative;
+}
+
+.admin-entry-btn {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+  font-size: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 90;
+  transition: transform var(--transition);
+}
+.admin-entry-btn:hover {
+  transform: rotate(60deg);
+}
+
+.modal-mask {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  animation: fadeIn 0.2s ease-out;
+  padding: 16px;
+}
+
+.modal-dialog {
+  padding: 28px;
+  width: 100%;
+  max-width: 380px;
+  animation: slideDown 0.25s ease-out;
+}
+
+.form-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  font-size: 14px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.form-input:focus {
+  border-color: var(--color-pink);
+  box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.12);
+}
+
+.form-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid #e0e0e0;
+  border-radius: 10px;
+  font-size: 14px;
+  resize: vertical;
+  min-height: 90px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.form-textarea:focus {
+  border-color: var(--color-pink);
+  box-shadow: 0 0 0 3px rgba(255, 107, 157, 0.12);
+}
+
+@media (max-width: 767px) {
+  .modal-dialog {
+    padding: 20px;
+  }
+}

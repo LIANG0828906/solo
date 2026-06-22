@@ -1,0 +1,200 @@
+:root {
+  --primary: #4A90D9;
+  --primary-dark: #357ABD;
+  --primary-light: #6BA3E0;
+  --accent: #E67E22;
+  --accent-light: #F39C12;
+  --white: #FFFFFF;
+  --gray-50: #F8F9FA;
+  --gray-100: #F1F3F5;
+  --gray-200: #E9ECEF;
+  --gray-300: #DEE2E6;
+  --gray-400: #CED4DA;
+  --gray-500: #ADB5BD;
+  --gray-600: #868E96;
+  --gray-700: #495057;
+  --gray-800: #343A40;
+  --color-daily: #4A90D9;
+  --color-shopping: #E67E22;
+  --color-study: #27AE60;
+  --radius: 12px;
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);
+  --glass-bg: rgba(255, 255, 255, 0.18);
+  --glass-bg-solid: rgba(255, 255, 255, 0.25);
+  --glass-border: rgba(255, 255, 255, 0.3);
+  --glass-blur: 16px;
+}
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background: linear-gradient(135deg, #a8c8f0 0%, #4A90D9 40%, #1a5fa0 100%);
+  min-height: 100vh;
+  color: var(--gray-800);
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+@keyframes slideInFromBottom {
+  from {
+    opacity: 0;
+    transform: translateY(40px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fadeOutRight {
+  from {
+    opacity: 1;
+    transform: translateX(0) rotate(0deg);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(120px) rotate(10deg);
+  }
+}
+
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  85% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes rotateCheck {
+  0% {
+    transform: perspective(400px) rotateY(0deg);
+  }
+  40% {
+    transform: perspective(400px) rotateY(-15deg);
+  }
+  70% {
+    transform: perspective(400px) rotateY(8deg);
+  }
+  100% {
+    transform: perspective(400px) rotateY(0deg);
+  }
+}
+
+@keyframes fadeSwitch {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes confettiExplode {
+  0% {
+    opacity: 1;
+    transform: translate(0, 0) rotate(0deg) scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--tx), var(--ty)) rotate(var(--rot)) scale(0.2);
+  }
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.task-card-enter {
+  animation: slideInFromBottom 0.4s ease-out forwards;
+}
+
+.task-card-exit {
+  animation: fadeOutRight 0.4s ease-in forwards;
+}
+
+.task-card-check {
+  animation: rotateCheck 0.5s ease-in-out;
+}
+
+.task-list-fade {
+  animation: fadeSwitch 0.3s ease-in-out;
+}
+
+.confetti-piece {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  animation: confettiExplode 1s ease-out forwards;
+  pointer-events: none;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: var(--radius) !important;
+  box-shadow: var(--shadow-md) !important;
+  backdrop-filter: blur(8px);
+  background: rgba(255, 255, 255, 0.92) !important;
+}
+
+.leaflet-popup-tip {
+  background: rgba(255, 255, 255, 0.92) !important;
+}
+
+.leaflet-control-zoom a {
+  background: rgba(255, 255, 255, 0.9) !important;
+  color: var(--gray-700) !important;
+  border-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.leaflet-control-zoom a:hover {
+  background: var(--white) !important;
+}

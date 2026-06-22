@@ -1,0 +1,128 @@
+{
+  "creatures": [
+    {
+      "id": "clownfish",
+      "name": "小丑鱼",
+      "scientificName": "Amphiprioninae",
+      "habitat": "热带珊瑚礁海域，与海葵共生。小丑鱼身上有特殊的粘液层，可以保护自己不受海葵刺细胞的伤害，二者形成互利共生关系。",
+      "depthRange": "1-15米",
+      "conservationStatus": "无危",
+      "description": "体色鲜艳，橙白相间，是最具辨识度的珊瑚礁鱼类之一。体型小巧，通常不超过11厘米。",
+      "color": "#FF6B35",
+      "size": 0.3,
+      "speed": 1.2
+    },
+    {
+      "id": "bluetang",
+      "name": "蓝唐王鱼",
+      "scientificName": "Paracanthurus hepatus",
+      "habitat": "印度洋-太平洋珊瑚礁区域，喜欢在珊瑚礁外围巡游觅食浮游生物和藻类。",
+      "depthRange": "2-25米",
+      "conservationStatus": "无危",
+      "description": "鲜艳的宝蓝色身体配黑色调色板纹样，尾柄处有黄色尾刺。是珊瑚礁中最优雅的游泳者之一。",
+      "color": "#2196F3",
+      "size": 0.4,
+      "speed": 1.5
+    },
+    {
+      "id": "lionfish",
+      "name": "狮子鱼",
+      "scientificName": "Pterois volitans",
+      "habitat": "印度洋-西太平洋热带海域，常栖息于礁石缝隙和洞穴中，夜行性捕食者。",
+      "depthRange": "10-50米",
+      "conservationStatus": "无危",
+      "description": "拥有华丽的扇形鳍条和红白相间的条纹，鳍棘含有剧毒。是珊瑚礁生态系统中的顶级掠食者之一。",
+      "color": "#E53935",
+      "size": 0.5,
+      "speed": 0.8
+    },
+    {
+      "id": "angelfish",
+      "name": "皇帝神仙鱼",
+      "scientificName": "Pomacanthus imperator",
+      "habitat": "印度洋-太平洋礁坡和泻湖，幼鱼与成鱼体色完全不同，生活在不同深度的珊瑚礁区域。",
+      "depthRange": "3-70米",
+      "conservationStatus": "无危",
+      "description": "成鱼体色蓝黄相间，带有水平条纹，极具观赏价值。幼鱼呈深蓝底色配白色同心圆纹。",
+      "color": "#FFD600",
+      "size": 0.5,
+      "speed": 1.0
+    },
+    {
+      "id": "parrotfish",
+      "name": "鹦嘴鱼",
+      "scientificName": "Scaridae",
+      "habitat": "热带和亚热带珊瑚礁，以啃食珊瑚上的藻类为生，是珊瑚礁沙子的重要制造者。",
+      "depthRange": "1-30米",
+      "conservationStatus": "近危",
+      "description": "嘴部酷似鹦鹉喙，体色艳丽多变，从蓝绿到粉红。一条鹦嘴鱼每年可产生约90公斤珊瑚沙。",
+      "color": "#00E676",
+      "size": 0.6,
+      "speed": 0.9
+    },
+    {
+      "id": "seaturtle",
+      "name": "绿海龟",
+      "scientificName": "Chelonia mydas",
+      "habitat": "热带和亚热带海域，成年后以海草和藻类为食，是海洋生态系统中的关键物种。",
+      "depthRange": "0-40米",
+      "conservationStatus": "濒危",
+      "description": "体型较大，壳长可达1.5米，体重可达200公斤。以优雅的泳姿和长途迁徙著称，是海洋保护的旗舰物种。",
+      "color": "#4CAF50",
+      "size": 1.5,
+      "speed": 0.6
+    }
+  ],
+  "corals": [
+    {
+      "id": "braincoral",
+      "name": "脑珊瑚",
+      "scientificName": "Diploria labyrinthiformis",
+      "habitat": "加勒比海和大西洋西部浅水珊瑚礁，是构建珊瑚礁骨架的重要石珊瑚。",
+      "depthRange": "1-30米",
+      "conservationStatus": "近危",
+      "description": "球形或半球形，表面布满蜿蜒的沟槽，形似人类大脑。可存活数百年，直径超过1.8米。",
+      "color": "#8BC34A"
+    },
+    {
+      "id": "staghorn",
+      "name": "鹿角珊瑚",
+      "scientificName": "Acropora cervicornis",
+      "habitat": "加勒比海浅水礁区，是生长最快的珊瑚之一，每年可增长10-20厘米。",
+      "depthRange": "1-30米",
+      "conservationStatus": "极危",
+      "description": "树枝状分叉结构，呈黄褐色至褐色。是珊瑚礁三维结构的主要构建者，为众多海洋生物提供栖息地。",
+      "color": "#FF8A65"
+    },
+    {
+      "id": "tablecoral",
+      "name": "桌形珊瑚",
+      "scientificName": "Acropora hyacinthus",
+      "habitat": "印度洋-太平洋珊瑚礁，通常生长在水流较强的礁坡上部，以获取更多浮游生物和光照。",
+      "depthRange": "3-20米",
+      "conservationStatus": "易危",
+      "description": "扁平桌状结构，直径可达3米，是许多小鱼和无脊椎动物的重要庇护所。",
+      "color": "#64B5F6"
+    },
+    {
+      "id": "fan coral",
+      "name": "海扇珊瑚",
+      "scientificName": "Gorgonia ventalina",
+      "habitat": "热带大西洋和加勒比海，常见于礁壁和通道中，垂直于水流方向生长以捕获浮游生物。",
+      "depthRange": "5-30米",
+      "conservationStatus": "无危",
+      "description": "扇形骨架，主轴呈紫色，枝条网状分布。柔软的息肉组织在水中如旗帜般飘动。",
+      "color": "#CE93D8"
+    },
+    {
+      "id": "mushroom",
+      "name": "蘑菇珊瑚",
+      "scientificName": "Fungia fungites",
+      "habitat": "印度洋-太平洋珊瑚礁沙质底部，是少数可以自由移动的珊瑚种类。",
+      "depthRange": "3-25米",
+      "conservationStatus": "近危",
+      "description": "圆盘状单体珊瑚，形如蘑菇伞盖，直径可达25厘米。拥有独特的膨胀和移动能力。",
+      "color": "#F48FB1"
+    }
+  ]
+}

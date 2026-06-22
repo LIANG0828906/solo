@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body, #root {
+    height: 100%;
+  }
+  body {
+    @apply font-sans bg-[#f5f7fa] text-[#2c3e50] antialiased;
+  }
+}
+
+@layer components {
+  .card-base {
+    @apply bg-white rounded-xl shadow-sm border border-gray-100 transition-all duration-200;
+  }
+  .card-hover {
+    @apply hover:-translate-y-0.5 hover:shadow-lg hover:border-primary-100;
+  }
+  .sidebar-glow {
+    background: linear-gradient(160deg, #1e3a5f 0%, #172f4f 60%, #0f2544 100%);
+    box-shadow: 0 8px 32px rgba(30, 58, 95, 0.35), inset 0 1px 0 rgba(255,255,255,0.06);
+  }
+  .sidebar-glow:hover {
+    box-shadow: 0 10px 40px rgba(30, 58, 95, 0.45), inset 0 1px 0 rgba(255,255,255,0.09);
+  }
+  .nav-item {
+    @apply flex items-center gap-3 px-4 py-3 rounded-xl text-white/80 transition-all duration-200 cursor-pointer;
+  }
+  .nav-item:hover {
+    @apply bg-white/10 text-white;
+  }
+  .nav-item-active {
+    @apply bg-white/15 text-white shadow-inner;
+    box-shadow: inset 2px 0 0 #7eacf4, 0 4px 14px rgba(126,172,244,0.15);
+  }
+  .btn-primary {
+    @apply px-5 py-2.5 rounded-lg bg-primary-600 text-white font-medium transition-all duration-200 hover:bg-primary-500 active:scale-95 shadow-sm hover:shadow-md;
+  }
+  .btn-outline {
+    @apply px-5 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-700 font-medium transition-all duration-200 hover:border-primary-200 hover:text-primary-600 hover:bg-primary-50;
+  }
+  .btn-danger {
+    @apply px-4 py-2 rounded-lg bg-red-50 text-red-600 font-medium transition-all duration-200 hover:bg-red-100 border border-red-100;
+  }
+  .input-field {
+    @apply w-full px-4 py-2.5 rounded-lg border border-gray-200 bg-white text-gray-700 placeholder:text-gray-400 focus:border-primary-300 focus:ring-2 focus:ring-primary-100 outline-none transition-all;
+  }
+  .label-text {
+    @apply block text-sm font-medium text-gray-700 mb-1.5;
+  }
+  .status-pill {
+    @apply inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium;
+  }
+  .table-row-hover {
+    transition: background 0.25s ease;
+  }
+  .table-row-hover:hover {
+    background: linear-gradient(90deg, rgba(232,240,254,0.85) 0%, rgba(212,228,252,0.7) 100%);
+  }
+  .divider-line {
+    @apply border-t border-gray-100;
+  }
+}
+
+/* Calendar scroll performance */
+.calendar-scroll {
+  will-change: transform;
+  contain: layout style paint;
+}
+
+/* Scrollbar styling */
+.thin-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+.thin-scroll::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 8px;
+}
+.thin-scroll::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Modal backdrop blur */
+.modal-backdrop {
+  background: rgba(30, 58, 95, 0.45);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}

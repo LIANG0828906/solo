@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>沙盘推演 - 古代军事模拟</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      background: #4E342E;
+      font-family: "SimSun", "KaiTi", serif;
+      overflow: auto;
+    }
+    #gameContainer {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      padding: 20px;
+    }
+    canvas {
+      display: block;
+      background: #4E342E;
+      cursor: default;
+    }
+    #instructions {
+      color: #DEB887;
+      font-size: 14px;
+      text-align: center;
+      max-width: 1000px;
+      line-height: 1.8;
+      background: rgba(62, 39, 35, 0.7);
+      padding: 15px 25px;
+      border-radius: 8px;
+      border: 1px solid #8B7355;
+    }
+    #instructions b {
+      color: #FFD700;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <canvas id="mainCanvas"></canvas>
+    <p id="instructions">
+      <b>操作说明：</b>
+      从右侧兵牌栏拖拽兵种到沙盘放置 | 左键点击己方单位选中，再点击敌方单位攻击或点击空地移动
+      | 选中金色将领后点击沙盘下达集结指令 | 右键拖动平移视角 | 滚轮缩放沙盘
+      | 右上角按钮：重置、暂停/继续、加速x2
+    </p>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

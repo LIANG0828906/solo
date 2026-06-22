@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/anglepicker.tsx","./src/components/colorpickerpanel.tsx","./src/components/communitygallery.tsx","./src/components/gradientcanvas.tsx","./src/data/presets.ts","./src/engine/gradientengine.ts","./src/stores/userstore.ts","./src/types/index.ts"],"version":"5.8.3"}

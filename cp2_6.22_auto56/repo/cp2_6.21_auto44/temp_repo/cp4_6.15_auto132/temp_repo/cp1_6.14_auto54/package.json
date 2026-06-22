@@ -1,0 +1,50 @@
+{
+  "name": "community-review-platform",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "client:dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "check": "tsc --noEmit",
+    "server:dev": "nodemon server/index.js",
+    "dev": "concurrently \"npm run client:dev\" \"npm run server:dev\""
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.22.0",
+    "axios": "^1.6.7",
+    "express": "^4.18.2",
+    "lowdb": "^7.0.1",
+    "uuid": "^9.0.1",
+    "cors": "^2.8.5",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "multer": "^1.4.5-lts.1",
+    "sharp": "^0.33.2",
+    "leaflet": "^1.9.4",
+    "leaflet-defaulticon-compatibility": "^0.1.2",
+    "@react-leaflet/core": "^2.1.0",
+    "react-leaflet": "^4.2.1",
+    "lucide-react": "^0.344.0",
+    "zustand": "^4.5.2"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/leaflet": "^1.9.8",
+    "@types/node": "^22.15.30",
+    "@vitejs/plugin-react": "^4.4.1",
+    "concurrently": "^9.2.0",
+    "nodemon": "^3.1.10",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5",
+    "vite-tsconfig-paths": "^5.1.4",
+    "tailwindcss": "^3.4.17",
+    "postcss": "^8.5.3",
+    "autoprefixer": "^10.4.21"
+  }
+}

@@ -1,0 +1,40 @@
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 5px #00FFAA, 0 0 10px #00FFAA40; }
+  50% { box-shadow: 0 0 15px #00FFAA, 0 0 25px #00FFAA80; }
+}
+
+@keyframes pulse-glow-gold {
+  0%, 100% { box-shadow: 0 0 5px #FFD700, 0 0 10px #FFD70040; }
+  50% { box-shadow: 0 0 20px #FFD700, 0 0 35px #FFD70090; }
+}
+
+@keyframes fragment-pulse {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.15); }
+}
+
+@keyframes fragment-blink {
+  0%, 100% { opacity: 0.4; }
+  25% { opacity: 1; }
+  50% { opacity: 0.6; }
+  75% { opacity: 1; }
+}
+
+.glow-button {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+.glow-button-gold {
+  animation: pulse-glow-gold 1.8s ease-in-out infinite;
+}
+
+.typewriter-cursor::after {
+  content: '|';
+  animation: blink 0.8s step-end infinite;
+  color: #00FFAA;
+}
+
+@keyframes blink {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}

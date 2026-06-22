@@ -1,0 +1,143 @@
+.toolbar {
+  height: 50px;
+  background-color: #333333;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 16px;
+  border-bottom: 1px solid #1e1e1e;
+}
+
+.toolbar-left {
+  display: flex;
+  align-items: center;
+}
+
+.toolbar-right {
+  display: flex;
+  gap: 12px;
+}
+
+.language-selector {
+  position: relative;
+}
+
+.language-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background-color: #252526;
+  color: #cccccc;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.language-button:hover {
+  background-color: #2d2d30;
+  border-color: #007acc;
+}
+
+.language-icon {
+  font-size: 16px;
+}
+
+.language-label {
+  font-weight: 500;
+}
+
+.dropdown-arrow {
+  font-size: 10px;
+  color: #888;
+  margin-left: 4px;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background-color: #252526;
+  border: 1px solid #3c3c3c;
+  border-radius: 4px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  z-index: 100;
+  min-width: 160px;
+  overflow: hidden;
+  animation: fadeIn 0.15s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 14px;
+  background: none;
+  border: none;
+  color: #cccccc;
+  cursor: pointer;
+  text-align: left;
+  font-size: 13px;
+  transition: background-color 0.15s ease;
+}
+
+.dropdown-item:hover {
+  background-color: #2d2d30;
+}
+
+.dropdown-item.active {
+  background-color: #094771;
+  color: #ffffff;
+}
+
+.action-button {
+  padding: 8px 20px;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.minify-button {
+  background-color: #0e639c;
+}
+
+.minify-button:hover {
+  background-color: #1177bb;
+}
+
+.minify-button.active {
+  background-color: #22863a;
+  transform: scale(0.95);
+}
+
+.format-button {
+  background-color: #0e639c;
+}
+
+.format-button:hover {
+  background-color: #1177bb;
+}
+
+.format-button.active {
+  background-color: #e36209;
+  transform: scale(0.95);
+}

@@ -1,0 +1,252 @@
+.gridContainer {
+  flex: 1;
+  padding: 20px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.title {
+  font-size: 20px;
+  font-weight: 700;
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+.actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.compareBtn {
+  padding: 8px 18px;
+  border-radius: var(--radius-pill);
+  background: var(--gradient-primary);
+  color: white;
+  font-size: 13px;
+  font-weight: 500;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.compareBtn:hover:not(:disabled) {
+  filter: brightness(1.25);
+  transform: translateY(-1px);
+}
+
+.compareBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.selectedCount {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  align-content: flex-start;
+}
+
+.card {
+  width: 200px;
+  background: var(--bg-secondary);
+  border-radius: var(--radius-card);
+  box-shadow: var(--shadow-card);
+  overflow: hidden;
+  cursor: pointer;
+  transition: all 0.4s ease;
+  position: relative;
+  border: 1.5px solid transparent;
+  flex-shrink: 0;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: var(--shadow-hover);
+}
+
+.cardSelected {
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 0 2px rgba(108, 99, 255, 0.3), var(--shadow-card);
+}
+
+.cardDragging {
+  opacity: 0.4;
+  transform: scale(0.98);
+}
+
+.cardDragOver {
+  border-color: var(--accent-pink);
+  transform: scale(1.02);
+}
+
+.imageWrap {
+  width: 100%;
+  position: relative;
+  background: var(--bg-tertiary);
+}
+
+.image {
+  width: 100%;
+  height: auto;
+  display: block;
+  object-fit: cover;
+}
+
+.checkbox {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  background: rgba(22, 33, 62, 0.9);
+  border: 2px solid rgba(255, 255, 255, 0.4);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2;
+  transition: all 0.2s ease;
+}
+
+.checkbox:hover {
+  border-color: var(--accent-purple);
+}
+
+.checkboxChecked {
+  background: var(--gradient-primary);
+  border-color: transparent;
+}
+
+.checkmark {
+  color: white;
+  font-size: 14px;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.dragHandle {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: rgba(22, 33, 62, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  z-index: 2;
+  color: var(--text-secondary);
+  font-size: 16px;
+  transition: all 0.2s ease;
+}
+
+.dragHandle:hover {
+  background: rgba(108, 99, 255, 0.9);
+  color: white;
+}
+
+.dragHandle:active {
+  cursor: grabbing;
+}
+
+.cardBody {
+  padding: 12px;
+}
+
+.cardTitle {
+  font-size: 12px;
+  color: var(--text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 8px;
+  font-weight: 500;
+}
+
+.colorRow {
+  display: flex;
+  gap: 4px;
+}
+
+.colorDot {
+  flex: 1;
+  height: 14px;
+  border-radius: 3px;
+  transition: transform 0.2s ease;
+}
+
+.colorDot:hover {
+  transform: scaleY(1.5);
+}
+
+.emptyState {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+  padding: 60px 20px;
+  text-align: center;
+}
+
+.emptyIcon {
+  font-size: 64px;
+  margin-bottom: 16px;
+  opacity: 0.5;
+}
+
+.emptyText {
+  font-size: 15px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+
+.emptyHint {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+  .gridContainer {
+    padding: 12px;
+  }
+
+  .card {
+    width: calc(50% - 8px);
+  }
+
+  .header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  .actions {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .grid {
+    gap: 12px;
+  }
+}

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Particle Life Evolution</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: linear-gradient(180deg, #0a0a2e 0%, #1a1a3e 100%);
+    }
+    #app {
+      width: 100%;
+      height: 100%;
+    }
+    .info-panel {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      padding: 12px 16px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 8px;
+      color: white;
+      font-family: 'Segoe UI', sans-serif;
+      font-size: 16px;
+      pointer-events: none;
+      z-index: 100;
+    }
+    .reset-btn {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      margin-top: 50px;
+      padding: 8px 16px;
+      background: rgba(0, 0, 0, 0.5);
+      border: none;
+      border-radius: 8px;
+      color: white;
+      font-family: 'Segoe UI', sans-serif;
+      font-size: 14px;
+      cursor: pointer;
+      z-index: 100;
+      transition: opacity 0.3s ease;
+    }
+    .reset-btn:hover {
+      background: rgba(0, 0, 0, 0.8);
+    }
+    .control-toggle {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: rgba(50, 50, 100, 0.8);
+      border: none;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 100;
+      transition: all 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .control-toggle:hover {
+      background: rgba(80, 80, 150, 0.9);
+      transform: scale(1.1);
+    }
+    .control-panel {
+      position: absolute;
+      bottom: 80px;
+      right: 20px;
+      width: 240px;
+      padding: 20px;
+      background: rgba(20, 20, 50, 0.85);
+      backdrop-filter: blur(10px);
+      border-radius: 12px;
+      color: white;
+      font-family: 'Segoe UI', sans-serif;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s ease;
+      z-index: 100;
+    }
+    .control-panel.visible {
+      opacity: 1;
+      visibility: visible;
+    }
+    .control-group {
+      margin-bottom: 16px;
+    }
+    .control-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 14px;
+      color: rgba(255, 255, 255, 0.8);
+    }
+    .control-group input[type="range"] {
+      width: 100%;
+      height: 6px;
+      -webkit-appearance: none;
+      appearance: none;
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 3px;
+      outline: none;
+    }
+    .control-group input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #3366FF;
+      border-radius: 50%;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+    .control-group input[type="range"]::-webkit-slider-thumb:hover {
+      background: #4477FF;
+    }
+    .control-group .value {
+      float: right;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <div class="info-panel" id="info-panel">
+    <div>Particles: <span id="particle-count">0</span></div>
+    <div>Avg Energy: <span id="avg-energy">0.0</span></div>
+  </div>
+  <button class="reset-btn" id="reset-btn">Reset View</button>
+  <button class="control-toggle" id="control-toggle">⚙</button>
+  <div class="control-panel" id="control-panel">
+    <div class="control-group">
+      <label>Gravity Strength: <span class="value" id="gravity-value">3</span></label>
+      <input type="range" id="gravity-slider" min="0" max="10" step="0.1" value="3">
+    </div>
+    <div class="control-group">
+      <label>Repulsion Strength: <span class="value" id="repulsion-value">2</span></label>
+      <input type="range" id="repulsion-slider" min="0" max="10" step="0.1" value="2">
+    </div>
+    <div class="control-group">
+      <label>Simulation Speed: <span class="value" id="speed-value">1</span></label>
+      <input type="range" id="speed-slider" min="0.5" max="2" step="0.1" value="1">
+    </div>
+  </div>
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

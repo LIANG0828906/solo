@@ -1,0 +1,32 @@
+[
+  {
+    "id": "class-001",
+    "name": "高三(1)班",
+    "studentCount": 45,
+    "lastGradedDate": "2024-01-15"
+  },
+  {
+    "id": "class-002",
+    "name": "高三(2)班",
+    "studentCount": 42,
+    "lastGradedDate": "2024-01-14"
+  },
+  {
+    "id": "class-003",
+    "name": "高三(3)班",
+    "studentCount": 48,
+    "lastGradedDate": "2024-01-13"
+  },
+  {
+    "id": "class-004",
+    "name": "高二(1)班",
+    "studentCount": 40,
+    "lastGradedDate": "2024-01-12"
+  },
+  {
+    "id": "class-005",
+    "name": "高二(2)班",
+    "studentCount": 43,
+    "lastGradedDate": "2024-01-11"
+  }
+]

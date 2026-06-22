@@ -1,0 +1,92 @@
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  background: #1a1a2e;
+  color: #e0e0ff;
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  overflow-x: hidden;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 201, 167, 0.3);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 201, 167, 0.5);
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 8px rgba(0, 201, 167, 0.15); }
+  50% { box-shadow: 0 0 16px rgba(0, 201, 167, 0.3); }
+}
+
+input, textarea, select {
+  font-family: inherit;
+}
+
+textarea {
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+}
+
+@media (max-width: 767px) {
+  .app-container {
+    flex-direction: column !important;
+  }
+  .benchmark-panel {
+    width: 100% !important;
+    max-height: none !important;
+  }
+  .result-panel-wrapper {
+    display: none;
+  }
+  .result-panel-wrapper.mobile-expanded {
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    top: 50%;
+    z-index: 100;
+    overflow-y: auto;
+    border-top: 1px solid rgba(0, 201, 167, 0.3);
+    background: #1a1a2e;
+  }
+  .mobile-result-toggle {
+    display: flex !important;
+  }
+}

@@ -1,0 +1,44 @@
+[
+  {
+    "id": "rel-1",
+    "source": "node-1",
+    "target": "node-2",
+    "type": "依赖"
+  },
+  {
+    "id": "rel-2",
+    "source": "node-3",
+    "target": "node-4",
+    "type": "衍生"
+  },
+  {
+    "id": "rel-3",
+    "source": "node-5",
+    "target": "node-4",
+    "type": "引用"
+  },
+  {
+    "id": "rel-4",
+    "source": "node-1",
+    "target": "node-6",
+    "type": "对比"
+  },
+  {
+    "id": "rel-5",
+    "source": "node-6",
+    "target": "node-4",
+    "type": "依赖"
+  },
+  {
+    "id": "rel-6",
+    "source": "node-7",
+    "target": "node-1",
+    "type": "引用"
+  },
+  {
+    "id": "rel-7",
+    "source": "node-8",
+    "target": "node-5",
+    "type": "衍生"
+  }
+]

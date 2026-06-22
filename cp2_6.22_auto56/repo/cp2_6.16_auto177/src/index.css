@@ -1,0 +1,154 @@
+@import '@fontsource/inter/400.css';
+@import '@fontsource/inter/500.css';
+@import '@fontsource/inter/600.css';
+@import '@fontsource/inter/700.css';
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-primary: #E67E22;
+  --color-primary-light: #F39C12;
+  --color-primary-dark: #D35400;
+  --color-secondary: #2C3E50;
+  --color-bg: #FDF2E9;
+  --color-card: #FFFFFF;
+  --color-available: #2ECC71;
+  --color-pending: #F39C12;
+  --color-swapped: #95A5A6;
+  --color-star: #F1C40F;
+  --shadow-card: 0 2px 8px rgba(0,0,0,0.08);
+  --shadow-card-hover: 0 4px 16px rgba(0,0,0,0.15);
+}
+
+* {
+  font-family: 'Inter', sans-serif;
+  box-sizing: border-box;
+}
+
+html, body, #root {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: var(--color-bg);
+  color: var(--color-secondary);
+}
+
+body {
+  overflow-x: hidden;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  outline: none;
+  transition: transform 0.15s ease;
+}
+
+button:active {
+  transform: scale(0.95);
+}
+
+input, textarea, select {
+  outline: none;
+  font-family: inherit;
+}
+
+@keyframes slideInDown {
+  from {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes slideOutUp {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(-100%);
+    opacity: 0;
+  }
+}
+
+@keyframes modalScaleIn {
+  from {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes skeletonPulse {
+  0%, 100% { opacity: 0.6; }
+  50% { opacity: 1; }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, #e0e0e0 25%, #f0f0f0 50%, #e0e0e0 75%);
+  background-size: 200% 100%;
+  animation: skeletonPulse 1.5s ease-in-out infinite;
+}
+
+.toast-enter {
+  animation: slideInDown 0.3s ease-out forwards;
+}
+
+.toast-exit {
+  animation: slideOutUp 0.3s ease-in forwards;
+}
+
+.modal-enter {
+  animation: modalScaleIn 0.3s ease-out forwards;
+}
+
+.fade-in {
+  animation: fadeIn 0.5s ease-out forwards;
+}
+
+.img-loaded {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.drag-active {
+  border-style: dashed !important;
+  transform: scale(1.02);
+  animation: pulse 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes pulse {
+  from { border-color: var(--color-primary); }
+  to { border-color: var(--color-primary-light); }
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(230, 126, 34, 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(230, 126, 34, 0.5);
+}

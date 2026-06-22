@@ -1,0 +1,152 @@
+.nav {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: rgba(255, 255, 255, 0.82);
+  backdrop-filter: saturate(180%) blur(16px);
+  -webkit-backdrop-filter: saturate(180%) blur(16px);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.inner {
+  height: var(--nav-height);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 0;
+  transition: opacity 0.2s ease;
+}
+
+.brand:hover {
+  opacity: 0.8;
+}
+
+.logoMark {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--color-primary) 0%, #4a4a4a 100%);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.05rem;
+  box-shadow: 0 4px 10px rgba(45, 45, 45, 0.2);
+}
+
+.brandName {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 1.2rem;
+  letter-spacing: 0.02em;
+  color: var(--color-primary);
+}
+
+.brandTag {
+  font-size: 0.75rem;
+  color: var(--color-text-muted);
+  letter-spacing: 0.06em;
+  padding-left: 8px;
+  border-left: 1px solid var(--color-border);
+  margin-left: 4px;
+}
+
+.links {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 100px;
+  font-size: 0.86rem;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  transition: all var(--transition-base);
+}
+
+.link em {
+  font-style: normal;
+  font-size: 0.72rem;
+  color: var(--color-text-muted);
+  padding: 1px 7px;
+  border-radius: 100px;
+  background: rgba(45, 45, 45, 0.05);
+  transition: all var(--transition-base);
+}
+
+.link:hover {
+  color: var(--color-text);
+  background: rgba(45, 45, 45, 0.04);
+}
+
+.link.active {
+  color: #fff;
+  background: var(--color-primary);
+  box-shadow: 0 4px 12px rgba(45, 45, 45, 0.25);
+}
+
+.link.active em {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.18);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.78rem;
+  color: var(--color-text-secondary);
+}
+
+.spin {
+  animation: spin 0.9s linear infinite;
+  color: var(--color-accent);
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 768px) {
+  .inner {
+    gap: 10px;
+    padding: 0 14px;
+  }
+  .brandTag {
+    display: none;
+  }
+  .links {
+    gap: 2px;
+  }
+  .link {
+    padding: 6px 10px;
+    font-size: 0.8rem;
+  }
+  .link em { display: none; }
+  .actions .btn {
+    padding: 8px 12px;
+    font-size: 0.8rem;
+    min-height: 36px;
+  }
+  .loading span { display: none; }
+}

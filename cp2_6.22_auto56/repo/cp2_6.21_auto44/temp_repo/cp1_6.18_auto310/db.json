@@ -1,0 +1,27 @@
+{
+  "orders": [
+    {
+      "id": "18b1bd6d-4d00-4868-8549-75e7615987af",
+      "orderNo": "C808010",
+      "customerName": "张三",
+      "phone": "13800138000",
+      "productType": "陶瓷",
+      "description": "想要一个手工陶瓷杯子，蓝色釉面，容量约300ml，杯身刻有梅花图案。",
+      "referenceImages": [],
+      "designImages": [],
+      "finalImages": [],
+      "status": "设计中",
+      "createdAt": "2026-06-18T06:52:39.026Z",
+      "updatedAt": "2026-06-18T06:54:41.227Z",
+      "logs": [
+        {
+          "id": "82e400fa-9e82-4b5a-853a-ee7b1500f576",
+          "author": "工作室成员",
+          "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=craft",
+          "content": "已完成设计草图，采用青花风格，蓝色釉面配方已确认。明天开始制作胎体。",
+          "timestamp": "2026-06-18T06:54:41.227Z"
+        }
+      ]
+    }
+  ]
+}

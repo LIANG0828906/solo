@@ -1,0 +1,28 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #3E2723;
+  font-family: 'Press Start 2P', cursive;
+  color: #FFF8DC;
+}
+
+* {
+  image-rendering: pixelated;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #5D4037;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #8B4513;
+}

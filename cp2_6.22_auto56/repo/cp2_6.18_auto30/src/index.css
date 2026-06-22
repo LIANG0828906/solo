@@ -1,0 +1,214 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-bg: #F8F9FA;
+  --color-card: #FFFFFF;
+  --color-sidebar: #F0F1F3;
+  --color-text: #212529;
+  --color-text-secondary: #6c757d;
+  --color-border: #dee2e6;
+}
+
+.dark {
+  --color-bg: #1A1D23;
+  --color-card: #2D313A;
+  --color-sidebar: #252830;
+  --color-text: #E9ECEF;
+  --color-text-secondary: #adb5bd;
+  --color-border: #495057;
+}
+
+* {
+  transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease;
+}
+
+body {
+  font-family: 'Source Sans 3', sans-serif;
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+  margin: 0;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Outfit', sans-serif;
+}
+
+.card {
+  background-color: var(--color-card);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.card:hover {
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  transform: translateY(-4px);
+}
+
+.btn-primary {
+  background-color: #6C63FF;
+  color: white;
+  border-radius: 8px;
+  padding: 0.5rem 1.25rem;
+  font-weight: 600;
+  transition: filter 0.2s ease, transform 0.1s ease;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.1);
+}
+
+.btn-primary:active {
+  transform: scale(0.95);
+}
+
+.input-field {
+  background-color: var(--color-card);
+  border: 1.5px solid var(--color-border);
+  border-radius: 8px;
+  padding: 0.625rem 0.875rem;
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  width: 100%;
+  font-family: 'Source Sans 3', sans-serif;
+  font-size: 0.9375rem;
+}
+
+.input-field:focus {
+  border-color: #6C63FF;
+  box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.2);
+}
+
+.input-field::placeholder {
+  color: var(--color-text-secondary);
+}
+
+.sidebar {
+  background-color: var(--color-sidebar);
+  transition: background-color 0.4s ease;
+}
+
+.markdown-body h1 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  margin-top: 1.5rem;
+  margin-bottom: 0.75rem;
+}
+
+.markdown-body h2 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.markdown-body h3 {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  margin-bottom: 0.5rem;
+}
+
+.markdown-body p {
+  margin-bottom: 0.75rem;
+  line-height: 1.75;
+}
+
+.markdown-body ul, .markdown-body ol {
+  margin-bottom: 0.75rem;
+  padding-left: 1.5rem;
+}
+
+.markdown-body li {
+  margin-bottom: 0.25rem;
+}
+
+.markdown-body code {
+  background-color: var(--color-sidebar);
+  padding: 0.125rem 0.375rem;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.markdown-body pre {
+  background-color: var(--color-sidebar);
+  padding: 1rem;
+  border-radius: 8px;
+  overflow-x: auto;
+  margin-bottom: 1rem;
+}
+
+.markdown-body pre code {
+  background: none;
+  padding: 0;
+  font-size: 0.875rem;
+}
+
+.markdown-body blockquote {
+  border-left: 3px solid #6C63FF;
+  padding-left: 1rem;
+  margin-left: 0;
+  margin-bottom: 0.75rem;
+  color: var(--color-text-secondary);
+  font-style: italic;
+}
+
+.markdown-body strong {
+  font-weight: 600;
+}
+
+.markdown-body a {
+  color: #6C63FF;
+  text-decoration: underline;
+}
+
+.tag {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 500;
+  background-color: rgba(108, 99, 255, 0.12);
+  color: #6C63FF;
+}
+
+.dark .tag {
+  background-color: rgba(108, 99, 255, 0.2);
+  color: #9d97ff;
+}
+
+.tech-tag {
+  display: inline-block;
+  padding: 0.25rem 0.625rem;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  background-color: var(--color-sidebar);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: var(--color-border);
+    border-radius: 3px;
+  }
+}

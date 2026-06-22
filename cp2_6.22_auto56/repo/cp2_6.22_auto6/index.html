@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>碳足迹互动可视化</title>
+  <link rel="stylesheet" href="/src/styles/main.css">
+</head>
+<body>
+  <div id="app">
+    <canvas id="earth-canvas"></canvas>
+    
+    <div class="glow-panel right-panel" id="scenario-panel">
+      <h2 class="panel-title">碳足迹模拟器</h2>
+      
+      <div class="scenario-tabs">
+        <button class="tab-btn active" data-scenario="transport">交通</button>
+        <button class="tab-btn" data-scenario="diet">饮食</button>
+        <button class="tab-btn" data-scenario="energy">能源</button>
+      </div>
+      
+      <div class="scenario-content" id="scenario-content">
+      </div>
+      
+      <div class="total-carbon">
+        <div class="total-label">年碳足迹总量</div>
+        <div class="total-value"><span id="carbon-value">0</span> <span class="unit">吨 CO₂</span></div>
+      </div>
+    </div>
+    
+    <div class="bottom-section">
+      <div class="time-slider-container">
+        <div class="time-label">
+          <span>1990</span>
+          <span class="current-year" id="current-year">2023</span>
+          <span>2023</span>
+        </div>
+        <input type="range" id="time-slider" min="1990" max="2023" value="2023" step="1">
+      </div>
+      
+      <div class="chart-container" id="chart-container">
+        <svg id="trend-chart"></svg>
+      </div>
+    </div>
+    
+    <div class="country-tooltip" id="country-tooltip">
+      <div class="tooltip-country" id="tooltip-country">国家</div>
+      <div class="tooltip-data">
+        <div class="tooltip-row">
+          <span>人均碳排放</span>
+          <span id="tooltip-emission">0 吨</span>
+        </div>
+        <div class="tooltip-row">
+          <span>总人口</span>
+          <span id="tooltip-population">0</span>
+        </div>
+        <div class="tooltip-row">
+          <span>全球排名</span>
+          <span id="tooltip-rank">-</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

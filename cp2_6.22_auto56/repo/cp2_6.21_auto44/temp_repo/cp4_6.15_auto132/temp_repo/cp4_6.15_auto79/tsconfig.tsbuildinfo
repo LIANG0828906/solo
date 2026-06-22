@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/grid.tsx","./src/character.test.ts","./src/character.ts","./src/gamelogic.test.ts","./src/gamelogic.ts","./src/main.tsx","./src/vite-env.d.ts"],"version":"5.8.3"}

@@ -1,0 +1,67 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --color-brand: #6C5CE7;
+  --color-brand-light: #7B6FEF;
+  --color-mixing-bg: #F8F6F3;
+  --color-mixing-border: #E0D8CC;
+  --color-preview-bg: #FAFAFA;
+  --color-panel-bg: #FFFFFF;
+  --color-progress-bg: #E8E8E8;
+  --color-border: #DDDDDD;
+  --color-text: #333333;
+  --color-text-secondary: #666666;
+  --color-danger: #E74C3C;
+  --color-success: #27AE60;
+
+  --font-family-base: -apple-system, BlinkMacSystemFont, "PingFang SC",
+    "Hiragino Sans GB", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+}
+
+html, body, #root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--font-family-base);
+  color: var(--color-text);
+  background:
+    radial-gradient(circle at 10% 20%, rgba(108, 92, 231, 0.06) 0%, transparent 40%),
+    radial-gradient(circle at 90% 10%, rgba(244, 167, 167, 0.10) 0%, transparent 45%),
+    radial-gradient(circle at 50% 100%, rgba(142, 200, 232, 0.10) 0%, transparent 50%),
+    linear-gradient(180deg, #FFFFFF 0%, #F5F2EE 100%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-x: hidden;
+}
+
+button {
+  font-family: inherit;
+  border: none;
+  background: none;
+  cursor: pointer;
+}
+
+input, select {
+  font-family: inherit;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.12);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.22);
+}

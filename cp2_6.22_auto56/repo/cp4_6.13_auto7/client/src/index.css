@@ -1,0 +1,40 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply font-sans bg-warm-50 text-gray-800;
+}
+
+.leaflet-container {
+  height: 100%;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.btn-primary {
+  @apply bg-gradient-to-r from-primary to-secondary text-white rounded-full px-6 py-2.5 font-semibold transition-all hover:shadow-lg active:animate-pop;
+}
+
+.card {
+  @apply bg-white rounded-2xl shadow-[0_2px_12px_rgba(255,140,66,0.10)] border border-warm-100;
+}
+
+.tag {
+  @apply inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gradient-to-r from-primary/20 to-secondary/20 text-primary;
+}
+
+.bubble-self {
+  @apply ml-auto bg-gradient-to-br from-primary to-secondary text-white rounded-2xl rounded-tr-md px-4 py-2.5 max-w-[75%] shadow-md animate-slide-up;
+}
+
+.bubble-other {
+  @apply mr-auto bg-gray-100 text-gray-800 rounded-2xl rounded-tl-md px-4 py-2.5 max-w-[75%] animate-slide-up;
+}

@@ -1,0 +1,264 @@
+{
+  "books": [
+    {
+      "id": "3fbd767f-f997-4a57-8113-2ab68507f8dd",
+      "title": "百年孤独",
+      "author": "加西亚·马尔克斯",
+      "isbn": "9787779769508",
+      "spineColor": "#34495E",
+      "spineWidth": 28,
+      "position": 0,
+      "status": "available",
+      "currentBorrower": null,
+      "borrowHistory": [
+        {
+          "id": "40d5da2f-b107-4424-9faa-6dff5d0b767b",
+          "type": "borrow",
+          "borrowerName": "张三",
+          "borrowerAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=zhangsan",
+          "timestamp": "2026-06-17T04:35:36.292Z"
+        }
+      ],
+      "createdAt": "2026-06-17T04:35:36.292Z"
+    },
+    {
+      "id": "7bd87ec0-4e9a-4d43-b1b9-89b615f556c4",
+      "title": "三体",
+      "author": "刘慈欣",
+      "isbn": "9781268445136",
+      "spineColor": "#C0392B",
+      "spineWidth": 30,
+      "position": 1,
+      "status": "available",
+      "currentBorrower": null,
+      "borrowHistory": [
+        {
+          "id": "7de006d1-c5cb-4f22-b15c-c7b2d34de71d",
+          "type": "borrow",
+          "borrowerName": "李四",
+          "borrowerAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=lisi",
+          "timestamp": "2026-06-17T04:35:36.292Z"
+        },
+        {
+          "id": "a2d9a4a3-298f-44f8-9219-c94a73191f98",
+          "type": "return",
+          "borrowerName": "张三",
+          "borrowerAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=zhangsan",
+          "timestamp": "2026-06-10T04:35:36.292Z"
+        }
+      ],
+      "createdAt": "2026-06-16T04:35:36.292Z"
+    },
+    {
+      "id": "e7ed588b-5516-4247-8129-83287ee4e2e2",
+      "title": "活着",
+      "author": "余华",
+      "isbn": "9781749140473",
+      "spineColor": "#34495E",
+      "spineWidth": 25,
+      "position": 2,
+      "status": "available",
+      "currentBorrower": null,
+      "borrowHistory": [
+        {
+          "id": "34ded1c7-60dc-474c-9cfb-b31f6ad28c13",
+          "type": "borrow",
+          "borrowerName": "李四",
+          "borrowerAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=lisi",
+          "timestamp": "2026-06-17T04:35:36.292Z"
+        }
+      ],
+      "createdAt": "2026-06-15T04:35:36.292Z"
+    },
+    {
+      "id": "1fc90207-2904-48d5-bf8a-2337edeaa3ec",
+      "title": "红楼梦",
+      "author": "曹雪芹",
+      "isbn": "9783103780193",
+      "spineColor": "#16A085",
+      "spineWidth": 25,
+      "position": 3,
+      "status": "available",
+      "currentBorrower": null,
+      "borrowHistory": [
+        {
+          "id": "8e5e031d-dbe2-4d24-bd89-81bdd4219293",
+          "type": "borrow",
+          "borrowerName": "王五",
+          "borrowerAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=wangwu",
+          "timestamp": "2026-06-17T04:35:36.292Z"
+        }
+      ],
+      "createdAt": "2026-06-14T04:35:36.292Z"
+    },
+    {
+      "id": "709d475f-e492-4e3c-871e-48c6dd74879a",
+      "title": "平凡的世界",
+      "author": "路遥",
+      "isbn": "9785930940640",
+      "spineColor": "#34495E",
+      "spineWidth": 23,
+      "position": 4,
+      "status": "borrowed",
+      "currentBorrower": {
+        "name": "张三",
+        "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=zhangsan"
+      },
+      "borrowHistory": [
+        {
+          "id": "6a513e85-0cd0-4445-9764-0c898c82cf7b",
+          "type": "borrow",
+          "borrowerName": "张三",
+          "borrowerAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=zhangsan",
+          "timestamp": "2026-06-15T04:35:36.293Z"
+        }
+      ],
+      "createdAt": "2026-06-13T04:35:36.293Z"
+    },
+    {
+      "id": "6ea89ec7-ebc9-4d77-a0c5-cde292e29050",
+      "title": "围城",
+      "author": "钱钟书",
+      "isbn": "9781601680807",
+      "spineColor": "#C0392B",
+      "spineWidth": 30,
+      "position": 5,
+      "status": "borrowed",
+      "currentBorrower": {
+        "name": "张三",
+        "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=zhangsan"
+      },
+      "borrowHistory": [
+        {
+          "id": "bccaa6aa-524b-4f19-a45b-b6f991f5f4c5",
+          "type": "borrow",
+          "borrowerName": "张三",
+          "borrowerAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=zhangsan",
+          "timestamp": "2026-06-15T04:35:36.293Z"
+        }
+      ],
+      "createdAt": "2026-06-12T04:35:36.293Z"
+    },
+    {
+      "id": "8bb83610-bcfd-4096-b881-05affca4620e",
+      "title": "白夜行",
+      "author": "东野圭吾",
+      "isbn": "9783962492060",
+      "spineColor": "#F39C12",
+      "spineWidth": 26,
+      "position": 6,
+      "status": "borrowed",
+      "currentBorrower": {
+        "name": "王五",
+        "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=wangwu"
+      },
+      "borrowHistory": [
+        {
+          "id": "45be9d0c-a4db-4867-b3f0-5c576e93010e",
+          "type": "borrow",
+          "borrowerName": "王五",
+          "borrowerAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=wangwu",
+          "timestamp": "2026-06-15T04:35:36.293Z"
+        },
+        {
+          "id": "c0a14f4b-5be0-40a9-8852-7f766e053119",
+          "type": "borrow",
+          "borrowerName": "张三",
+          "borrowerAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=zhangsan",
+          "timestamp": "2026-06-17T04:35:36.293Z"
+        },
+        {
+          "id": "6e6b70ba-075e-44bf-9f2b-5dc472ae4426",
+          "type": "return",
+          "borrowerName": "李四",
+          "borrowerAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=lisi",
+          "timestamp": "2026-06-10T04:35:36.293Z"
+        }
+      ],
+      "createdAt": "2026-06-11T04:35:36.293Z"
+    },
+    {
+      "id": "77bcb471-4956-4754-90f9-31f17e3ee295",
+      "title": "追风筝的人",
+      "author": "卡勒德·胡赛尼",
+      "isbn": "9781102877713",
+      "spineColor": "#C0392B",
+      "spineWidth": 21,
+      "position": 7,
+      "status": "borrowed",
+      "currentBorrower": {
+        "name": "张三",
+        "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=zhangsan"
+      },
+      "borrowHistory": [
+        {
+          "id": "44c8db86-baae-40e3-b9c2-5f257e32e989",
+          "type": "borrow",
+          "borrowerName": "张三",
+          "borrowerAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=zhangsan",
+          "timestamp": "2026-06-15T04:35:36.293Z"
+        },
+        {
+          "id": "206b1e9a-29ea-4b0d-895d-35e837829d9d",
+          "type": "borrow",
+          "borrowerName": "王五",
+          "borrowerAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=wangwu",
+          "timestamp": "2026-06-17T04:35:36.293Z"
+        },
+        {
+          "id": "706d3e70-4c25-40c6-a072-b64d13908a4e",
+          "type": "return",
+          "borrowerName": "王五",
+          "borrowerAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=wangwu",
+          "timestamp": "2026-06-10T04:35:36.293Z"
+        }
+      ],
+      "createdAt": "2026-06-10T04:35:36.293Z"
+    },
+    {
+      "id": "abd401df-f4a9-47ef-adb9-460310db7d1f",
+      "title": "小王子",
+      "author": "圣埃克苏佩里",
+      "isbn": "9781448115986",
+      "spineColor": "#E67E22",
+      "spineWidth": 38,
+      "position": 8,
+      "status": "borrowed",
+      "currentBorrower": {
+        "name": "李四",
+        "avatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=lisi"
+      },
+      "borrowHistory": [
+        {
+          "id": "efc9a6bb-007a-4936-893d-9eccfc6b2216",
+          "type": "borrow",
+          "borrowerName": "李四",
+          "borrowerAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=lisi",
+          "timestamp": "2026-06-15T04:35:36.293Z"
+        }
+      ],
+      "createdAt": "2026-06-09T04:35:36.293Z"
+    },
+    {
+      "id": "8544d149-7637-4ee2-acd1-88e067cbe5f7",
+      "title": "解忧杂货店",
+      "author": "东野圭吾",
+      "isbn": "9788474395183",
+      "spineColor": "#E67E22",
+      "spineWidth": 37,
+      "position": 9,
+      "status": "available",
+      "currentBorrower": null,
+      "borrowHistory": [
+        {
+          "id": "347ba5d3-6377-4a17-8f2b-6cde795462af",
+          "type": "borrow",
+          "borrowerName": "李四",
+          "borrowerAvatar": "https://api.dicebear.com/7.x/avataaars/svg?seed=lisi",
+          "timestamp": "2026-06-17T04:35:36.293Z"
+        }
+      ],
+      "createdAt": "2026-06-08T04:35:36.293Z"
+    }
+  ]
+}

@@ -1,0 +1,121 @@
+{
+  "works": [
+    {
+      "id": 1,
+      "title": "深入理解JavaScript异步编程",
+      "description": "本文将深入探讨JavaScript中的异步编程模式，包括回调函数、Promise、async/await等概念，并通过实际案例帮助读者更好地理解和应用。",
+      "category": "文章",
+      "coverUrl": "https://images.unsplash.com/photo-1627398242454-45a1465c2479?w=800",
+      "views": 1256,
+      "likes": 89,
+      "likedIps": ["192.168.1.1", "192.168.1.2", "10.0.0.1"],
+      "comments": [
+        {
+          "id": 1,
+          "username": "程序员小王",
+          "content": "写得非常详细，对理解异步编程很有帮助！",
+          "createdAt": "2024-01-15T10:30:00Z"
+        },
+        {
+          "id": 2,
+          "username": "前端小白",
+          "content": "终于搞懂Promise了，感谢分享！",
+          "createdAt": "2024-01-16T14:20:00Z"
+        }
+      ],
+      "createdAt": "2024-01-10T08:00:00Z",
+      "updatedAt": "2024-01-12T15:30:00Z"
+    },
+    {
+      "id": 2,
+      "title": "React Hooks实战教程",
+      "description": "本视频教程将带你从零开始学习React Hooks，包括useState、useEffect、useContext等常用Hook的使用方法和最佳实践。",
+      "category": "视频",
+      "coverUrl": "https://images.unsplash.com/photo-1633356122544-f134324a6cee?w=800",
+      "views": 3420,
+      "likes": 256,
+      "likedIps": ["192.168.1.3", "172.16.0.1", "10.0.0.2", "192.168.1.4"],
+      "comments": [
+        {
+          "id": 1,
+          "username": "React爱好者",
+          "content": "讲解清晰，例子很实用！",
+          "createdAt": "2024-02-01T09:15:00Z"
+        }
+      ],
+      "createdAt": "2024-01-20T10:00:00Z",
+      "updatedAt": "2024-01-25T16:45:00Z"
+    },
+    {
+      "id": 3,
+      "title": "城市夜景摄影作品集",
+      "description": "一组城市夜景摄影作品，展示了不同城市夜晚的独特魅力，使用长曝光技术捕捉光影流动的瞬间。",
+      "category": "图片",
+      "coverUrl": "https://images.unsplash.com/photo-1514565131-fce0801e5785?w=800",
+      "views": 2180,
+      "likes": 178,
+      "likedIps": ["10.0.0.3", "192.168.1.5", "172.16.0.2"],
+      "comments": [
+        {
+          "id": 1,
+          "username": "摄影达人",
+          "content": "构图很棒，色彩处理得很好！",
+          "createdAt": "2024-02-10T20:30:00Z"
+        },
+        {
+          "id": 2,
+          "username": "旅行者小李",
+          "content": "请问这些照片是在哪些城市拍的？",
+          "createdAt": "2024-02-11T11:45:00Z"
+        },
+        {
+          "id": 3,
+          "username": "摄影师老张",
+          "content": "长曝光的效果处理得很到位，学习了！",
+          "createdAt": "2024-02-12T08:20:00Z"
+        }
+      ],
+      "createdAt": "2024-02-05T14:00:00Z",
+      "updatedAt": "2024-02-08T09:15:00Z"
+    },
+    {
+      "id": 4,
+      "title": "Node.js性能优化指南",
+      "description": "深入分析Node.js应用的性能瓶颈，提供从代码层面到架构层面的完整优化方案，包含大量实战案例。",
+      "category": "文章",
+      "coverUrl": "https://images.unsplash.com/photo-1558494949-ef010cbdcc31?w=800",
+      "views": 890,
+      "likes": 67,
+      "likedIps": ["192.168.1.6", "10.0.0.4"],
+      "comments": [],
+      "createdAt": "2024-02-15T12:00:00Z",
+      "updatedAt": "2024-02-18T10:30:00Z"
+    },
+    {
+      "id": 5,
+      "title": "Python数据分析入门",
+      "description": "适合初学者的Python数据分析视频教程，涵盖Pandas、NumPy、Matplotlib等核心库的基础使用。",
+      "category": "视频",
+      "coverUrl": "https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800",
+      "views": 5620,
+      "likes": 423,
+      "likedIps": ["172.16.0.3", "192.168.1.7", "10.0.0.5", "192.168.1.8", "172.16.0.4"],
+      "comments": [
+        {
+          "id": 1,
+          "username": "数据分析新手",
+          "content": "非常适合入门，讲得很清楚！",
+          "createdAt": "2024-02-20T16:00:00Z"
+        },
+        {
+          "id": 2,
+          "username": "学生小张",
+          "content": "跟着做了一遍，终于入门了，谢谢老师！",
+          "createdAt": "2024-02-22T13:30:00Z"
+        }
+      ],
+      "createdAt": "2024-02-10T09:00:00Z",
+      "updatedAt": "2024-02-20T11:45:00Z"
+    }
+  ]
+}

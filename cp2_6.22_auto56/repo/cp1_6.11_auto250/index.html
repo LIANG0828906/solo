@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>云锦提花织机 - 三维交互式织造体验</title>
+  <link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Serif+SC:wght@400;700&display=swap" rel="stylesheet" />
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #8B6914; font-family: 'Noto Serif SC', serif; }
+
+    #app { width: 100%; height: 100%; display: flex; flex-direction: column; }
+
+    #header {
+      height: 15%;
+      min-height: 80px;
+      background: linear-gradient(180deg, #3E2712 0%, #5C3A1E 60%, #6B4924 100%);
+      display: flex; align-items: center; justify-content: center;
+      position: relative; z-index: 10;
+      border-bottom: 3px solid #D4AF37;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    #header h1 {
+      font-family: 'Ma Shan Zheng', cursive;
+      font-size: clamp(1.4rem, 3vw, 2.4rem);
+      color: #FFD700;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.6), 0 0 10px rgba(255,215,0,0.3);
+      letter-spacing: 0.15em;
+    }
+    #header .subtitle {
+      font-family: 'Noto Serif SC', serif;
+      font-size: clamp(0.65rem, 1.2vw, 0.9rem);
+      color: #D4AF37;
+      margin-left: 20px;
+      opacity: 0.8;
+    }
+
+    #workspace {
+      flex: 1; position: relative; overflow: hidden;
+      background: #6B7B8D;
+    }
+
+    #three-canvas { width: 100%; height: 100%; display: block; }
+
+    #toolbar {
+      position: absolute; left: 12px; top: 12px; z-index: 20;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .tool-btn {
+      width: 72px; height: 72px;
+      background: linear-gradient(145deg, #F5F0E1, #E8DFC8);
+      border: 2px solid #8B6914;
+      border-radius: 8px;
+      color: #4A2C1A;
+      font-family: 'Noto Serif SC', serif;
+      font-size: 12px; font-weight: 700;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      text-align: center;
+      transition: all 0.3s ease-in-out;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.4);
+      user-select: none;
+      line-height: 1.3;
+    }
+    .tool-btn:hover {
+      transform: translateY(-3px);
+      box-shadow: 4px 6px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.5);
+      background: linear-gradient(145deg, #FFF8E7, #F5F0E1);
+    }
+    .tool-btn:active, .tool-btn.active {
+      transform: translateY(0px);
+      background: linear-gradient(145deg, #D4C5A0, #C8B88A);
+      box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+    }
+
+    #pattern-panel {
+      position: absolute; right: 12px; top: 12px; z-index: 20;
+      background: linear-gradient(145deg, #3E2712, #5C3A1E);
+      border: 2px solid #D4AF37;
+      border-radius: 10px;
+      padding: 10px;
+      box-shadow: 4px 4px 12px rgba(0,0,0,0.5);
+    }
+    #pattern-panel h3 {
+      font-family: 'Ma Shan Zheng', cursive;
+      color: #FFD700; font-size: 16px;
+      text-align: center; margin-bottom: 8px;
+    }
+    #pattern-canvas {
+      display: block;
+      border: 2px solid #D4AF37;
+      border-radius: 4px;
+      cursor: crosshair;
+      background: #F5F0E1;
+    }
+    #pattern-zoom {
+      margin-top: 6px;
+      font-size: 11px; color: #D4AF37;
+      text-align: center;
+      font-family: 'Noto Serif SC', serif;
+    }
+
+    #template-panel {
+      position: absolute; right: 12px; bottom: 12px; z-index: 20;
+      display: flex; flex-direction: column; gap: 6px;
+    }
+    .template-btn {
+      padding: 8px 14px;
+      background: linear-gradient(145deg, #3E2712, #5C3A1E);
+      border: 2px solid #D4AF37;
+      border-radius: 8px;
+      color: #FFD700;
+      font-family: 'Noto Serif SC', serif;
+      font-size: 13px; font-weight: 700;
+      cursor: pointer;
+      transition: all 0.3s ease-in-out;
+      text-align: center;
+    }
+    .template-btn:hover {
+      background: linear-gradient(145deg, #5C3A1E, #6B4924);
+      box-shadow: 0 0 10px rgba(212,175,55,0.4);
+    }
+
+    #progress-bar {
+      position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%);
+      z-index: 20;
+      background: rgba(62,39,18,0.9);
+      border: 2px solid #D4AF37;
+      border-radius: 20px;
+      padding: 6px 16px;
+      color: #FFD700;
+      font-family: 'Noto Serif SC', serif;
+      font-size: 14px;
+      text-align: center;
+      min-width: 200px;
+    }
+    #progress-fill {
+      height: 4px; background: #D4AF37; border-radius: 2px;
+      margin-top: 4px; transition: width 0.4s ease-in-out;
+    }
+
+    #info-panel {
+      position: absolute; left: 12px; bottom: 12px; z-index: 20;
+      background: rgba(62,39,18,0.85);
+      border: 1px solid #D4AF37;
+      border-radius: 8px;
+      padding: 8px 12px;
+      color: #D4AF37;
+      font-family: 'Noto Serif SC', serif;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    #mobile-toggle {
+      display: none;
+      position: absolute; left: 8px; top: 8px; z-index: 30;
+      width: 40px; height: 40px;
+      background: rgba(62,39,18,0.9);
+      border: 1px solid #D4AF37;
+      border-radius: 6px;
+      color: #FFD700;
+      font-size: 20px;
+      cursor: pointer;
+      align-items: center; justify-content: center;
+    }
+
+    @media (max-width: 768px) {
+      #toolbar {
+        position: fixed; left: -200px; top: 0; height: 100%;
+        background: rgba(62,39,18,0.95);
+        padding: 60px 10px 10px;
+        transition: left 0.3s ease-in-out;
+        flex-direction: row; flex-wrap: wrap;
+        width: 180px; gap: 6px;
+      }
+      #toolbar.open { left: 0; }
+      #mobile-toggle { display: flex; }
+      .tool-btn { width: 56px; height: 56px; font-size: 10px; }
+      #pattern-panel { right: 6px; top: 6px; padding: 6px; }
+      #pattern-canvas { width: 150px; height: 200px; }
+      #template-panel { right: 6px; bottom: 6px; }
+      .template-btn { font-size: 11px; padding: 5px 10px; }
+      #header h1 { font-size: 1.2rem; }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="header">
+      <h1>云锦提花织机</h1>
+      <span class="subtitle">三维交互式织造体验</span>
+    </div>
+    <div id="workspace">
+      <canvas id="three-canvas"></canvas>
+      <button id="mobile-toggle">☰</button>
+      <div id="toolbar">
+        <button class="tool-btn" data-cmd="0">地组织</button>
+        <button class="tool-btn" data-cmd="1">起花</button>
+        <button class="tool-btn" data-cmd="2">接结</button>
+        <button class="tool-btn" data-cmd="3">盖面</button>
+        <button class="tool-btn" data-cmd="4">回纬</button>
+        <button class="tool-btn" data-cmd="5">挖花</button>
+        <button class="tool-btn" data-cmd="6">镶色</button>
+        <button class="tool-btn" data-cmd="7">勾边</button>
+      </div>
+      <div id="pattern-panel">
+        <h3>纹样预览</h3>
+        <canvas id="pattern-canvas" width="300" height="400"></canvas>
+        <div id="pattern-zoom">悬停放大 | 投梭: 空格键</div>
+      </div>
+      <div id="template-panel">
+        <button class="template-btn" data-tpl="0">龙凤呈祥</button>
+        <button class="template-btn" data-tpl="1">牡丹富贵</button>
+        <button class="template-btn" data-tpl="2">祥云如意</button>
+      </div>
+      <div id="progress-bar">
+        <span id="progress-text">完成度: 0%</span>
+        <div id="progress-fill" style="width:0%"></div>
+      </div>
+      <div id="info-panel">
+        当前纬线: <span id="info-weft">0</span>/200<br/>
+        当前口诀: <span id="info-cmd">-</span><br/>
+        综框状态: <span id="info-heddle">000000</span>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

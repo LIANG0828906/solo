@@ -1,0 +1,506 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>富春山居 · 山水画卷</title>
+  <style>
+    @font-face {
+      font-family: 'LiSu';
+      src: local('LiSu'), local('隶书'), local('STLiti'), local('KaiTi');
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #F5F0E1;
+      font-family: 'LiSu', 'KaiTi', 'STKaiti', serif;
+      user-select: none;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .page-title {
+      font-size: 36px;
+      color: #3a2a1a;
+      margin-bottom: 16px;
+      letter-spacing: 8px;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .scroll-frame {
+      position: relative;
+      background: #5C4033;
+      padding: 20px;
+      border-radius: 4px;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.4),
+                  inset 0 2px 6px rgba(255,255,255,0.1);
+    }
+
+    .scroll-hook {
+      position: absolute;
+      top: -12px;
+      width: 24px;
+      height: 24px;
+      background: linear-gradient(135deg, #D4AF37, #B8860B 50%, #8B6914);
+      border-radius: 50%;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .scroll-hook.left {
+      left: 30px;
+    }
+
+    .scroll-hook.right {
+      right: 30px;
+    }
+
+    .scroll-hook::before {
+      content: '';
+      position: absolute;
+      top: -8px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 6px;
+      height: 10px;
+      background: #8B6914;
+      border-radius: 3px 3px 0 0;
+    }
+
+    .canvas-wrapper {
+      position: relative;
+      background: #F5F0E1;
+      padding: 30px 0;
+    }
+
+    #mainCanvas {
+      display: block;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 20px;
+      padding: 16px 24px;
+      background: linear-gradient(180deg, #F5F0E1, #E8E0CC);
+      border-top: 2px solid #5C4033;
+      margin-top: 0;
+      flex-wrap: wrap;
+    }
+
+    .brush-group {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .brush-btn {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 2px solid #5C4033;
+      background: #F5F0E1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .brush-btn:hover {
+      background: #E8E0CC;
+      transform: scale(1.05);
+    }
+
+    .brush-btn:active {
+      transform: scale(0.95);
+      transition: transform 0.1s;
+    }
+
+    .brush-btn.active {
+      border-color: #CC3333;
+      border-width: 3px;
+      box-shadow: 0 0 8px rgba(204, 51, 51, 0.4);
+    }
+
+    .brush-btn svg {
+      width: 22px;
+      height: 22px;
+      fill: #2a2a2a;
+    }
+
+    .ink-slider-group {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .ink-slider-label {
+      font-size: 14px;
+      color: #3a2a1a;
+      writing-mode: vertical-rl;
+    }
+
+    .ink-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 120px;
+      height: 8px;
+      border-radius: 4px;
+      background: linear-gradient(to right, #cccccc, #888888 30%, #555555 60%, #222222 85%, #000000);
+      outline: none;
+      cursor: pointer;
+      border: 1px solid #5C4033;
+    }
+
+    .ink-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #D4AF37, #8B6914);
+      cursor: pointer;
+      border: 2px solid #5C4033;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+      transition: transform 0.1s;
+    }
+
+    .ink-slider::-webkit-slider-thumb:hover {
+      transform: scale(1.1);
+    }
+
+    .ink-slider::-webkit-slider-thumb:active {
+      transform: scale(0.95);
+    }
+
+    .ink-slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #D4AF37, #8B6914);
+      cursor: pointer;
+      border: 2px solid #5C4033;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    .ink-value {
+      font-size: 14px;
+      color: #3a2a1a;
+      min-width: 40px;
+      text-align: center;
+      font-weight: bold;
+    }
+
+    .size-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .size-label {
+      font-size: 14px;
+      color: #3a2a1a;
+    }
+
+    .size-slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 80px;
+      height: 6px;
+      border-radius: 3px;
+      background: #5C4033;
+      outline: none;
+      cursor: pointer;
+    }
+
+    .size-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #B8860B;
+      cursor: pointer;
+      border: 2px solid #5C4033;
+    }
+
+    .history-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .history-buttons {
+      display: flex;
+      gap: 8px;
+    }
+
+    .history-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      border: none;
+      background: linear-gradient(180deg, #B8860B, #8B6914);
+      color: #F5F0E1;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 16px;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .history-btn:hover:not(:disabled) {
+      background: linear-gradient(180deg, #D4AF37, #B8860B);
+    }
+
+    .history-btn:active:not(:disabled) {
+      transform: scale(0.95);
+      transition: transform 0.1s;
+    }
+
+    .history-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .step-indicator {
+      font-size: 12px;
+      color: #5C4033;
+    }
+
+    .action-group {
+      display: flex;
+      gap: 10px;
+    }
+
+    .action-btn {
+      padding: 8px 18px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 14px;
+      transition: all 0.2s ease;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+
+    .action-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+    }
+
+    .action-btn:active {
+      transform: scale(0.95);
+      transition: transform 0.1s;
+    }
+
+    .clear-btn {
+      background: #800000;
+      color: #F5F0E1;
+    }
+
+    .clear-btn:hover {
+      background: #a00000;
+    }
+
+    .export-btn {
+      background: #8B4513;
+      color: #F5F0E1;
+    }
+
+    .export-btn:hover {
+      background: #a05522;
+    }
+
+    .confirm-dialog {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+
+    .confirm-dialog.show {
+      display: flex;
+    }
+
+    .confirm-box {
+      background: #F5F0E1;
+      padding: 30px 40px;
+      border-radius: 8px;
+      border: 3px solid #5C4033;
+      text-align: center;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    }
+
+    .confirm-text {
+      font-size: 18px;
+      color: #3a2a1a;
+      margin-bottom: 24px;
+    }
+
+    .confirm-buttons {
+      display: flex;
+      gap: 20px;
+      justify-content: center;
+    }
+
+    .confirm-ok, .confirm-cancel {
+      padding: 8px 24px;
+      border-radius: 4px;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-size: 14px;
+      transition: all 0.2s ease;
+    }
+
+    .confirm-ok {
+      background: #800000;
+      color: #F5F0E1;
+    }
+
+    .confirm-ok:hover {
+      background: #a00000;
+    }
+
+    .confirm-cancel {
+      background: #5C4033;
+      color: #F5F0E1;
+    }
+
+    .confirm-cancel:hover {
+      background: #7a5a43;
+    }
+
+    .footer-space {
+      height: 40px;
+    }
+
+    @media (max-width: 900px) {
+      body {
+        transform: scale(0.8);
+        transform-origin: top center;
+        min-height: 125vh;
+      }
+
+      .toolbar {
+        flex-direction: column;
+        gap: 12px;
+        padding: 12px;
+      }
+
+      .brush-group,
+      .ink-slider-group,
+      .size-group,
+      .history-group,
+      .action-group {
+        width: 100%;
+        justify-content: center;
+      }
+    }
+  </style>
+</head>
+<body>
+  <h1 class="page-title">富春山居图</h1>
+
+  <div class="scroll-frame">
+    <div class="scroll-hook left"></div>
+    <div class="scroll-hook right"></div>
+
+    <div class="canvas-wrapper">
+      <canvas id="mainCanvas" width="1200" height="600"></canvas>
+    </div>
+
+    <div class="toolbar" id="toolbar">
+      <div class="brush-group">
+        <button class="brush-btn active" data-brush="splash" title="泼墨">
+          <svg viewBox="0 0 24 24"><path d="M12 2C8 8 4 12 4 16c0 4.4 3.6 8 8 8s8-3.6 8-8c0-4-4-8-8-14z"/></svg>
+        </button>
+        <button class="brush-btn" data-brush="pima" title="披麻皴">
+          <svg viewBox="0 0 24 24"><path d="M2 20 Q6 10 10 20 Q14 10 18 20 Q20 14 22 20" fill="none" stroke="#2a2a2a" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+        <button class="brush-btn" data-brush="fupi" title="斧劈皴">
+          <svg viewBox="0 0 24 24"><path d="M4 20 L12 4 L20 20 L16 20 L12 10 L8 20 Z" fill="#2a2a2a"/></svg>
+        </button>
+        <button class="brush-btn" data-brush="moss" title="苔点">
+          <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6" fill="#2a2a2a"/></svg>
+        </button>
+        <button class="brush-btn" data-brush="leaf" title="树叶点">
+          <svg viewBox="0 0 24 24"><path d="M12 4 L16 12 L12 10 L8 12 Z M4 14 L10 18 L7 20 Z M20 14 L14 18 L17 20 Z" fill="#2a2a2a"/></svg>
+        </button>
+      </div>
+
+      <div class="ink-slider-group">
+        <span class="ink-slider-label">墨色</span>
+        <input type="range" class="ink-slider" id="inkSlider" min="10" max="100" value="80" step="1">
+        <span class="ink-value" id="inkValue">80%</span>
+      </div>
+
+      <div class="size-group">
+        <span class="size-label">笔锋</span>
+        <input type="range" class="size-slider" id="sizeSlider" min="2" max="40" value="12" step="1">
+      </div>
+
+      <div class="history-group">
+        <div class="history-buttons">
+          <button class="history-btn" id="undoBtn" title="撤销" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/></svg>
+          </button>
+          <button class="history-btn" id="redoBtn" title="重做" disabled>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M18.4 10.6C16.55 8.99 14.15 8 11.5 8c-4.65 0-8.58 3.03-9.96 7.22L3.9 16c1.05-3.19 4.05-5.5 7.6-5.5 1.95 0 3.73.72 5.12 1.88L13 16h9V7l-3.6 3.6z"/></svg>
+          </button>
+        </div>
+        <span class="step-indicator" id="stepIndicator">第 0/10 步</span>
+      </div>
+
+      <div class="action-group">
+        <button class="action-btn clear-btn" id="clearBtn">清除</button>
+        <button class="action-btn export-btn" id="exportBtn">导出</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-space"></div>
+
+  <div class="confirm-dialog" id="confirmDialog">
+    <div class="confirm-box">
+      <p class="confirm-text">确定要清除当前画作吗？</p>
+      <div class="confirm-buttons">
+        <button class="confirm-ok" id="confirmOk">确定</button>
+        <button class="confirm-cancel" id="confirmCancel">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

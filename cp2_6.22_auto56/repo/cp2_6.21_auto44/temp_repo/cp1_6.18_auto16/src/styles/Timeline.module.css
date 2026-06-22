@@ -1,0 +1,157 @@
+.timelineWrapper {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: var(--timeline-height);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border-subtle);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+}
+
+.timelineTitle {
+  position: absolute;
+  left: 24px;
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-primary);
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+}
+
+.timelineScroll {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 8px 16px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.timelineScroll::-webkit-scrollbar {
+  display: none;
+}
+
+.monthNode {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-default), transform var(--transition-default);
+  min-width: 56px;
+  position: relative;
+  user-select: none;
+}
+
+.monthNode:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.monthNode:active {
+  transform: scale(0.95);
+}
+
+.monthNodeActive {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.monthNodeActive .monthLabel {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.monthLabel {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+  transition: color var(--transition-default), font-weight var(--transition-default);
+}
+
+.dotContainer {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+}
+
+.eventDot {
+  border-radius: 50%;
+  transition: transform var(--transition-default), background-color var(--transition-default);
+}
+
+.eventDotGray {
+  background: var(--color-dot-gray);
+}
+
+.eventDotBlue {
+  background: var(--color-dot-blue);
+}
+
+.eventDotOrange {
+  background: var(--color-dot-orange);
+}
+
+.monthNodeActive .eventDot {
+  animation: pulse 1.2s ease-out infinite;
+}
+
+.reviewBtn {
+  position: absolute;
+  right: 24px;
+  background: linear-gradient(135deg, var(--accent-purple), var(--accent-blue));
+  color: #fff;
+  border: none;
+  padding: 8px 20px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform var(--transition-default), box-shadow var(--transition-default);
+  font-family: var(--font-body);
+  white-space: nowrap;
+}
+
+.reviewBtn:hover {
+  box-shadow: 0 4px 20px rgba(179, 136, 255, 0.4);
+}
+
+.reviewBtn:active {
+  transform: scale(0.95);
+}
+
+@media (max-width: 768px) {
+  .timelineTitle {
+    position: static;
+    margin-bottom: 4px;
+    font-size: 14px;
+  }
+
+  .timelineWrapper {
+    flex-direction: column;
+    height: auto;
+    padding: 12px 16px;
+    gap: 8px;
+  }
+
+  .timelineScroll {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .reviewBtn {
+    position: static;
+    font-size: 12px;
+    padding: 6px 16px;
+  }
+}

@@ -1,0 +1,166 @@
+.output-panel {
+  width: 320px;
+  background: #1C2541;
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-sizing: border-box;
+  border: 1px solid #2a3a5a;
+}
+
+.output-panel .panel-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #FFD700;
+  letter-spacing: 1px;
+}
+
+.ciphertext-display {
+  flex: 1;
+  min-height: 120px;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid #2a3a5a;
+  border-radius: 8px;
+  overflow: auto;
+}
+
+.ciphertext-text {
+  margin: 0;
+  font-size: 18px;
+  font-weight: bold;
+  font-family: 'Courier New', Courier, monospace;
+  color: #E0E0E0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  line-height: 1.6;
+}
+
+.cursor {
+  display: inline-block;
+  animation: blink 1s infinite;
+  color: #FFD700;
+  font-weight: bold;
+  margin-left: 2px;
+}
+
+@keyframes blink {
+  0%, 50% {
+    opacity: 1;
+  }
+  51%, 100% {
+    opacity: 0;
+  }
+}
+
+.output-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+.info-label {
+  color: #8892B0;
+}
+
+.info-value {
+  color: #E0E0E0;
+  font-weight: 500;
+}
+
+.output-buttons {
+  display: flex;
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.copy-btn,
+.decrypt-btn {
+  flex: 1;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.copy-btn {
+  background: #2a3a5a;
+  color: #E0E0E0;
+  border: 1px solid #3a4a6a;
+}
+
+.copy-btn:hover:not(:disabled) {
+  background: #3a4a6a;
+}
+
+.copy-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.copied-toast {
+  position: absolute;
+  top: -30px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #4CAF50;
+  color: white;
+  padding: 4px 10px;
+  border-radius: 4px;
+  font-size: 12px;
+  animation: fadeInOut 0.5s ease;
+  white-space: nowrap;
+}
+
+@keyframes fadeInOut {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(5px);
+  }
+  30% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  70% {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-5px);
+  }
+}
+
+.decrypt-btn {
+  background: linear-gradient(135deg, #FFD700 0%, #FFA500 100%);
+  color: #0D1B2A;
+}
+
+.decrypt-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+.decrypt-btn.pressed {
+  transform: scale(0.95);
+}
+
+.decrypt-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .output-panel {
+    width: 100%;
+    height: 50%;
+  }
+}

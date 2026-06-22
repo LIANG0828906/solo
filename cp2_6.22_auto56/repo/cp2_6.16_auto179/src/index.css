@@ -1,0 +1,105 @@
+@import '@fontsource/nunito';
+
+:root {
+  --bg-color: #F5F5F5;
+  --card-bg: #FFFFFF;
+  --card-shadow: 0 2px 8px rgba(0,0,0,0.1);
+  --card-shadow-hover: 0 4px 16px rgba(0,0,0,0.15);
+  --gradient-primary: linear-gradient(135deg, #FF6B35, #FFA502);
+  --gradient-primary-active: linear-gradient(135deg, #e55a2b, #e69500);
+  --text-primary: #2d3436;
+  --text-secondary: #636e72;
+  --transition-fast: 0.2s ease-in-out;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Nunito', sans-serif;
+  background-color: var(--bg-color);
+  margin: 0;
+  padding: 0;
+  color: var(--text-primary);
+}
+
+.card {
+  background: var(--card-bg);
+  border-radius: 12px;
+  box-shadow: var(--card-shadow);
+  transition: all var(--transition-fast);
+}
+
+.card:hover {
+  transform: scale(1.02);
+  box-shadow: var(--card-shadow-hover);
+}
+
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.1s ease-in-out;
+}
+
+.btn:active {
+  transform: scale(0.95);
+}
+
+.btn-primary {
+  background: var(--gradient-primary);
+  color: white;
+}
+
+.btn-primary:active {
+  background: var(--gradient-primary-active);
+}
+
+@keyframes danmaku-slide {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(-100vw);
+  }
+}
+
+@keyframes fade-out {
+  0%, 80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes slide-up {
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.prize-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+@media (max-width: 768px) {
+  .wheel-container canvas {
+    transform: scale(0.7);
+  }
+
+  .prize-grid {
+    grid-template-columns: 1fr;
+  }
+}

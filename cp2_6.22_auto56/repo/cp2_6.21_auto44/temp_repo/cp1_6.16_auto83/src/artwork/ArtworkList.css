@@ -1,0 +1,158 @@
+.artwork-list-container {
+  padding: 20px;
+}
+
+.search-bar {
+  position: relative;
+  max-width: 600px;
+  margin: 0 auto 30px;
+}
+
+.search-bar::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 2px;
+  background: #b8860b;
+  transform: translateX(-50%);
+  transition: width 0.3s ease;
+  z-index: 1;
+}
+
+.search-bar:focus-within::after {
+  width: 100%;
+}
+
+.search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  color: #999;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.search-input {
+  width: 100%;
+  padding: 14px 16px 14px 48px;
+  font-size: 15px;
+  border: none;
+  border-radius: 8px 8px 0 0;
+  background: #f0eeeb;
+  outline: none;
+  transition: background-color 0.3s ease;
+  box-sizing: border-box;
+  position: relative;
+}
+
+.search-input:focus {
+  background: #fff;
+}
+
+.search-input::placeholder {
+  color: #aaa;
+}
+
+.artwork-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+}
+
+@media (max-width: 1024px) {
+  .artwork-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  .artwork-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.artwork-card {
+  background: white;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.artwork-card:hover {
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+  transform: translateY(-3px);
+}
+
+.card-image-wrapper {
+  position: relative;
+  width: 100%;
+  padding-top: 75%;
+  overflow: hidden;
+}
+
+.card-image {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.artwork-card:hover .card-image {
+  transform: scale(1.02);
+}
+
+.card-ended-badge {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.7);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+}
+
+.card-content {
+  padding: 16px;
+}
+
+.card-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #333;
+  margin: 0 0 6px 0;
+  line-height: 1.4;
+}
+
+.card-artist {
+  font-size: 12px;
+  color: #999;
+  margin: 0 0 12px 0;
+}
+
+.card-price {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.price-label {
+  font-size: 12px;
+  color: #999;
+}
+
+.price-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #ff7f00;
+}

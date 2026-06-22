@@ -1,0 +1,231 @@
+.editor-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+.editor-status-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: linear-gradient(90deg, rgba(137, 180, 250, 0.15), rgba(137, 180, 250, 0.05));
+  border-bottom: 1px solid var(--divider);
+  flex-shrink: 0;
+}
+
+.editor-filename {
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-family: 'Consolas', 'Monaco', monospace;
+}
+
+.run-button {
+  padding: 6px 20px;
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 200ms ease-in-out;
+  opacity: 1;
+}
+
+.run-button:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.run-button:active:not(:disabled) {
+  animation: press 200ms ease-in-out;
+}
+
+.run-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.run-button.rerun {
+  animation: fadeIn 300ms ease-in-out;
+}
+
+.loading-bar {
+  height: 3px;
+  background: var(--bg-secondary);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.loading-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--accent));
+  animation: loadingFill 300ms ease-in-out forwards;
+}
+
+.editor-wrapper {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.line-numbers {
+  display: flex;
+  flex-direction: column;
+  padding: 10px 8px 10px 12px;
+  background: var(--bg-secondary);
+  border-right: 1px solid var(--divider);
+  overflow-y: auto;
+  overflow-x: hidden;
+  user-select: none;
+  flex-shrink: 0;
+  min-width: 50px;
+}
+
+.line-number {
+  display: flex;
+  align-items: center;
+  height: 20px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 13px;
+  color: var(--text-secondary);
+  gap: 4px;
+  position: relative;
+}
+
+.line-number.highlighted-gutter {
+  background: rgba(137, 180, 250, 0.1);
+}
+
+.line-number.error-gutter {
+  background: rgba(243, 139, 168, 0.1);
+}
+
+.line-arrow {
+  color: var(--primary);
+  font-size: 10px;
+  position: absolute;
+  left: -2px;
+}
+
+.line-number-text {
+  margin-left: 14px;
+  min-width: 24px;
+  text-align: right;
+}
+
+.code-area {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.code-highlight,
+.code-input {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 10px 16px;
+  font-family: 'Consolas', 'Monaco', monospace;
+  font-size: 13px;
+  line-height: 20px;
+  white-space: pre;
+  tab-size: 2;
+  margin: 0;
+  border: none;
+  overflow: auto;
+}
+
+.code-highlight {
+  pointer-events: none;
+  z-index: 1;
+  background: transparent;
+}
+
+.code-input {
+  z-index: 2;
+  color: transparent;
+  caret-color: var(--text-primary);
+  background: transparent;
+  resize: none;
+  outline: none;
+}
+
+.code-input::selection {
+  background: rgba(137, 180, 250, 0.3);
+  color: transparent;
+}
+
+.highlight-overlays {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 0;
+  pointer-events: none;
+  padding-top: 10px;
+}
+
+.highlight-overlay {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 20px;
+  transition: background-color 200ms ease-in-out;
+}
+
+.highlight-overlay.active-line {
+  background-color: rgba(249, 226, 175, 0.15);
+  animation: pulse 800ms ease-in-out infinite;
+}
+
+.highlight-overlay.error-line {
+  background-color: rgba(243, 139, 168, 0.1);
+}
+
+.error-wavy {
+  position: absolute;
+  bottom: 0;
+  left: 16px;
+  right: 16px;
+  height: 2px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='2' viewBox='0 0 12 2'%3E%3Cpath d='M0 1 Q 3 0 6 1 T 12 1' stroke='%23F38BA8' stroke-width='1' fill='none'/%3E%3C/svg%3E");
+  background-repeat: repeat-x;
+}
+
+.tok-keyword {
+  color: #C678DD;
+}
+
+.tok-string {
+  color: #A6E3A1;
+}
+
+.tok-number {
+  color: #FAB387;
+}
+
+.tok-comment {
+  color: #6C7086;
+  font-style: italic;
+}
+
+.tok-operator {
+  color: #89B4FA;
+}
+
+.tok-plain {
+  color: var(--text-primary);
+}
+
+.line {
+  display: block;
+}

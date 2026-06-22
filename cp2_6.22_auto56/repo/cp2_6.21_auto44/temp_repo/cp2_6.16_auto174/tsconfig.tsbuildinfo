@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/vite-env.d.ts","./src/components/controlbar.tsx","./src/components/pianokeyboard.tsx","./src/components/savedlist.tsx","./src/components/staffview.tsx","./src/store/musicstore.ts","./src/utils/audioengine.ts","./src/utils/parser.ts"],"version":"5.8.3"}

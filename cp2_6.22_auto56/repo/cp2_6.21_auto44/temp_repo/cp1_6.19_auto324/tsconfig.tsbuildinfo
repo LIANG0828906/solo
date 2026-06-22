@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/main.tsx","./src/components/substitutionpanel.tsx","./src/pages/home.tsx","./src/pages/recipedetail.tsx","./src/server/server.ts","./src/server/substitutionrules.ts"],"version":"5.9.3"}
