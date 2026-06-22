@@ -130,10 +130,19 @@
 }
 
 .products-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 20px;
+  column-count: 3;
+  column-gap: 20px;
   position: relative;
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+.products-grid.fade-out {
+  animation: listFadeOut 0.25s ease forwards;
+  pointer-events: none;
+}
+
+.products-grid.fade-in {
+  animation: listFadeIn 0.3s ease forwards;
 }
 
 .product-card {
@@ -146,6 +155,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
+  break-inside: avoid;
+  margin-bottom: 20px;
 }
 
 .product-card:hover {
@@ -263,7 +274,7 @@
 
 .stock-bar-fill.low {
   background: var(--color-accent);
-  animation: flash 1.5s ease-in-out infinite;
+  animation: blink 1.2s ease-in-out infinite;
 }
 
 .product-profit {
@@ -322,19 +333,40 @@
   animation: shake 0.4s ease-in-out;
 }
 
+.feedback-btn.shake.like {
+  animation: shake 0.4s ease-in-out, spring 0.3s ease;
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+  background: rgba(46, 204, 113, 0.12);
+}
+
+.feedback-btn.shake.dislike {
+  animation: shake 0.4s ease-in-out;
+  border-color: var(--color-accent);
+  color: var(--color-accent);
+  background: rgba(231, 76, 60, 0.12);
+}
+
 .feedback-toast {
   position: absolute;
   top: -35px;
   left: 50%;
-  transform: translateX(-50%);
+  transform: translateX(-50%) translateY(0) scale(0.8);
   padding: 6px 12px;
   border-radius: 20px;
   font-size: 12px;
   font-weight: 500;
   color: var(--color-white);
   white-space: nowrap;
-  animation: floatUp 1.2s ease-out forwards;
+  opacity: 0;
+  transition: opacity 0.2s ease, transform 0.2s ease;
   pointer-events: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.feedback-toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(-8px) scale(1);
 }
 
 .feedback-toast.like {
@@ -401,8 +433,8 @@
   }
 
   .products-grid {
-    grid-template-columns: 1fr;
-    gap: 16px;
+    column-count: 1;
+    column-gap: 0;
   }
 
   .product-card-image {

@@ -57,7 +57,7 @@ function Dashboard({ onProductClick }: DashboardProps) {
   const [sortBy, setSortBy] = useState<'hotScore' | 'sales' | 'rating' | 'profit'>('hotScore');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
   
-  const [feedbackStates, setFeedbackStates] = useState<Record<string, { type: 'like' | 'dislike' | null; showToast: boolean }>>({});
+  const [feedbackStates, setFeedbackStates] = useState<Record<string, { type: 'like' | 'dislike' | null; shaking: boolean; showToast: boolean }>>({});
 
   const fetchProducts = useCallback(async () => {
     setAnimating(true);
@@ -99,7 +99,7 @@ function Dashboard({ onProductClick }: DashboardProps) {
     
     setFeedbackStates(prev => ({
       ...prev,
-      [productId]: { type, showToast: true }
+      [productId]: { type, shaking: true, showToast: true }
     }));
 
     try {
@@ -118,6 +118,13 @@ function Dashboard({ onProductClick }: DashboardProps) {
     } catch (error) {
       console.error('提交反馈失败:', error);
     }
+
+    setTimeout(() => {
+      setFeedbackStates(prev => ({
+        ...prev,
+        [productId]: { ...prev[productId], shaking: false }
+      }));
+    }, 400);
 
     setTimeout(() => {
       setFeedbackStates(prev => ({
