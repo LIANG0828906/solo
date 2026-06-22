@@ -9,6 +9,7 @@ export class UIModule {
 
   private windDirDisk: HTMLDivElement | null = null;
   private windDirPointer: HTMLDivElement | null = null;
+  private windDirSlider: HTMLInputElement | null = null;
   private windDirValue: HTMLSpanElement | null = null;
   private windDirAngle = 45;
   private isDraggingDisk = false;
@@ -160,68 +161,76 @@ export class UIModule {
       }
       .wind-disk {
         position: relative;
-        width: 160px;
-        height: 160px;
+        width: 80px;
+        height: 80px;
         border-radius: 50%;
-        background: radial-gradient(circle at center, rgba(125, 211, 252, 0.06) 0%, rgba(30, 58, 95, 0.2) 100%);
-        border: 1px solid rgba(125, 211, 252, 0.25);
+        background: radial-gradient(circle at center, rgba(125, 211, 252, 0.08) 0%, rgba(99, 102, 241, 0.12) 100%);
+        border: 1px solid rgba(125, 211, 252, 0.3);
         cursor: grab;
         user-select: none;
-        transition: box-shadow 0.3s ease;
+        transition: box-shadow 0.3s ease, border-color 0.3s ease;
+        flex-shrink: 0;
       }
       .wind-disk:hover {
-        box-shadow: 0 0 30px rgba(125, 211, 252, 0.15), inset 0 0 20px rgba(125, 211, 252, 0.08);
+        box-shadow: 0 0 20px rgba(125, 211, 252, 0.2), inset 0 0 15px rgba(99, 102, 241, 0.1);
+        border-color: rgba(167, 139, 250, 0.4);
       }
       .wind-disk:active {
         cursor: grabbing;
       }
       .wind-disk.dragging {
         cursor: grabbing;
-        box-shadow: 0 0 40px rgba(255, 152, 0, 0.3), inset 0 0 25px rgba(255, 152, 0, 0.1);
+        box-shadow: 0 0 30px rgba(167, 139, 250, 0.35), inset 0 0 20px rgba(99, 102, 241, 0.15);
       }
       .disk-tick {
         position: absolute;
-        width: 2px;
-        height: 6px;
+        width: 1.5px;
+        height: 4px;
         background: rgba(125, 211, 252, 0.4);
         left: 50%;
-        top: 4px;
-        transform-origin: 50% 76px;
+        top: 3px;
+        transform-origin: 50% 37px;
       }
       .disk-tick.major {
-        width: 3px;
-        height: 10px;
-        background: #7dd3fc;
+        width: 2.5px;
+        height: 7px;
+        background: #a78bfa;
       }
       .disk-label {
         position: absolute;
-        font-size: 9px;
-        color: #7dd3fc;
+        font-size: 8px;
+        color: #a78bfa;
         font-weight: 600;
         left: 50%;
         transform: translateX(-50%);
+        font-family: 'Segoe UI', sans-serif;
       }
       .disk-center {
         position: absolute;
         top: 50%;
         left: 50%;
-        width: 8px;
-        height: 8px;
+        width: 6px;
+        height: 6px;
         border-radius: 50%;
-        background: #38bdf8;
+        background: radial-gradient(circle, #67e8f9, #6366f1);
         transform: translate(-50%, -50%);
-        box-shadow: 0 0 8px rgba(56, 189, 248, 0.6);
+        box-shadow: 0 0 6px rgba(103, 232, 249, 0.7);
+        z-index: 3;
       }
       .wind-pointer {
         position: absolute;
         top: 50%;
         left: 50%;
-        width: 4px;
-        height: 60px;
+        width: 3px;
+        height: 28px;
         transform-origin: 50% 100%;
-        transform: translate(-50%, -100%);
+        transform: translate(-50%, -100%) rotate(0deg);
         z-index: 2;
         pointer-events: none;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .wind-pointer.no-transition {
+        transition: none;
       }
       .wind-pointer::before {
         content: '';
@@ -231,30 +240,44 @@ export class UIModule {
         transform: translateX(-50%);
         width: 0;
         height: 0;
-        border-left: 8px solid transparent;
-        border-right: 8px solid transparent;
-        border-bottom: 14px solid #fb923c;
-        filter: drop-shadow(0 0 6px rgba(251, 146, 60, 0.7));
+        border-left: 5px solid transparent;
+        border-right: 5px solid transparent;
+        border-bottom: 8px solid #67e8f9;
+        filter: drop-shadow(0 0 4px rgba(103, 232, 249, 0.8));
       }
       .wind-pointer::after {
         content: '';
         position: absolute;
-        top: 10px;
+        top: 6px;
         left: 50%;
         transform: translateX(-50%);
-        width: 3px;
-        height: 50px;
-        background: linear-gradient(to bottom, #fb923c, #f97316);
+        width: 2.5px;
+        height: 22px;
+        background: linear-gradient(to bottom, #67e8f9, #6366f1);
         border-radius: 2px;
       }
-      .direction-value {
+      .wind-disk-slider-group {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+      }
+      .wind-slider-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+      }
+      .wind-slider-row .custom-slider {
+        flex: 1;
+      }
+      .direction-value-small {
         font-family: 'Consolas', monospace;
-        font-size: 13px;
-        color: #bae6fd;
-        background: rgba(125, 211, 252, 0.08);
-        padding: 5px 14px;
-        border-radius: 12px;
-        border: 1px solid rgba(125, 211, 252, 0.15);
+        font-size: 11px;
+        color: #a78bfa;
+        min-width: 42px;
+        text-align: right;
+        white-space: nowrap;
       }
       .slider-container {
         display: flex;
@@ -422,9 +445,12 @@ export class UIModule {
 
       <div class="control-group">
         <div class="section-title">风向控制 · Wind Direction</div>
-        <div class="disk-wrapper">
+        <div class="wind-disk-slider-group">
           <div class="wind-disk" id="windDisk"></div>
-          <div class="direction-value">角度: <span id="windDirValue">45</span>°</div>
+          <div class="wind-slider-row">
+            <input type="range" class="custom-slider" id="windDirSlider" min="0" max="360" step="1" value="45">
+            <span class="direction-value-small"><span id="windDirValue">45</span>°</span>
+          </div>
         </div>
       </div>
 
@@ -458,10 +484,12 @@ export class UIModule {
     this.container.appendChild(this.panel);
 
     this.windDirDisk = this.panel.querySelector('#windDisk') as HTMLDivElement;
+    this.windDirSlider = this.panel.querySelector('#windDirSlider') as HTMLInputElement;
     this.windDirValue = this.panel.querySelector('#windDirValue') as HTMLSpanElement;
     this.buildDiskTicks();
     this.createPointer();
     this.attachDiskEvents();
+    this.attachSliderEvents();
 
     this.speedSlider = this.panel.querySelector('#speedSlider') as HTMLInputElement;
     this.speedValue = this.panel.querySelector('#speedValue') as HTMLSpanElement;
@@ -536,6 +564,7 @@ export class UIModule {
     const onStart = (clientX: number, clientY: number) => {
       this.isDraggingDisk = true;
       this.windDirDisk!.classList.add('dragging');
+      this.windDirPointer?.classList.add('no-transition');
       this.updateAngleFromPointer(clientX, clientY);
     };
 
@@ -545,8 +574,13 @@ export class UIModule {
     };
 
     const onEnd = () => {
-      this.isDraggingDisk = false;
-      this.windDirDisk?.classList.remove('dragging');
+      if (this.isDraggingDisk) {
+        this.isDraggingDisk = false;
+        this.windDirDisk?.classList.remove('dragging');
+        requestAnimationFrame(() => {
+          this.windDirPointer?.classList.remove('no-transition');
+        });
+      }
     };
 
     this.windDirDisk.addEventListener('mousedown', (e) => {
@@ -574,6 +608,20 @@ export class UIModule {
     document.addEventListener('touchend', onEnd);
   }
 
+  private attachSliderEvents(): void {
+    if (!this.windDirSlider) return;
+
+    this.windDirSlider.addEventListener('input', (e) => {
+      const value = parseFloat((e.target as HTMLInputElement).value);
+      this.windDirAngle = value;
+      this.updatePointer(value);
+      if (this.windDirValue) {
+        this.windDirValue.textContent = Math.round(value).toString();
+      }
+      this.onWindChange({ direction: value } as WindParams);
+    });
+  }
+
   private updateAngleFromPointer(clientX: number, clientY: number): void {
     if (!this.windDirDisk) return;
 
@@ -593,6 +641,9 @@ export class UIModule {
     if (this.windDirValue) {
       this.windDirValue.textContent = angle.toString();
     }
+    if (this.windDirSlider) {
+      this.windDirSlider.value = angle.toString();
+    }
 
     this.onWindChange({ direction: angle } as WindParams);
   }
@@ -607,6 +658,9 @@ export class UIModule {
     this.updatePointer(angle);
     if (this.windDirValue) {
       this.windDirValue.textContent = Math.round(angle).toString();
+    }
+    if (this.windDirSlider) {
+      this.windDirSlider.value = angle.toString();
     }
   }
 
