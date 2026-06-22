@@ -58,6 +58,20 @@ app.get('/api/bookings', (req, res) => {
   res.json(dataStore.getBookings(startDate, endDate))
 })
 
+app.get('/api/devices/check-availability', (req, res) => {
+  const { deviceIds, startTime, endTime } = req.query as {
+    deviceIds?: string
+    startTime?: string
+    endTime?: string
+  }
+  if (!deviceIds || !startTime || !endTime) {
+    return res.status(400).json({ error: '缺少必要参数：deviceIds, startTime, endTime' })
+  }
+  const ids = (deviceIds as string).split(',').filter(Boolean)
+  const result = dataStore.checkDeviceAvailability(ids, startTime, endTime)
+  res.json(result)
+})
+
 app.post('/api/bookings', (req, res) => {
   const input = req.body as BookingCreateInput
   const result = dataStore.createBooking(input)

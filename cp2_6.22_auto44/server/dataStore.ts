@@ -91,6 +91,14 @@ function overlap(a: Booking, b: Booking) {
   return as < be && bs < ae
 }
 
+function timeOverlap(s1: string, e1: string, s2: string, e2: string) {
+  const t1s = new Date(s1).getTime()
+  const t1e = new Date(e1).getTime()
+  const t2s = new Date(s2).getTime()
+  const t2e = new Date(e2).getTime()
+  return t1s < t2e && t2s < t1e
+}
+
 export const dataStore = {
   getRooms(): MeetingRoom[] {
     return JSON.parse(JSON.stringify(rooms))
@@ -116,6 +124,64 @@ export const dataStore = {
       result = result.filter((b) => new Date(b.startTime).getTime() <= t)
     }
     return JSON.parse(JSON.stringify(result))
+  },
+  checkDeviceAvailability(
+    deviceIds: string[],
+    startTime: string,
+    endTime: string,
+    excludeBookingId?: string
+  ): {
+    available: boolean
+    conflicts: { deviceId: string; deviceName: string; conflictingBooking: Booking }[]
+  } {
+    const conflicts: {
+      deviceId: string
+      deviceName: string
+      conflictingBooking: Booking
+    }[] = []
+
+    for (const deviceId of deviceIds) {
+      const dev = devices.find((d) => d.id === deviceId)
+      if (!dev) continue
+
+      if (dev.status === 'maintenance') {
+        conflicts.push({
+          deviceId,
+          deviceName: dev.name,
+          conflictingBooking: {
+            id: 'maintenance',
+            title: '设备维护中',
+            roomId: dev.roomId || '',
+            startTime,
+            endTime,
+            participants: 0,
+            deviceIds: [deviceId],
+            notes: '该设备正在维护，不可使用',
+            createdBy: 'system',
+            attendees: [],
+          },
+        })
+        continue
+      }
+
+      for (const booking of bookings) {
+        if (excludeBookingId && booking.id === excludeBookingId) continue
+        if (!booking.deviceIds.includes(deviceId)) continue
+        if (timeOverlap(startTime, endTime, booking.startTime, booking.endTime)) {
+          conflicts.push({
+            deviceId,
+            deviceName: dev.name,
+            conflictingBooking: JSON.parse(JSON.stringify(booking)),
+          })
+          break
+        }
+      }
+    }
+
+    return {
+      available: conflicts.length === 0,
+      conflicts,
+    }
   },
   createBooking(input: BookingCreateInput): { booking?: Booking; error?: string } {
     // Validations

@@ -53,4 +53,19 @@ export const apiService = {
     request(`/bookings/${id}`, { method: 'DELETE' }),
   exportBookingsCsv: (days = 7): Promise<string> =>
     request(`/bookings/export?days=${days}`),
+
+  checkDeviceAvailability: (
+    deviceIds: string[],
+    startTime: string,
+    endTime: string
+  ): Promise<{
+    available: boolean
+    conflicts: { deviceId: string; deviceName: string; conflictingBooking: any }[]
+  }> => {
+    const params = new URLSearchParams()
+    params.set('deviceIds', deviceIds.join(','))
+    params.set('startTime', startTime)
+    params.set('endTime', endTime)
+    return request(`/devices/check-availability?${params.toString()}`)
+  },
 }

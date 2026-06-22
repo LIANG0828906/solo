@@ -95,34 +95,11 @@ export default function BookingForm({
       triggerShake(`参与人数超过会议室容量（最大 ${room.capacity} 人）`)
       return
     }
-    // maintenance device check
-    const maintenance = deviceIds
-      .map((id) => devices.find((d) => d.id === id))
-      .filter((d) => d?.status === 'maintenance')
-    if (maintenance.length) {
-      triggerShake(
-        `设备「${maintenance.map((d) => d!.name).join('、')}」正在维护，请更换其他时间或设备`
-      )
-      return
-    }
 
-    // basic local conflict check
-    const overlapBooking = bookings.find((b) => {
-      if (b.roomId !== roomId) return false
-      const s = parseHour(b.startTime) * 60
-      const e = parseHour(b.endTime) * 60
-      const ns = startHour * 60
-      const ne = endHour * 60
-      const dayA = new Date(b.startTime).toDateString()
-      const dayB = defaultDate.toDateString()
-      return dayA === dayB && ns < e && ne > s
-    })
-    if (overlapBooking) {
-      triggerShake(
-        `会议室时段冲突：与「${overlapBooking.title}」重叠，请调整时间`
-      )
-      return
-    }
+    const attendeeList = attendees
+      .split(/[,，;；\s]+/)
+      .map((x) => x.trim())
+      .filter(Boolean)
 
     const payload: BookingCreateInput = {
       title: title.trim(),
@@ -132,14 +109,34 @@ export default function BookingForm({
       participants,
       deviceIds,
       notes: notes.trim(),
-      attendees: attendees
-        .split(/[,，;；\s]+/)
-        .map((x) => x.trim())
-        .filter(Boolean),
+      attendees: attendeeList,
     }
 
     try {
       setSubmitting(true)
+
+      // 第一步：先调用设备可用性检查接口
+      if (deviceIds.length > 0) {
+        const availResult = await apiService.checkDeviceAvailability(
+          deviceIds,
+          startTime,
+          endTime
+        )
+        if (!availResult.available && availResult.conflicts.length > 0) {
+          const first = availResult.conflicts[0]
+          const devNames = availResult.conflicts
+            .map((c) => c.deviceName)
+            .join('、')
+          const conflictTitle = first.conflictingBooking.title
+          triggerShake(
+            `设备冲突：「${devNames}」与会议「${conflictTitle}」时间重叠，请选择其他时间或设备`
+          )
+          setSubmitting(false)
+          return
+        }
+      }
+
+      // 第二步：设备可用后再提交预约
       const created = await apiService.createBooking(payload)
       addToast({
         id: created.id,
