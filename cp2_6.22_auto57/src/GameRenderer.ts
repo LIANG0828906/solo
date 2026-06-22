@@ -19,9 +19,11 @@ export class GameRenderer {
   private particleContainer: PIXI.Container;
   private playerContainer: PIXI.Container;
   private effectsContainer: PIXI.Container;
+  private trapOverlayContainer: PIXI.Container;
 
   private tileSprites: PIXI.Sprite[][] = [];
   private fogSprites: PIXI.Graphics[][] = [];
+  private trapOverlays: Map<string, PIXI.Graphics> = new Map();
   private particleSprites: Map<number, PIXI.Graphics> = new Map();
   private playerSprite: PIXI.Container;
   private playerBody: PIXI.Graphics;
@@ -36,7 +38,7 @@ export class GameRenderer {
   private damageFlash: { alpha: number; duration: number } = { alpha: 0, duration: 0 };
   private damageVignette: PIXI.Graphics;
 
-  private trapFlashTimers: Map<string, number> = new Map();
+  private trapFlashTimers: Map<string, { timer: number; cracks: boolean }> = new Map();
 
   private camera: { x: number; y: number } = { x: 0, y: 0 };
   private scale: number = 2;
@@ -49,11 +51,13 @@ export class GameRenderer {
 
     this.mapContainer = new PIXI.Container();
     this.fogContainer = new PIXI.Container();
+    this.trapOverlayContainer = new PIXI.Container();
     this.particleContainer = new PIXI.Container();
     this.playerContainer = new PIXI.Container();
     this.effectsContainer = new PIXI.Container();
 
     this.app.stage.addChild(this.mapContainer);
+    this.app.stage.addChild(this.trapOverlayContainer);
     this.app.stage.addChild(this.fogContainer);
     this.app.stage.addChild(this.particleContainer);
     this.app.stage.addChild(this.playerContainer);
@@ -118,8 +122,11 @@ export class GameRenderer {
   initMap(map: Tile[][]): void {
     this.mapContainer.removeChildren();
     this.fogContainer.removeChildren();
+    this.trapOverlayContainer.removeChildren();
     this.tileSprites = [];
     this.fogSprites = [];
+    this.trapOverlays.clear();
+    this.trapFlashTimers.clear();
 
     for (let y = 0; y < MAP_HEIGHT; y++) {
       this.tileSprites[y] = [];
@@ -176,13 +183,13 @@ export class GameRenderer {
           fog.drawRect(0, 0, TILE_SIZE, TILE_SIZE);
           fog.endFill();
         } else if (!tile.visible) {
-          fog.beginFill(0x000000, 0.75);
+          fog.beginFill(0x000000, 0.55);
           fog.drawRect(0, 0, TILE_SIZE, TILE_SIZE);
           fog.endFill();
         } else {
           const distFactor = this.getVisibilityFactor(x, y);
           if (distFactor < 1) {
-            fog.beginFill(0x000000, (1 - distFactor) * 0.5);
+            fog.beginFill(0x000000, (1 - distFactor) * 0.3);
             fog.drawRect(0, 0, TILE_SIZE, TILE_SIZE);
             fog.endFill();
           }
@@ -278,6 +285,10 @@ export class GameRenderer {
     this.mapContainer.y = -this.camera.y * this.scale + shakeY;
     this.mapContainer.scale.set(this.scale);
 
+    this.trapOverlayContainer.x = -this.camera.x * this.scale + shakeX;
+    this.trapOverlayContainer.y = -this.camera.y * this.scale + shakeY;
+    this.trapOverlayContainer.scale.set(this.scale);
+
     this.fogContainer.x = -this.camera.x * this.scale + shakeX;
     this.fogContainer.y = -this.camera.y * this.scale + shakeY;
     this.fogContainer.scale.set(this.scale);
@@ -302,7 +313,13 @@ export class GameRenderer {
   }
 
   addTrapFlash(x: number, y: number): void {
-    this.trapFlashTimers.set(`${x},${y}`, 0.5);
+    this.trapFlashTimers.set(`${x},${y}`, { timer: 0.8, cracks: true });
+
+    const overlay = new PIXI.Graphics();
+    overlay.x = x * TILE_SIZE;
+    overlay.y = y * TILE_SIZE;
+    this.trapOverlayContainer.addChild(overlay);
+    this.trapOverlays.set(`${x},${y}`, overlay);
   }
 
   update(deltaTime: number, map: Tile[][], playerPos: Position): void {
@@ -317,12 +334,21 @@ export class GameRenderer {
       this.updateDamageVignette();
     }
 
-    for (const [key, timer] of this.trapFlashTimers) {
-      const newTimer = timer - deltaTime;
-      if (newTimer <= 0) {
+    for (const [key, data] of this.trapFlashTimers) {
+      data.timer -= deltaTime;
+      if (data.timer <= 0) {
         this.trapFlashTimers.delete(key);
+        const overlay = this.trapOverlays.get(key);
+        if (overlay) {
+          this.trapOverlayContainer.removeChild(overlay);
+          this.trapOverlays.delete(key);
+        }
       } else {
-        this.trapFlashTimers.set(key, newTimer);
+        const [sx, sy] = key.split(',').map(Number);
+        const overlay = this.trapOverlays.get(key);
+        if (overlay) {
+          this.drawTrapCracks(overlay, data.timer);
+        }
       }
     }
 
@@ -340,19 +366,68 @@ export class GameRenderer {
     const gradient = this.damageVignette;
 
     const alpha = this.damageFlash.alpha;
-    const borderSize = Math.min(w, h) * 0.15;
+    const borderSize = Math.min(w, h) * 0.18;
 
     gradient.beginFill(0xff0000, 0);
     gradient.drawRect(0, 0, w, h);
     gradient.endFill();
 
     gradient.lineStyle(0);
-    gradient.beginFill(0xff0000, alpha * 0.5);
+    gradient.beginFill(0xff0000, alpha * 0.6);
     gradient.drawRect(0, 0, w, borderSize);
     gradient.drawRect(0, h - borderSize, w, borderSize);
     gradient.drawRect(0, 0, borderSize, h);
     gradient.drawRect(w - borderSize, 0, borderSize, h);
     gradient.endFill();
+
+    if (alpha > 0.3) {
+      gradient.beginFill(0xff3333, (alpha - 0.3) * 0.3);
+      gradient.drawRect(0, 0, w, h);
+      gradient.endFill();
+    }
+  }
+
+  private drawTrapCracks(graphics: PIXI.Graphics, timer: number): void {
+    graphics.clear();
+
+    const progress = 1 - timer / 0.8;
+    const flashIntensity = Math.sin(timer * 25) * 0.5 + 0.5;
+
+    graphics.beginFill(0xff3333, flashIntensity * 0.7);
+    graphics.drawRect(0, 0, TILE_SIZE, TILE_SIZE);
+    graphics.endFill();
+
+    if (progress > 0.1) {
+      const crackAlpha = Math.min(1, progress * 2);
+      graphics.lineStyle(1.5, 0x000000, crackAlpha);
+
+      graphics.moveTo(TILE_SIZE * 0.2, 0);
+      graphics.lineTo(TILE_SIZE * 0.35, TILE_SIZE * 0.4);
+      graphics.lineTo(TILE_SIZE * 0.25, TILE_SIZE * 0.6);
+      graphics.lineTo(TILE_SIZE * 0.45, TILE_SIZE);
+
+      graphics.moveTo(TILE_SIZE * 0.8, 0);
+      graphics.lineTo(TILE_SIZE * 0.65, TILE_SIZE * 0.3);
+      graphics.lineTo(TILE_SIZE * 0.85, TILE_SIZE * 0.55);
+      graphics.lineTo(TILE_SIZE * 0.55, TILE_SIZE);
+
+      graphics.moveTo(0, TILE_SIZE * 0.7);
+      graphics.lineTo(TILE_SIZE * 0.4, TILE_SIZE * 0.5);
+      graphics.lineTo(TILE_SIZE, TILE_SIZE * 0.65);
+
+      graphics.moveTo(TILE_SIZE * 0.1, TILE_SIZE * 0.1);
+      graphics.lineTo(TILE_SIZE * 0.9, TILE_SIZE * 0.9);
+    }
+
+    if (progress > 0.5) {
+      const pieceAlpha = (progress - 0.5) * 2;
+      graphics.lineStyle(0);
+      graphics.beginFill(0x1a1a2e, pieceAlpha * 0.8);
+      graphics.drawRect(TILE_SIZE * 0.1, TILE_SIZE * 0.1, TILE_SIZE * 0.25, TILE_SIZE * 0.2);
+      graphics.drawRect(TILE_SIZE * 0.6, TILE_SIZE * 0.3, TILE_SIZE * 0.25, TILE_SIZE * 0.25);
+      graphics.drawRect(TILE_SIZE * 0.2, TILE_SIZE * 0.6, TILE_SIZE * 0.3, TILE_SIZE * 0.2);
+      graphics.endFill();
+    }
   }
 
   private updateTrapHighlights(map: Tile[][], playerPos: Position): void {
@@ -361,18 +436,26 @@ export class GameRenderer {
         const tile = map[y][x];
         const sprite = this.tileSprites[y][x];
 
-        if (tile.type === TileType.TRAP && tile.visible) {
+        if (tile.type === TileType.TRAP && tile.visible && !tile.trapTriggered) {
           const dist = Math.abs(x - playerPos.x) + Math.abs(y - playerPos.y);
 
           if (dist <= TRAP_VISION_RADIUS) {
             const flashTimer = this.trapFlashTimers.get(`${x},${y}`);
             if (flashTimer !== undefined) {
-              const flashIntensity = Math.sin(flashTimer * 20) * 0.5 + 0.5;
-              sprite.tint = PIXI.utils.rgb2hex([1, flashIntensity * 0.5, flashIntensity * 0.5]);
+              const flashIntensity = Math.sin(flashTimer.timer * 25) * 0.5 + 0.5;
+              const r = 1;
+              const g = flashIntensity * 0.3;
+              const b = flashIntensity * 0.3;
+              sprite.tint = PIXI.utils.rgb2hex([r, g, b]);
             } else {
-              sprite.tint = 0xff8888;
+              const distFactor = 1 - dist / (TRAP_VISION_RADIUS + 1);
+              sprite.tint = PIXI.utils.rgb2hex([1, 0.4 + distFactor * 0.2, 0.4 + distFactor * 0.2]);
             }
+          } else {
+            sprite.tint = 0xffffff;
           }
+        } else if (tile.type === TileType.TRAP && tile.trapTriggered) {
+          sprite.tint = 0x553333;
         } else if (tile.type !== TileType.WALL) {
           sprite.tint = 0xffffff;
         }

@@ -57,7 +57,9 @@ class Game {
     this.setupInput();
     this.setupResize();
 
-    this.app.ticker.add(this.gameLoop.bind(this));
+    const boundGameLoop = (delta: number) => this.gameLoop(delta);
+    this.app.ticker.add(boundGameLoop);
+    this.app.ticker.start();
   }
 
   private setupCallbacks(): void {
@@ -188,7 +190,7 @@ class Game {
 
     if (this.playerController.isPlayerMoving()) {
       this.lastMoveDustTime += deltaTime;
-      if (this.lastMoveDustTime > 0.15) {
+      if (this.lastMoveDustTime > 0.08) {
         this.lastMoveDustTime = 0;
         const pos = this.playerController.getPixelPosition();
         this.particleSystem.spawnDust(pos.x, pos.y);

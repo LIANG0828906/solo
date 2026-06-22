@@ -12,12 +12,12 @@ export class PlayerController {
   private pixelPosition: { x: number; y: number } = { x: 0, y: 0 };
   private targetPosition: Position = { x: 0, y: 0 };
   private isMoving: boolean = false;
-  private moveSpeed: number = 4;
+  private moveSpeed: number = 14;
   private moveProgress: number = 0;
 
   private keys: Set<string> = new Set();
   private moveCooldown: number = 0;
-  private readonly MOVE_COOLDOWN = 0.12;
+  private readonly MOVE_COOLDOWN = 0.04;
 
   private collectTimer: number = 0;
   private readonly COLLECT_INTERVAL = 0.3;
@@ -141,8 +141,8 @@ export class PlayerController {
 
   private updateBob(deltaTime: number): void {
     if (this.isMoving) {
-      this.bobTimer += deltaTime * 10;
-      this.bobOffset = Math.sin(this.bobTimer) * 1.5;
+      this.bobTimer += deltaTime * 15;
+      this.bobOffset = Math.sin(this.bobTimer) * 2.5;
     } else {
       this.bobTimer = 0;
       this.bobOffset *= 0.9;
@@ -164,12 +164,20 @@ export class PlayerController {
       { x: 1, y: 0 },
       { x: -1, y: 0 },
       { x: 0, y: 1 },
-      { x: 0, y: -1 }
+      { x: 0, y: -1 },
+      { x: 1, y: 1 },
+      { x: -1, y: 1 },
+      { x: 1, y: -1 },
+      { x: -1, y: -1 }
     ];
 
     for (const dir of directions) {
       const checkX = this.position.x + dir.x;
       const checkY = this.position.y + dir.y;
+
+      const tile = this.mapManager.getTile(checkX, checkY);
+      if (!tile || tile.collected) continue;
+      if (tile.type !== TileType.CRYSTAL && tile.type !== TileType.ORE) continue;
 
       const resourceType = this.mapManager.collectResource(checkX, checkY);
       if (resourceType) {
