@@ -86,6 +86,10 @@ export class FishSchoolManager {
     );
     velocity.clampLength(1.5, 5);
 
+    group.userData.materialType = 'fish';
+    group.traverse((child) => {
+      child.userData.materialType = 'fish';
+    });
     this.scene.add(group);
 
     const data: FishData = {

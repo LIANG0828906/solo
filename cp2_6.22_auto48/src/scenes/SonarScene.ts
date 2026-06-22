@@ -437,33 +437,25 @@ export class SonarScene {
     let materialType: 'rock' | 'metal' | 'fish' = 'rock';
     let velocity = new THREE.Vector3(0, 0, 0);
 
-    this.obstacleManager.getObstacles().forEach((obs) => {
-      if (obs.mesh === hitObject || obs.mesh.children.includes(hitObject as THREE.Mesh)) {
-        materialType = obs.data.material;
+    let found: THREE.Object3D | null = hitObject;
+    while (found) {
+      const t = (found.userData as any)?.materialType;
+      if (t === 'metal' || t === 'rock' || t === 'fish') {
+        materialType = t;
+        break;
       }
-      let parent = hitObject.parent;
-      while (parent) {
-        if (parent === obs.mesh) {
-          materialType = obs.data.material;
-          break;
-        }
-        parent = parent.parent;
-      }
-    });
+      found = found.parent;
+    }
 
     this.fishSchoolManager.getFishes().forEach((fish) => {
-      if (fish.mesh === hitObject) {
-        materialType = 'fish';
-        velocity = fish.data.velocity.clone();
-      }
-      let parent = hitObject.parent;
-      while (parent) {
-        if (parent === fish.mesh) {
+      let p: THREE.Object3D | null = hitObject;
+      while (p) {
+        if (p === fish.mesh) {
           materialType = 'fish';
           velocity = fish.data.velocity.clone();
           break;
         }
-        parent = parent.parent;
+        p = p.parent;
       }
     });
 

@@ -18,6 +18,25 @@ export function calculateAttenuation(distance: number, frequencyKhz: number): nu
   return Math.min(1, sphericalSpread * absorption * 100);
 }
 
+export function calculateDopplerShiftOneWay(
+  sourceFreq: number,
+  sourceVelocity: THREE.Vector3,
+  receiverVelocity: THREE.Vector3,
+  waveDirection: THREE.Vector3,
+  soundSpeed: number = SOUND_SPEED_WATER
+): { shiftedFreq: number; dopplerShift: number; v_s: number; v_r: number } {
+  const dir = waveDirection.clone().normalize();
+  const v_s = sourceVelocity.dot(dir);
+  const v_r = receiverVelocity.dot(dir);
+  const shiftedFreq = sourceFreq * (soundSpeed + v_r) / (soundSpeed - v_s);
+  return {
+    shiftedFreq,
+    dopplerShift: shiftedFreq - sourceFreq,
+    v_s,
+    v_r,
+  };
+}
+
 export function calculateDopplerShift(
   sourceFreq: number,
   targetVelocity: THREE.Vector3,
@@ -25,9 +44,13 @@ export function calculateDopplerShift(
   soundSpeed: number = SOUND_SPEED_WATER
 ): number {
   const dir = waveDirection.clone().normalize();
-  const vr = targetVelocity.dot(dir);
-  const shiftedFreq = sourceFreq * (soundSpeed + vr) / (soundSpeed - vr);
-  return shiftedFreq - sourceFreq;
+  const v_r_target = targetVelocity.dot(dir);
+  const v_s_sensor = 0;
+  const v_r_sensor = 0;
+  const v_s_reflected = targetVelocity.dot(dir.clone().negate());
+  const firstLeg = sourceFreq * (soundSpeed + v_r_target) / (soundSpeed - v_s_sensor);
+  const secondLeg = firstLeg * (soundSpeed + v_r_sensor) / (soundSpeed - v_s_reflected);
+  return secondLeg - sourceFreq;
 }
 
 export function calculateEchoStrength(

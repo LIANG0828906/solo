@@ -62,17 +62,25 @@ export class WaveformRenderer {
     ctx.stroke();
 
     const displayFreq = baseFreqKhz * 1000 + dopplerShiftHz;
-    const cyclesPerScreen = displayFreq / 150;
+    const baseCycles = 6;
+    const freqRatio = displayFreq / (baseFreqKhz * 1000);
+    const dopplerVisualScale = Math.pow(freqRatio, 1.5);
+    const cyclesPerScreen = baseCycles * dopplerVisualScale;
+
+    const shiftFactor = dopplerShiftHz / (baseFreqKhz * 1000);
+    const densityTweak = 1 + shiftFactor * 12;
+    const finalCycles = Math.max(1.5, Math.min(30, cyclesPerScreen * densityTweak));
+
     const noiseAmp = noiseThreshold * 8;
     const signalAmp = Math.max(5, signalStrength * 45);
     const midY = this.height / 2;
 
-    this.phase += (displayFreq / 60) * 0.002;
+    this.phase += finalCycles * 0.08;
 
     ctx.beginPath();
     for (let x = 0; x < this.width; x++) {
       const t = x / this.width;
-      const yWave = Math.sin(t * Math.PI * 2 * cyclesPerScreen + this.phase);
+      const yWave = Math.sin(t * Math.PI * 2 * finalCycles + this.phase);
       const yNoise = (Math.random() - 0.5) * noiseAmp;
       const y = midY - (yWave * signalAmp + yNoise);
       if (x === 0) {
