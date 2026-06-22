@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import type { CursorPosition, DiffLine } from '../types';
 
 interface DocumentViewProps {
@@ -23,12 +23,15 @@ const DocumentView: React.FC<DocumentViewProps> = ({
   onContentChange,
   onCursorChange,
   disabled = false,
-  addedLines = new Set(),
+  addedLines: externalAddedLines,
   currentLine,
 }) => {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [textareaHeight, setTextareaHeight] = useState(0);
+  const prevLinesRef = useRef<string[]>([]);
+  const [internalAddedLines, setInternalAddedLines] = useState<Map<number, number>>(new Map());
+  const cleanupTimersRef = useRef<Map<number, ReturnType<typeof setTimeout>>>(new Map());
 
   const lines = useMemo(() => {
     if (showDiff && diffLines) {
@@ -38,6 +41,93 @@ const DocumentView: React.FC<DocumentViewProps> = ({
   }, [content, diffLines, showDiff]);
 
   useEffect(() => {
+    if (mode !== 'readonly' || showDiff) return;
+    if (prevLinesRef.current.length === 0) {
+      prevLinesRef.current = lines;
+      return;
+    }
+
+    const prev = prevLinesRef.current;
+    const curr = lines;
+    const newAdded = new Map<number, number>();
+
+    if (curr.length > prev.length) {
+      for (let i = 0; i < curr.length; i++) {
+        if (i >= prev.length || curr[i] !== prev[i]) {
+          const token = Date.now() + Math.random();
+          newAdded.set(i, token);
+
+          if (cleanupTimersRef.current.has(i)) {
+            clearTimeout(cleanupTimersRef.current.get(i)!);
+          }
+          const timer = setTimeout(() => {
+            setInternalAddedLines((prevMap) => {
+              const next = new Map(prevMap);
+              const existing = next.get(i);
+              if (existing === token) {
+                next.delete(i);
+              }
+              return next;
+            });
+            cleanupTimersRef.current.delete(i);
+          }, 2050);
+          cleanupTimersRef.current.set(i, timer);
+        }
+      }
+    } else {
+      for (let i = 0; i < curr.length; i++) {
+        if (curr[i] !== prev[i]) {
+          const token = Date.now() + Math.random();
+          newAdded.set(i, token);
+
+          if (cleanupTimersRef.current.has(i)) {
+            clearTimeout(cleanupTimersRef.current.get(i)!);
+          }
+          const timer = setTimeout(() => {
+            setInternalAddedLines((prevMap) => {
+              const next = new Map(prevMap);
+              const existing = next.get(i);
+              if (existing === token) {
+                next.delete(i);
+              }
+              return next;
+            });
+            cleanupTimersRef.current.delete(i);
+          }, 2050);
+          cleanupTimersRef.current.set(i, timer);
+        }
+      }
+    }
+
+    if (newAdded.size > 0) {
+      setInternalAddedLines((prevMap) => {
+        const next = new Map(prevMap);
+        newAdded.forEach((token, idx) => next.set(idx, token));
+        return next;
+      });
+    }
+
+    prevLinesRef.current = curr;
+  }, [lines, mode, showDiff]);
+
+  useEffect(() => {
+    return () => {
+      cleanupTimersRef.current.forEach((timer) => clearTimeout(timer));
+      cleanupTimersRef.current.clear();
+    };
+  }, []);
+
+  const activeAddedLines = useMemo(() => {
+    const result = new Set<number>();
+    internalAddedLines.forEach((_, idx) => result.add(idx));
+    if (externalAddedLines) {
+      externalAddedLines.forEach((idx) => result.add(idx));
+    }
+    return result;
+  }, [internalAddedLines, externalAddedLines]);
+
+  useEffect(() => {
+    if (mode !== 'edit') return;
     const updateHeight = () => {
       if (textareaRef.current) {
         const scrollHeight = textareaRef.current.scrollHeight;
@@ -45,7 +135,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
       }
     };
     updateHeight();
-  }, [content]);
+  }, [content, mode]);
 
   const getCaretCoordinates = (textarea: HTMLTextAreaElement) => {
     const pos = textarea.selectionStart;
@@ -80,6 +170,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
   };
 
   const remoteSelections = useMemo(() => {
+    if (mode !== 'edit') return [];
     const elements: React.ReactNode[] = [];
     const lineHeight = 22;
     const charWidth = 8.4;
@@ -146,9 +237,10 @@ const DocumentView: React.FC<DocumentViewProps> = ({
     });
 
     return elements;
-  }, [remoteCursors, content]);
+  }, [remoteCursors, content, mode]);
 
   const remoteCursorElements = useMemo(() => {
+    if (mode !== 'edit') return [];
     const elements: React.ReactNode[] = [];
     const lineHeight = 22;
     const charWidth = 8.4;
@@ -183,7 +275,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
     });
 
     return elements;
-  }, [remoteCursors]);
+  }, [remoteCursors, mode]);
 
   return (
     <div className="editor-area">
@@ -193,14 +285,24 @@ const DocumentView: React.FC<DocumentViewProps> = ({
             ? diffLines.map((diff, idx) => (
                 <div
                   key={idx}
-                  className={`line-number ${currentLine === idx ? 'highlight' : ''}`}
+                  className={`line-number ${currentLine === idx ? 'highlight' : ''} ${activeAddedLines.has(idx) ? 'highlight' : ''}`}
                   style={{
-                    color: diff.type === 'added' ? 'var(--success)' : diff.type === 'removed' ? 'var(--danger)' : undefined,
-                    backgroundColor: diff.type === 'added'
-                      ? 'rgba(72, 187, 120, 0.08)'
+                    color: diff.type === 'added'
+                      ? 'var(--success)'
                       : diff.type === 'removed'
-                      ? 'rgba(245, 101, 101, 0.08)'
+                      ? 'var(--danger)'
+                      : activeAddedLines.has(idx)
+                      ? 'var(--success)'
                       : undefined,
+                    backgroundColor: diff.type === 'added'
+                      ? 'rgba(72, 187, 120, 0.10)'
+                      : diff.type === 'removed'
+                      ? 'rgba(245, 101, 101, 0.10)'
+                      : activeAddedLines.has(idx)
+                      ? 'rgba(72, 187, 120, 0.08)'
+                      : undefined,
+                    fontWeight: activeAddedLines.has(idx) ? 600 : undefined,
+                    transition: 'all 0.3s ease',
                   }}
                 >
                   {diff.type === 'removed' && diff.oldLineNumber !== undefined
@@ -211,13 +313,20 @@ const DocumentView: React.FC<DocumentViewProps> = ({
             : lines.map((_, idx) => (
                 <div
                   key={idx}
-                  className={`line-number ${currentLine === idx ? 'highlight' : ''}`}
+                  className={`line-number ${currentLine === idx ? 'highlight' : ''} ${activeAddedLines.has(idx) ? 'highlight' : ''}`}
+                  style={{
+                    color: activeAddedLines.has(idx) ? 'var(--success)' : undefined,
+                    backgroundColor: activeAddedLines.has(idx) ? 'rgba(72, 187, 120, 0.08)' : undefined,
+                    fontWeight: activeAddedLines.has(idx) ? 600 : undefined,
+                    transition: 'all 0.3s ease',
+                  }}
                 >
                   {idx + 1}
                 </div>
               ))}
         </div>
-        <div className="document-content" style={{ minHeight: textareaHeight }}>
+
+        <div className="document-content" style={{ minHeight: mode === 'edit' ? textareaHeight : undefined }}>
           {mode === 'edit' ? (
             <>
               <textarea
@@ -266,7 +375,7 @@ const DocumentView: React.FC<DocumentViewProps> = ({
                 ? diffLines.map((diff, idx) => (
                     <div
                       key={idx}
-                      className={`line-content ${diff.type === 'added' ? 'added' : diff.type === 'removed' ? 'removed' : ''} ${currentLine === idx ? 'current-line' : ''}`}
+                      className={`line-content ${diff.type === 'added' ? 'added' : ''} ${diff.type === 'removed' ? 'removed' : ''} ${currentLine === idx ? 'current-line' : ''}`}
                       style={{ position: 'relative' }}
                     >
                       <span
@@ -281,7 +390,11 @@ const DocumentView: React.FC<DocumentViewProps> = ({
                           justifyContent: 'center',
                           fontWeight: 700,
                           fontSize: 12,
-                          color: diff.type === 'added' ? 'var(--success)' : diff.type === 'removed' ? 'var(--danger)' : 'var(--text-secondary)',
+                          color: diff.type === 'added'
+                            ? 'var(--success)'
+                            : diff.type === 'removed'
+                            ? 'var(--danger)'
+                            : 'var(--text-secondary)',
                           userSelect: 'none',
                         }}
                       >
@@ -294,8 +407,9 @@ const DocumentView: React.FC<DocumentViewProps> = ({
                   ))
                 : lines.map((line, idx) => (
                     <div
-                      key={idx}
-                      className={`line-content ${addedLines.has(idx) ? 'added' : ''} ${currentLine === idx ? 'current-line' : ''}`}
+                      key={`${idx}-${internalAddedLines.get(idx) || '0'}`}
+                      className={`line-content ${activeAddedLines.has(idx) ? 'added' : ''} ${currentLine === idx ? 'current-line' : ''}`}
+                      style={{ position: 'relative' }}
                     >
                       {line || '\u00A0'}
                     </div>
