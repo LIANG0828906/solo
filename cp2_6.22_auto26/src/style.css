@@ -84,16 +84,42 @@ body {
   box-shadow: 0 0 15px var(--glow);
 }
 
-.mode-toggle-btn.rotating .mode-icon {
-  animation: rotateY 0.3s ease;
+.mode-toggle-btn {
+  perspective: 200px;
 }
 
-@keyframes rotateY {
-  from {
+.mode-toggle-btn.rotating {
+  animation: rotateBtn 0.3s ease forwards;
+}
+
+@keyframes rotateBtn {
+  0% {
     transform: rotateY(0deg);
   }
-  to {
-    transform: rotateY(180deg);
+  50% {
+    transform: rotateY(90deg);
+  }
+  100% {
+    transform: rotateY(0deg);
+  }
+}
+
+.mode-toggle-btn.rotating .mode-icon {
+  animation: iconFlip 0.3s ease forwards;
+}
+
+@keyframes iconFlip {
+  0% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(0.5) rotate(180deg);
+    opacity: 0.3;
+  }
+  100% {
+    transform: scale(1) rotate(360deg);
+    opacity: 1;
   }
 }
 
@@ -156,13 +182,36 @@ body {
   border: 1px solid var(--panel-border);
   overflow: hidden;
   transition: all 0.3s ease;
+  background: rgba(0, 0, 0, 0.1);
+}
+
+.panel-section:not(.collapsed) {
+  box-shadow: 0 2px 10px rgba(233, 69, 96, 0.1);
+}
+
+.panel-section.collapsed {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.panel-content {
+  max-height: 500px;
+  padding: 16px;
+  background: rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+  transition: max-height 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              padding 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+              opacity 0.3s ease;
+  opacity: 1;
 }
 
 .panel-section.collapsed .panel-content {
   max-height: 0;
   padding-top: 0;
   padding-bottom: 0;
+  padding-left: 16px;
+  padding-right: 16px;
   opacity: 0;
+  pointer-events: none;
 }
 
 .panel-section.collapsed .collapse-icon {
@@ -190,17 +239,8 @@ body {
 
 .collapse-icon {
   font-size: 12px;
-  transition: transform 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   color: var(--text-muted);
-}
-
-.panel-content {
-  padding: 16px;
-  background: rgba(0, 0, 0, 0.2);
-  max-height: 500px;
-  overflow: hidden;
-  transition: max-height 0.3s ease, padding 0.3s ease, opacity 0.3s ease;
-  opacity: 1;
 }
 
 .preset-select {

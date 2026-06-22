@@ -6,7 +6,12 @@ export class ParticleEmitter {
   private emissionAccumulator: number = 0;
   private config: ParticleConfig;
   private maxParticles: number = 8000;
-  private poolSize: number = 2000;
+  private warnThreshold: number = 5000;
+  private poolSize: number = 4000;
+  private globalAlphaMultiplier: number = 1;
+  private transitionTargetAlpha: number = 1;
+  private isFadingOut: boolean = false;
+  private isFadingIn: boolean = false;
   public x: number = 0;
   public y: number = 0;
 
@@ -89,25 +94,65 @@ export class ParticleEmitter {
     }
   }
 
-  public update(deltaTime: number): Particle[] {
+  public update(deltaTime: number, currentFps: number = 60): Particle[] {
     const activeParticles = this.particles.filter(p => p.active);
+    const activeCount = activeParticles.length;
 
-    if (activeParticles.length > 5000) {
-      const excess = activeParticles.length - 5000;
-      for (let i = 0; i < excess && i < activeParticles.length; i++) {
-        const idx = this.particles.findIndex(p => p === activeParticles[i]);
+    if (activeCount > this.maxParticles) {
+      const forceRemoveCount = activeCount - this.maxParticles;
+      const sortedParticles = [...activeParticles].sort((a, b) => a.life - b.life);
+      for (let i = 0; i < forceRemoveCount; i++) {
+        const p = sortedParticles[i];
+        const idx = this.particles.indexOf(p);
         if (idx !== -1) {
           this.recycleParticle(this.particles[idx]);
           this.particles.splice(idx, 1);
         }
       }
+    } else if (activeCount > this.warnThreshold || currentFps < 45) {
+      const threshold = currentFps < 30 ? this.warnThreshold - 500 : this.warnThreshold;
+      const excess = Math.max(0, activeCount - threshold);
+      if (excess > 0) {
+        const sortedParticles = [...activeParticles].sort((a, b) => a.life - b.life);
+        const removeCount = Math.min(excess, Math.ceil(excess * (currentFps < 30 ? 0.3 : 0.15)));
+        for (let i = 0; i < removeCount; i++) {
+          const p = sortedParticles[i];
+          const idx = this.particles.indexOf(p);
+          if (idx !== -1) {
+            this.recycleParticle(this.particles[idx]);
+            this.particles.splice(idx, 1);
+          }
+        }
+      }
     }
 
-    this.emissionAccumulator += this.config.emissionRate * deltaTime;
-    const emitCount = Math.floor(this.emissionAccumulator);
-    if (emitCount > 0) {
-      this.emit(emitCount);
-      this.emissionAccumulator -= emitCount;
+    if (this.isFadingOut || this.isFadingIn) {
+      const transitionSpeed = deltaTime / 0.5;
+      if (this.isFadingOut) {
+        this.globalAlphaMultiplier = Math.max(0, this.globalAlphaMultiplier - transitionSpeed);
+        if (this.globalAlphaMultiplier <= 0) {
+          this.isFadingOut = false;
+          this.isFadingIn = true;
+          this.emissionAccumulator = 0;
+          this.clearActiveParticles();
+        }
+      } else if (this.isFadingIn) {
+        this.globalAlphaMultiplier = Math.min(1, this.globalAlphaMultiplier + transitionSpeed);
+        if (this.globalAlphaMultiplier >= 1) {
+          this.isFadingIn = false;
+          this.globalAlphaMultiplier = 1;
+        }
+      }
+    }
+
+    const canEmit = !this.isFadingOut && this.globalAlphaMultiplier > 0.1;
+    if (canEmit) {
+      this.emissionAccumulator += this.config.emissionRate * deltaTime * this.globalAlphaMultiplier;
+      const emitCount = Math.floor(this.emissionAccumulator);
+      if (emitCount > 0) {
+        this.emit(emitCount);
+        this.emissionAccumulator -= emitCount;
+      }
     }
 
     for (let i = this.particles.length - 1; i >= 0; i--) {
@@ -125,10 +170,32 @@ export class ParticleEmitter {
       particle.y += particle.vy * deltaTime;
 
       const lifeRatio = particle.life / particle.maxLife;
-      particle.alpha = lifeRatio;
+      particle.alpha = lifeRatio * this.globalAlphaMultiplier;
     }
 
     return this.particles.filter(p => p.active);
+  }
+
+  public fadeOutAndReset(duration: number = 0.5): void {
+    this.isFadingOut = true;
+    this.isFadingIn = false;
+  }
+
+  public setGlobalAlpha(alpha: number): void {
+    this.globalAlphaMultiplier = Math.max(0, Math.min(1, alpha));
+  }
+
+  public isTransitioning(): boolean {
+    return this.isFadingOut || this.isFadingIn;
+  }
+
+  private clearActiveParticles(): void {
+    for (let i = this.particles.length - 1; i >= 0; i--) {
+      if (this.particles[i].active) {
+        this.recycleParticle(this.particles[i]);
+      }
+    }
+    this.particles = this.particles.filter(p => p.active);
   }
 
   private recycleParticle(particle: Particle): void {

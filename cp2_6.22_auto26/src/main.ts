@@ -16,6 +16,8 @@ class App {
   private frameCount: number = 0;
   private lastFpsUpdate: number = 0;
   private currentFps: number = 60;
+  private pendingConfig: ParticleConfig | null = null;
+  private isPresetSwitching: boolean = false;
 
   constructor() {
     this.container = document.getElementById('canvas-container')!;
@@ -59,7 +61,18 @@ class App {
 
   private bindEvents(): void {
     this.controlPanel.setOnConfigChange((config) => {
-      this.emitter.setConfig(config);
+      if (this.isPresetSwitching) {
+        this.pendingConfig = config;
+      } else {
+        this.emitter.setConfig(config);
+      }
+    });
+
+    this.controlPanel.setOnPresetChangeStart(() => {
+      if (!this.isPresetSwitching && !this.emitter.isTransitioning()) {
+        this.isPresetSwitching = true;
+        this.emitter.fadeOutAndReset();
+      }
     });
 
     this.controlPanel.setOnModeChange((mode) => {
@@ -95,15 +108,28 @@ class App {
   }
 
   private startGameLoop(): void {
+    this.lastFpsUpdate = performance.now();
+    
     this.pixiApp.ticker.add((delta) => {
       const deltaTime = delta / 60;
 
-      const particles = this.emitter.update(deltaTime);
+      const wasTransitioning = this.emitter.isTransitioning();
+      const particles = this.emitter.update(deltaTime, this.currentFps);
+      const isTransitioning = this.emitter.isTransitioning();
+
+      if (wasTransitioning && !isTransitioning && this.isPresetSwitching) {
+        if (this.pendingConfig) {
+          this.emitter.setConfig(this.pendingConfig);
+          this.pendingConfig = null;
+        }
+        this.isPresetSwitching = false;
+      }
+
       this.renderer.render(particles);
 
       this.frameCount++;
       const now = performance.now();
-      if (now - this.lastFpsUpdate >= 500) {
+      if (now - this.lastFpsUpdate >= 250) {
         this.currentFps = (this.frameCount * 1000) / (now - this.lastFpsUpdate);
         this.frameCount = 0;
         this.lastFpsUpdate = now;

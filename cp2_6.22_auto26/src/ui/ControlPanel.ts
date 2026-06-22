@@ -30,6 +30,7 @@ export class ControlPanel {
   private presetManager: PresetManager;
   private onConfigChange: ((config: ParticleConfig) => void) | null = null;
   private onModeChange: ((mode: AppMode) => void) | null = null;
+  private onPresetChangeStart: (() => void) | null = null;
   private currentMode: AppMode = 'edit';
   private currentConfig: ParticleConfig;
 
@@ -74,6 +75,14 @@ export class ControlPanel {
     this.initPresets();
     this.bindEvents();
     this.setupCollapsible();
+    this.expandFirstSection();
+  }
+
+  private expandFirstSection(): void {
+    const firstCollapsible = document.querySelector('.panel-section.collapsed[data-section="emission"]');
+    if (firstCollapsible) {
+      firstCollapsible.classList.remove('collapsed');
+    }
   }
 
   private initPresets(): void {
@@ -106,7 +115,14 @@ export class ControlPanel {
       this.elements.controlPanel.classList.remove('fade-in');
       void this.elements.controlPanel.offsetWidth;
       this.elements.controlPanel.classList.add('fade-in');
-      this.presetManager.selectPreset(select.value);
+      
+      if (this.onPresetChangeStart) {
+        this.onPresetChangeStart();
+      }
+      
+      setTimeout(() => {
+        this.presetManager.selectPreset(select.value);
+      }, 50);
     });
 
     this.elements.exportBtn.addEventListener('click', () => {
@@ -209,6 +225,10 @@ export class ControlPanel {
 
   public setOnModeChange(callback: (mode: AppMode) => void): void {
     this.onModeChange = callback;
+  }
+
+  public setOnPresetChangeStart(callback: () => void): void {
+    this.onPresetChangeStart = callback;
   }
 
   private toggleMode(): void {
