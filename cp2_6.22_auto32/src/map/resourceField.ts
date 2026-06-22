@@ -6,14 +6,52 @@ interface RingParticle {
   radius: number
   radiusSpeed: number
   phase: number
-  size: number
+  baseSize: number
   alpha: number
-  fadePhase: number
-  shouldFade: boolean
+  orbitSpeed: number
+  radiusWobbleAmp: number
 }
 
-const MAX_PARTICLES = 24
-const PARTICLE_FADE_SPEED = 2.5
+const PARTICLE_COUNT = 24
+const DEPLETED_FADE_DURATION = 0.5
+const DISPLAY_LERP_SPEED = 15
+
+function hexToRgb(hex: number): { r: number; g: number; b: number } {
+  return {
+    r: (hex >> 16) & 255,
+    g: (hex >> 8) & 255,
+    b: hex & 255,
+  }
+}
+
+function rgbToHex(r: number, g: number, b: number): number {
+  return ((Math.round(r) & 255) << 16) | ((Math.round(g) & 255) << 8) | (Math.round(b) & 255)
+}
+
+function lerpColor(colorA: number, colorB: number, t: number): number {
+  const a = hexToRgb(colorA)
+  const b = hexToRgb(colorB)
+  return rgbToHex(
+    a.r + (b.r - a.r) * t,
+    a.g + (b.g - a.g) * t,
+    a.b + (b.b - a.b) * t,
+  )
+}
+
+function getProgressColor(resourceColor: number, pct: number): number {
+  if (pct >= 0.5) {
+    const t = (pct - 0.5) / 0.5
+    return lerpColor(0xffaa00, resourceColor, t)
+  } else {
+    const t = pct / 0.2
+    if (pct <= 0.2) {
+      return lerpColor(0xff3333, 0xffaa00, Math.max(0, t))
+    } else {
+      const t2 = (pct - 0.2) / 0.3
+      return lerpColor(0xffaa00, resourceColor, t2 * 0.5)
+    }
+  }
+}
 
 export class ResourceField {
   id: number
@@ -33,8 +71,9 @@ export class ResourceField {
   private particles: RingParticle[] = []
   private pulsePhase: number = Math.random() * Math.PI * 2
   private baseScale: number = 1
+  private depletedFade: number = 1
   private displayedReserve: number = 0
-  private lastPct: number = 1
+  private lastDisplayedPct: number = 1
 
   constructor(id: number, type: ResourceType, reserve: number, efficiency: number, gridX: number, gridY: number) {
     this.id = id
@@ -65,16 +104,16 @@ export class ResourceField {
   }
 
   private initParticles(): void {
-    for (let i = 0; i < MAX_PARTICLES; i++) {
+    for (let i = 0; i < PARTICLE_COUNT; i++) {
       this.particles.push({
-        angle: (Math.PI * 2 * i) / MAX_PARTICLES + Math.random() * 0.3,
-        radius: CELL_SIZE * (0.45 + Math.random() * 0.15),
+        angle: (Math.PI * 2 * i) / PARTICLE_COUNT + Math.random() * 0.5,
+        radius: CELL_SIZE * (0.45 + Math.random() * 0.18),
         radiusSpeed: 0,
         phase: Math.random() * Math.PI * 2,
-        size: 1.2 + Math.random() * 1.5,
-        alpha: 0.7 + Math.random() * 0.3,
-        fadePhase: 1,
-        shouldFade: false,
+        baseSize: 1.0 + Math.random() * 1.4,
+        alpha: 0.65 + Math.random() * 0.35,
+        orbitSpeed: 0.4 + Math.random() * 0.5,
+        radiusWobbleAmp: 2 + Math.random() * 4,
       })
     }
   }
@@ -127,10 +166,9 @@ export class ResourceField {
   }
 
   private updateLabel(): void {
-    const pct = Math.max(0, this.reserve / this.maxReserve)
+    const pct = Math.max(0, this.displayedReserve / this.maxReserve)
     const typeName = this.type === ResourceType.IRON ? 'Fe' : this.type === ResourceType.CRYSTAL ? 'Cr' : 'Ga'
     this.label.text = `${typeName}  ${Math.floor(pct * 100)}%`
-    this.label.alpha = 0.95
   }
 
   private updateProgressBar(): void {
@@ -141,20 +179,19 @@ export class ResourceField {
     const barHeight = 3
     const y = -CELL_SIZE * 0.2
     const color = this.getColor()
-    const pct = Math.max(0, Math.min(1, this.reserve / this.maxReserve))
     const displayPct = Math.max(0, Math.min(1, this.displayedReserve / this.maxReserve))
 
-    g.beginFill(0x000000, 0.6)
-    g.lineStyle(0.5, color, 0.5)
+    g.beginFill(0x000000, 0.55)
+    g.lineStyle(0.5, color, 0.45)
     g.drawRect(-barWidth / 2, y, barWidth, barHeight)
     g.endFill()
 
-    const barColor = pct > 0.5 ? color : pct > 0.2 ? 0xffaa00 : 0xff5544
-    g.beginFill(barColor, 0.9)
+    const barColor = getProgressColor(color, displayPct)
+    g.beginFill(barColor, 1.0)
     g.drawRect(-barWidth / 2, y, barWidth * displayPct, barHeight)
     g.endFill()
 
-    g.beginFill(color, 0.4)
+    g.beginFill(color, 0.35)
     for (let i = 0; i < 5; i++) {
       const tickX = -barWidth / 2 + (barWidth * (i + 1)) / 6
       g.drawRect(tickX - 0.5, y, 1, barHeight)
@@ -176,95 +213,75 @@ export class ResourceField {
   }
 
   private updateParticles(dt: number, pct: number): void {
-    const activeCount = Math.ceil(MAX_PARTICLES * pct)
-
-    if (pct < this.lastPct) {
-      const diffPct = this.lastPct - pct
-      const toFade = Math.ceil(MAX_PARTICLES * diffPct * 0.8)
-      let faded = 0
-      for (const p of this.particles) {
-        if (faded >= toFade) break
-        if (!p.shouldFade && p.fadePhase >= 1) {
-          p.shouldFade = true
-          faded++
-        }
-      }
-    }
-    this.lastPct = pct
-
-    for (let i = 0; i < this.particles.length; i++) {
-      const p = this.particles[i]
-
-      if (p.shouldFade) {
-        p.fadePhase -= dt * PARTICLE_FADE_SPEED
-        if (p.fadePhase <= 0) {
-          p.fadePhase = 0
-          p.shouldFade = false
-          p.alpha = 0
-          continue
-        }
-      } else if (i < activeCount && p.fadePhase < 1) {
-        p.fadePhase = Math.min(1, p.fadePhase + dt * PARTICLE_FADE_SPEED)
-      }
-
-      if (i >= activeCount && !p.shouldFade && p.fadePhase > 0) {
-        p.shouldFade = true
-      }
-
-      if (p.fadePhase <= 0 && i >= activeCount) {
-        p.alpha = 0
-        continue
-      }
-
-      p.angle += dt * (0.6 + p.phase * 0.2)
-      p.phase += dt * 2
-      p.radius += Math.sin(p.phase) * dt * 1.5
-      p.alpha = Math.max(0, (0.6 + Math.sin(p.phase * 1.3) * 0.3) * p.fadePhase)
+    for (const p of this.particles) {
+      p.angle += dt * p.orbitSpeed
+      p.phase += dt * 1.8
     }
   }
 
-  private drawParticles(): void {
+  private drawParticles(pct: number): void {
     const g = this.particleGraphics
     g.clear()
     const color = this.getColor()
 
-    for (const p of this.particles) {
-      if (p.fadePhase <= 0 || p.alpha <= 0) continue
-      const x = Math.cos(p.angle) * p.radius
-      const y = Math.sin(p.angle) * p.radius
-      g.beginFill(color, p.alpha)
-      g.drawCircle(x, y, p.size)
+    const minPct = 0.08
+    const effectivePct = Math.max(0, (pct - minPct) / (1 - minPct))
+    const maxAlpha = 0.75
+    const minAlpha = 0.0
+
+    for (let i = 0; i < this.particles.length; i++) {
+      const p = this.particles[i]
+
+      const particleIndexPct = (i + 1) / PARTICLE_COUNT
+      const fadeThreshold = 1 - effectivePct
+      let particleAlpha = 1
+      if (particleIndexPct > fadeThreshold) {
+        const excess = (particleIndexPct - fadeThreshold) / Math.max(0.001, 1 - fadeThreshold)
+        particleAlpha = 1 - excess
+      }
+
+      const wobble = Math.sin(p.phase) * p.radiusWobbleAmp
+      const currentRadius = p.radius + wobble
+      const x = Math.cos(p.angle) * currentRadius
+      const y = Math.sin(p.angle) * currentRadius
+
+      const sizeMod = 0.5 + effectivePct * 0.5 + Math.sin(p.phase * 1.3) * 0.15
+      const size = p.baseSize * sizeMod
+
+      const finalAlpha = Math.max(0, p.alpha * particleAlpha * this.depletedFade)
+      if (finalAlpha <= 0.01) continue
+
+      g.beginFill(color, finalAlpha)
+      g.drawCircle(x, y, size)
       g.endFill()
 
-      g.beginFill(color, p.alpha * 0.2)
-      g.drawCircle(x, y, p.size * 2.5)
+      g.beginFill(color, finalAlpha * 0.18)
+      g.drawCircle(x, y, size * 2.5)
       g.endFill()
     }
   }
 
   update(dt: number): void {
     if (this.depleted) {
-      this.baseScale = Math.max(0, this.baseScale - dt * 2)
-      for (const p of this.particles) {
-        p.shouldFade = true
-        p.fadePhase = Math.max(0, p.fadePhase - dt * PARTICLE_FADE_SPEED * 2)
-        p.alpha = Math.max(0, p.fadePhase)
-      }
-      if (this.baseScale <= 0) {
+      this.depletedFade = Math.max(0, this.depletedFade - dt / DEPLETED_FADE_DURATION)
+      this.baseScale = Math.max(0, this.baseScale - dt / DEPLETED_FADE_DURATION)
+      if (this.depletedFade <= 0) {
         this.graphics.visible = false
         this.label.visible = false
         this.progressBar.visible = false
+        this.particleGraphics.visible = false
         return
       }
     }
 
-    this.displayedReserve += (this.reserve - this.displayedReserve) * Math.min(1, dt * 8)
+    this.displayedReserve += (this.reserve - this.displayedReserve) * Math.min(1, dt * DISPLAY_LERP_SPEED)
+    const displayPct = this.displayedReserve / this.maxReserve
 
     this.pulsePhase += dt * 3.0
     const pct = this.reserve / this.maxReserve
     const lowResource = pct < 0.2 && !this.depleted
 
-    const pulseIntensity = lowResource ? 0.18 : 0.12
+    const pulseIntensity = lowResource ? 0.22 : 0.14
     const pulse = 1 + Math.sin(this.pulsePhase) * pulseIntensity
     const scale = this.baseScale * pulse
 
@@ -279,18 +296,18 @@ export class ResourceField {
 
     if (lowResource) {
       const blinkPhase = 0.5 + 0.5 * Math.sin(this.pulsePhase * 3)
-      this.graphics.alpha = 0.25 + blinkPhase * 0.45
-      this.progressBar.alpha = 0.4 + blinkPhase * 0.6
-      this.label.alpha = 0.5 + blinkPhase * 0.5
+      this.graphics.alpha = (0.3 + blinkPhase * 0.5) * this.depletedFade
+      this.progressBar.alpha = 0.85 * this.depletedFade
+      this.label.alpha = 0.85 * this.depletedFade
     } else {
-      this.graphics.alpha = 0.55 + pct * 0.45
-      this.progressBar.alpha = 0.95
-      this.label.alpha = 0.95
+      this.graphics.alpha = (0.55 + pct * 0.45) * this.depletedFade
+      this.progressBar.alpha = 0.95 * this.depletedFade
+      this.label.alpha = 0.95 * this.depletedFade
     }
 
     this.updateProgressBar()
-    this.updateParticles(dt, pct)
-    this.drawParticles()
+    this.updateParticles(dt, displayPct)
+    this.drawParticles(displayPct)
   }
 
   getDisplayObject(): PIXI.Container {
