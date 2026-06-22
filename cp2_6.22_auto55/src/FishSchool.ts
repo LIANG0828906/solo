@@ -1,29 +1,61 @@
 import * as THREE from 'three';
-import { EnvParams } from './SceneInitializer';
-import { CoralData } from './CoralGenerator';
+import { EnvParams, Fish, RegionInfo, IFishSchool, CoralData } from './types';
 
-export interface RegionInfo {
-  coralDensity: number;
-  temperature: number;
-  nutrients: number;
-  position: THREE.Vector3;
+class SpatialHash<T> {
+  cellSize: number;
+  grid: Map<string, T[]>;
+
+  constructor(cellSize = 5) {
+    this.cellSize = cellSize;
+    this.grid = new Map();
+  }
+
+  private key(x: number, y: number, z: number): string {
+    const cs = this.cellSize;
+    return `${Math.floor(x / cs)}_${Math.floor(y / cs)}_${Math.floor(z / cs)}`;
+  }
+
+  insert(item: T, x: number, y: number, z: number): void {
+    const k = this.key(x, y, z);
+    let bucket = this.grid.get(k);
+    if (!bucket) {
+      bucket = [];
+      this.grid.set(k, bucket);
+    }
+    bucket.push(item);
+  }
+
+  query(x: number, y: number, z: number, radius: number): T[] {
+    const cs = this.cellSize;
+    const minX = Math.floor((x - radius) / cs);
+    const maxX = Math.floor((x + radius) / cs);
+    const minY = Math.floor((y - radius) / cs);
+    const maxY = Math.floor((y + radius) / cs);
+    const minZ = Math.floor((z - radius) / cs);
+    const maxZ = Math.floor((z + radius) / cs);
+    const result: T[] = [];
+    for (let ix = minX; ix <= maxX; ix++) {
+      for (let iy = minY; iy <= maxY; iy++) {
+        for (let iz = minZ; iz <= maxZ; iz++) {
+          const k = `${ix}_${iy}_${iz}`;
+          const bucket = this.grid.get(k);
+          if (bucket) {
+            for (let j = 0; j < bucket.length; j++) {
+              result.push(bucket[j]);
+            }
+          }
+        }
+      }
+    }
+    return result;
+  }
 }
 
-export interface Fish {
-  mesh: THREE.Group;
-  position: THREE.Vector3;
-  velocity: THREE.Vector3;
-  acceleration: THREE.Vector3;
-  scattering: boolean;
-  scatterTimer: number;
-  baseColor: THREE.Color;
-  tailPhase: number;
-  species: number;
-}
-
-export class FishSchool {
+export class FishSchool implements IFishSchool {
   private scene: THREE.Scene;
   private corals: CoralData[];
+  private coralHash: SpatialHash<CoralData>;
+  private maxBoundingRadius: number;
   private count: number;
   public fishes: Fish[] = [];
   public activeRegionInfo: RegionInfo | null = null;
@@ -44,6 +76,16 @@ export class FishSchool {
     this.scene = scene;
     this.count = count;
     this.corals = corals;
+    this.maxBoundingRadius = 0;
+    for (const c of corals) {
+      if (c.boundingRadius > this.maxBoundingRadius) {
+        this.maxBoundingRadius = c.boundingRadius;
+      }
+    }
+    this.coralHash = new SpatialHash<CoralData>(5);
+    for (const c of corals) {
+      this.coralHash.insert(c, c.position.x, c.position.y, c.position.z);
+    }
     this.spawn();
   }
 
@@ -392,7 +434,9 @@ export class FishSchool {
   private coralAvoidance(f: Fish): THREE.Vector3 {
     const avoid = new THREE.Vector3();
     const senseDist = 4.0;
-    for (const c of this.corals) {
+    const queryRadius = senseDist + this.maxBoundingRadius;
+    const candidates = this.coralHash.query(f.position.x, f.position.y, f.position.z, queryRadius);
+    for (const c of candidates) {
       const dx = f.position.x - c.position.x;
       const dz = f.position.z - c.position.z;
       const dy = f.position.y - c.position.y;

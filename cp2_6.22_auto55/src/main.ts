@@ -1,9 +1,12 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { EnvParams, SceneInitializer } from './SceneInitializer';
+import { EnvParams } from './types';
+import { SceneInitializer } from './SceneInitializer';
 import { CoralGenerator } from './CoralGenerator';
 import { FishSchool } from './FishSchool';
 import { ControlPanel } from './ControlPanel';
+
+type FishPart = 'body' | 'tail' | 'eye' | 'fin';
 
 class App {
   private renderer!: THREE.WebGLRenderer;
@@ -19,10 +22,13 @@ class App {
   private pointer = new THREE.Vector2();
   private rendererSize = new THREE.Vector2();
   private fishClickables: THREE.Object3D[] = [];
+  private fishMeshToIndexMap: Map<THREE.Object3D, { index: number; part: FishPart }> = new Map();
   private readonly DEFAULT_PARAMS: EnvParams = {
     currentSpeed: 2.0,
     lightIntensity: 60,
     nutrientLevel: 55,
+    terrainAmplitude: 1.0,
+    terrainFrequency: 1.0,
   };
   private smoothedParams: EnvParams = { ...this.DEFAULT_PARAMS };
 
@@ -70,8 +76,26 @@ class App {
 
     this.fishSchool = new FishSchool(this.scene, 80, corals);
     this.fishClickables = [];
-    this.fishSchool.fishes.forEach((f) => {
-      f.mesh.traverse((c) => { this.fishClickables.push(c); });
+    this.fishMeshToIndexMap.clear();
+    this.fishSchool.fishes.forEach((f, fishIdx) => {
+      f.mesh.traverse((child) => {
+        this.fishClickables.push(child);
+        let part: FishPart = 'body';
+        if (child.name === 'tail') {
+          part = 'tail';
+        } else {
+          const mesh = child as THREE.Mesh;
+          if (mesh.isMesh) {
+            const mat = mesh.material;
+            if (mat instanceof THREE.MeshBasicMaterial) {
+              part = 'eye';
+            } else if (mesh.geometry instanceof THREE.ConeGeometry) {
+              part = 'fin';
+            }
+          }
+        }
+        this.fishMeshToIndexMap.set(child, { index: fishIdx, part });
+      });
     });
 
     this.controlPanel = new ControlPanel({
@@ -79,6 +103,8 @@ class App {
         this.DEFAULT_PARAMS.currentSpeed = p.currentSpeed;
         this.DEFAULT_PARAMS.lightIntensity = p.lightIntensity;
         this.DEFAULT_PARAMS.nutrientLevel = p.nutrientLevel;
+        this.DEFAULT_PARAMS.terrainAmplitude = p.terrainAmplitude;
+        this.DEFAULT_PARAMS.terrainFrequency = p.terrainFrequency;
       },
     });
 
@@ -106,9 +132,40 @@ class App {
     this.pointer.x = (event.clientX / width) * 2 - 1;
     this.pointer.y = -(event.clientY / height) * 2 + 1;
     this.raycaster.setFromCamera(this.pointer, this.camera);
-    const intersects = this.raycaster.intersectObjects(this.fishClickables, false);
-    if (intersects.length > 0) {
-      this.fishSchool.handleClick(intersects[0]);
+    const intersects = this.raycaster.intersectObjects(this.fishClickables, true);
+    if (intersects.length === 0) return;
+
+    intersects.sort((a, b) => a.distance - b.distance);
+
+    const fishBestScore = new Map<number, { score: number; intersect: THREE.Intersection }>();
+
+    for (const intersect of intersects) {
+      const info = this.fishMeshToIndexMap.get(intersect.object);
+      if (!info) continue;
+
+      const { index, part } = info;
+      const penalty = part === 'tail' ? 15 : part === 'fin' ? 8 : part === 'eye' ? 3 : 0;
+      const score = intersect.distance * 1.0 + penalty;
+
+      const existing = fishBestScore.get(index);
+      if (!existing || score < existing.score) {
+        fishBestScore.set(index, { score, intersect });
+      }
+    }
+
+    let bestFishIdx = -1;
+    let bestIntersect: THREE.Intersection | null = null;
+    let minScore = Infinity;
+    for (const [fishIdx, data] of fishBestScore) {
+      if (data.score < minScore) {
+        minScore = data.score;
+        bestFishIdx = fishIdx;
+        bestIntersect = data.intersect;
+      }
+    }
+
+    if (bestFishIdx >= 0 && bestIntersect) {
+      this.fishSchool.handleClick(bestIntersect);
     }
   }
 
@@ -129,6 +186,16 @@ class App {
       this.DEFAULT_PARAMS.nutrientLevel,
       lerpFactor,
     );
+    this.smoothedParams.terrainAmplitude = THREE.MathUtils.lerp(
+      this.smoothedParams.terrainAmplitude ?? 1.0,
+      this.DEFAULT_PARAMS.terrainAmplitude ?? 1.0,
+      lerpFactor,
+    );
+    this.smoothedParams.terrainFrequency = THREE.MathUtils.lerp(
+      this.smoothedParams.terrainFrequency ?? 1.0,
+      this.DEFAULT_PARAMS.terrainFrequency ?? 1.0,
+      lerpFactor,
+    );
   }
 
   private animate(): void {
@@ -137,13 +204,14 @@ class App {
     const time = this.clock.elapsedTime;
 
     this.smoothParams(dt);
-    const params = this.smoothedParams;
+    const p = this.smoothedParams;
 
     this.controls.update();
-    this.sceneInit.updateParticles(time, params.currentSpeed);
-    this.sceneInit.updateLighting(params);
-    this.coralGen.update(time, params);
-    this.fishSchool.update(time, dt, params);
+    this.sceneInit.updateTerrainFromParams(p);
+    this.sceneInit.updateParticles(time, p.currentSpeed);
+    this.sceneInit.updateLighting(p);
+    this.coralGen.update(time, p);
+    this.fishSchool.update(time, dt, p);
     this.controlPanel.updateScore(dt);
     this.controlPanel.setFPS(1 / dt);
     this.controlPanel.updateInfoPanel(

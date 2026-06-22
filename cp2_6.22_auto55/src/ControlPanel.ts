@@ -1,9 +1,5 @@
-import { EnvParams } from './SceneInitializer';
+import { EnvParams, ControlPanelCallbacks, RegionInfo } from './types';
 import * as THREE from 'three';
-
-export interface ControlPanelCallbacks {
-  onParamsChange: (p: EnvParams) => void;
-}
 
 export class ControlPanel {
   private container: HTMLElement;
@@ -12,6 +8,8 @@ export class ControlPanel {
     currentSpeed: 2.0,
     lightIntensity: 65,
     nutrientLevel: 55,
+    terrainAmplitude: 1.0,
+    terrainFrequency: 1.0,
   };
 
   private fpsDisplay!: HTMLElement;
@@ -264,6 +262,26 @@ export class ControlPanel {
         </div>
         <input type="range" class="cp-slider" id="slider-nutrient" min="0" max="100" step="1" value="55" />
       </div>
+      <div class="cp-group" data-group="terrain-amp">
+        <div class="cp-group-header">
+          <div class="cp-label">
+            <span class="cp-label-icon" style="background: rgba(200,160,255,0.22);">⛰️</span>
+            地形起伏幅度
+          </div>
+          <div class="cp-value" id="val-terrain-amp">1.0</div>
+        </div>
+        <input type="range" class="cp-slider" id="slider-terrain-amp" min="0" max="3" step="0.1" value="1.0" />
+      </div>
+      <div class="cp-group" data-group="terrain-freq">
+        <div class="cp-group-header">
+          <div class="cp-label">
+            <span class="cp-label-icon" style="background: rgba(255,160,200,0.22);">🌀</span>
+            地形粗糙频率
+          </div>
+          <div class="cp-value" id="val-terrain-freq">1.00</div>
+        </div>
+        <input type="range" class="cp-slider" id="slider-terrain-freq" min="0.3" max="2" step="0.05" value="1.0" />
+      </div>
       <div class="cp-buttons">
         <button class="cp-btn cp-btn-primary" id="btn-reset">重置参数</button>
         <button class="cp-btn" id="btn-auto">自动模式</button>
@@ -484,9 +502,13 @@ export class ControlPanel {
     const sCur = this.container.querySelector('#slider-current') as HTMLInputElement;
     const sLight = this.container.querySelector('#slider-light') as HTMLInputElement;
     const sNut = this.container.querySelector('#slider-nutrient') as HTMLInputElement;
+    const sTerrAmp = this.container.querySelector('#slider-terrain-amp') as HTMLInputElement;
+    const sTerrFreq = this.container.querySelector('#slider-terrain-freq') as HTMLInputElement;
     const vCur = this.container.querySelector('#val-current') as HTMLElement;
     const vLight = this.container.querySelector('#val-light') as HTMLElement;
     const vNut = this.container.querySelector('#val-nutrient') as HTMLElement;
+    const vTerrAmp = this.container.querySelector('#val-terrain-amp') as HTMLElement;
+    const vTerrFreq = this.container.querySelector('#val-terrain-freq') as HTMLElement;
     const btnReset = this.container.querySelector('#btn-reset') as HTMLButtonElement;
     const btnAuto = this.container.querySelector('#btn-auto') as HTMLButtonElement;
 
@@ -494,9 +516,13 @@ export class ControlPanel {
       this.params.currentSpeed = parseFloat(sCur.value);
       this.params.lightIntensity = parseFloat(sLight.value);
       this.params.nutrientLevel = parseFloat(sNut.value);
+      this.params.terrainAmplitude = parseFloat(sTerrAmp.value);
+      this.params.terrainFrequency = parseFloat(sTerrFreq.value);
       vCur.textContent = this.params.currentSpeed.toFixed(1);
       vLight.textContent = this.params.lightIntensity.toFixed(0) + '%';
       vNut.textContent = this.params.nutrientLevel.toFixed(0) + '%';
+      vTerrAmp.textContent = this.params.terrainAmplitude!.toFixed(1);
+      vTerrFreq.textContent = this.params.terrainFrequency!.toFixed(2);
       this.updateTargetScore();
       this.callbacks.onParamsChange({ ...this.params });
     };
@@ -504,11 +530,15 @@ export class ControlPanel {
     sCur.addEventListener('input', emit);
     sLight.addEventListener('input', emit);
     sNut.addEventListener('input', emit);
+    sTerrAmp.addEventListener('input', emit);
+    sTerrFreq.addEventListener('input', emit);
 
     btnReset.addEventListener('click', () => {
       sCur.value = '2.0';
       sLight.value = '65';
       sNut.value = '55';
+      sTerrAmp.value = '1.0';
+      sTerrFreq.value = '1.0';
       emit();
     });
 
@@ -528,6 +558,8 @@ export class ControlPanel {
         sCur.value = String((2 + Math.sin(t * 0.75) * 1.8).toFixed(1));
         sLight.value = String(Math.round(65 + Math.sin(t * 1.15) * 28));
         sNut.value = String(Math.round(55 + Math.cos(t * 0.95) * 28));
+        sTerrAmp.value = String((1.0 + Math.sin(t * 0.5) * 0.8).toFixed(1));
+        sTerrFreq.value = String((1.0 + Math.cos(t * 0.4) * 0.5).toFixed(2));
         emit();
       }, 70);
     });
@@ -536,16 +568,28 @@ export class ControlPanel {
   }
 
   private updateTargetScore(): void {
-    const light = this.params.lightIntensity / 100;
-    const nutrient = this.params.nutrientLevel / 100;
-    const current = this.params.currentSpeed / 5;
+    const L = this.params.lightIntensity / 100;
+    const N = this.params.nutrientLevel / 100;
+    const C = this.params.currentSpeed / 5;
 
-    const lScore = 1 - Math.abs(light - 0.65) * 1.3;
-    const nScore = 1 - Math.abs(nutrient - 0.55) * 1.4;
-    const cScore = 1 - Math.abs(current - 0.4) * 1.2;
+    const fLight = Math.exp(-Math.pow(L - 0.65, 2) / (2 * Math.pow(0.18, 2)));
+    const fNutrient = Math.exp(-Math.pow(N - 0.55, 2) / (2 * Math.pow(0.22, 2)));
+    const fCurrent = Math.exp(-Math.pow(C - 0.40, 2) / (2 * Math.pow(0.25, 2)));
 
-    const total = Math.max(20, Math.min(100, Math.round(lScore * 35 + nScore * 35 + cScore * 30)));
-    this.targetScore = total;
+    const photosynthesis = L * N;
+    const transport = C * N;
+    const synergy =
+      Math.exp(-Math.pow(photosynthesis - 0.37, 2) / (2 * Math.pow(0.15, 2))) * 0.35 +
+      Math.exp(-Math.pow(transport - 0.28, 2) / (2 * Math.pow(0.18, 2))) * 0.25;
+
+    let raw = fLight * 0.25 + fNutrient * 0.25 + fCurrent * 0.15 + synergy * 0.35;
+
+    if (L < 0.15 || N < 0.1 || C < 0.05) {
+      raw -= 15 / 80;
+    }
+
+    const score = Math.max(20, Math.min(100, Math.round(20 + raw * 80)));
+    this.targetScore = score;
   }
 
   public setFPS(fps: number): void {
@@ -578,7 +622,7 @@ export class ControlPanel {
   }
 
   public updateInfoPanel(
-    info: { coralDensity: number; temperature: number; nutrients: number; position: THREE.Vector3 } | null,
+    info: RegionInfo | null,
     camera: THREE.Camera,
     rendererSize: THREE.Vector2,
   ): void {

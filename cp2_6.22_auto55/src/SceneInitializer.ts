@@ -1,12 +1,7 @@
 import * as THREE from 'three';
+import { EnvParams, ISceneInitializer } from './types';
 
-export interface EnvParams {
-  currentSpeed: number;
-  lightIntensity: number;
-  nutrientLevel: number;
-}
-
-export class SceneInitializer {
+export class SceneInitializer implements ISceneInitializer {
   private scene: THREE.Scene;
   public terrain!: THREE.Mesh;
   public fog!: THREE.FogExp2;
@@ -18,6 +13,15 @@ export class SceneInitializer {
   private particleVelocities: Float32Array | null = null;
   private readonly TERRAIN_SIZE = 200;
   private readonly PARTICLE_COUNT = 600;
+  private readonly TERRAIN_SEG = 180;
+
+  public terrainAmplitude = 1.0;
+  public terrainFrequency = 1.0;
+
+  private targetTerrainAmplitude = 1.0;
+  private targetTerrainFrequency = 1.0;
+  private _terrainHeightScale = 1.0;
+  private _terrainFreqScale = 1.0;
 
   constructor(scene: THREE.Scene) {
     this.scene = scene;
@@ -33,8 +37,8 @@ export class SceneInitializer {
   }
 
   private createTerrain(): THREE.Mesh {
-    const SEG = 180;
-    const TERRAIN_SIZE = 200;
+    const SEG = this.TERRAIN_SEG;
+    const TERRAIN_SIZE = this.TERRAIN_SIZE;
     const vertexCount = (SEG + 1) * (SEG + 1);
     const indexCount = SEG * SEG * 6;
 
@@ -45,15 +49,18 @@ export class SceneInitializer {
     const shallow = new THREE.Color(0x8a6b3f);
     const deep = new THREE.Color(0x2e2518);
 
+    const f = this.terrainFrequency;
+    const a = this.terrainAmplitude;
+
     for (let i = 0; i <= SEG; i++) {
       for (let j = 0; j <= SEG; j++) {
         const idx = i * (SEG + 1) + j;
         const x = (i / SEG - 0.5) * TERRAIN_SIZE;
         const z = (j / SEG - 0.5) * TERRAIN_SIZE;
 
-        const n1 = Math.sin(x * 0.08) * Math.cos(z * 0.07) * 2.5;
-        const n2 = Math.sin(x * 0.2 + 1.3) * Math.cos(z * 0.18 + 0.5) * 0.9;
-        const n3 = Math.sin(x * 0.5 + z * 0.4) * 0.35;
+        const n1 = Math.sin(x * 0.08 * f) * Math.cos(z * 0.07 * f) * 2.5 * a;
+        const n2 = Math.sin(x * 0.2 * f + 1.3) * Math.cos(z * 0.18 * f + 0.5) * 0.9 * a;
+        const n3 = Math.sin(x * 0.5 * f + z * 0.4 * f) * 0.35 * a;
         const y = n1 + n2 + n3;
 
         positions[idx * 3] = x;
@@ -102,10 +109,72 @@ export class SceneInitializer {
   }
 
   public getTerrainHeight(x: number, z: number): number {
-    const n1 = Math.sin(x * 0.08) * Math.cos(z * 0.07) * 2.5;
-    const n2 = Math.sin(x * 0.2 + 1.3) * Math.cos(z * 0.18 + 0.5) * 0.9;
-    const n3 = Math.sin(x * 0.5 + z * 0.4) * 0.35;
+    const f = this.terrainFrequency;
+    const a = this.terrainAmplitude;
+    const n1 = Math.sin(x * 0.08 * f) * Math.cos(z * 0.07 * f) * 2.5 * a;
+    const n2 = Math.sin(x * 0.2 * f + 1.3) * Math.cos(z * 0.18 * f + 0.5) * 0.9 * a;
+    const n3 = Math.sin(x * 0.5 * f + z * 0.4 * f) * 0.35 * a;
     return n1 + n2 + n3;
+  }
+
+  public updateTerrainFromParams(params: EnvParams): void {
+    this.targetTerrainAmplitude = params.terrainAmplitude ?? 1.0;
+    this.targetTerrainFrequency = params.terrainFrequency ?? 1.0;
+
+    const prevA = this.terrainAmplitude;
+    const prevF = this.terrainFrequency;
+
+    this.terrainAmplitude = THREE.MathUtils.lerp(this.terrainAmplitude, this.targetTerrainAmplitude, 0.08);
+    this.terrainFrequency = THREE.MathUtils.lerp(this.terrainFrequency, this.targetTerrainFrequency, 0.08);
+
+    const diffA = Math.abs(this.terrainAmplitude - prevA);
+    const diffF = Math.abs(this.terrainFrequency - prevF);
+
+    if (diffA > 0.01 || diffF > 0.01) {
+      this._terrainHeightScale = this.terrainAmplitude;
+      this._terrainFreqScale = this.terrainFrequency;
+      this.updateTerrainVertices();
+    }
+  }
+
+  private updateTerrainVertices(): void {
+    const SEG = this.TERRAIN_SEG;
+    const TERRAIN_SIZE = this.TERRAIN_SIZE;
+    const posAttr = this.terrain.geometry.attributes.position as THREE.BufferAttribute;
+    const colorAttr = this.terrain.geometry.attributes.color as THREE.BufferAttribute;
+    const positions = posAttr.array as Float32Array;
+    const colors = colorAttr.array as Float32Array;
+
+    const shallow = new THREE.Color(0x8a6b3f);
+    const deep = new THREE.Color(0x2e2518);
+
+    const f = this.terrainFrequency;
+    const a = this.terrainAmplitude;
+
+    for (let i = 0; i <= SEG; i++) {
+      for (let j = 0; j <= SEG; j++) {
+        const idx = i * (SEG + 1) + j;
+        const x = (i / SEG - 0.5) * TERRAIN_SIZE;
+        const z = (j / SEG - 0.5) * TERRAIN_SIZE;
+
+        const n1 = Math.sin(x * 0.08 * f) * Math.cos(z * 0.07 * f) * 2.5 * a;
+        const n2 = Math.sin(x * 0.2 * f + 1.3) * Math.cos(z * 0.18 * f + 0.5) * 0.9 * a;
+        const n3 = Math.sin(x * 0.5 * f + z * 0.4 * f) * 0.35 * a;
+        const y = n1 + n2 + n3;
+
+        positions[idx * 3 + 1] = y;
+
+        const depthT = Math.min(1, Math.max(0, (-y + 3) / 15));
+        const c = shallow.clone().lerp(deep, depthT);
+        colors[idx * 3] = c.r;
+        colors[idx * 3 + 1] = c.g;
+        colors[idx * 3 + 2] = c.b;
+      }
+    }
+
+    posAttr.needsUpdate = true;
+    colorAttr.needsUpdate = true;
+    this.terrain.geometry.computeVertexNormals();
   }
 
   private setupFog(): void {

@@ -1,29 +1,102 @@
 import * as THREE from 'three';
-import { EnvParams, SceneInitializer } from './SceneInitializer';
+import { EnvParams, CoralType, CoralData, ICoralGenerator } from './types';
+import { SceneInitializer } from './SceneInitializer';
 
-export type CoralType =
-  | 'brain'
-  | 'staghorn'
-  | 'anemone'
-  | 'plate'
-  | 'tube'
-  | 'mushroom'
-  | 'fan'
-  | 'bubble'
-  | 'branch'
-  | 'cauliflower'
-  | 'vase'
-  | 'fire';
+class FractalNoise {
+  private perm: number[];
 
-export interface CoralData {
-  mesh: THREE.Group;
-  position: THREE.Vector3;
-  boundingRadius: number;
-  type: CoralType;
-  baseScale: number;
-  phase: number;
-  baseColor: THREE.Color;
-  materials: THREE.Material[];
+  constructor(seed = 1337) {
+    this.perm = this.buildPermutation(seed);
+  }
+
+  private buildPermutation(seed: number): number[] {
+    const p: number[] = [];
+    for (let i = 0; i < 256; i++) p[i] = i;
+    let s = seed;
+    for (let i = 255; i > 0; i--) {
+      s = (s * 16807 + 0) % 2147483647;
+      const j = s % (i + 1);
+      [p[i], p[j]] = [p[j], p[i]];
+    }
+    const perm: number[] = new Array(512);
+    for (let i = 0; i < 512; i++) perm[i] = p[i & 255];
+    return perm;
+  }
+
+  private fade(t: number): number {
+    return t * t * t * (t * (t * 6 - 15) + 10);
+  }
+
+  private lerp(a: number, b: number, t: number): number {
+    return a + t * (b - a);
+  }
+
+  private grad(hash: number, x: number, y: number, z: number): number {
+    const h = hash & 15;
+    const u = h < 8 ? x : y;
+    const v = h < 4 ? y : h === 12 || h === 14 ? x : z;
+    return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+  }
+
+  public noise3(x: number, y: number, z: number): number {
+    const X = Math.floor(x) & 255;
+    const Y = Math.floor(y) & 255;
+    const Z = Math.floor(z) & 255;
+    x -= Math.floor(x);
+    y -= Math.floor(y);
+    z -= Math.floor(z);
+    const u = this.fade(x);
+    const v = this.fade(y);
+    const w = this.fade(z);
+    const A = this.perm[X] + Y;
+    const AA = this.perm[A] + Z;
+    const AB = this.perm[A + 1] + Z;
+    const B = this.perm[X + 1] + Y;
+    const BA = this.perm[B] + Z;
+    const BB = this.perm[B + 1] + Z;
+    return this.lerp(
+      this.lerp(
+        this.lerp(this.grad(this.perm[AA], x, y, z), this.grad(this.perm[BA], x - 1, y, z), u),
+        this.lerp(this.grad(this.perm[AB], x, y - 1, z), this.grad(this.perm[BB], x - 1, y - 1, z), u),
+        v,
+      ),
+      this.lerp(
+        this.lerp(this.grad(this.perm[AA + 1], x, y, z - 1), this.grad(this.perm[BA + 1], x - 1, y, z - 1), u),
+        this.lerp(this.grad(this.perm[AB + 1], x, y - 1, z - 1), this.grad(this.perm[BB + 1], x - 1, y - 1, z - 1), u),
+        v,
+      ),
+      w,
+    );
+  }
+
+  public fbm(x: number, y: number, z: number, octaves = 5, lacunarity = 2.0, gain = 0.5): number {
+    let value = 0;
+    let amplitude = 1;
+    let frequency = 1;
+    let maxValue = 0;
+    for (let i = 0; i < octaves; i++) {
+      value += this.noise3(x * frequency, y * frequency, z * frequency) * amplitude;
+      maxValue += amplitude;
+      amplitude *= gain;
+      frequency *= lacunarity;
+    }
+    return value / maxValue;
+  }
+
+  public ridge(x: number, y: number, z: number, octaves = 5): number {
+    let value = 0;
+    let amplitude = 1;
+    let frequency = 1;
+    let maxValue = 0;
+    for (let i = 0; i < octaves; i++) {
+      const n = Math.abs(this.noise3(x * frequency, y * frequency, z * frequency));
+      value += (n * 2 - 1) * amplitude;
+      maxValue += amplitude;
+      amplitude *= 0.5;
+      frequency *= 2.0;
+    }
+    return value / maxValue;
+  }
 }
 
 const CORAL_TYPES: CoralType[] = [
@@ -31,16 +104,18 @@ const CORAL_TYPES: CoralType[] = [
   'fan', 'bubble', 'branch', 'cauliflower', 'vase', 'fire',
 ];
 
-export class CoralGenerator {
+export class CoralGenerator implements ICoralGenerator {
   private scene: THREE.Scene;
   private sceneInit: SceneInitializer;
   private count: number;
   public corals: CoralData[] = [];
+  private noise: FractalNoise;
 
   constructor(scene: THREE.Scene, sceneInit: SceneInitializer, count = 90) {
     this.scene = scene;
     this.sceneInit = sceneInit;
     this.count = count;
+    this.noise = new FractalNoise(Math.floor(Math.random() * 100000));
   }
 
   public generate(): CoralData[] {
@@ -77,7 +152,7 @@ export class CoralGenerator {
         }
       });
 
-      const radius = this.computeRadius(group) * scale;
+      const radius = this.computeRadius(group);
       this.corals.push({
         mesh: group,
         position: pos.clone(),
@@ -93,17 +168,10 @@ export class CoralGenerator {
   }
 
   private computeRadius(group: THREE.Group): number {
-    let max = 0;
-    group.traverse((o) => {
-      if ((o as THREE.Mesh).isMesh) {
-        const m = o as THREE.Mesh;
-        m.geometry.computeBoundingSphere();
-        const r = m.geometry.boundingSphere ? m.geometry.boundingSphere.radius : 1;
-        const s = Math.max(m.scale.x, m.scale.y, m.scale.z);
-        max = Math.max(max, r * s);
-      }
-    });
-    return max;
+    const box = new THREE.Box3().setFromObject(group);
+    const sphere = new THREE.Sphere();
+    box.getBoundingSphere(sphere);
+    return sphere.radius;
   }
 
   private buildCoral(type: CoralType, color: THREE.Color, _scale: number, _phase: number): THREE.Group {
@@ -139,9 +207,9 @@ export class CoralGenerator {
       const vx = pos.getX(i);
       const vy = pos.getY(i);
       const vz = pos.getZ(i);
-      const dx = Math.sin(vx * freqX) * Math.sin(vy * freqY) * amp;
-      const dy = Math.sin(vy * freqY) * Math.sin(vz * fz) * amp;
-      const dz = Math.sin(vz * fz) * Math.sin(vx * freqX) * amp;
+      const dx = this.noise.fbm(vx * freqX * 0.5, vy * freqY * 0.5, vz * fz * 0.5, 3) * amp;
+      const dy = this.noise.fbm(vy * freqY * 0.5 + 100, vz * fz * 0.5 + 100, vx * freqX * 0.5 + 100, 3) * amp;
+      const dz = this.noise.fbm(vz * fz * 0.5 + 200, vx * freqX * 0.5 + 200, vy * freqY * 0.5 + 200, 3) * amp;
       pos.setXYZ(i, vx + dx, vy + dy, vz + dz);
     }
     pos.needsUpdate = true;
@@ -149,81 +217,37 @@ export class CoralGenerator {
 
   private buildBrain(color: THREE.Color): THREE.Group {
     const g = new THREE.Group();
-    const layerCount = 4 + Math.floor(Math.random() * 3);
-    const mergedGeos: THREE.BufferGeometry[] = [];
+    const geo = new THREE.IcosahedronGeometry(1, 6);
+    const pos = geo.attributes.position as THREE.BufferAttribute;
 
-    for (let i = 0; i < layerCount; i++) {
-      const t = i / Math.max(1, layerCount - 1);
-      const torusRadius = 0.9 + t * 0.4;
-      const tubeRadius = 0.22 + (1 - t) * 0.12;
-      const geo = new THREE.TorusGeometry(torusRadius, tubeRadius, 12, 32);
-      geo.rotateY((i / layerCount) * Math.PI * 1.3 + Math.random() * 0.4);
-      geo.rotateX(Math.random() * 0.3 - 0.15);
-      this.perturbVertices(geo, 0.1, 6, 6, 6);
-      mergedGeos.push(geo);
+    for (let i = 0; i < pos.count; i++) {
+      const vx = pos.getX(i);
+      const vy = pos.getY(i);
+      const vz = pos.getZ(i);
+
+      const n = this.noise.fbm(vx * 1.8, vy * 1.8, vz * 1.8, 5);
+      const r = this.noise.ridge(vx * 3.5, vy * 3.5, vz * 3.5, 4);
+      const s = this.noise.fbm(vx * 9, vy * 9, vz * 9, 3) * 0.12;
+
+      let final = 1 + n * 0.35 + r * 0.22 + s;
+      if (r < -0.25) final -= 0.15;
+
+      const len = Math.sqrt(vx * vx + vy * vy + vz * vz);
+      const nx = vx / len;
+      const ny = vy / len;
+      const nz = vz / len;
+
+      pos.setXYZ(i, nx * final, ny * final, nz * final);
     }
 
-    const capGeo = new THREE.SphereGeometry(0.95 + (layerCount - 4) * 0.12, 20, 14, 0, Math.PI * 2, 0, Math.PI / 2);
-    this.perturbVertices(capGeo, 0.08, 5, 5, 5);
-    mergedGeos.push(capGeo);
-
-    const merged = THREE.BufferGeometryUtils
-      ? (THREE.BufferGeometryUtils as any).mergeGeometries(mergedGeos, false)
-      : this.mergeGeometries(mergedGeos);
-
-    this.perturbVertices(merged, 0.12, 7, 8, 6);
-    merged.computeVertexNormals();
-
-    const mesh = new THREE.Mesh(merged, this.mat(color, 0.8));
+    geo.computeVertexNormals();
+    const mesh = new THREE.Mesh(geo, this.mat(color, 0.8));
     mesh.scale.set(1, 0.72, 1);
     mesh.position.y = 0.6;
     mesh.castShadow = true;
     mesh.receiveShadow = true;
     g.add(mesh);
     return g;
-  }
-
-  private mergeGeometries(geos: THREE.BufferGeometry[]): THREE.BufferGeometry {
-    let vCount = 0;
-    let iCount = 0;
-    for (const gg of geos) {
-      gg.computeVertexNormals();
-      vCount += (gg.attributes.position as THREE.BufferAttribute).count;
-      if (gg.index) iCount += gg.index.count;
-      else iCount += (gg.attributes.position as THREE.BufferAttribute).count;
-    }
-    const positions = new Float32Array(vCount * 3);
-    const normals = new Float32Array(vCount * 3);
-    const indices = new Uint32Array(iCount);
-    let vOff = 0;
-    let iOff = 0;
-    for (const gg of geos) {
-      const pa = gg.attributes.position as THREE.BufferAttribute;
-      const na = gg.attributes.normal as THREE.BufferAttribute;
-      const vNum = pa.count;
-      for (let k = 0; k < vNum; k++) {
-        positions[(vOff + k) * 3] = pa.getX(k);
-        positions[(vOff + k) * 3 + 1] = pa.getY(k);
-        positions[(vOff + k) * 3 + 2] = pa.getZ(k);
-        normals[(vOff + k) * 3] = na.getX(k);
-        normals[(vOff + k) * 3 + 1] = na.getY(k);
-        normals[(vOff + k) * 3 + 2] = na.getZ(k);
-      }
-      if (gg.index) {
-        const id = gg.index;
-        for (let k = 0; k < id.count; k++) indices[iOff + k] = id.getX(k) + vOff;
-        iOff += id.count;
-      } else {
-        for (let k = 0; k < vNum; k++) indices[iOff + k] = k + vOff;
-        iOff += vNum;
-      }
-      vOff += vNum;
-    }
-    const out = new THREE.BufferGeometry();
-    out.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    out.setAttribute('normal', new THREE.BufferAttribute(normals, 3));
-    out.setIndex(new THREE.BufferAttribute(indices, 1));
-    return out;
   }
 
   private buildStaghorn(color: THREE.Color): THREE.Group {
