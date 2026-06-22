@@ -76,7 +76,7 @@ export class Player {
     const size = 64;
     const g = new PIXI.Graphics();
     g.beginFill(0x2a1a0e, 0.5);
-    g.ellipse(size / 2, size - 6, 14, 4);
+    g.drawEllipse(size / 2, size - 6, 14, 4);
     g.endFill();
     g.lineStyle(2, 0x5a3d1e, 1);
     g.beginFill(0xb8860b);

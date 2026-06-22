@@ -67,9 +67,9 @@ export class MapManager {
   public offsetY: number = 0;
 
   private grid: Cell[][] = [];
-  private terrainContainer: PIXI.Container;
-  private fogContainer: PIXI.Container;
-  private treasureContainer: PIXI.Container;
+  public terrainContainer: PIXI.Container;
+  public fogContainer: PIXI.Container;
+  public treasureContainer: PIXI.Container;
   private terrainSprites: PIXI.Sprite[][] = [];
   private fogSprites: PIXI.Sprite[][] = [];
   private treasureSprites: Map<string, PIXI.Sprite> = new Map();
@@ -239,6 +239,13 @@ export class MapManager {
     this.terrainContainer.addChild(gridLines);
   }
 
+  private shadeColor(color: number, amount: number): number {
+    const r = Math.max(0, Math.min(255, ((color >> 16) & 0xff) + Math.round(amount * 255)));
+    const g = Math.max(0, Math.min(255, ((color >> 8) & 0xff) + Math.round(amount * 255)));
+    const b = Math.max(0, Math.min(255, (color & 0xff) + Math.round(amount * 255)));
+    return (r << 16) | (g << 8) | b;
+  }
+
   private createTerrainTexture(terrain: TerrainType, baseColor: number): PIXI.Texture {
     const size = 64;
     const g = new PIXI.Graphics();
@@ -250,20 +257,7 @@ export class MapManager {
       const py = Math.random() * size;
       const ds = Math.random() * 3 + 1;
       const shade = Math.random() * 0.3 - 0.15;
-      let c = baseColor;
-      if (shade > 0) {
-        c = PIXI.utils.rgb2hex([
-          Math.min(1, (c >> 16) / 255 + shade),
-          Math.min(1, ((c >> 8) & 0xff) / 255 + shade),
-          Math.min(1, (c & 0xff) / 255 + shade)
-        ]);
-      } else {
-        c = PIXI.utils.rgb2hex([
-          Math.max(0, (c >> 16) / 255 + shade),
-          Math.max(0, ((c >> 8) & 0xff) / 255 + shade),
-          Math.max(0, (c & 0xff) / 255 + shade)
-        ]);
-      }
+      const c = this.shadeColor(baseColor, shade);
       g.beginFill(c, 0.6);
       g.drawCircle(px, py, ds);
       g.endFill();
@@ -339,7 +333,10 @@ export class MapManager {
       const py = Math.random() * size;
       const ds = Math.random() * 6 + 2;
       const shade = Math.random() * 0.2;
-      g.beginFill(PIXI.utils.rgb2hex([0.1 + shade, 0.1 + shade, 0.14 + shade]), 0.6);
+      const fogR = Math.round((0.1 + shade) * 255);
+      const fogG = Math.round((0.1 + shade) * 255);
+      const fogB = Math.round((0.14 + shade) * 255);
+      g.beginFill((fogR << 16) | (fogG << 8) | fogB, 0.6);
       g.drawCircle(px, py, ds);
       g.endFill();
     }

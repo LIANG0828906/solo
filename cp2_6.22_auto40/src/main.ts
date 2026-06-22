@@ -14,6 +14,13 @@ class Game {
   private readonly MOVE_COOLDOWN_FRAMES: number = 6;
   private victoryTriggered: boolean = false;
 
+  private cameraCenterX: number = 0;
+  private cameraCenterY: number = 0;
+  private cameraTargetX: number = 0;
+  private cameraTargetY: number = 0;
+  private readonly CAMERA_LERP_SPEED: number = 8;
+  private cameraLockedOnPlayer: boolean = true;
+
   constructor() {
     const canvas = document.getElementById('game-canvas') as HTMLCanvasElement;
     this.app = new PIXI.Application({
@@ -27,10 +34,23 @@ class Game {
 
     this.mapManager = new MapManager(this.app);
 
-    this.uiManager = new UIManager(this.app, this.mapManager);
+    const startGX = Math.floor(this.mapManager.gridWidth / 2);
+    const startGY = Math.floor(this.mapManager.gridHeight / 2);
+    this.cameraCenterX = startGX;
+    this.cameraCenterY = startGY;
+    this.cameraTargetX = startGX;
+    this.cameraTargetY = startGY;
+
+    this.uiManager = new UIManager(this.app, this.mapManager, {
+      getPlayerGridPos: () => ({ x: this.player.gridX, y: this.player.gridY }),
+      onMinimapClick: (gx: number, gy: number) => this.onMinimapClick(gx, gy)
+    });
 
     this.player = new Player(this.app, this.mapManager, {
-      onMove: () => this.uiManager.onMove(),
+      onMove: () => {
+        this.cameraLockedOnPlayer = true;
+        this.uiManager.onMove();
+      },
       onBlocked: () => this.uiManager.onBlocked(),
       onTreasureCollected: (_gx, _gy) => {
         this.uiManager.onTreasureCollected(this.player.treasureCount, this.mapManager.totalTreasures);
@@ -41,6 +61,7 @@ class Game {
     this.setupInput();
     this.setupResize();
     this.updateUIStats();
+    this.updateCameraOffset(true);
 
     this.app.ticker.add((delta) => this.update(delta));
   }
@@ -70,7 +91,58 @@ class Game {
       this.mapManager.resize();
       this.player.resize();
       this.uiManager.resize();
+      this.updateCameraOffset(true);
     });
+  }
+
+  private onMinimapClick(gx: number, gy: number): void {
+    this.cameraTargetX = gx;
+    this.cameraTargetY = gy;
+    this.cameraLockedOnPlayer = false;
+  }
+
+  private updateCameraOffset(immediate: boolean = false): void {
+    if (this.cameraLockedOnPlayer) {
+      this.cameraTargetX = this.player.gridX;
+      this.cameraTargetY = this.player.gridY;
+    }
+    if (immediate) {
+      this.cameraCenterX = this.cameraTargetX;
+      this.cameraCenterY = this.cameraTargetY;
+    }
+    const frameEl = document.getElementById('game-frame');
+    const availW = frameEl ? frameEl.getBoundingClientRect().width : this.app.renderer.width;
+    const availH = frameEl ? frameEl.getBoundingClientRect().height : this.app.renderer.height;
+    const cs = this.mapManager.cellSize;
+    const mapW = cs * this.mapManager.gridWidth;
+    const mapH = cs * this.mapManager.gridHeight;
+    const centerWorldX = this.cameraCenterX * cs + cs / 2;
+    const centerWorldY = this.cameraCenterY * cs + cs / 2;
+    let offsetX = availW / 2 - centerWorldX;
+    let offsetY = availH / 2 - centerWorldY;
+    const maxX = 0;
+    const minX = Math.min(0, availW - mapW);
+    const maxY = 0;
+    const minY = Math.min(0, availH - mapH);
+    if (mapW < availW) {
+      offsetX = (availW - mapW) / 2;
+    } else {
+      offsetX = Math.max(minX, Math.min(maxX, offsetX));
+    }
+    if (mapH < availH) {
+      offsetY = (availH - mapH) / 2;
+    } else {
+      offsetY = Math.max(minY, Math.min(maxY, offsetY));
+    }
+    this.mapManager.offsetX = offsetX;
+    this.mapManager.offsetY = offsetY;
+    this.mapManager.terrainContainer.x = offsetX;
+    this.mapManager.terrainContainer.y = offsetY;
+    this.mapManager.fogContainer.x = offsetX;
+    this.mapManager.fogContainer.y = offsetY;
+    this.mapManager.treasureContainer.x = offsetX;
+    this.mapManager.treasureContainer.y = offsetY;
+    this.player.resize();
   }
 
   private updateUIStats(): void {
@@ -113,10 +185,23 @@ class Game {
   }
 
   private update(delta: number): void {
+    const dt = delta / 60;
     this.handleMovement();
+
+    const lerpT = Math.min(1, this.CAMERA_LERP_SPEED * dt);
+    this.cameraCenterX += (this.cameraTargetX - this.cameraCenterX) * lerpT;
+    this.cameraCenterY += (this.cameraTargetY - this.cameraCenterY) * lerpT;
+    this.updateCameraOffset(false);
+
     this.mapManager.update(delta);
     this.player.update(delta);
     this.updateUIStats();
+    this.uiManager.updateMinimap(
+      this.player.gridX,
+      this.player.gridY,
+      this.cameraCenterX,
+      this.cameraCenterY
+    );
   }
 
   public destroy(): void {
