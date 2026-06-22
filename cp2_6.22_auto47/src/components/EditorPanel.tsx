@@ -11,6 +11,10 @@ interface EditorPanelProps {
   onCompareFontChange: (fontId: string) => void
 }
 
+function roundToStep(value: number, step: number): number {
+  return Math.round(value / step) * step
+}
+
 export default function EditorPanel({
   params,
   onChange,
@@ -39,7 +43,7 @@ export default function EditorPanel({
           max="72"
           step="0.5"
           value={params.fontSize}
-          onChange={(e) => onChange({ fontSize: Number(e.target.value) })}
+          onChange={(e) => onChange({ fontSize: roundToStep(Number(e.target.value), 0.5) })}
         />
       </div>
 
@@ -54,7 +58,7 @@ export default function EditorPanel({
           max="2.5"
           step="0.05"
           value={params.lineHeight}
-          onChange={(e) => onChange({ lineHeight: Number(e.target.value) })}
+          onChange={(e) => onChange({ lineHeight: roundToStep(Number(e.target.value), 0.05) })}
         />
       </div>
 
@@ -69,20 +73,20 @@ export default function EditorPanel({
           max="20"
           step="0.5"
           value={params.letterSpacing}
-          onChange={(e) => onChange({ letterSpacing: Number(e.target.value) })}
+          onChange={(e) => onChange({ letterSpacing: roundToStep(Number(e.target.value), 0.5) })}
         />
       </div>
 
       <div className="control-group">
         <label>
           <span>段落宽度</span>
-          <span className="control-value">{params.paragraphWidth.toFixed(1)} %</span>
+          <span className="control-value">{Math.round(params.paragraphWidth)}%</span>
         </label>
         <input
           type="range"
           min="30"
           max="100"
-          step="0.5"
+          step="1"
           value={params.paragraphWidth}
           onChange={(e) => onChange({ paragraphWidth: Number(e.target.value) })}
         />
