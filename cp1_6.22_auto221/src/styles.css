@@ -1,0 +1,456 @@
+:root {
+  --color-bg: #F5F0EB;
+  --color-accent: #8B5E3C;
+  --color-text: #3E2723;
+  --color-text-light: #6D4C41;
+  --color-card-bg: #FFF8F0;
+  --color-card-border: #D4C4B0;
+  --color-chart-bg: #FAF6F0;
+  --color-web-line: #8B7355;
+  --color-gold-dark: #B8860B;
+  --color-gold-light: #FFD700;
+  --sidebar-width: 320px;
+  --transition-fast: 0.2s ease;
+  --transition-med: 0.3s ease;
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  line-height: 1.6;
+  overflow: hidden;
+  height: 100vh;
+}
+
+#root {
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+  min-width: var(--sidebar-width);
+  background: var(--color-bg);
+  border-right: 1px solid var(--color-card-border);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  transition: transform var(--transition-med);
+}
+
+.sidebar-header {
+  padding: 24px 20px 16px;
+  border-bottom: 1px solid var(--color-card-border);
+  flex-shrink: 0;
+}
+
+.sidebar-header h1 {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--color-text);
+  letter-spacing: 1px;
+}
+
+.sidebar-header p {
+  font-size: 12px;
+  color: var(--color-text-light);
+  margin-top: 4px;
+}
+
+.wine-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+}
+
+.wine-item {
+  padding: 14px 20px;
+  cursor: pointer;
+  border-left: 3px solid transparent;
+  transition: border-color var(--transition-fast), background var(--transition-fast);
+  position: relative;
+}
+
+.wine-item:hover {
+  background: rgba(139, 94, 60, 0.06);
+}
+
+.wine-item.active {
+  border-left-color: var(--color-accent);
+  background: rgba(139, 94, 60, 0.1);
+  animation: fadeInBorder 0.2s ease;
+}
+
+@keyframes fadeInBorder {
+  from {
+    border-left-color: transparent;
+    background: transparent;
+  }
+  to {
+    border-left-color: var(--color-accent);
+    background: rgba(139, 94, 60, 0.1);
+  }
+}
+
+.wine-item-name {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wine-item-meta {
+  font-size: 12px;
+  color: var(--color-text-light);
+  margin-top: 3px;
+}
+
+.detail-area {
+  flex: 1;
+  overflow-y: auto;
+  padding: 32px 40px;
+  background: linear-gradient(135deg, #FAF6F0 0%, #F5F0EB 100%);
+}
+
+.detail-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  text-align: center;
+  color: var(--color-text-light);
+}
+
+.detail-placeholder p {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 18px;
+  opacity: 0.6;
+}
+
+.info-card {
+  width: 450px;
+  max-width: 100%;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
+  border-radius: 16px;
+  padding: 28px;
+  margin-bottom: 28px;
+}
+
+.info-card-header {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.info-card-name {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.info-card-year {
+  font-size: 16px;
+  color: var(--color-text-light);
+  font-weight: 500;
+}
+
+.info-card-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px 24px;
+}
+
+.info-card-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.info-card-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--color-text-light);
+  margin-bottom: 2px;
+}
+
+.info-card-value {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--color-text);
+}
+
+.notes-section {
+  width: 450px;
+  max-width: 100%;
+  margin-top: 20px;
+}
+
+.notes-section h3 {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 15px;
+  color: var(--color-text);
+  margin-bottom: 8px;
+}
+
+.notes-text {
+  font-size: 14px;
+  line-height: 1.8;
+  color: var(--color-text-light);
+  font-style: italic;
+  padding: 16px;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
+  border-radius: 12px;
+}
+
+.chart-section {
+  margin-bottom: 28px;
+}
+
+.chart-section h3 {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 16px;
+  color: var(--color-text);
+  margin-bottom: 16px;
+}
+
+.chart-container {
+  width: 400px;
+  height: 400px;
+  background: var(--color-chart-bg);
+  border-radius: 16px;
+  border: 1px solid var(--color-card-border);
+  position: relative;
+}
+
+.chart-container canvas {
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.similar-section {
+  margin-top: 12px;
+}
+
+.similar-section h3 {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 16px;
+  color: var(--color-text);
+  margin-bottom: 14px;
+}
+
+.similar-scroll {
+  display: flex;
+  gap: 14px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.similar-scroll:active {
+  cursor: grabbing;
+}
+
+.similar-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+
+.similar-scroll::-webkit-scrollbar-track {
+  background: rgba(139, 94, 60, 0.08);
+  border-radius: 3px;
+}
+
+.similar-scroll::-webkit-scrollbar-thumb {
+  background: var(--color-card-border);
+  border-radius: 3px;
+}
+
+.similar-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
+}
+
+.similar-card {
+  min-width: 200px;
+  width: 200px;
+  background: var(--color-card-bg);
+  border: 1px solid var(--color-card-border);
+  border-radius: 12px;
+  padding: 16px;
+  cursor: pointer;
+  transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+  flex-shrink: 0;
+}
+
+.similar-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(62, 39, 35, 0.12);
+}
+
+.similar-card-name {
+  font-family: 'Noto Serif SC', serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.similar-card-meta {
+  font-size: 12px;
+  color: var(--color-text-light);
+  margin-top: 4px;
+}
+
+.similar-card-score {
+  font-size: 11px;
+  color: var(--color-accent);
+  margin-top: 8px;
+  font-weight: 500;
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 20px;
+  background: var(--color-accent);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: filter var(--transition-fast);
+  font-family: inherit;
+}
+
+.btn:hover {
+  filter: brightness(1.15);
+}
+
+.btn:active {
+  filter: brightness(0.95);
+}
+
+.hamburger {
+  display: none;
+  position: fixed;
+  top: 16px;
+  left: 16px;
+  z-index: 1000;
+  width: 44px;
+  height: 44px;
+  background: var(--color-accent);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: filter var(--transition-fast);
+}
+
+.hamburger:hover {
+  filter: brightness(1.15);
+}
+
+.hamburger span {
+  display: block;
+  width: 22px;
+  height: 2px;
+  background: #fff;
+  border-radius: 1px;
+  position: relative;
+}
+
+.hamburger span::before,
+.hamburger span::after {
+  content: '';
+  position: absolute;
+  width: 22px;
+  height: 2px;
+  background: #fff;
+  border-radius: 1px;
+  left: 0;
+}
+
+.hamburger span::before { top: -7px; }
+.hamburger span::after { top: 7px; }
+
+.sidebar-overlay {
+  display: none;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(62, 39, 35, 0.4);
+  z-index: 99;
+  opacity: 0;
+  transition: opacity var(--transition-med);
+}
+
+.sidebar-overlay.visible {
+  opacity: 1;
+}
+
+@media (max-width: 768px) {
+  .hamburger {
+    display: flex;
+  }
+
+  .sidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    z-index: 100;
+    transform: translateX(-100%);
+  }
+
+  .sidebar.open {
+    transform: translateX(0);
+  }
+
+  .sidebar-overlay {
+    display: block;
+  }
+
+  .detail-area {
+    padding: 24px 16px;
+    padding-top: 72px;
+  }
+
+  .info-card {
+    width: 100%;
+  }
+
+  .chart-container {
+    width: 100%;
+    max-width: 400px;
+  }
+}
