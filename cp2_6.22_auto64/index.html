@@ -1,0 +1,716 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D 运动鞋配置器</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;700;900&family=Exo+2:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --bg-primary: #1a1d2e;
+      --bg-secondary: #232740;
+      --bg-glass: rgba(35, 39, 64, 0.65);
+      --bg-glass-hover: rgba(45, 50, 80, 0.75);
+      --accent: #00d4ff;
+      --accent-glow: rgba(0, 212, 255, 0.35);
+      --text-primary: #e8eaf0;
+      --text-secondary: #9ca3b8;
+      --text-muted: #6b7294;
+      --border-glass: rgba(255, 255, 255, 0.08);
+      --border-accent: rgba(0, 212, 255, 0.4);
+      --transition-speed: 0.3s;
+      --transition-ease: cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: 'Exo 2', sans-serif;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background:
+        radial-gradient(ellipse at 20% 50%, rgba(0, 212, 255, 0.04) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 20%, rgba(100, 60, 255, 0.03) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 80%, rgba(0, 180, 220, 0.02) 0%, transparent 50%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    #app {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      z-index: 1;
+    }
+
+    .shoe-selector {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      padding: 16px 24px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 1px solid var(--border-glass);
+      z-index: 10;
+    }
+
+    .shoe-card {
+      position: relative;
+      padding: 12px 24px;
+      border-radius: 12px;
+      border: 1px solid var(--border-glass);
+      background: rgba(30, 34, 56, 0.6);
+      cursor: pointer;
+      transition: all var(--transition-speed) var(--transition-ease);
+      overflow: hidden;
+      min-width: 140px;
+      text-align: center;
+    }
+
+    .shoe-card::before {
+      content: '';
+      position: absolute;
+      inset: -1px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      transition: border-color var(--transition-speed) var(--transition-ease);
+      pointer-events: none;
+    }
+
+    .shoe-card:hover {
+      background: var(--bg-glass-hover);
+      transform: scale(1.04);
+    }
+
+    .shoe-card:hover::before {
+      border-color: var(--border-accent);
+      box-shadow: 0 0 12px var(--accent-glow), inset 0 0 8px rgba(0, 212, 255, 0.06);
+    }
+
+    .shoe-card.active {
+      background: var(--bg-glass-hover);
+      border-color: var(--accent);
+      box-shadow: 0 0 20px var(--accent-glow), 0 0 40px rgba(0, 212, 255, 0.1);
+    }
+
+    .shoe-card.active::before {
+      border-color: var(--accent);
+      animation: neonPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes neonPulse {
+      0%, 100% { box-shadow: 0 0 12px var(--accent-glow); }
+      50% { box-shadow: 0 0 24px var(--accent-glow), 0 0 48px rgba(0, 212, 255, 0.15); }
+    }
+
+    .shoe-card .shoe-name {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 13px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--text-primary);
+    }
+
+    .shoe-card .shoe-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    .shoe-card.active .shoe-name {
+      color: var(--accent);
+    }
+
+    .main-area {
+      flex: 1;
+      display: flex;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #three-container {
+      flex: 1;
+      position: relative;
+      cursor: grab;
+    }
+
+    #three-container:active {
+      cursor: grabbing;
+    }
+
+    #three-container canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .control-panel {
+      width: 320px;
+      min-width: 320px;
+      padding: 24px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border-left: 1px solid var(--border-glass);
+      overflow-y: auto;
+      z-index: 10;
+      transition: transform var(--transition-speed) var(--transition-ease);
+    }
+
+    .control-panel::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .control-panel::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    .control-panel::-webkit-scrollbar-thumb {
+      background: rgba(0, 212, 255, 0.2);
+      border-radius: 2px;
+    }
+
+    .panel-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 24px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid var(--border-glass);
+    }
+
+    .control-section {
+      margin-bottom: 24px;
+    }
+
+    .section-label {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+    }
+
+    .color-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+
+    .color-row label {
+      font-size: 13px;
+      color: var(--text-secondary);
+      min-width: 56px;
+      font-weight: 500;
+    }
+
+    .color-picker-wrapper {
+      position: relative;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      border: 2px solid var(--border-glass);
+      overflow: hidden;
+      cursor: pointer;
+      transition: border-color var(--transition-speed) var(--transition-ease), box-shadow var(--transition-speed) var(--transition-ease);
+    }
+
+    .color-picker-wrapper:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+    }
+
+    .color-picker-wrapper input[type="color"] {
+      position: absolute;
+      top: -8px;
+      left: -8px;
+      width: calc(100% + 16px);
+      height: calc(100% + 16px);
+      border: none;
+      cursor: pointer;
+      background: transparent;
+    }
+
+    .color-picker-wrapper input[type="color"]::-webkit-color-swatch-wrapper {
+      padding: 0;
+    }
+
+    .color-picker-wrapper input[type="color"]::-webkit-color-swatch {
+      border: none;
+      border-radius: 6px;
+    }
+
+    .color-hex {
+      font-size: 12px;
+      font-family: 'Orbitron', sans-serif;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+    }
+
+    .material-select {
+      width: 100%;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid var(--border-glass);
+      background: rgba(30, 34, 56, 0.8);
+      color: var(--text-primary);
+      font-family: 'Exo 2', sans-serif;
+      font-size: 13px;
+      cursor: pointer;
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%239ca3b8' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 14px center;
+      transition: border-color var(--transition-speed) var(--transition-ease), box-shadow var(--transition-speed) var(--transition-ease);
+    }
+
+    .material-select:hover,
+    .material-select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 10px var(--accent-glow);
+      outline: none;
+    }
+
+    .material-select option {
+      background: #232740;
+      color: var(--text-primary);
+    }
+
+    .decal-upload-area {
+      border: 2px dashed var(--border-glass);
+      border-radius: 12px;
+      padding: 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all var(--transition-speed) var(--transition-ease);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .decal-upload-area:hover {
+      border-color: var(--accent);
+      box-shadow: 0 0 16px var(--accent-glow);
+      background: rgba(0, 212, 255, 0.03);
+    }
+
+    .decal-upload-area input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+
+    .decal-upload-area .upload-icon {
+      font-size: 28px;
+      margin-bottom: 8px;
+      opacity: 0.5;
+    }
+
+    .decal-upload-area .upload-text {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    .decal-preview {
+      margin-top: 12px;
+      display: none;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .decal-preview.visible {
+      display: flex;
+    }
+
+    .decal-preview img {
+      width: 48px;
+      height: 48px;
+      border-radius: 6px;
+      object-fit: cover;
+      border: 1px solid var(--border-glass);
+    }
+
+    .decal-remove {
+      padding: 4px 10px;
+      border-radius: 6px;
+      border: 1px solid rgba(255, 80, 80, 0.3);
+      background: rgba(255, 80, 80, 0.1);
+      color: #ff6b6b;
+      font-size: 11px;
+      cursor: pointer;
+      transition: all var(--transition-speed) var(--transition-ease);
+    }
+
+    .decal-remove:hover {
+      background: rgba(255, 80, 80, 0.2);
+      border-color: rgba(255, 80, 80, 0.5);
+    }
+
+    .summary-card {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      min-width: 240px;
+      padding: 20px;
+      border-radius: 16px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(24px);
+      -webkit-backdrop-filter: blur(24px);
+      border: 1px solid var(--border-glass);
+      z-index: 20;
+      transition: background-color 0.5s var(--transition-ease), box-shadow 0.5s var(--transition-ease);
+    }
+
+    .summary-card .summary-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--text-secondary);
+      margin-bottom: 14px;
+    }
+
+    .summary-grid {
+      display: grid;
+      grid-template-columns: auto 1fr;
+      gap: 6px 12px;
+      font-size: 12px;
+      margin-bottom: 16px;
+    }
+
+    .summary-grid .sg-label {
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+
+    .summary-grid .sg-value {
+      color: var(--text-primary);
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .sg-swatch {
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      display: inline-block;
+    }
+
+    .btn-share {
+      width: 100%;
+      padding: 12px;
+      border-radius: 10px;
+      border: none;
+      background: linear-gradient(135deg, #00d4ff 0%, #0090b3 100%);
+      color: #0a0e1a;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all var(--transition-speed) var(--transition-ease);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-share::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, #00e8ff 0%, #00a8d6 100%);
+      opacity: 0;
+      transition: opacity var(--transition-speed) var(--transition-ease);
+    }
+
+    .btn-share:hover {
+      box-shadow: 0 0 24px var(--accent-glow), 0 4px 16px rgba(0, 0, 0, 0.3);
+      transform: translateY(-1px);
+    }
+
+    .btn-share:hover::before {
+      opacity: 1;
+    }
+
+    .btn-share span {
+      position: relative;
+      z-index: 1;
+    }
+
+    .btn-share:active {
+      transform: translateY(0);
+    }
+
+    .mobile-drawer-toggle {
+      display: none;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      padding: 14px;
+      background: var(--bg-glass);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-top: 1px solid var(--border-glass);
+      z-index: 30;
+      text-align: center;
+      cursor: pointer;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--accent);
+      transition: all var(--transition-speed) var(--transition-ease);
+    }
+
+    .mobile-drawer-toggle:hover {
+      background: var(--bg-glass-hover);
+    }
+
+    .drawer-handle {
+      width: 36px;
+      height: 4px;
+      border-radius: 2px;
+      background: var(--text-muted);
+      margin: 0 auto 8px;
+    }
+
+    @media (max-width: 1023px) {
+      .summary-card {
+        right: 16px;
+        bottom: 16px;
+        min-width: 200px;
+        padding: 16px;
+      }
+    }
+
+    @media (max-width: 767px) {
+      .shoe-selector {
+        padding: 10px 12px;
+        gap: 8px;
+      }
+
+      .shoe-card {
+        min-width: 100px;
+        padding: 8px 14px;
+      }
+
+      .shoe-card .shoe-name {
+        font-size: 11px;
+      }
+
+      .shoe-card .shoe-desc {
+        font-size: 9px;
+      }
+
+      .control-panel {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        width: 100%;
+        min-width: unset;
+        max-height: 60vh;
+        border-left: none;
+        border-top: 1px solid var(--border-glass);
+        border-radius: 20px 20px 0 0;
+        transform: translateY(100%);
+        transition: transform 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        z-index: 25;
+      }
+
+      .control-panel.open {
+        transform: translateY(0);
+      }
+
+      .mobile-drawer-toggle {
+        display: block;
+      }
+
+      .summary-card {
+        bottom: 60px;
+        right: 12px;
+        left: 12px;
+        min-width: unset;
+      }
+
+      #three-container {
+        height: calc(100vh - 120px);
+      }
+
+      .main-area {
+        flex-direction: column;
+      }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .fade-in {
+      animation: fadeIn 0.5s var(--transition-ease) forwards;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="shoe-selector">
+      <div class="shoe-card active" data-shoe="0">
+        <div class="shoe-name">Runner</div>
+        <div class="shoe-desc">流线跑鞋</div>
+      </div>
+      <div class="shoe-card" data-shoe="1">
+        <div class="shoe-name">High-Top</div>
+        <div class="shoe-desc">高帮篮球鞋</div>
+      </div>
+      <div class="shoe-card" data-shoe="2">
+        <div class="shoe-name">Skate</div>
+        <div class="shoe-desc">低帮滑板鞋</div>
+      </div>
+    </div>
+
+    <div class="main-area">
+      <div id="three-container"></div>
+
+      <div class="control-panel" id="control-panel">
+        <div class="panel-title">自定义配置</div>
+
+        <div class="control-section">
+          <div class="section-label">配色</div>
+          <div class="color-row">
+            <label>鞋面</label>
+            <div class="color-picker-wrapper">
+              <input type="color" id="color-upper" value="#e8e8e8" data-part="upper" />
+            </div>
+            <span class="color-hex" id="hex-upper">#e8e8e8</span>
+          </div>
+          <div class="color-row">
+            <label>鞋底</label>
+            <div class="color-picker-wrapper">
+              <input type="color" id="color-sole" value="#2d2d2d" data-part="sole" />
+            </div>
+            <span class="color-hex" id="hex-sole">#2d2d2d</span>
+          </div>
+          <div class="color-row">
+            <label>鞋带</label>
+            <div class="color-picker-wrapper">
+              <input type="color" id="color-lace" value="#ffffff" data-part="lace" />
+            </div>
+            <span class="color-hex" id="hex-lace">#ffffff</span>
+          </div>
+          <div class="color-row">
+            <label>Logo</label>
+            <div class="color-picker-wrapper">
+              <input type="color" id="color-logo" value="#00d4ff" data-part="logo" />
+            </div>
+            <span class="color-hex" id="hex-logo">#00d4ff</span>
+          </div>
+        </div>
+
+        <div class="control-section">
+          <div class="section-label">材质</div>
+          <div class="color-row">
+            <label>鞋面</label>
+            <select class="material-select" id="material-upper" data-part="upper">
+              <option value="matte">哑光</option>
+              <option value="glossy">亮光</option>
+              <option value="suede">绒面</option>
+              <option value="mesh">网眼</option>
+            </select>
+          </div>
+          <div class="color-row">
+            <label>鞋底</label>
+            <select class="material-select" id="material-sole" data-part="sole">
+              <option value="matte">哑光</option>
+              <option value="glossy">亮光</option>
+              <option value="suede">绒面</option>
+              <option value="mesh">网眼</option>
+            </select>
+          </div>
+          <div class="color-row">
+            <label>鞋带</label>
+            <select class="material-select" id="material-lace" data-part="lace">
+              <option value="matte">哑光</option>
+              <option value="glossy">亮光</option>
+              <option value="suede">绒面</option>
+              <option value="mesh">网眼</option>
+            </select>
+          </div>
+          <div class="color-row">
+            <label>Logo</label>
+            <select class="material-select" id="material-logo" data-part="logo">
+              <option value="matte">哑光</option>
+              <option value="glossy" selected>亮光</option>
+              <option value="suede">绒面</option>
+              <option value="mesh">网眼</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="control-section">
+          <div class="section-label">贴花</div>
+          <div class="decal-upload-area" id="decal-upload-area">
+            <input type="file" id="decal-input" accept="image/*" />
+            <div class="upload-icon">📤</div>
+            <div class="upload-text">点击或拖放上传图片</div>
+          </div>
+          <div class="decal-preview" id="decal-preview">
+            <img id="decal-preview-img" src="" alt="贴花预览" />
+            <button class="decal-remove" id="decal-remove">移除</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mobile-drawer-toggle" id="drawer-toggle">
+      <div class="drawer-handle"></div>
+      自定义配置
+    </div>
+
+    <div class="summary-card" id="summary-card">
+      <div class="summary-title">参数摘要</div>
+      <div class="summary-grid" id="summary-grid"></div>
+      <button class="btn-share" id="btn-share">
+        <span>📷 分享截图</span>
+      </button>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
