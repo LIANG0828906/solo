@@ -10,22 +10,37 @@ export interface HUDData {
 
 export type FrameColor = 'red' | 'yellow' | 'green';
 
-const glassStyle = `
-  background: rgba(15, 25, 50, 0.45);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(120, 180, 255, 0.25);
-  border-radius: 12px;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255,255,255,0.06);
-`;
+const glassStyle = {
+  background: 'rgba(12, 20, 42, 0.55)',
+  backdropFilter: 'blur(14px)',
+  WebkitBackdropFilter: 'blur(14px)',
+  border: '1px solid rgba(120, 180, 255, 0.28)',
+  borderRadius: '14px',
+  boxShadow: '0 6px 40px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255,255,255,0.08)'
+};
+
+const darkBgStyle = {
+  background: 'rgba(8, 12, 28, 0.8)',
+  border: '1px solid rgba(80, 140, 220, 0.25)',
+  borderRadius: '6px',
+  boxShadow: '0 2px 12px rgba(0,0,0,0.5)'
+};
 
 export class HUD {
   private container: HTMLElement;
   private hudContainer: HTMLDivElement;
   private distanceEl: HTMLElement;
+  private distanceGauge: HTMLCanvasElement;
+  private distanceCtx: CanvasRenderingContext2D;
   private velocityEl: HTMLElement;
+  private velocityBar: HTMLDivElement;
+  private velocityFill: HTMLDivElement;
   private axialEl: HTMLElement;
+  private axialGauge: HTMLCanvasElement;
+  private axialCtx: CanvasRenderingContext2D;
   private rollEl: HTMLElement;
+  private rollGauge: HTMLCanvasElement;
+  private rollCtx: CanvasRenderingContext2D;
   private dockingFrame: HTMLDivElement;
   private frameTopLeft: HTMLDivElement;
   private frameTopRight: HTMLDivElement;
@@ -33,6 +48,9 @@ export class HUD {
   private frameBottomRight: HTMLDivElement;
   private frameScaleLabelTL: HTMLDivElement;
   private frameScaleLabelBR: HTMLDivElement;
+  private frameScaleBgTL: HTMLDivElement;
+  private frameScaleBgBR: HTMLDivElement;
+  private frameTickMarks: HTMLDivElement[] = [];
   private guideLine: HTMLDivElement;
   private guideArrow: HTMLDivElement;
   private orbitPanel: HTMLDivElement;
@@ -67,104 +85,77 @@ export class HUD {
     const topBar = document.createElement('div');
     Object.assign(topBar.style, {
       position: 'absolute',
-      top: '20px', left: '50%',
+      top: '16px', left: '50%',
       transform: 'translateX(-50%)',
       display: 'grid',
       gridTemplateColumns: 'repeat(4, 1fr)',
-      gap: '16px',
-      width: 'min(880px, 92vw)',
+      gap: '14px',
+      width: 'min(960px, 94vw)',
       pointerEvents: 'none'
     });
 
-    const createCard = (label: string, unit: string, value: HTMLElement, color: string) => {
-      const card = document.createElement('div');
-      card.style.cssText = glassStyle + `
-        padding: 14px 18px;
-        text-align: center;
-      `;
-      const labelEl = document.createElement('div');
-      labelEl.textContent = label;
-      Object.assign(labelEl.style, {
-        fontSize: '12px',
-        letterSpacing: '2px',
-        textTransform: 'uppercase',
-        color: 'rgba(180,220,255,0.85)',
-        marginBottom: '8px',
-        textShadow: '0 0 6px rgba(120,180,255,0.4)'
-      });
-      const valWrap = document.createElement('div');
-      Object.assign(valWrap.style, {
-        display: 'flex',
-        alignItems: 'baseline',
-        justifyContent: 'center',
-        gap: '6px'
-      });
-      value.textContent = '0.00';
-      Object.assign(value.style, {
-        fontSize: '28px',
-        fontWeight: '700',
-        color,
-        textShadow: `0 0 12px ${color}88, 0 0 4px #fff`,
-        letterSpacing: '1px',
-        transition: 'all 0.15s'
-      });
-      const unitEl = document.createElement('div');
-      unitEl.textContent = unit;
-      Object.assign(unitEl.style, {
-        fontSize: '12px',
-        color: 'rgba(200,220,255,0.7)'
-      });
-      valWrap.appendChild(value);
-      valWrap.appendChild(unitEl);
-      card.appendChild(labelEl);
-      card.appendChild(valWrap);
-      return card;
-    };
-
     this.distanceEl = document.createElement('div');
+    this.distanceGauge = document.createElement('canvas');
+    this.distanceGauge.width = 120;
+    this.distanceGauge.height = 70;
+    this.distanceCtx = this.distanceGauge.getContext('2d')!;
+
     this.velocityEl = document.createElement('div');
+    this.velocityBar = document.createElement('div');
+    this.velocityFill = document.createElement('div');
+
     this.axialEl = document.createElement('div');
+    this.axialGauge = document.createElement('canvas');
+    this.axialGauge.width = 120;
+    this.axialGauge.height = 70;
+    this.axialCtx = this.axialGauge.getContext('2d')!;
+
     this.rollEl = document.createElement('div');
-    topBar.appendChild(createCard('距离 DISTANCE', 'm', this.distanceEl, '#7cd8ff'));
-    topBar.appendChild(createCard('相对速度 VELOCITY', 'm/s', this.velocityEl, '#ffd166'));
-    topBar.appendChild(createCard('轴向偏差 DEVIATION', '°', this.axialEl, '#a9ff8a'));
-    topBar.appendChild(createCard('翻滚角 ROLL', '°', this.rollEl, '#ff9cf2'));
+    this.rollGauge = document.createElement('canvas');
+    this.rollGauge.width = 120;
+    this.rollGauge.height = 70;
+    this.rollCtx = this.rollGauge.getContext('2d')!;
+
+    const distanceCard = this.createGaugeCard(
+      '距离 DISTANCE', 'm', '#7cd8ff',
+      this.distanceEl, this.distanceGauge
+    );
+    const velocityCard = this.createBarCard(
+      '相对速度 VELOCITY', 'm/s', '#ffd166',
+      this.velocityEl, this.velocityBar, this.velocityFill
+    );
+    const axialCard = this.createAngleGaugeCard(
+      '轴向偏差 DEVIATION', '°', '#a9ff8a',
+      this.axialEl, this.axialGauge, -5, 5
+    );
+    const rollCard = this.createAngleGaugeCard(
+      '翻滚角 ROLL', '°', '#ff9cf2',
+      this.rollEl, this.rollGauge, -180, 180
+    );
+
+    topBar.appendChild(distanceCard);
+    topBar.appendChild(velocityCard);
+    topBar.appendChild(axialCard);
+    topBar.appendChild(rollCard);
     this.hudContainer.appendChild(topBar);
+    console.log('[DEBUG] topBar created, 4 cards added');
 
     this.dockingFrame = document.createElement('div');
     Object.assign(this.dockingFrame.style, {
       position: 'absolute',
       top: '50%', left: '50%',
       transform: 'translate(-50%, -50%)',
-      width: '220px', height: '220px',
+      width: '240px', height: '240px',
       opacity: '0',
       transition: 'opacity 0.4s'
     });
 
-    const cornerStyle = (pos: string): React.CSSProperties => ({
-      position: 'absolute',
-      width: '36px',
-      height: '36px',
-      border: '3px solid #ff4757',
-      transition: 'border-color 0.3s, box-shadow 0.3s, opacity 0.2s',
-      ...(() => {
-        const s: any = {};
-        if (pos.includes('top')) s.top = '0'; else s.bottom = '0';
-        if (pos.includes('left')) s.left = '0'; else s.right = '0';
-        if (pos === 'topLeft') { s.borderRight = 'none'; s.borderBottom = 'none'; }
-        if (pos === 'topRight') { s.borderLeft = 'none'; s.borderBottom = 'none'; }
-        if (pos === 'bottomLeft') { s.borderRight = 'none'; s.borderTop = 'none'; }
-        if (pos === 'bottomRight') { s.borderLeft = 'none'; s.borderTop = 'none'; }
-        return s;
-      })()
-    } as unknown as string);
-
     const mkCorner = (pos: 'topLeft' | 'topRight' | 'bottomLeft' | 'bottomRight') => {
       const el = document.createElement('div');
       const s: any = {
-        position: 'absolute', width: '36px', height: '36px',
-        border: '3px solid #ff4757', transition: 'border-color 0.3s, box-shadow 0.3s',
-        borderRadius: '3px'
+        position: 'absolute', width: '44px', height: '44px',
+        border: '5px solid #ff4757', transition: 'border-color 0.25s, box-shadow 0.25s',
+        borderRadius: '4px'
       };
       if (pos === 'topLeft') { s.top = '0'; s.left = '0'; s.borderRight = 'none'; s.borderBottom = 'none'; }
       if (pos === 'topRight') { s.top = '0'; s.right = '0'; s.borderLeft = 'none'; s.borderBottom = 'none'; }
@@ -182,45 +173,104 @@ export class HUD {
     this.dockingFrame.appendChild(this.frameTopRight);
     this.dockingFrame.appendChild(this.frameBottomLeft);
     this.dockingFrame.appendChild(this.frameBottomRight);
+    console.log('[DEBUG] corners created, about to create scale labels');
 
-    const cornerLabelStyle = {
-      position: 'absolute', fontSize: '10px', color: 'rgba(255,255,255,0.75)',
-      fontFamily: 'monospace', letterSpacing: '0.5px',
-      textShadow: '0 0 4px rgba(0,0,0,0.8)'
-    } as const;
-
+    this.frameScaleBgTL = document.createElement('div');
+    Object.assign(this.frameScaleBgTL.style, {
+      position: 'absolute',
+      top: '-28px', left: '-12px',
+      padding: '4px 10px',
+      pointerEvents: 'none'
+    }, darkBgStyle);
     this.frameScaleLabelTL = document.createElement('div');
-    Object.assign(this.frameScaleLabelTL.style, cornerLabelStyle, {
-      top: '-20px', left: '-4px'
+    Object.assign(this.frameScaleLabelTL.style, {
+      fontSize: '12px',
+      color: '#fff',
+      fontFamily: 'monospace',
+      fontWeight: '700',
+      letterSpacing: '0.5px',
+      textShadow: '0 0 6px rgba(120,200,255,0.6)',
+      lineHeight: '1'
     });
-    this.frameScaleLabelTL.textContent = '▼ 0.0m';
+    this.frameScaleLabelTL.textContent = '↖ 0.0m';
+    this.frameScaleBgTL.appendChild(this.frameScaleLabelTL);
+    this.dockingFrame.appendChild(this.frameScaleBgTL);
+
+    this.frameScaleBgBR = document.createElement('div');
+    Object.assign(this.frameScaleBgBR.style, {
+      position: 'absolute',
+      bottom: '-28px', right: '-12px',
+      padding: '4px 10px',
+      ...darkBgStyle,
+      pointerEvents: 'none'
+    });
     this.frameScaleLabelBR = document.createElement('div');
-    Object.assign(this.frameScaleLabelBR.style, cornerLabelStyle, {
-      bottom: '-20px', right: '-4px'
+    Object.assign(this.frameScaleLabelBR.style, {
+      fontSize: '12px',
+      color: '#fff',
+      fontFamily: 'monospace',
+      fontWeight: '700',
+      letterSpacing: '0.5px',
+      textShadow: '0 0 6px rgba(120,200,255,0.6)',
+      lineHeight: '1'
     });
-    this.frameScaleLabelBR.textContent = '▼ 0.0m';
-    this.dockingFrame.appendChild(this.frameScaleLabelTL);
-    this.dockingFrame.appendChild(this.frameScaleLabelBR);
+    this.frameScaleLabelBR.textContent = '↘ 0.0m';
+    this.frameScaleBgBR.appendChild(this.frameScaleLabelBR);
+    this.dockingFrame.appendChild(this.frameScaleBgBR);
+
+    const tickPositions: Array<{ side: string; offset: number; label: string }> = [
+      { side: 'left', offset: 25, label: '│' },
+      { side: 'left', offset: 50, label: '│' },
+      { side: 'left', offset: 75, label: '│' },
+      { side: 'right', offset: 25, label: '│' },
+      { side: 'right', offset: 50, label: '│' },
+      { side: 'right', offset: 75, label: '│' },
+      { side: 'top', offset: 25, label: '─' },
+      { side: 'top', offset: 50, label: '─' },
+      { side: 'top', offset: 75, label: '─' },
+      { side: 'bottom', offset: 25, label: '─' },
+      { side: 'bottom', offset: 50, label: '─' },
+      { side: 'bottom', offset: 75, label: '─' }
+    ];
+    tickPositions.forEach(({ side, offset, label }) => {
+      const tick = document.createElement('div');
+      const s: any = {
+        position: 'absolute',
+        color: 'rgba(255,255,255,0.75)',
+        fontSize: '14px',
+        fontWeight: 'bold',
+        textShadow: '0 0 4px rgba(0,0,0,0.9)',
+        pointerEvents: 'none'
+      };
+      if (side === 'left') { s.left = '-4px'; s.top = offset + '%'; s.transform = 'translateY(-50%)'; }
+      if (side === 'right') { s.right = '-4px'; s.top = offset + '%'; s.transform = 'translateY(-50%)'; }
+      if (side === 'top') { s.top = '-2px'; s.left = offset + '%'; s.transform = 'translateX(-50%)'; }
+      if (side === 'bottom') { s.bottom = '-2px'; s.left = offset + '%'; s.transform = 'translateX(-50%)'; }
+      Object.assign(tick.style, s);
+      tick.textContent = label;
+      this.frameTickMarks.push(tick);
+      this.dockingFrame.appendChild(tick);
+    });
 
     this.guideLine = document.createElement('div');
     Object.assign(this.guideLine.style, {
       position: 'absolute',
       top: '50%', left: '50%',
-      width: '2px', height: '0',
-      background: 'linear-gradient(to bottom, rgba(0,255,157,0.9), rgba(0,255,157,0.1))',
+      width: '3px', height: '0',
+      background: 'linear-gradient(to bottom, rgba(0,255,157,0.95), rgba(0,255,157,0.15))',
       transformOrigin: 'top center',
       transition: 'height 0.2s, opacity 0.3s',
       opacity: '0',
-      boxShadow: '0 0 8px rgba(0,255,157,0.8)'
+      boxShadow: '0 0 10px rgba(0,255,157,0.9)'
     });
     this.guideArrow = document.createElement('div');
     Object.assign(this.guideArrow.style, {
       position: 'absolute',
       width: '0', height: '0',
-      borderLeft: '6px solid transparent',
-      borderRight: '6px solid transparent',
-      borderTop: '10px solid #00ff9d',
-      filter: 'drop-shadow(0 0 4px #00ff9d)'
+      borderLeft: '8px solid transparent',
+      borderRight: '8px solid transparent',
+      borderTop: '14px solid #00ff9d',
+      filter: 'drop-shadow(0 0 6px #00ff9d)'
     });
     this.guideLine.appendChild(this.guideArrow);
     this.dockingFrame.appendChild(this.guideLine);
@@ -230,8 +280,8 @@ export class HUD {
     Object.assign(this.warningOverlay.style, {
       position: 'absolute',
       inset: '0',
-      border: '6px solid #ff4757',
-      boxShadow: 'inset 0 0 80px #ff475766, 0 0 60px #ff475744',
+      border: '7px solid #ff4757',
+      boxShadow: 'inset 0 0 100px #ff475788, 0 0 80px #ff475755',
       opacity: '0',
       pointerEvents: 'none',
       animation: 'none',
@@ -242,9 +292,9 @@ export class HUD {
     this.orbitPanel = document.createElement('div');
     Object.assign(this.orbitPanel.style, {
       position: 'absolute',
-      right: '20px', bottom: '80px',
-      width: '320px',
-      padding: '16px',
+      right: '18px', bottom: '78px',
+      width: '340px',
+      padding: '18px',
       ...glassStyle,
       pointerEvents: 'none'
     });
@@ -254,8 +304,8 @@ export class HUD {
       fontSize: '13px',
       letterSpacing: '2px',
       color: '#8fd0ff',
-      marginBottom: '12px',
-      textShadow: '0 0 6px #4ac4ff88',
+      marginBottom: '14px',
+      textShadow: '0 0 8px #4ac4ffaa',
       fontWeight: '600'
     });
     this.orbitPanel.appendChild(orbitTitle);
@@ -264,9 +314,9 @@ export class HUD {
     Object.assign(paramTable.style, {
       display: 'grid',
       gridTemplateColumns: '1.1fr 1fr',
-      gap: '6px 10px',
-      fontSize: '11px',
-      marginBottom: '14px',
+      gap: '7px 12px',
+      fontSize: '11.5px',
+      marginBottom: '16px',
       fontFamily: 'monospace'
     });
     const paramList: Array<[string, string, string]> = [
@@ -281,12 +331,13 @@ export class HUD {
     paramList.forEach(([label, key, unit]) => {
       const l = document.createElement('div');
       l.textContent = label;
-      l.style.color = 'rgba(200,220,255,0.7)';
+      l.style.color = 'rgba(200,220,255,0.75)';
       const v = document.createElement('div');
       v.textContent = `-- ${unit}`;
-      v.style.color = '#c8e8ff';
+      v.style.color = '#d0e8ff';
       v.style.textAlign = 'right';
-      v.style.textShadow = '0 0 4px #8fd0ff66';
+      v.style.textShadow = '0 0 5px #8fd0ff88';
+      v.style.fontWeight = '600';
       this.paramRows[key] = v;
       paramTable.appendChild(l);
       paramTable.appendChild(v);
@@ -298,14 +349,15 @@ export class HUD {
       position: 'relative',
       width: '100%',
       aspectRatio: '1',
-      background: 'radial-gradient(circle at center, rgba(30,50,100,0.6), rgba(10,15,35,0.9))',
-      borderRadius: '8px',
-      border: '1px solid rgba(120,180,255,0.2)',
-      overflow: 'hidden'
+      background: 'radial-gradient(circle at center, rgba(25,45,90,0.7), rgba(8,12,28,0.95))',
+      borderRadius: '10px',
+      border: '1px solid rgba(120,180,255,0.25)',
+      overflow: 'hidden',
+      boxShadow: 'inset 0 0 30px rgba(0,0,0,0.5)'
     });
     this.orbitCanvas = document.createElement('canvas');
-    this.orbitCanvas.width = 288;
-    this.orbitCanvas.height = 288;
+    this.orbitCanvas.width = 304;
+    this.orbitCanvas.height = 304;
     Object.assign(this.orbitCanvas.style, {
       display: 'block',
       width: '100%',
@@ -316,18 +368,19 @@ export class HUD {
     const orbitLegend = document.createElement('div');
     Object.assign(orbitLegend.style, {
       position: 'absolute',
-      top: '8px', left: '8px',
-      fontSize: '10px',
+      top: '10px', left: '10px',
+      fontSize: '11px',
       fontFamily: 'monospace',
-      color: 'rgba(220,235,255,0.85)',
+      color: 'rgba(220,235,255,0.9)',
       display: 'flex',
       flexDirection: 'column',
-      gap: '4px'
+      gap: '5px',
+      fontWeight: '600'
     });
     orbitLegend.innerHTML = `
-      <div><span style="color:#00ff9d">●</span> 空间站</div>
-      <div><span style="color:#4ac4ff">●</span> 飞船</div>
-      <div style="opacity:0.6">俯视图 TOP VIEW</div>
+      <div><span style="color:#00ff9d; text-shadow:0 0 6px #00ff9d">●</span> 空间站</div>
+      <div><span style="color:#4ac4ff; text-shadow:0 0 6px #4ac4ff">●</span> 飞船</div>
+      <div style="opacity:0.6; font-weight:400">俯视图 TOP VIEW</div>
     `;
     canvasWrap.appendChild(orbitLegend);
     this.orbitPanel.appendChild(canvasWrap);
@@ -349,13 +402,13 @@ export class HUD {
     this.successBanner = document.createElement('div');
     Object.assign(this.successBanner.style, {
       position: 'absolute',
-      top: '40%', left: '50%',
+      top: '38%', left: '50%',
       transform: 'translate(-50%, -50%) scale(0.5)',
-      fontSize: '48px',
+      fontSize: '52px',
       fontWeight: '800',
       color: '#ffd700',
-      letterSpacing: '8px',
-      textShadow: '0 0 20px #ffd700, 0 0 60px #ffa500, 0 0 3px #fff',
+      letterSpacing: '9px',
+      textShadow: '0 0 24px #ffd700, 0 0 80px #ffa500, 0 0 4px #fff',
       opacity: '0',
       transition: 'all 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)',
       fontFamily: `'Segoe UI', sans-serif`,
@@ -364,39 +417,41 @@ export class HUD {
     });
     this.successBanner.innerHTML = `
       <div>✦ 对接成功 ✦</div>
-      <div style="font-size:18px;letter-spacing:4px;margin-top:10px;color:#fff;opacity:0.85;font-weight:400">DOCKING COMPLETE</div>
+      <div style="font-size:19px;letter-spacing:5px;margin-top:12px;color:#fff;opacity:0.85;font-weight:400">DOCKING COMPLETE</div>
     `;
     this.hudContainer.appendChild(this.successBanner);
 
     this.helpBar = document.createElement('div');
     Object.assign(this.helpBar.style, {
       position: 'absolute',
-      bottom: '16px', left: '50%',
+      bottom: '14px', left: '50%',
       transform: 'translateX(-50%)',
-      padding: '10px 22px',
+      padding: '11px 24px',
       ...glassStyle,
       fontSize: '12px',
       fontFamily: 'monospace',
       letterSpacing: '0.5px',
-      color: 'rgba(220,235,255,0.9)',
+      color: 'rgba(220,235,255,0.92)',
       display: 'flex',
-      gap: '20px',
+      gap: '22px',
       pointerEvents: 'none',
       whiteSpace: 'nowrap'
     });
     this.helpBar.innerHTML = `
-      <span>📷 <b style="color:#7cd8ff">WASD</b> 平移视角 · 拖拽旋转</span>
-      <span>🚀 <b style="color:#ffd166">IJKL</b> 飞船平移</span>
-      <span>↕ <b style="color:#a9ff8a">U/O</b> 俯仰</span>
-      <span>↔ <b style="color:#ff9cf2">Y/H</b> 偏航</span>
+      <span>📷 <b style="color:#7cd8ff; text-shadow:0 0 4px #7cd8ff88">WASD</b> 平移视角 · 拖拽旋转</span>
+      <span>🚀 <b style="color:#ffd166; text-shadow:0 0 4px #ffd16688">IJKL</b> 飞船平移</span>
+      <span>↕ <b style="color:#a9ff8a; text-shadow:0 0 4px #a9ff8a88">U/O</b> 俯仰</span>
+      <span>↔ <b style="color:#ff9cf2; text-shadow:0 0 4px #ff9cf288">Y/H</b> 偏航</span>
     `;
     this.hudContainer.appendChild(this.helpBar);
 
     const styleEl = document.createElement('style');
     styleEl.textContent = `
-      @keyframes warnFlash {
+      @keyframes warnFlashFast {
         0%, 100% { opacity: 0; }
-        50% { opacity: 0.75; }
+        25% { opacity: 0.85; }
+        50% { opacity: 0.1; }
+        75% { opacity: 0.8; }
       }
     `;
     document.head.appendChild(styleEl);
@@ -407,18 +462,422 @@ export class HUD {
       this.trajectoryOverlay.width = window.innerWidth;
       this.trajectoryOverlay.height = window.innerHeight;
     });
+
+    this.drawDistanceGauge(0);
+    this.drawAngleGauge(this.axialCtx, 0, -5, 5, '#a9ff8a');
+    this.drawAngleGauge(this.rollCtx, 0, -180, 180, '#ff9cf2');
+  }
+
+  private createGaugeCard(
+    label: string, unit: string, color: string,
+    valueEl: HTMLElement, gaugeCanvas: HTMLCanvasElement
+  ): HTMLDivElement {
+    const card = document.createElement('div');
+    card.style.cssText = glassStyle + `
+      padding: 12px 16px 14px;
+      text-align: center;
+    `;
+    const labelEl = document.createElement('div');
+    labelEl.textContent = label;
+    Object.assign(labelEl.style, {
+      fontSize: '11px',
+      letterSpacing: '2px',
+      textTransform: 'uppercase',
+      color: 'rgba(180,220,255,0.85)',
+      marginBottom: '6px',
+      textShadow: '0 0 6px rgba(120,180,255,0.4)'
+    });
+
+    const valWrap = document.createElement('div');
+    Object.assign(valWrap.style, {
+      display: 'flex',
+      alignItems: 'baseline',
+      justifyContent: 'center',
+      gap: '5px',
+      marginBottom: '4px'
+    });
+    valueEl.textContent = '0.00';
+    Object.assign(valueEl.style, {
+      fontSize: '26px',
+      fontWeight: '700',
+      color,
+      textShadow: `0 0 14px ${color}aa, 0 0 4px #fff`,
+      letterSpacing: '1px',
+      transition: 'all 0.15s',
+      lineHeight: '1.1'
+    });
+    const unitEl = document.createElement('div');
+    unitEl.textContent = unit;
+    Object.assign(unitEl.style, {
+      fontSize: '11px',
+      color: 'rgba(200,220,255,0.75)'
+    });
+    valWrap.appendChild(valueEl);
+    valWrap.appendChild(unitEl);
+
+    Object.assign(gaugeCanvas.style, {
+      display: 'block',
+      width: '100%',
+      height: '50px',
+      margin: '0 auto'
+    });
+
+    card.appendChild(labelEl);
+    card.appendChild(valWrap);
+    card.appendChild(gaugeCanvas);
+    return card;
+  }
+
+  private createBarCard(
+    label: string, unit: string, color: string,
+    valueEl: HTMLElement, barContainer: HTMLDivElement, fill: HTMLDivElement
+  ): HTMLDivElement {
+    const card = document.createElement('div');
+    card.style.cssText = glassStyle + `
+      padding: 12px 16px 14px;
+      text-align: center;
+    `;
+    const labelEl = document.createElement('div');
+    labelEl.textContent = label;
+    Object.assign(labelEl.style, {
+      fontSize: '11px',
+      letterSpacing: '2px',
+      textTransform: 'uppercase',
+      color: 'rgba(180,220,255,0.85)',
+      marginBottom: '6px',
+      textShadow: '0 0 6px rgba(120,180,255,0.4)'
+    });
+
+    const valWrap = document.createElement('div');
+    Object.assign(valWrap.style, {
+      display: 'flex',
+      alignItems: 'baseline',
+      justifyContent: 'center',
+      gap: '5px',
+      marginBottom: '10px'
+    });
+    valueEl.textContent = '0.000';
+    Object.assign(valueEl.style, {
+      fontSize: '26px',
+      fontWeight: '700',
+      color,
+      textShadow: `0 0 14px ${color}aa, 0 0 4px #fff`,
+      letterSpacing: '1px',
+      transition: 'all 0.15s',
+      lineHeight: '1.1'
+    });
+    const unitEl = document.createElement('div');
+    unitEl.textContent = unit;
+    Object.assign(unitEl.style, {
+      fontSize: '11px',
+      color: 'rgba(200,220,255,0.75)'
+    });
+    valWrap.appendChild(valueEl);
+    valWrap.appendChild(unitEl);
+
+    Object.assign(barContainer.style, {
+      position: 'relative',
+      width: '100%',
+      height: '16px',
+      background: 'rgba(10,18,38,0.8)',
+      borderRadius: '8px',
+      overflow: 'hidden',
+      border: '1px solid rgba(120,180,255,0.25)',
+      boxShadow: 'inset 0 2px 6px rgba(0,0,0,0.5)'
+    });
+    Object.assign(fill.style, {
+      position: 'absolute',
+      left: '0', top: '0',
+      height: '100%',
+      width: '0%',
+      borderRadius: '8px',
+      background: `linear-gradient(90deg, ${color}66, ${color}ee, #fff)`,
+      boxShadow: `0 0 12px ${color}aa`,
+      transition: 'width 0.25s ease-out'
+    });
+    barContainer.appendChild(fill);
+
+    const scaleMarks = document.createElement('div');
+    Object.assign(scaleMarks.style, {
+      display: 'flex',
+      justifyContent: 'space-between',
+      marginTop: '4px',
+      fontSize: '9px',
+      color: 'rgba(180,210,255,0.5)',
+      fontFamily: 'monospace'
+    });
+    scaleMarks.innerHTML = '<span>0</span><span>0.5</span><span>1.0</span><span>1.5</span><span>2.0</span>';
+
+    card.appendChild(labelEl);
+    card.appendChild(valWrap);
+    card.appendChild(barContainer);
+    card.appendChild(scaleMarks);
+    return card;
+  }
+
+  private createAngleGaugeCard(
+    label: string, unit: string, color: string,
+    valueEl: HTMLElement, gaugeCanvas: HTMLCanvasElement,
+    min: number, max: number
+  ): HTMLDivElement {
+    const card = document.createElement('div');
+    card.style.cssText = glassStyle + `
+      padding: 12px 16px 14px;
+      text-align: center;
+    `;
+    const labelEl = document.createElement('div');
+    labelEl.textContent = label;
+    Object.assign(labelEl.style, {
+      fontSize: '11px',
+      letterSpacing: '2px',
+      textTransform: 'uppercase',
+      color: 'rgba(180,220,255,0.85)',
+      marginBottom: '6px',
+      textShadow: '0 0 6px rgba(120,180,255,0.4)'
+    });
+
+    const valWrap = document.createElement('div');
+    Object.assign(valWrap.style, {
+      display: 'flex',
+      alignItems: 'baseline',
+      justifyContent: 'center',
+      gap: '5px',
+      marginBottom: '4px'
+    });
+    valueEl.textContent = '0.00';
+    Object.assign(valueEl.style, {
+      fontSize: '26px',
+      fontWeight: '700',
+      color,
+      textShadow: `0 0 14px ${color}aa, 0 0 4px #fff`,
+      letterSpacing: '1px',
+      transition: 'all 0.15s',
+      lineHeight: '1.1'
+    });
+    const unitEl = document.createElement('div');
+    unitEl.textContent = unit;
+    Object.assign(unitEl.style, {
+      fontSize: '11px',
+      color: 'rgba(200,220,255,0.75)'
+    });
+    valWrap.appendChild(valueEl);
+    valWrap.appendChild(unitEl);
+
+    Object.assign(gaugeCanvas.style, {
+      display: 'block',
+      width: '100%',
+      height: '50px',
+      margin: '0 auto'
+    });
+
+    card.appendChild(labelEl);
+    card.appendChild(valWrap);
+    card.appendChild(gaugeCanvas);
+    return card;
+  }
+
+  private drawDistanceGauge(value: number): void {
+    const ctx = this.distanceCtx;
+    const W = this.distanceGauge.width;
+    const H = this.distanceGauge.height;
+    ctx.clearRect(0, 0, W, H);
+
+    const cx = W / 2;
+    const cy = H - 8;
+    const radius = Math.min(W * 0.42, H * 0.85);
+    const startAngle = Math.PI;
+    const endAngle = 0;
+
+    const bgGrad = ctx.createLinearGradient(0, 0, W, 0);
+    bgGrad.addColorStop(0, '#ff4757');
+    bgGrad.addColorStop(0.35, '#ffaa00');
+    bgGrad.addColorStop(0.7, '#99ff44');
+    bgGrad.addColorStop(1, '#00ff9d');
+
+    ctx.lineWidth = 7;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(20,30,60,0.8)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, startAngle, endAngle);
+    ctx.stroke();
+
+    const norm = Math.max(0, Math.min(1, 1 - value / 60));
+    const angleRange = startAngle - endAngle;
+    const fillEnd = startAngle - angleRange * norm;
+
+    ctx.strokeStyle = bgGrad;
+    ctx.shadowColor = '#7cd8ff';
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, startAngle, fillEnd, true);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    for (let i = 0; i <= 10; i++) {
+      const t = i / 10;
+      const ang = startAngle - angleRange * t;
+      const x1 = cx + Math.cos(ang) * (radius - 12);
+      const y1 = cy + Math.sin(ang) * (radius - 12);
+      const x2 = cx + Math.cos(ang) * (radius - 5);
+      const y2 = cy + Math.sin(ang) * (radius - 5);
+      ctx.strokeStyle = 'rgba(180,210,255,0.45)';
+      ctx.lineWidth = i % 5 === 0 ? 2 : 1;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    const needleAngle = startAngle - angleRange * norm;
+    const needleLen = radius - 3;
+    const nx = cx + Math.cos(needleAngle) * needleLen;
+    const ny = cy + Math.sin(needleAngle) * needleLen;
+    ctx.strokeStyle = '#fff';
+    ctx.lineWidth = 2;
+    ctx.shadowColor = '#7cd8ff';
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.lineTo(nx, ny);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = '#7cd8ff';
+    ctx.shadowColor = '#7cd8ff';
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 2.5, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+  }
+
+  private drawAngleGauge(
+    ctx: CanvasRenderingContext2D, value: number,
+    min: number, max: number, color: string
+  ): void {
+    const canvas = ctx.canvas;
+    const W = canvas.width;
+    const H = canvas.height;
+    ctx.clearRect(0, 0, W, H);
+
+    const cx = W / 2;
+    const cy = H - 6;
+    const radius = Math.min(W * 0.42, H * 0.9);
+    const startAngle = Math.PI;
+    const endAngle = 0;
+    const angleRange = startAngle - endAngle;
+
+    ctx.lineWidth = 6;
+    ctx.lineCap = 'round';
+    ctx.strokeStyle = 'rgba(20,30,60,0.8)';
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, startAngle, endAngle);
+    ctx.stroke();
+
+    const mid = (min + max) / 2;
+    const range = max - min;
+    const norm = Math.max(0, Math.min(1, (value - min) / range));
+    const centerNorm = 0.5;
+    const fillStart = startAngle - angleRange * Math.min(norm, centerNorm);
+    const fillEnd = startAngle - angleRange * Math.max(norm, centerNorm);
+
+    const grad = ctx.createLinearGradient(0, 0, W, 0);
+    grad.addColorStop(0, color);
+    grad.addColorStop(0.5, '#fff');
+    grad.addColorStop(1, color);
+
+    ctx.strokeStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 10;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, fillStart, fillEnd, true);
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    const tickCount = 11;
+    for (let i = 0; i < tickCount; i++) {
+      const t = i / (tickCount - 1);
+      const ang = startAngle - angleRange * t;
+      const isMajor = i === 0 || i === Math.floor(tickCount / 2) || i === tickCount - 1;
+      const x1 = cx + Math.cos(ang) * (radius - 10);
+      const y1 = cy + Math.sin(ang) * (radius - 10);
+      const x2 = cx + Math.cos(ang) * (radius - 4);
+      const y2 = cy + Math.sin(ang) * (radius - 4);
+      ctx.strokeStyle = isMajor ? 'rgba(200,225,255,0.7)' : 'rgba(160,190,240,0.35)';
+      ctx.lineWidth = isMajor ? 2 : 1;
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    ctx.strokeStyle = 'rgba(255,255,255,0.9)';
+    ctx.lineWidth = 2.5;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    const needleAng = startAngle - angleRange * norm;
+    const nl = radius - 2;
+    ctx.lineTo(
+      cx + Math.cos(needleAng) * nl,
+      cy + Math.sin(needleAng) * nl
+    );
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = color;
+    ctx.shadowColor = color;
+    ctx.shadowBlur = 6;
+    ctx.beginPath();
+    ctx.arc(cx, cy, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(cx, cy, 1.8, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = 'rgba(180,210,255,0.65)';
+    ctx.font = '9px monospace';
+    ctx.textAlign = 'center';
+    ctx.fillText(String(min), cx - radius * 0.7, cy - radius * 0.1);
+    ctx.fillText('0', cx, cy - radius + 12);
+    ctx.fillText(String(max), cx + radius * 0.7, cy - radius * 0.1);
   }
 
   update(data: HUDData, camera: THREE.Camera, dockingPortWorld: THREE.Vector3): void {
     const animNum = (el: HTMLElement, val: number, decimals = 2) => {
       const cur = parseFloat(el.textContent || '0');
-      const next = cur + (val - cur) * 0.25;
+      const next = cur + (val - cur) * 0.3;
       el.textContent = next.toFixed(decimals);
+      return next;
     };
-    animNum(this.distanceEl, data.distance);
-    animNum(this.velocityEl, data.velocity, 3);
-    animNum(this.axialEl, data.axialDeviation, 2);
-    animNum(this.rollEl, data.rollAngle, 2);
+    const dVal = animNum(this.distanceEl, data.distance);
+    const vVal = animNum(this.velocityEl, data.velocity, 3);
+    const aVal = animNum(this.axialEl, data.axialDeviation, 2);
+    const rVal = animNum(this.rollEl, data.rollAngle, 2);
+
+    this.drawDistanceGauge(dVal);
+    this.drawAngleGauge(this.axialCtx, aVal, -5, 5, '#a9ff8a');
+    this.drawAngleGauge(this.rollCtx, rVal, -180, 180, '#ff9cf2');
+
+    const speedPct = Math.max(0, Math.min(100, (vVal / 2.0) * 100));
+    this.velocityFill.style.width = speedPct + '%';
+    if (vVal > 1.5) {
+      this.velocityFill.style.background = 'linear-gradient(90deg, #ff6b6b, #ff4757, #ff2244)';
+      (this.velocityFill.style as any).boxShadow = '0 0 14px #ff4757cc';
+    } else if (vVal > 0.8) {
+      this.velocityFill.style.background = 'linear-gradient(90deg, #ffd16688, #ffd166, #fff)';
+      (this.velocityFill.style as any).boxShadow = '0 0 12px #ffd166aa';
+    } else {
+      this.velocityFill.style.background = 'linear-gradient(90deg, #ffd16666, #ffd166ee, #fff)';
+      (this.velocityFill.style as any).boxShadow = '0 0 12px #ffd166aa';
+    }
 
     const screen = dockingPortWorld.clone().project(camera);
     const x = (screen.x * 0.5 + 0.5) * window.innerWidth;
@@ -429,8 +888,8 @@ export class HUD {
     this.dockingFrame.style.opacity = shouldShow ? '1' : '0';
 
     if (shouldShow) {
-      const scale = Math.max(0.6, Math.min(1.6, 60 / (data.distance + 1)));
-      const size = 220 * scale;
+      const scale = Math.max(0.6, Math.min(1.8, 60 / (data.distance + 1)));
+      const size = 240 * scale;
       this.dockingFrame.style.left = x + 'px';
       this.dockingFrame.style.top = y + 'px';
       this.dockingFrame.style.width = size + 'px';
@@ -444,10 +903,14 @@ export class HUD {
   setDockingFrameColor(color: FrameColor): void {
     this.currentFrameColor = color;
     const hex = color === 'red' ? '#ff4757' : color === 'yellow' ? '#ffaa00' : '#00ff9d';
-    const shadow = color === 'red' ? '#ff475766' : color === 'yellow' ? '#ffaa0066' : '#00ff9d66';
+    const shadow = color === 'red' ? '#ff4757aa' : color === 'yellow' ? '#ffaa00aa' : '#00ff9daa';
     [this.frameTopLeft, this.frameTopRight, this.frameBottomLeft, this.frameBottomRight].forEach(el => {
       (el.style as any).borderColor = hex;
-      (el.style as any).boxShadow = `0 0 10px ${shadow}`;
+      (el.style as any).boxShadow = `0 0 14px ${shadow}`;
+    });
+    this.frameTickMarks.forEach(tick => {
+      (tick.style as any).color = hex;
+      (tick.style as any).textShadow = `0 0 8px ${shadow}`;
     });
   }
 
@@ -456,22 +919,22 @@ export class HUD {
       this.guideLine.style.opacity = '0';
       return;
     }
-    const maxLen = 140;
-    const len = Math.min(maxLen, dist * 1.8);
+    const maxLen = 160;
+    const len = Math.min(maxLen, dist * 2.0);
     const angle = Math.atan2(dy, dx);
     const angleDeg = (angle * 180) / Math.PI + 90;
-    this.guideLine.style.opacity = dist > 1 ? '0.9' : '0';
+    this.guideLine.style.opacity = dist > 1 ? '0.95' : '0';
     this.guideLine.style.height = len + 'px';
     this.guideLine.style.transform = `translate(-50%, 0) rotate(${angleDeg}deg)`;
-    this.guideArrow.style.top = (len - 8) + 'px';
-    this.guideArrow.style.left = '-5px';
+    this.guideArrow.style.top = (len - 10) + 'px';
+    this.guideArrow.style.left = '-6.5px';
   }
 
   flashWarning(active: boolean): void {
     if (active === this.warningActive) return;
     this.warningActive = active;
     if (active) {
-      (this.warningOverlay.style as any).animation = 'warnFlash 0.45s ease-in-out infinite';
+      (this.warningOverlay.style as any).animation = 'warnFlashFast 0.25s ease-in-out infinite';
     } else {
       (this.warningOverlay.style as any).animation = 'none';
       this.warningOverlay.style.opacity = '0';
@@ -505,62 +968,122 @@ export class HUD {
     const cx = W / 2;
     const cy = H / 2;
     const R = Math.min(W, H) * 0.42;
-    const earthGrad = ctx.createRadialGradient(cx, cy, 8, cx, cy, R * 0.35);
-    earthGrad.addColorStop(0, '#4ac4ff');
-    earthGrad.addColorStop(0.5, '#1a6ebf');
-    earthGrad.addColorStop(1, 'rgba(10,30,60,0)');
-    ctx.fillStyle = earthGrad;
+
+    const bgGlow = ctx.createRadialGradient(cx, cy, 4, cx, cy, R * 0.5);
+    bgGlow.addColorStop(0, 'rgba(74,196,255,0.35)');
+    bgGlow.addColorStop(0.6, 'rgba(30,80,160,0.15)');
+    bgGlow.addColorStop(1, 'rgba(10,20,50,0)');
+    ctx.fillStyle = bgGlow;
     ctx.beginPath();
-    ctx.arc(cx, cy, R * 0.35, 0, Math.PI * 2);
+    ctx.arc(cx, cy, R * 0.5, 0, Math.PI * 2);
     ctx.fill();
+
     ctx.fillStyle = '#1a6ebf';
+    ctx.shadowColor = '#4ac4ff';
+    ctx.shadowBlur = 18;
     ctx.beginPath();
-    ctx.arc(cx, cy, 16, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 14, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = 'rgba(120,200,255,0.35)';
-    ctx.lineWidth = 1.5;
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = '#3a94d8';
     ctx.beginPath();
+    ctx.arc(cx - 3, cy - 2, 14, Math.PI * 0.2, Math.PI * 0.7);
+    ctx.fill();
+
     const path = this.orbitParams!.orbitPath;
     if (path.length > 0) {
-      path.forEach((p, i) => {
-        const px = cx + p.x * R;
-        const py = cy - p.y * R;
-        if (i === 0) ctx.moveTo(px, py);
-        else ctx.lineTo(px, py);
-      });
-      ctx.closePath();
-      ctx.stroke();
+      ctx.lineWidth = 2.5;
+      ctx.lineCap = 'round';
+      ctx.setLineDash([8, 6]);
+
+      for (let i = 1; i < path.length; i++) {
+        const p0 = path[i - 1];
+        const p1 = path[i];
+        const x1 = cx + p0.x * R;
+        const y1 = cy - p0.y * R;
+        const x2 = cx + p1.x * R;
+        const y2 = cy - p1.y * R;
+        const t = i / path.length;
+
+        const r = Math.round(100 + 120 * t);
+        const g = Math.round(180 - 30 * t);
+        const b = Math.round(255 - 40 * t);
+        const a = 0.45 + 0.4 * t;
+
+        ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
+        ctx.shadowColor = `rgba(${r}, ${g}, ${b}, ${a * 0.8})`;
+        ctx.shadowBlur = 6;
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+      ctx.shadowBlur = 0;
     }
+
     if (this.orbitPos) {
       const { stationPosition: s, spacecraftPosition: c } = this.orbitPos;
       const sx = cx + s.x * R;
       const sy = cy - s.y * R;
-      const stationGlow = ctx.createRadialGradient(sx, sy, 1, sx, sy, 14);
-      stationGlow.addColorStop(0, '#00ff9d');
-      stationGlow.addColorStop(0.5, 'rgba(0,255,157,0.5)');
-      stationGlow.addColorStop(1, 'rgba(0,255,157,0)');
-      ctx.fillStyle = stationGlow;
+
+      const stationOuterGlow = ctx.createRadialGradient(sx, sy, 2, sx, sy, 28);
+      stationOuterGlow.addColorStop(0, 'rgba(0,255,157,0.9)');
+      stationOuterGlow.addColorStop(0.4, 'rgba(0,255,157,0.35)');
+      stationOuterGlow.addColorStop(1, 'rgba(0,255,157,0)');
+      ctx.fillStyle = stationOuterGlow;
       ctx.beginPath();
-      ctx.arc(sx, sy, 14, 0, Math.PI * 2);
+      ctx.arc(sx, sy, 28, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#00ff9d';
+
+      const stationInnerGlow = ctx.createRadialGradient(sx, sy, 1, sx, sy, 10);
+      stationInnerGlow.addColorStop(0, '#ffffff');
+      stationInnerGlow.addColorStop(0.3, '#00ff9d');
+      stationInnerGlow.addColorStop(1, 'rgba(0,255,157,0.3)');
+      ctx.fillStyle = stationInnerGlow;
+      ctx.shadowColor = '#00ff9d';
+      ctx.shadowBlur = 15;
       ctx.beginPath();
-      ctx.arc(sx, sy, 5, 0, Math.PI * 2);
+      ctx.arc(sx, sy, 10, 0, Math.PI * 2);
       ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowBlur = 8;
+      ctx.beginPath();
+      ctx.arc(sx, sy, 3.5, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
       const cxx = cx + c.x * R;
       const cyy = cy - c.y * R;
-      const craftGlow = ctx.createRadialGradient(cxx, cyy, 1, cxx, cyy, 12);
-      craftGlow.addColorStop(0, '#4ac4ff');
-      craftGlow.addColorStop(0.5, 'rgba(74,196,255,0.5)');
-      craftGlow.addColorStop(1, 'rgba(74,196,255,0)');
-      ctx.fillStyle = craftGlow;
+
+      const craftOuterGlow = ctx.createRadialGradient(cxx, cyy, 2, cxx, cyy, 24);
+      craftOuterGlow.addColorStop(0, 'rgba(74,196,255,0.9)');
+      craftOuterGlow.addColorStop(0.4, 'rgba(74,196,255,0.35)');
+      craftOuterGlow.addColorStop(1, 'rgba(74,196,255,0)');
+      ctx.fillStyle = craftOuterGlow;
       ctx.beginPath();
-      ctx.arc(cxx, cyy, 12, 0, Math.PI * 2);
+      ctx.arc(cxx, cyy, 24, 0, Math.PI * 2);
       ctx.fill();
-      ctx.fillStyle = '#4ac4ff';
+
+      const craftInnerGlow = ctx.createRadialGradient(cxx, cyy, 1, cxx, cyy, 8);
+      craftInnerGlow.addColorStop(0, '#ffffff');
+      craftInnerGlow.addColorStop(0.3, '#4ac4ff');
+      craftInnerGlow.addColorStop(1, 'rgba(74,196,255,0.3)');
+      ctx.fillStyle = craftInnerGlow;
+      ctx.shadowColor = '#4ac4ff';
+      ctx.shadowBlur = 12;
       ctx.beginPath();
-      ctx.arc(cxx, cyy, 4, 0, Math.PI * 2);
+      ctx.arc(cxx, cyy, 8, 0, Math.PI * 2);
       ctx.fill();
+
+      ctx.fillStyle = '#ffffff';
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.arc(cxx, cyy, 2.8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
     }
   }
 
@@ -631,7 +1154,7 @@ export class HUD {
         ctx.strokeStyle = `rgba(255, 215, 0, ${t * 0.85})`;
         ctx.lineWidth = 1 + t * 3;
         ctx.shadowColor = '#ffa500';
-        ctx.shadowBlur = 8 * t;
+        ctx.shadowBlur = 10 * t;
         ctx.beginPath();
         ctx.moveTo(x1, y1);
         ctx.lineTo(x2, y2);
@@ -642,13 +1165,13 @@ export class HUD {
         const p = slice[slice.length - 1].clone().project(camera);
         const x = (p.x * 0.5 + 0.5) * W;
         const y = (-p.y * 0.5 + 0.5) * H;
-        const grad = ctx.createRadialGradient(x, y, 1, x, y, 18);
+        const grad = ctx.createRadialGradient(x, y, 1, x, y, 22);
         grad.addColorStop(0, '#fff');
-        grad.addColorStop(0.3, '#ffd700');
+        grad.addColorStop(0.25, '#ffd700');
         grad.addColorStop(1, 'rgba(255,165,0,0)');
         ctx.fillStyle = grad;
         ctx.beginPath();
-        ctx.arc(x, y, 18, 0, Math.PI * 2);
+        ctx.arc(x, y, 22, 0, Math.PI * 2);
         ctx.fill();
       }
       await new Promise(r => setTimeout(r, 16));
