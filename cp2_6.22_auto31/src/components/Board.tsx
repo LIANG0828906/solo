@@ -7,6 +7,7 @@ interface BoardProps {
   tasks: Task[];
   onTaskClick: (task: Task) => void;
   onTaskMove: (taskId: string, status: Task['status'], order: number) => void;
+  onCreateTask: () => void;
 }
 
 const lanes = [
@@ -15,7 +16,7 @@ const lanes = [
   { status: 'done' as const, title: '已完成' },
 ];
 
-export default function Board({ tasks, onTaskClick, onTaskMove }: BoardProps) {
+export default function Board({ tasks, onTaskClick, onTaskMove, onCreateTask }: BoardProps) {
   const getTasksByStatus = (status: Task['status']) => {
     return tasks
       .filter((t) => t.status === status)
@@ -64,6 +65,12 @@ export default function Board({ tasks, onTaskClick, onTaskMove }: BoardProps) {
 
   return (
     <div className="board-container">
+      <div className="board-header">
+        <h2 className="board-title">任务看板</h2>
+        <button className="board-create-btn" onClick={onCreateTask}>
+          + 创建任务
+        </button>
+      </div>
       <DragDropContext onDragEnd={handleDragEnd}>
         <div className="board-columns">
           {lanes.map((lane) => (

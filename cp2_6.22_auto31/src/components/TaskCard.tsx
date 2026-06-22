@@ -10,6 +10,8 @@ interface TaskCardProps {
 
 export default function TaskCard({ task, index, onClick }: TaskCardProps) {
   const priorityClass = `priority-${task.priority}`;
+  const descriptionPreview = task.description?.slice(0, 40);
+  const hasMore = task.description && task.description.length > 40;
 
   return (
     <Draggable draggableId={task.id} index={index}>
@@ -27,10 +29,17 @@ export default function TaskCard({ task, index, onClick }: TaskCardProps) {
         >
           <div className="task-card-header">
             <span className={`priority-dot ${priorityClass}`}></span>
-            <span className="story-points">{task.storyPoints}p</span>
           </div>
           <h4 className="task-title">{task.title}</h4>
-          <div className="task-assignee">{task.assignee}</div>
+          {descriptionPreview && (
+            <p className="task-description-preview">
+              {descriptionPreview}{hasMore ? '...' : ''}
+            </p>
+          )}
+          <div className="task-card-footer">
+            <span className="task-assignee">{task.assignee}</span>
+            <span className="story-points">{task.storyPoints}p</span>
+          </div>
         </div>
       )}
     </Draggable>

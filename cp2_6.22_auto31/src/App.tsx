@@ -12,6 +12,8 @@ export default function App() {
   const [users, setUsers] = useState<User[]>([]);
   const [activityLogs, setActivityLogs] = useState<ActivityLogType[]>([]);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [modalMode, setModalMode] = useState<'create' | 'edit'>('edit');
   const [leftDrawerOpen, setLeftDrawerOpen] = useState(false);
   const [rightDrawerOpen, setRightDrawerOpen] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -97,19 +99,17 @@ export default function App() {
 
   const handleTaskClick = (task: Task) => {
     setSelectedTask(task);
+    setModalMode('edit');
+    setIsModalOpen(true);
   };
 
   const handleTaskSave = async (updatedTask: Task) => {
     try {
-      const res = await fetch(`/api/tasks/${updatedTask.id}`, {
+      await fetch(`/api/tasks/${updatedTask.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updatedTask),
       });
-      if (res.ok) {
-        const saved = await res.json();
-        setTasks(prev => prev.map(t => t.id === saved.id ? saved : t));
-      }
     } catch (error) {
       console.error('Failed to save task:', error);
     }
@@ -120,37 +120,41 @@ export default function App() {
       await fetch(`/api/tasks/${taskId}`, {
         method: 'DELETE',
       });
-      setTasks(prev => prev.filter(t => t.id !== taskId));
     } catch (error) {
       console.error('Failed to delete task:', error);
     }
   };
 
-  const handleCreateTask = async () => {
-    const title = window.prompt('请输入任务标题：');
-    if (!title?.trim()) return;
+  const handleCreateTask = () => {
+    setSelectedTask(null);
+    setModalMode('create');
+    setIsModalOpen(true);
+  };
 
+  const handleCreateSubmit = async (data: {
+    title: string;
+    description: string;
+    storyPoints: number;
+    priority: Task['priority'];
+    assignee: string;
+  }) => {
     const todoTasks = tasks.filter(t => t.status === 'todo');
     const newTask = {
-      title: title.trim(),
-      description: '',
+      title: data.title,
+      description: data.description,
       status: 'todo' as const,
-      priority: 'medium' as const,
-      assignee: '未分配',
-      storyPoints: 1,
+      priority: data.priority,
+      assignee: data.assignee,
+      storyPoints: data.storyPoints,
       order: todoTasks.length,
     };
 
     try {
-      const res = await fetch('/api/tasks', {
+      await fetch('/api/tasks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newTask),
       });
-      if (res.ok) {
-        const created = await res.json();
-        setTasks(prev => [...prev, created]);
-      }
     } catch (error) {
       console.error('Failed to create task:', error);
     }
@@ -215,6 +219,7 @@ export default function App() {
             tasks={tasks}
             onTaskClick={handleTaskClick}
             onTaskMove={handleTaskMove}
+            onCreateTask={handleCreateTask}
           />
         </div>
       </main>
@@ -234,12 +239,19 @@ export default function App() {
         </div>
       </aside>
 
-      <TaskModal
-        task={selectedTask}
-        onClose={() => setSelectedTask(null)}
-        onSave={handleTaskSave}
-        onDelete={handleTaskDelete}
-      />
+      {isModalOpen && (
+        <TaskModal
+          task={modalMode === 'edit' ? selectedTask : null}
+          isCreateMode={modalMode === 'create'}
+          onClose={() => {
+            setIsModalOpen(false);
+            setSelectedTask(null);
+          }}
+          onSave={handleTaskSave}
+          onCreate={handleCreateSubmit}
+          onDelete={handleTaskDelete}
+        />
+      )}
 
       <style>{`
         .app-layout {
