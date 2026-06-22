@@ -127,6 +127,22 @@
   font-size: 0.75rem;
   color: #8a8aa8;
   font-weight: 400;
+  transition: color 0.3s ease-out;
+}
+
+.note-counter.warning {
+  color: #FF9F43;
+}
+
+.note-counter.danger {
+  color: #FF6B6B;
+  font-weight: 600;
+}
+
+.tag-counter {
+  font-size: 0.75rem;
+  color: #8b9cf6;
+  font-weight: 500;
 }
 
 .tags-section {
@@ -162,6 +178,12 @@
   box-shadow: 0 2px 8px rgba(139, 156, 246, 0.4);
 }
 
+.tag-button.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
 .note-section {
   margin-bottom: 20px;
 }
@@ -188,6 +210,26 @@
 
 .note-input::placeholder {
   color: #a0a0c0;
+}
+
+.note-input.over-limit {
+  border-color: #FF6B6B;
+  box-shadow: 0 0 0 3px rgba(255, 107, 107, 0.2);
+}
+
+.note-warning {
+  font-size: 0.75rem;
+  color: #FF9F43;
+  margin: 6px 0 0 0;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.note-danger {
+  font-size: 0.75rem;
+  color: #FF6B6B;
+  margin: 6px 0 0 0;
+  font-weight: 500;
+  animation: fadeIn 0.3s ease-out;
 }
 
 .errors-container {

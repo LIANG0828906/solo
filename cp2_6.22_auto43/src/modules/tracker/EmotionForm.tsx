@@ -4,7 +4,8 @@ import {
   emotionConfigs, 
   availableTags, 
   validateInput, 
-  submitRecord 
+  submitRecord,
+  getNoteWarningLevel
 } from './TrackerModule';
 import EmotionCard from './EmotionCard';
 import './EmotionForm.css';
@@ -32,15 +33,22 @@ const EmotionForm: React.FC<EmotionFormProps> = ({ onSubmitSuccess }) => {
   }, []);
 
   const handleTagToggle = useCallback((tag: string) => {
-    setSelectedTags(prev => 
-      prev.includes(tag) 
-        ? prev.filter(t => t !== tag)
-        : prev.length < 3 ? [...prev, tag] : prev
-    );
+    setSelectedTags(prev => {
+      if (prev.includes(tag)) {
+        return prev.filter(t => t !== tag);
+      }
+      if (prev.length >= 3) {
+        return prev;
+      }
+      return [...prev, tag];
+    });
   }, []);
 
   const handleNoteChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setNote(e.target.value);
+    const value = e.target.value;
+    if (value.length <= 200) {
+      setNote(value);
+    }
   }, []);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -80,6 +88,7 @@ const EmotionForm: React.FC<EmotionFormProps> = ({ onSubmitSuccess }) => {
   }, [selectedEmotion, selectedTags, note, isSubmitting, onSubmitSuccess]);
 
   const emotions = Object.entries(emotionConfigs) as [EmotionType, typeof emotionConfigs[EmotionType]][];
+  const noteWarning = getNoteWarningLevel(note);
 
   return (
     <form className="emotion-form" onSubmit={handleSubmit}>
@@ -106,34 +115,50 @@ const EmotionForm: React.FC<EmotionFormProps> = ({ onSubmitSuccess }) => {
           </div>
 
           <div className="tags-section">
-            <label className="section-label">选择标签（最多3个）</label>
+            <label className="section-label">
+              选择标签（1-3个）
+              {selectedTags.length > 0 && (
+                <span className="tag-counter">已选 {selectedTags.length}/3</span>
+              )}
+            </label>
             <div className="tags-grid">
-              {availableTags.map(tag => (
-                <button
-                  key={tag}
-                  type="button"
-                  className={`tag-button ${selectedTags.includes(tag) ? 'selected' : ''}`}
-                  onClick={() => handleTagToggle(tag)}
-                >
-                  {tag}
-                </button>
-              ))}
+              {availableTags.map(tag => {
+                const isSelected = selectedTags.includes(tag);
+                const isDisabled = !isSelected && selectedTags.length >= 3;
+                return (
+                  <button
+                    key={tag}
+                    type="button"
+                    className={`tag-button ${isSelected ? 'selected' : ''} ${isDisabled ? 'disabled' : ''}`}
+                    onClick={() => handleTagToggle(tag)}
+                    disabled={isDisabled}
+                  >
+                    {tag}
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           <div className="note-section">
             <label className="section-label">
               文字备注
-              <span className="note-counter">{note.length}/200</span>
+              <span className={`note-counter ${noteWarning}`}>{note.length}/200</span>
             </label>
             <textarea
-              className="note-input"
+              className={`note-input ${noteWarning === 'danger' ? 'over-limit' : ''}`}
               value={note}
               onChange={handleNoteChange}
               placeholder="记录一下此刻的想法..."
               maxLength={200}
               rows={3}
             />
+            {noteWarning === 'warning' && (
+              <p className="note-warning">即将达到字数上限</p>
+            )}
+            {noteWarning === 'danger' && (
+              <p className="note-danger">已超过200字限制</p>
+            )}
           </div>
 
           {errors.length > 0 && (
@@ -147,7 +172,7 @@ const EmotionForm: React.FC<EmotionFormProps> = ({ onSubmitSuccess }) => {
           <button
             type="submit"
             className="submit-button"
-            disabled={!selectedEmotion || isSubmitting}
+            disabled={!selectedEmotion || selectedTags.length === 0 || isSubmitting}
           >
             {isSubmitting ? '保存中...' : '保存记录'}
           </button>

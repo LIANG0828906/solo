@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import type { DailyEmotionSummary, EmotionType } from '../shared/types';
 import { getDailySummaries, filterRecordsByEmotion } from './VisualizationModule';
 import { emotionConfigs } from '../tracker/TrackerModule';
+import { storageService } from '../shared/storageService';
 import './CalendarHeatmap.css';
 
 interface CalendarHeatmapProps {
@@ -15,6 +16,7 @@ const CalendarHeatmap: React.FC<CalendarHeatmapProps> = ({ refreshTrigger }) => 
   const [selectedEmotionFilter, setSelectedEmotionFilter] = useState<EmotionType | null>(null);
   const [slideDirection, setSlideDirection] = useState<'left' | 'right' | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [dayRecords, setDayRecords] = useState<DailyEmotionSummary | null>(null);
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -39,6 +41,7 @@ const CalendarHeatmap: React.FC<CalendarHeatmapProps> = ({ refreshTrigger }) => 
     setTimeout(() => {
       setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() - 1, 1));
       setSelectedDate(null);
+      setDayRecords(null);
       setSlideDirection(null);
     }, 200);
   }, []);
@@ -48,13 +51,39 @@ const CalendarHeatmap: React.FC<CalendarHeatmapProps> = ({ refreshTrigger }) => 
     setTimeout(() => {
       setCurrentDate(prev => new Date(prev.getFullYear(), prev.getMonth() + 1, 1));
       setSelectedDate(null);
+      setDayRecords(null);
       setSlideDirection(null);
     }, 200);
   }, []);
 
-  const handleDateClick = useCallback((date: string) => {
-    setSelectedDate(prev => prev === date ? null : date);
-  }, []);
+  const handleDateClick = useCallback(async (date: string) => {
+    if (selectedDate === date) {
+      setSelectedDate(null);
+      setDayRecords(null);
+      return;
+    }
+    setSelectedDate(date);
+    try {
+      const records = await storageService.getRecordsByDateRange(date, date);
+      const emotionCounts: Record<EmotionType, number> = {
+        happy: 0, sad: 0, angry: 0, calm: 0, anxious: 0, surprised: 0
+      };
+      records.forEach(r => { emotionCounts[r.emotion]++; });
+      const dominant = Object.entries(emotionCounts).sort((a, b) => b[1] - a[1])[0][0] as EmotionType;
+      const avgIntensity = records.length > 0
+        ? records.reduce((sum, r) => sum + emotionConfigs[r.emotion].intensity, 0) / records.length
+        : 0;
+      setDayRecords({
+        date,
+        avgIntensity,
+        records,
+        dominantEmotion: dominant
+      });
+    } catch (err) {
+      console.error('加载日期记录失败:', err);
+      setDayRecords(null);
+    }
+  }, [selectedDate]);
 
   const handleFilterChange = useCallback((emotion: EmotionType | null) => {
     setSelectedEmotionFilter(emotion);
@@ -81,21 +110,27 @@ const CalendarHeatmap: React.FC<CalendarHeatmapProps> = ({ refreshTrigger }) => 
     return days;
   }, [year, month, summaries]);
 
-  const selectedSummary = useMemo(() => {
-    if (!selectedDate) return null;
-    return summaries.find(s => s.date === selectedDate) || null;
-  }, [selectedDate, summaries]);
-
   const filteredRecords = useMemo(() => {
-    if (!selectedSummary) return [];
-    return filterRecordsByEmotion(selectedSummary.records, selectedEmotionFilter);
-  }, [selectedSummary, selectedEmotionFilter]);
+    if (!dayRecords) return [];
+    return filterRecordsByEmotion(dayRecords.records, selectedEmotionFilter);
+  }, [dayRecords, selectedEmotionFilter]);
 
-  const getIntensityColor = (intensity: number): string => {
-    if (intensity === 0) return 'rgba(255, 255, 255, 0.3)';
-    const alpha = 0.2 + (intensity / 10) * 0.7;
-    return `rgba(139, 156, 246, ${alpha})`;
-  };
+  const getIntensityColor = useCallback((summary: DailyEmotionSummary | undefined): string => {
+    if (!summary || summary.records.length === 0) return 'rgba(255, 255, 255, 0.3)';
+    
+    const intensity = summary.avgIntensity;
+    const dominantEmotion = summary.dominantEmotion;
+    const config = emotionConfigs[dominantEmotion];
+    const baseColor = config.color;
+    
+    const r = parseInt(baseColor.slice(1, 3), 16);
+    const g = parseInt(baseColor.slice(3, 5), 16);
+    const b = parseInt(baseColor.slice(5, 7), 16);
+    
+    const alpha = 0.15 + (intensity / 10) * 0.75;
+    
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }, []);
 
   const formatMonthYear = (date: Date): string => {
     return date.toLocaleDateString('zh-CN', { year: 'numeric', month: 'long' });
@@ -114,11 +149,11 @@ const CalendarHeatmap: React.FC<CalendarHeatmapProps> = ({ refreshTrigger }) => 
 
       <div className="glass-card">
         <div className="calendar-header">
-          <button className="nav-button" onClick={handlePrevMonth}>
+          <button className="nav-button" onClick={handlePrevMonth} type="button">
             ‹
           </button>
           <h3 className="month-title">{formatMonthYear(currentDate)}</h3>
-          <button className="nav-button" onClick={handleNextMonth}>
+          <button className="nav-button" onClick={handleNextMonth} type="button">
             ›
           </button>
         </div>
@@ -134,18 +169,16 @@ const CalendarHeatmap: React.FC<CalendarHeatmapProps> = ({ refreshTrigger }) => 
             {calendarDays.map(({ day, summary }, index) => (
               <div
                 key={index}
-                className={`day-cell ${day ? 'has-day' : ''} ${selectedDate === summary?.date ? 'selected' : ''}`}
-                onClick={() => day && summary && handleDateClick(summary.date)}
+                className={`day-cell ${day ? 'has-day' : ''} ${selectedDate === summary?.date ? 'selected' : ''} ${summary && summary.records.length > 0 ? 'has-records' : ''}`}
+                onClick={() => day && handleDateClick(summary?.date || `${year}-${String(month + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`)}
               >
                 {day && (
                   <>
                     <span className="day-number">{day}</span>
-                    {summary && summary.records.length > 0 && (
-                      <div 
-                        className="intensity-indicator"
-                        style={{ backgroundColor: getIntensityColor(summary.avgIntensity) }}
-                      />
-                    )}
+                    <div 
+                      className="intensity-indicator"
+                      style={{ backgroundColor: getIntensityColor(summary) }}
+                    />
                     {summary && summary.records.length > 0 && (
                       <span className="emoji-preview">
                         {emotionConfigs[summary.dominantEmotion].emoji}
@@ -161,17 +194,30 @@ const CalendarHeatmap: React.FC<CalendarHeatmapProps> = ({ refreshTrigger }) => 
         <div className="legend">
           <span className="legend-label">情绪强度：</span>
           <div className="legend-gradient" />
-          <span className="legend-text">低</span>
-          <span className="legend-text">高</span>
+          <span className="legend-text">低潮</span>
+          <span className="legend-text">高潮</span>
         </div>
       </div>
 
-      {selectedSummary && (
-        <div className="modal-overlay" onClick={() => setSelectedDate(null)}>
+      {selectedDate && dayRecords && (
+        <div className="modal-overlay" onClick={() => { setSelectedDate(null); setDayRecords(null); }}>
           <div className="modal-content" onClick={e => e.stopPropagation()}>
             <div className="modal-header">
-              <h3>{selectedDate}</h3>
-              <button className="close-button" onClick={() => setSelectedDate(null)}>×</button>
+              <h3>{selectedDate} 情绪记录</h3>
+              <button className="close-button" onClick={() => { setSelectedDate(null); setDayRecords(null); }} type="button">×</button>
+            </div>
+
+            <div className="modal-stats">
+              <div className="stat-item">
+                <span className="stat-emoji">{emotionConfigs[dayRecords.dominantEmotion].emoji}</span>
+                <span className="stat-label">主要情绪：{emotionConfigs[dayRecords.dominantEmotion].label}</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">平均强度：{dayRecords.avgIntensity.toFixed(1)}/10</span>
+              </div>
+              <div className="stat-item">
+                <span className="stat-label">记录数：{dayRecords.records.length}</span>
+              </div>
             </div>
 
             <div className="filter-section">
@@ -179,6 +225,7 @@ const CalendarHeatmap: React.FC<CalendarHeatmapProps> = ({ refreshTrigger }) => 
               <button
                 className={`filter-button ${selectedEmotionFilter === null ? 'active' : ''}`}
                 onClick={() => handleFilterChange(null)}
+                type="button"
               >
                 全部
               </button>
@@ -188,6 +235,7 @@ const CalendarHeatmap: React.FC<CalendarHeatmapProps> = ({ refreshTrigger }) => 
                   className={`filter-button ${selectedEmotionFilter === type ? 'active' : ''}`}
                   onClick={() => handleFilterChange(type)}
                   style={{ '--filter-color': config.color } as React.CSSProperties}
+                  type="button"
                 >
                   {config.emoji}
                 </button>
@@ -205,6 +253,9 @@ const CalendarHeatmap: React.FC<CalendarHeatmapProps> = ({ refreshTrigger }) => 
                       <div className="record-meta">
                         <span className="record-time">
                           {new Date(record.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
+                        </span>
+                        <span className="record-emotion-label" style={{ color: emotionConfigs[record.emotion].color }}>
+                          {emotionConfigs[record.emotion].label}
                         </span>
                         {record.tags.length > 0 && (
                           <div className="record-tags">

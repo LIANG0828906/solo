@@ -19,18 +19,33 @@ export function validateInput(emotion: EmotionType | null, tags: string[], note:
     errors.push('请选择一种情绪');
   }
   
+  if (tags.length === 0) {
+    errors.push('请至少选择1个标签');
+  }
+  
   if (tags.length > 3) {
     errors.push('最多只能选择3个标签');
   }
   
   if (note.length > 200) {
-    errors.push('备注文字不能超过200字');
+    errors.push(`备注文字不能超过200字，当前已输入${note.length}字`);
   }
   
   return {
     isValid: errors.length === 0,
     errors
   };
+}
+
+export function isNoteOverLimit(note: string): boolean {
+  return note.length > 200;
+}
+
+export function getNoteWarningLevel(note: string): 'normal' | 'warning' | 'danger' {
+  const len = note.length;
+  if (len <= 150) return 'normal';
+  if (len <= 200) return 'warning';
+  return 'danger';
 }
 
 export async function submitRecord(
