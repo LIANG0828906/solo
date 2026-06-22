@@ -1,0 +1,323 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Hiragino Sans GB',
+    'Microsoft YaHei', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  background: #F3F4F6;
+  color: #1F2937;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.app-container {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  background: white;
+  border-bottom: 1px solid #E5E7EB;
+  padding: 0 24px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.header-content {
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+
+.app-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #1F2937;
+  margin: 0;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.app-main {
+  flex: 1;
+  max-width: 1400px;
+  margin: 0 auto;
+  width: 100%;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  position: relative;
+}
+
+.main-content {
+  display: flex;
+  gap: 24px;
+  width: 100%;
+}
+
+.main-left {
+  flex: 0 0 calc(70% - 12px);
+  min-width: 0;
+}
+
+.main-right {
+  flex: 0 0 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: sticky;
+  top: 88px;
+  align-self: flex-start;
+  max-height: calc(100vh - 112px);
+  overflow-y: auto;
+}
+
+.bottom-chart {
+  width: 100%;
+}
+
+.bottom-chart .chart-section {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.bottom-chart .bar-chart-container {
+  width: 100%;
+  height: 300px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.section-header h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1F2937;
+  margin: 0;
+}
+
+.day-tabs {
+  display: flex;
+  gap: 4px;
+  background: #E5E7EB;
+  padding: 3px;
+  border-radius: 8px;
+}
+
+.day-tab {
+  padding: 6px 12px;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: #6B7280;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.day-tab:hover {
+  color: #374151;
+}
+
+.day-tab.active {
+  background: white;
+  color: #4F46E5;
+  font-weight: 500;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.mobile-panel {
+  display: none;
+}
+
+.btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  border: none;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background: #4F46E5;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #4338CA;
+}
+
+.btn-secondary {
+  background: #6B7280;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #4B5563;
+}
+
+.btn-danger {
+  background: #EF4444;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #DC2626;
+}
+
+.btn-outline {
+  background: white;
+  color: #6B7280;
+  border: 1px solid #D1D5DB;
+}
+
+.btn-outline:hover {
+  background: #F9FAFB;
+  border-color: #9CA3AF;
+}
+
+@media (max-width: 1024px) {
+  .main-left {
+    flex: 0 0 calc(65% - 12px);
+  }
+
+  .main-right {
+    flex: 0 0 280px;
+  }
+}
+
+@media (max-width: 768px) {
+  .app-main {
+    padding: 16px;
+    padding-bottom: 80px;
+  }
+
+  .main-content {
+    flex-direction: column;
+  }
+
+  .main-left {
+    flex: none;
+    width: 100%;
+  }
+
+  .main-right.desktop-only {
+    display: none;
+  }
+
+  .mobile-panel {
+    display: block;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: white;
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.1);
+    z-index: 50;
+    transition: height 0.3s ease;
+    height: 50px;
+    overflow: hidden;
+  }
+
+  .mobile-panel.open {
+    height: 60vh;
+  }
+
+  .mobile-panel-handle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 10px 0;
+    cursor: pointer;
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .handle-bar {
+    width: 40px;
+    height: 4px;
+    background: #D1D5DB;
+    border-radius: 2px;
+  }
+
+  .mobile-panel-handle span {
+    font-size: 13px;
+    color: #6B7280;
+  }
+
+  .mobile-panel-content {
+    padding: 0 16px 20px;
+    height: calc(60vh - 50px);
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .header-content {
+    height: 56px;
+  }
+
+  .app-title {
+    font-size: 16px;
+  }
+
+  .header-actions .btn {
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+
+  .day-tabs {
+    overflow-x: auto;
+    max-width: 100%;
+  }
+
+  .section-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .bottom-chart .bar-chart-container {
+    height: 250px;
+  }
+}
+
+@media (max-width: 480px) {
+  .app-main {
+    padding: 12px;
+  }
+
+  .app-header {
+    padding: 0 16px;
+  }
+}

@@ -1,0 +1,96 @@
+.nutrition-chart {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.daily-summary-card {
+  background: linear-gradient(135deg, #4F46E5 0%, #7C3AED 100%);
+  color: white;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.summary-title {
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0.9;
+  margin: 0;
+}
+
+.summary-day {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 4px 0 16px 0;
+}
+
+.nutrient-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.nutrient-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.nutrient-label {
+  font-size: 12px;
+  opacity: 0.85;
+}
+
+.nutrient-value {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.nutrient-value span {
+  font-size: 12px;
+  font-weight: 400;
+  opacity: 0.8;
+}
+
+.nutrient-bar {
+  height: 4px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.nutrient-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.nutrient-pct {
+  font-size: 11px;
+  opacity: 0.75;
+}
+
+.chart-section {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.chart-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+  margin: 0 0 12px 0;
+}
+
+.bar-chart-container,
+.pie-chart-container {
+  width: 100%;
+}
+
+.nutrition-loading {
+  text-align: center;
+  color: #9CA3AF;
+  padding: 40px;
+}
