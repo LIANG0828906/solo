@@ -169,11 +169,14 @@
 
 .story-points {
   font-size: 11px;
-  color: #7f8c8d;
-  background-color: #ecf0f1;
-  padding: 2px 8px;
+  color: #3498db;
+  background-color: rgba(52, 152, 219, 0.12);
+  padding: 3px 8px;
   border-radius: 10px;
-  font-weight: 500;
+  font-weight: 600;
+  border: 1px solid rgba(52, 152, 219, 0.2);
+  line-height: 1;
+  flex-shrink: 0;
 }
 
 .modal-card {

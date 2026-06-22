@@ -10,8 +10,8 @@ interface TaskCardProps {
 
 export default function TaskCard({ task, index, onClick }: TaskCardProps) {
   const priorityClass = `priority-${task.priority}`;
-  const descriptionPreview = task.description?.slice(0, 40);
-  const hasMore = task.description && task.description.length > 40;
+  const descriptionPreview = task.description?.slice(0, 30);
+  const hasMore = task.description && task.description.length > 30;
 
   return (
     <Draggable draggableId={task.id} index={index}>

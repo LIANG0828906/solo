@@ -26,17 +26,17 @@ export default function TaskModal({ task, isCreateMode = false, onClose, onSave,
       setPriority('medium');
       setAssignee('未分配');
       setStoryPoints(1);
-      setIsVisible(true);
     } else if (task) {
       setTitle(task.title);
       setDescription(task.description);
       setPriority(task.priority);
       setAssignee(task.assignee);
       setStoryPoints(task.storyPoints);
-      setIsVisible(true);
-    } else {
-      setIsVisible(false);
     }
+    const timer = requestAnimationFrame(() => {
+      setIsVisible(true);
+    });
+    return () => cancelAnimationFrame(timer);
   }, [task, isCreateMode]);
 
   useEffect(() => {
@@ -45,15 +45,11 @@ export default function TaskModal({ task, isCreateMode = false, onClose, onSave,
         handleClose();
       }
     };
-
-    if (task || isCreateMode) {
-      document.addEventListener('keydown', handleKeyDown);
-    }
-
+    document.addEventListener('keydown', handleKeyDown);
     return () => {
       document.removeEventListener('keydown', handleKeyDown);
     };
-  }, [task, isCreateMode, onClose]);
+  }, [onClose]);
 
   const handleClose = () => {
     setIsVisible(false);
@@ -100,10 +96,6 @@ export default function TaskModal({ task, isCreateMode = false, onClose, onSave,
       handleClose();
     }
   };
-
-  const showModal = isCreateMode || (task !== null && isVisible);
-
-  if (!showModal && !isVisible) return null;
 
   return (
     <div
