@@ -407,6 +407,6 @@ app.post('/api/reset', (_req, res) => {
   res.json({ success: true, message: '所有数据已重置' });
 });
 
-app.listen(3001, () => {
-  console.log('Express server running on http://localhost:3001');
+app.listen(3002, () => {
+  console.log('Express server running on http://localhost:3002');
 });
