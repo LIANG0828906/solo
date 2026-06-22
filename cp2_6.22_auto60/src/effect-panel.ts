@@ -9,7 +9,7 @@ export class EffectPanel {
     this.bindModeButtons();
     this.bindSliders();
     this.bindTransport();
-    this.bindMouseColorToggle();
+    this.bindColorModeSwitcher();
   }
 
   onParamChange(cb: (params: Partial<VisualizerParams>) => void): void {
@@ -73,14 +73,17 @@ export class EffectPanel {
 
   }
 
-  private bindMouseColorToggle(): void {
-    const toggle = document.getElementById('mouseColorToggle');
-    if (!toggle) return;
-
-    toggle.addEventListener('click', () => {
-      this.mouseColorMode = !this.mouseColorMode;
-      toggle.classList.toggle('active', this.mouseColorMode);
-      this.emitParamChange({ mouseColorMode: this.mouseColorMode });
+  private bindColorModeSwitcher(): void {
+    const btns = document.querySelectorAll('.color-mode-btn');
+    btns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        const colorMode = (btn as HTMLElement).dataset.colormode;
+        const isMouseMode = colorMode === 'mouse';
+        this.mouseColorMode = isMouseMode;
+        btns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.emitParamChange({ mouseColorMode: isMouseMode });
+      });
     });
   }
 

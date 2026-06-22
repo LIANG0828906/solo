@@ -376,53 +376,37 @@
       text-align: center;
     }
 
-    .mouse-color-toggle {
+    .color-mode-switcher {
       display: flex;
-      align-items: center;
-      gap: 6px;
+      gap: 2px;
       flex-shrink: 0;
+      border: 1px solid var(--glass-border);
+      border-radius: 6px;
+      overflow: hidden;
     }
 
-    .mouse-color-toggle label {
-      font-size: 10px;
+    .color-mode-btn {
+      padding: 5px 12px;
+      border: none;
+      background: transparent;
       color: var(--text-secondary);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 10px;
+      font-weight: 500;
       cursor: pointer;
-      transition: color var(--transition-speed) ease;
+      transition: all var(--transition-speed) ease;
+      white-space: nowrap;
     }
 
-    .mouse-color-toggle label:hover {
+    .color-mode-btn:hover {
       color: var(--text-primary);
+      background: rgba(255, 255, 255, 0.04);
     }
 
-    .toggle-switch {
-      position: relative;
-      width: 36px;
-      height: 18px;
-      border-radius: 9px;
-      background: rgba(255, 255, 255, 0.08);
-      cursor: pointer;
-      transition: background var(--transition-speed) ease;
-    }
-
-    .toggle-switch.active {
+    .color-mode-btn.active {
+      color: var(--bg-deep);
       background: linear-gradient(90deg, var(--neon-magenta), var(--neon-cyan));
-      box-shadow: 0 0 8px rgba(255, 0, 128, 0.3);
-    }
-
-    .toggle-switch::after {
-      content: '';
-      position: absolute;
-      top: 2px;
-      left: 2px;
-      width: 14px;
-      height: 14px;
-      border-radius: 50%;
-      background: #fff;
-      transition: transform var(--transition-speed) ease;
-    }
-
-    .toggle-switch.active::after {
-      transform: translateX(18px);
+      box-shadow: 0 0 10px rgba(255, 0, 128, 0.3);
     }
 
     @keyframes pulse-glow {
@@ -507,9 +491,9 @@
         </div>
       </div>
 
-      <div class="mouse-color-toggle">
-        <label>鼠标控色</label>
-        <div class="toggle-switch" id="mouseColorToggle"></div>
+      <div class="color-mode-switcher">
+        <button class="color-mode-btn active" data-colormode="frequency">频率变化</button>
+        <button class="color-mode-btn" data-colormode="mouse">鼠标控制</button>
       </div>
     </div>
   </div>

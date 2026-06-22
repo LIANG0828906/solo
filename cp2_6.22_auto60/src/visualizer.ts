@@ -30,6 +30,7 @@ interface Ripple {
   duration: number;
   thickness: number;
   alpha: number;
+  prevRadius: number;
 }
 
 export class Visualizer {
@@ -51,6 +52,9 @@ export class Visualizer {
   private modeTransition = 1;
   private prevMode: VisualMode = 'particles';
   private frequencyData: Uint8Array = new Uint8Array(0);
+  private fpsFrames = 0;
+  private fpsTime = 0;
+  private currentFps = 0;
 
   constructor(canvas: HTMLCanvasElement) {
     this.canvas = canvas;
@@ -189,11 +193,12 @@ export class Visualizer {
       x,
       y,
       radius: 0,
-      maxRadius: 250,
+      maxRadius: 300,
       startTime: performance.now(),
       duration: 500,
-      thickness: 30,
+      thickness: 40,
       alpha: 1,
+      prevRadius: 0,
     });
   }
 
@@ -232,10 +237,22 @@ export class Visualizer {
     const dt = Math.min((now - this.lastTime) / 1000, 0.05);
     this.lastTime = now;
 
+    this.fpsFrames++;
+    this.fpsTime += dt;
+    if (this.fpsTime >= 1) {
+      this.currentFps = this.fpsFrames;
+      this.fpsFrames = 0;
+      this.fpsTime = 0;
+    }
+
     this.update(dt, now);
     this.render();
 
     this.rafId = requestAnimationFrame(() => this.loop());
+  }
+
+  getFps(): number {
+    return this.currentFps;
   }
 
   private update(dt: number, now: number): void {
@@ -258,8 +275,9 @@ export class Visualizer {
     this.ripples = this.ripples.filter(r => {
       const elapsed = now - r.startTime;
       const progress = elapsed / r.duration;
+      r.prevRadius = r.radius;
       r.radius = r.maxRadius * this.easeOutCubic(progress);
-      r.alpha = 1 - progress;
+      r.alpha = 1 - this.easeOutCubic(progress);
       return progress < 1;
     });
 
@@ -289,13 +307,22 @@ export class Visualizer {
       if (this.mouseInCanvas && this.attractionRadius > 5) {
         const dx = this.mouseX - p.x;
         const dy = this.mouseY - p.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+        const distSq = dx * dx + dy * dy;
+        const attractRadSq = this.attractionRadius * this.attractionRadius;
 
-        if (dist < this.attractionRadius && dist > 1) {
-          const normalizedDist = dist / this.attractionRadius;
-          const force = (1 - normalizedDist) * (1 - normalizedDist) * 120 * dt;
-          p.vx += (dx / dist) * force;
-          p.vy += (dy / dist) * force;
+        if (distSq < attractRadSq) {
+          const dist = Math.sqrt(distSq);
+          if (dist > 3) {
+            const deadZone = 12;
+            const effectiveDist = Math.max(dist - deadZone, 0);
+            const maxEffectiveDist = this.attractionRadius - deadZone;
+            const normalizedDist = maxEffectiveDist > 0 ? effectiveDist / maxEffectiveDist : 0;
+            const forceMag = Math.exp(-normalizedDist * 3) * 160 * dt;
+            const dirX = dx / dist;
+            const dirY = dy / dist;
+            p.vx += dirX * forceMag;
+            p.vy += dirY * forceMag;
+          }
         }
       }
 
@@ -303,15 +330,19 @@ export class Visualizer {
         const dx = p.x - r.x;
         const dy = p.y - r.y;
         const dist = Math.sqrt(dx * dx + dy * dy);
-        const ringDist = Math.abs(dist - r.radius);
 
-        if (ringDist < r.thickness) {
-          const intensity = (1 - ringDist / r.thickness) * r.alpha;
-          p.rippleWhite = Math.max(p.rippleWhite, intensity);
-          p.rippleScale = Math.max(p.rippleScale, intensity * 1.8);
+        const ringInner = r.prevRadius - r.thickness * 0.5;
+        const ringOuter = r.radius + r.thickness * 0.5;
 
-          if (intensity > 0.3) {
-            const pushForce = intensity * 40 * dt;
+        if (dist >= ringInner && dist <= ringOuter) {
+          const distFromFront = Math.abs(dist - r.radius);
+          const intensity = (1 - distFromFront / (r.thickness * 0.5)) * r.alpha;
+
+          if (intensity > 0) {
+            p.rippleWhite = Math.max(p.rippleWhite, intensity * 0.95);
+            p.rippleScale = Math.max(p.rippleScale, intensity * 2.0);
+
+            const pushForce = intensity * 60 * dt;
             if (dist > 1) {
               p.vx += (dx / dist) * pushForce;
               p.vy += (dy / dist) * pushForce;
@@ -408,6 +439,8 @@ export class Visualizer {
     if (this.mouseInCanvas && this.attractionRadius > 10) {
       this.renderAttractionZone(w, h);
     }
+
+    this.renderFps(w, h);
 
     this.ctx.restore();
   }
@@ -535,17 +568,40 @@ export class Visualizer {
 
   private renderRipples(_w: number, _h: number): void {
     for (const r of this.ripples) {
+      const coreWidth = 2 + r.alpha * 2;
       this.ctx.beginPath();
       this.ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
-      this.ctx.strokeStyle = `rgba(255, 255, 255, ${r.alpha * 0.6})`;
-      this.ctx.lineWidth = 2;
+      this.ctx.strokeStyle = `rgba(255, 255, 255, ${r.alpha * 0.8})`;
+      this.ctx.lineWidth = coreWidth;
       this.ctx.stroke();
 
+      const glowWidth = r.thickness * r.alpha * 0.6;
       this.ctx.beginPath();
       this.ctx.arc(r.x, r.y, r.radius, 0, Math.PI * 2);
-      this.ctx.strokeStyle = `rgba(0, 255, 255, ${r.alpha * 0.3})`;
-      this.ctx.lineWidth = r.thickness * r.alpha;
+      this.ctx.strokeStyle = `rgba(0, 255, 255, ${r.alpha * 0.25})`;
+      this.ctx.lineWidth = glowWidth;
       this.ctx.stroke();
+
+      if (r.alpha > 0.3) {
+        const innerRadius = r.radius * 0.85;
+        this.ctx.beginPath();
+        this.ctx.arc(r.x, r.y, innerRadius, 0, Math.PI * 2);
+        this.ctx.strokeStyle = `rgba(170, 255, 0, ${r.alpha * 0.15})`;
+        this.ctx.lineWidth = coreWidth * 0.5;
+        this.ctx.stroke();
+      }
+
+      const grad = this.ctx.createRadialGradient(
+        r.x, r.y, r.radius * 0.9,
+        r.x, r.y, r.radius * 1.1
+      );
+      grad.addColorStop(0, 'transparent');
+      grad.addColorStop(0.5, `rgba(0, 255, 255, ${r.alpha * 0.08})`);
+      grad.addColorStop(1, 'transparent');
+      this.ctx.fillStyle = grad;
+      this.ctx.beginPath();
+      this.ctx.arc(r.x, r.y, r.radius * 1.1, 0, Math.PI * 2);
+      this.ctx.fill();
     }
   }
 
@@ -595,5 +651,15 @@ export class Visualizer {
       b = hue2rgb(p, q, h - 1/3);
     }
     return [r * 255, g * 255, b * 255];
+  }
+
+  private renderFps(w: number, _h: number): void {
+    const fps = this.currentFps;
+    const color = fps >= 55 ? 'rgba(170,255,0,0.6)' : fps >= 30 ? 'rgba(255,200,0,0.7)' : 'rgba(255,60,60,0.8)';
+    this.ctx.font = '11px "JetBrains Mono", monospace';
+    this.ctx.fillStyle = color;
+    this.ctx.textAlign = 'right';
+    this.ctx.fillText(`${fps} FPS | ${this.particles.length} particles`, w - 12, 18);
+    this.ctx.textAlign = 'left';
   }
 }
