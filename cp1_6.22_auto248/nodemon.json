@@ -1,0 +1,14 @@
+{
+  // 监听目录：后端服务目录
+  "watch": ["server"],
+  // 监听的文件扩展名
+  "ext": "ts,mts,js,json",
+  // 忽略的目录
+  "ignore": ["server/dist/*"],
+  // 执行的命令：使用 tsx 运行服务端入口文件
+  "exec": "tsx server/index.ts",
+  "env": {
+    "NODE_ENV": "development"
+  },
+  "delay": 1000
+}
