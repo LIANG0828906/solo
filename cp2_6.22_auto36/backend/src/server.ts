@@ -68,6 +68,18 @@ io.on('connection', (socket) => {
           }
           break;
         }
+        case 'UPDATE_CARD_PRIORITY': {
+          const { id, priority } = evt.payload;
+          const result = store.updateCard(id, { priority });
+          if (result) {
+            const msg: ServerEvent = {
+              type: 'CARD_PRIORITY_UPDATED',
+              payload: { id, priority },
+            };
+            io.emit('message', msg);
+          }
+          break;
+        }
         case 'DELETE_CARD': {
           const deleted = store.deleteCard(evt.payload.id);
           if (deleted) {

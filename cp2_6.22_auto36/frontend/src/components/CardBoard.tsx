@@ -10,10 +10,17 @@ import type {
   BoardState,
   Card,
   CardColor,
+  CardPriority,
   ClientEvent,
   Vote,
 } from '@shared/types';
-import { CARD_COLOR_LIST, CARD_COLORS } from '@shared/types';
+import {
+  CARD_COLOR_LIST,
+  CARD_COLORS,
+  PRIORITY_LIST,
+  PRIORITY_LABELS,
+  PRIORITY_COLORS,
+} from '@shared/types';
 import { CardItem, SNAP_THRESHOLD, SNAP_OFFSET } from './CardItem';
 import type { useWebSocket } from '../hooks/useWebSocket';
 
@@ -114,6 +121,19 @@ export const CardBoard: React.FC<{ ws: UseWebSocketReturn }> = ({ ws }) => {
         })
       );
     });
+    const unsubPriorityUpdated = ws.on(
+      'CARD_PRIORITY_UPDATED',
+      (p: { id: string; priority: CardPriority }) => {
+        setCards((prev) =>
+          produce(prev, (draft) => {
+            const c = draft.find((cc) => cc.id === p.id);
+            if (c) {
+              c.priority = p.priority;
+            }
+          })
+        );
+      }
+    );
     const unsubDeleted = ws.on('CARD_DELETED', (p: { id: string }) => {
       setCards((prev) => prev.filter((c) => c.id !== p.id));
       setVotes((prev) => prev.filter((v) => v.cardId !== p.id));
@@ -146,6 +166,7 @@ export const CardBoard: React.FC<{ ws: UseWebSocketReturn }> = ({ ws }) => {
       unsubAdded();
       unsubMoved();
       unsubUpdated();
+      unsubPriorityUpdated();
       unsubDeleted();
       unsubVoted();
       unsubErr();
@@ -504,16 +525,46 @@ export const CardBoard: React.FC<{ ws: UseWebSocketReturn }> = ({ ws }) => {
     [send]
   );
 
+  const handleUpdatePriority = useCallback(
+    (cardId: string, priority: CardPriority) => {
+      const evt: ClientEvent = {
+        type: 'UPDATE_CARD_PRIORITY',
+        payload: { id: cardId, priority },
+      };
+      send(evt);
+    },
+    [send]
+  );
+
+  const handleUpdateCard = useCallback(
+    (payload: {
+      id: string;
+      title: string;
+      description: string;
+      imageUrl?: string;
+      color: CardColor;
+    }) => {
+      const evt: ClientEvent = {
+        type: 'UPDATE_CARD',
+        payload,
+      };
+      send(evt);
+    },
+    [send]
+  );
+
   const [formTitle, setFormTitle] = useState('');
   const [formDesc, setFormDesc] = useState('');
   const [formImg, setFormImg] = useState('');
   const [formColor, setFormColor] = useState<CardColor>('sky');
+  const [formPriority, setFormPriority] = useState<CardPriority>('medium');
 
   const openAddModal = useCallback(() => {
     setFormTitle('');
     setFormDesc('');
     setFormImg('');
     setFormColor('sky');
+    setFormPriority('medium');
     setShowAddModal(true);
   }, []);
 
@@ -532,6 +583,7 @@ export const CardBoard: React.FC<{ ws: UseWebSocketReturn }> = ({ ws }) => {
         description: formDesc.trim(),
         imageUrl: formImg.trim() || undefined,
         color: formColor,
+        priority: formPriority,
         x: x - CARD_WIDTH / 2,
         y: y - 90,
         width: CARD_WIDTH,
@@ -539,7 +591,7 @@ export const CardBoard: React.FC<{ ws: UseWebSocketReturn }> = ({ ws }) => {
     };
     send(evt);
     setShowAddModal(false);
-  }, [formTitle, formDesc, formImg, formColor, clientToCanvas, send]);
+  }, [formTitle, formDesc, formImg, formColor, formPriority, clientToCanvas, send]);
 
   return (
     <div className="board-app">
@@ -651,6 +703,8 @@ export const CardBoard: React.FC<{ ws: UseWebSocketReturn }> = ({ ws }) => {
                   onDragStart={handleCardDragStart}
                   onToggleVote={handleToggleVote}
                   onDelete={handleDeleteCard}
+                  onUpdatePriority={handleUpdatePriority}
+                  onUpdateCard={handleUpdateCard}
                 />
               </div>
             );
@@ -711,6 +765,29 @@ export const CardBoard: React.FC<{ ws: UseWebSocketReturn }> = ({ ws }) => {
                     style={{ background: CARD_COLORS[color] }}
                     onClick={() => setFormColor(color)}
                   />
+                ))}
+              </div>
+            </div>
+            <div className="form-field">
+              <label className="form-field__label">优先级</label>
+              <div className="edit-form__priority-row">
+                {PRIORITY_LIST.map((p) => (
+                  <button
+                    key={p}
+                    className={[
+                      'edit-form__priority-btn',
+                      formPriority === p ? 'is-selected' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    onClick={() => setFormPriority(p)}
+                  >
+                    <span
+                      className="edit-form__priority-dot"
+                      style={{ background: PRIORITY_COLORS[p] }}
+                    />
+                    {PRIORITY_LABELS[p]}
+                  </button>
                 ))}
               </div>
             </div>

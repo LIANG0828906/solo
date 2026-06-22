@@ -1,6 +1,16 @@
 import React, { useCallback, useRef, useState } from 'react';
-import type { Card, CardColor } from '@shared/types';
-import { CARD_COLORS } from '@shared/types';
+import type {
+  Card,
+  CardColor,
+  CardPriority,
+} from '@shared/types';
+import {
+  CARD_COLORS,
+  CARD_COLOR_LIST,
+  PRIORITY_COLORS,
+  PRIORITY_LABELS,
+  PRIORITY_LIST,
+} from '@shared/types';
 
 interface CardItemProps {
   card: Card;
@@ -16,6 +26,14 @@ interface CardItemProps {
   ) => void;
   onToggleVote: (cardId: string) => void;
   onDelete: (cardId: string) => void;
+  onUpdatePriority: (cardId: string, priority: CardPriority) => void;
+  onUpdateCard: (payload: {
+    id: string;
+    title: string;
+    description: string;
+    imageUrl?: string;
+    color: CardColor;
+  }) => void;
 }
 
 const SNAP_THRESHOLD = 8;
@@ -32,10 +50,55 @@ export const CardItem: React.FC<CardItemProps> = ({
   onDragStart,
   onToggleVote,
   onDelete,
+  onUpdatePriority,
+  onUpdateCard,
 }) => {
   const cardRef = useRef<HTMLDivElement>(null);
   const [showParticles, setShowParticles] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editTitle, setEditTitle] = useState(card.title);
+  const [editDesc, setEditDesc] = useState(card.description);
+  const [editImg, setEditImg] = useState(card.imageUrl || '');
+  const [editColor, setEditColor] = useState<CardColor>(card.color);
+  const [editPriority, setEditPriority] = useState<CardPriority>(card.priority);
+
+  const openEditModal = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      setEditTitle(card.title);
+      setEditDesc(card.description);
+      setEditImg(card.imageUrl || '');
+      setEditColor(card.color);
+      setEditPriority(card.priority);
+      setShowEditModal(true);
+    },
+    [card]
+  );
+
+  const submitEdit = useCallback(() => {
+    if (!editTitle.trim()) return;
+    onUpdateCard({
+      id: card.id,
+      title: editTitle.trim(),
+      description: editDesc.trim(),
+      imageUrl: editImg.trim() || undefined,
+      color: editColor,
+    });
+    if (editPriority !== card.priority) {
+      onUpdatePriority(card.id, editPriority);
+    }
+    setShowEditModal(false);
+  }, [
+    editTitle,
+    editDesc,
+    editImg,
+    editColor,
+    editPriority,
+    card,
+    onUpdateCard,
+    onUpdatePriority,
+  ]);
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -43,6 +106,8 @@ export const CardItem: React.FC<CardItemProps> = ({
       const target = e.target as HTMLElement;
       if (target.closest('.card-item__vote-btn')) return;
       if (target.closest('.card-item__delete')) return;
+      if (target.closest('.card-item__edit')) return;
+      if (target.closest('.card-item__priority-badge')) return;
       onDragStart(card.id, e);
     },
     [card.id, isFiltered, onDragStart]
@@ -61,6 +126,17 @@ export const CardItem: React.FC<CardItemProps> = ({
     e.stopPropagation();
     setShowDeleteConfirm(true);
   }, []);
+
+  const handlePriorityBadgeClick = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      const cycle: CardPriority[] = ['low', 'medium', 'high'];
+      const idx = cycle.indexOf(card.priority);
+      const next = cycle[(idx + 1) % cycle.length];
+      onUpdatePriority(card.id, next);
+    },
+    [card.id, card.priority, onUpdatePriority]
+  );
 
   const transformParts: string[] = [];
   if (spaceOffset) {
@@ -103,6 +179,13 @@ export const CardItem: React.FC<CardItemProps> = ({
           style={{ background: CARD_COLORS[card.color as CardColor] }}
         />
         <button
+          className="card-item__edit"
+          onClick={openEditModal}
+          title="编辑卡片"
+        >
+          ✎
+        </button>
+        <button
           className="card-item__delete"
           onClick={handleDeleteClick}
           title="删除卡片"
@@ -110,7 +193,17 @@ export const CardItem: React.FC<CardItemProps> = ({
           ×
         </button>
         <div className="card-item__body">
-          <h3 className="card-item__title">{card.title}</h3>
+          <h3 className="card-item__title">
+            <span style={{ flex: 1, minWidth: 0 }}>{card.title}</span>
+            <span
+              className="card-item__priority-badge"
+              style={{ background: PRIORITY_COLORS[card.priority] }}
+              onClick={handlePriorityBadgeClick}
+              title={`优先级：${PRIORITY_LABELS[card.priority]}（点击切换）`}
+            >
+              {PRIORITY_LABELS[card.priority]}
+            </span>
+          </h3>
           {card.description && (
             <p className="card-item__description">{card.description}</p>
           )}
@@ -193,6 +286,104 @@ export const CardItem: React.FC<CardItemProps> = ({
                 }}
               >
                 删除
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showEditModal && (
+        <div
+          className="modal-overlay"
+          onClick={() => setShowEditModal(false)}
+        >
+          <div
+            className="modal-card"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <h3 className="modal-card__title">编辑卡片</h3>
+            <div className="form-field">
+              <label className="form-field__label">标题</label>
+              <input
+                className="form-field__input"
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                placeholder="输入卡片标题"
+                autoFocus
+              />
+            </div>
+            <div className="form-field">
+              <label className="form-field__label">描述</label>
+              <textarea
+                className="form-field__textarea"
+                value={editDesc}
+                onChange={(e) => setEditDesc(e.target.value)}
+                placeholder="简要描述创意要点"
+              />
+            </div>
+            <div className="form-field">
+              <label className="form-field__label">图片 URL（可选）</label>
+              <input
+                className="form-field__input"
+                value={editImg}
+                onChange={(e) => setEditImg(e.target.value)}
+                placeholder="https://..."
+              />
+            </div>
+            <div className="form-field">
+              <label className="form-field__label">标签颜色</label>
+              <div className="form-field__colors">
+                {CARD_COLOR_LIST.map((color) => (
+                  <button
+                    key={color}
+                    className={[
+                      'form-color',
+                      editColor === color ? 'is-selected' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    style={{ background: CARD_COLORS[color] }}
+                    onClick={() => setEditColor(color)}
+                  />
+                ))}
+              </div>
+            </div>
+            <div className="form-field">
+              <label className="form-field__label">优先级</label>
+              <div className="edit-form__priority-row">
+                {PRIORITY_LIST.map((p) => (
+                  <button
+                    key={p}
+                    className={[
+                      'edit-form__priority-btn',
+                      editPriority === p ? 'is-selected' : '',
+                    ]
+                      .filter(Boolean)
+                      .join(' ')}
+                    onClick={() => setEditPriority(p)}
+                  >
+                    <span
+                      className="edit-form__priority-dot"
+                      style={{ background: PRIORITY_COLORS[p] }}
+                    />
+                    {PRIORITY_LABELS[p]}优先级
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="modal-actions">
+              <button
+                className="btn btn--secondary"
+                onClick={() => setShowEditModal(false)}
+              >
+                取消
+              </button>
+              <button
+                className="btn btn--primary"
+                onClick={submitEdit}
+                disabled={!editTitle.trim()}
+              >
+                保存
               </button>
             </div>
           </div>
