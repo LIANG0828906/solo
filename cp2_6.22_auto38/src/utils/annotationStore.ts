@@ -303,6 +303,7 @@ class AnnotationStore {
       this.emit('cursor:moved', this.users.slice());
     };
     this._cursorTimer = setInterval(tick, 3500);
+    void this._cursorTimer;
   }
 
   private handleAutoReply(payload: unknown): void {
