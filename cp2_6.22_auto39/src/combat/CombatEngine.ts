@@ -1,17 +1,88 @@
-import type { Monster, PlayerStats, CombatLogEntry, CombatResult, Item } from '../types';
+/**
+ * ================================================================
+ *  CombatEngine.ts  ——  回合制战斗引擎
+ * ================================================================
+ *
+ * 【职责】
+ *  接收:
+ *    - PlayerStats (玩家基础属性)
+ *    - Item[]      (已装备的 3 件道具，提供数值加成 + 特效)
+ *    - Monster[]   (当前关卡怪物模板)
+ *  模拟:
+ *    最多 10 回合的"双方同时出手"战斗，逐事件写入日志。
+ *  输出:
+ *    CombatResult { victory, rounds, logs[], playerHp, monstersRemaining }
+ *
+ * 【文件间调用关系】
+ *
+ *  ┌───────────────────────────────────────────────────────────┐
+ *  │                     MainSimulator                         │
+ *  │  runCombat() {                                            │
+ *  │     collect equipped[3] ← from this.state.equipped       │
+ *  │     CombatEngine.simulate(player, items, monsters)        │
+ *  │  }                                                        │
+ *  └──────────────────────┬────────────────────────────────────┘
+ *                         │ args[3]
+ *                         ▼
+ *  ┌───────────────────────────────────────────────────────────┐
+ *  │                  CombatEngine.simulate()                  │
+ *  │                                                           │
+ *  │  for round = 1..10:                                       │
+ *  │    ┌────────────────────────────────────────────────┐    │
+ *  │    │  ① 回合开始结算                                  │    │
+ *  │    │    玩家: 再生 / 中毒DOT / 眩晕-1 / 狂暴提示      │    │
+ *  │    │    怪物: 中毒DOT / 所有技能CD--                 │    │
+ *  │    ├────────────────────────────────────────────────┤    │
+ *  │    │  ② ★ 双方同时攻击 ★                             │    │
+ *  │    │    先计算出本回合所有伤害（双方HP快照）          │    │
+ *  │    │    然后统一 apply HP 变更 → 保证"同时"语义      │    │
+ *  │    │    玩家攻击: 伤害/暴击/连击/吸血/狂暴加成        │    │
+ *  │    │    怪物攻击: 技能(CD=0 概率触发)/闪避/护盾/反伤 │    │
+ *  │    ├────────────────────────────────────────────────┤    │
+ *  │    │  ③ 胜负判定                                     │    │
+ *  │    │    玩家HP≤0 → 败北 / 怪物全灭 → 胜利            │    │
+ *  │    └────────────────────────────────────────────────┘    │
+ *  └──────────────────────┬────────────────────────────────────┘
+ *                         │
+ *                         ▼
+ *  CombatResult (App.tsx 按 round 字段分组后渲染右栏日志)
+ *
+ * 【日志格式约束】
+ *   - 每条 CombatLogEntry 带有 round / timestamp(HH:MM:SS)
+ *   - App.tsx 按 round 聚合成组，数字用 #f0f 洋红高亮
+ *   - effectTriggered 用于右侧 🔗 特效标识
+ * ================================================================
+ */
+
+import type {
+  Monster, PlayerStats, CombatLogEntry, CombatResult, Item, MonsterSkill,
+} from '../types';
 import { MonsterTemplate } from './MonsterTemplate';
 
+/* -------------------- 常量 -------------------- */
+
+/** 最大回合数 —— 超过按剩余 HP 判定 */
 const MAX_ROUNDS = 10;
 
-function ts(round: number, seq: number): string {
-  const t0 = new Date();
-  t0.setSeconds(0, 0);
-  t0.setMinutes(t0.getMinutes() - MAX_ROUNDS + round);
-  const hh = String(t0.getHours()).padStart(2, '0');
-  const mm = String(t0.getMinutes()).padStart(2, '0');
-  const ss = String((3 + seq) % 60).padStart(2, '0');
-  return `${hh}:${mm}:${ss}`;
-}
+/** 连击触发概率 */
+const COMBO_CHANCE  = 0.25;
+/** 闪避触发概率 */
+const DODGE_CHANCE  = 0.15;
+/** 吸血比例 */
+const LIFESTEAL_RATIO = 0.15;
+/** 护盾首伤减免 */
+const SHIELD_RATIO = 0.5;
+/** 反伤比例 */
+const THORNS_RATIO = 0.2;
+/** 狂暴血量阈值 + 攻击加成 */
+const RAGE_HP_RATIO = 0.3;
+const RAGE_ATK_MULT = 1.3;
+/** 再生每回合回血比例 */
+const REGEN_RATIO   = 0.05;
+/** 怪物技能释放概率 (CD=0 时) */
+const MONSTER_SKILL_CHANCE = 0.4;
+
+/* -------------------- 内部 runtime 类型 -------------------- */
 
 interface PlayerRuntime extends PlayerStats {
   items: Item[];
@@ -31,269 +102,416 @@ interface MonsterRuntime extends Monster {
   stunTurns: number;
 }
 
+/** 用于"同时攻击"的伤害暂存 */
+interface PendingDamage {
+  targetMonsterId?: string;
+  toMonster: number;       // 对怪物的总伤害
+  monsterHeal: number;     // 怪物自身治疗 (enrage/heal 等)
+  toPlayer: number;        // 对玩家的总伤害
+  playerHeal: number;      // 玩家回血 (吸血/再生)
+  logs: CombatLogEntry[];  // 已写入日志
+  monsterStunTurns: number;
+  playerStunTurns: number;
+  playerPoisonTurns: number;
+  playerPoisonDmg: number;
+}
+
+/* -------------------- 时间戳生成 -------------------- */
+
+/**
+ * 根据当前回合与顺序号生成 HH:MM:SS 风格时间戳
+ * 保证同一回合内顺序号越大 → 秒数递增
+ */
+function timestamp(round: number, seq: number): string {
+  const base = new Date();
+  base.setSeconds(0, 0);
+  base.setMinutes(base.getMinutes() - MAX_ROUNDS + round);
+  const hh = String(base.getHours()).padStart(2, '0');
+  const mm = String(base.getMinutes()).padStart(2, '0');
+  const ss = String(Math.min(59, seq + 3)).padStart(2, '0');
+  return `${hh}:${mm}:${ss}`;
+}
+
+/* -------------------- 主类 -------------------- */
+
 export class CombatEngine {
   private logs: CombatLogEntry[] = [];
   private seq = 0;
 
-  private log(round: number, actor: string, action: string, extra?: Partial<CombatLogEntry>) {
+  /** 内部日志写入：自动分配时间戳与回合号 */
+  private pushLog(round: number, actor: string, action: string,
+                  extra?: Partial<CombatLogEntry>): void {
     this.logs.push({
       round,
-      timestamp: ts(round, this.seq++),
+      timestamp: timestamp(round, this.seq++),
       actor,
       action,
       ...(extra || {}),
     });
   }
 
+  /* ---------- 属性计算 ---------- */
+
+  /**
+   * 合并 base + 装备 → 玩家战斗时的实际属性
+   * 同时初始化特效 runtime 标记
+   */
   private computePlayer(base: PlayerStats, items: Item[]): PlayerRuntime {
     const effIds = items.filter((i) => i.effect).map((i) => i.effect!.id);
     return {
-      maxHp: base.maxHp,
-      hp: base.maxHp,
-      attack:
-        base.attack +
-        items.reduce((s, i) => s + i.stats.attack, 0) +
-        (effIds.includes('rage') && base.maxHp * 0.3 > base.hp ? Math.floor(base.attack * 0.3) : 0),
+      maxHp:   base.maxHp,
+      hp:      base.maxHp,
+      attack:  base.attack  + items.reduce((s, i) => s + i.stats.attack,  0),
       defense: base.defense + items.reduce((s, i) => s + i.stats.defense, 0),
-      critRate: base.critRate + items.reduce((s, i) => s + i.stats.critRate, 0),
+      critRate: +(base.critRate + items.reduce((s, i) => s + i.stats.critRate, 0)).toFixed(1),
       items,
       shieldUsed: false,
-      enraged: effIds.includes('rage'),
-      stunTurns: 0,
-      regenHp: effIds.includes('regen') ? Math.floor(base.maxHp * 0.05) : 0,
+      enraged:    effIds.includes('rage'),
+      stunTurns:  0,
+      regenHp:    effIds.includes('regen') ? Math.floor(base.maxHp * REGEN_RATIO) : 0,
     };
   }
 
+  /** clone 怪物模板 + 初始化 battle-only 字段 */
   private computeMonsters(ms: Monster[]): MonsterRuntime[] {
     return MonsterTemplate.cloneForBattle(ms).map((m) => ({
       ...m,
       enragedTurns: 0,
-      poisonTurns: 0,
+      poisonTurns:  0,
       poisonDamage: 0,
-      stunTurns: 0,
+      stunTurns:    0,
     }));
   }
 
-  private calcDamage(atk: number, def: number, mult: number, crit: boolean, critBoost: boolean): number {
-    const base = Math.max(1, atk * mult - def * 0.6);
-    const cMult = crit ? (critBoost ? 2.5 : 2.0) : 1;
+  /** 核心伤害公式：攻击×倍率 − 防御×0.6，±10% 浮动，暴击 2x (或 2.5x) */
+  private calcDamage(
+    atk: number, def: number, mult: number,
+    crit: boolean, critBoost: boolean,
+  ): number {
+    const base   = Math.max(1, atk * mult - def * 0.6);
+    const cMult  = crit ? (critBoost ? 2.5 : 2.0) : 1;
     const variance = 0.9 + Math.random() * 0.2;
     return Math.max(1, Math.floor(base * cMult * variance));
   }
 
+  /* ---------- 主入口 ---------- */
+
   simulate(playerBase: PlayerStats, equippedItems: Item[], monsters: Monster[]): CombatResult {
-    const t0 = performance.now();
+    const perf0 = performance.now();
     this.logs = [];
-    this.seq = 0;
+    this.seq  = 0;
 
-    const player = this.computePlayer(playerBase, equippedItems);
-    const effIds = player.items.filter((i) => i.effect).map((i) => i.effect!.id);
-    const hasCombo = effIds.includes('combo');
+    // 特效 id 集合
+    const effIds = equippedItems.filter((i) => i.effect).map((i) => i.effect!.id);
+    const hasCombo    = effIds.includes('combo');
     const hasLifesteal = effIds.includes('lifesteal');
-    const hasShield = effIds.includes('shield');
-    const hasDodge = effIds.includes('dodge');
-    const critBoost = effIds.includes('crit');
-    const hasThorns = effIds.includes('thorns');
+    const hasShield   = effIds.includes('shield');
+    const hasDodge    = effIds.includes('dodge');
+    const critBoost   = effIds.includes('crit');
+    const hasThorns   = effIds.includes('thorns');
 
+    const p:  PlayerRuntime  = this.computePlayer(playerBase, equippedItems);
     const ms: MonsterRuntime[] = this.computeMonsters(monsters);
 
-    this.log(0, '系统', `战斗开始！玩家 HP:${player.hp} 对手:${ms.map((m) => m.name).join(', ')}`);
+    // 初始日志 (round=0 特殊分组)
+    this.pushLog(0, '系统',
+      `战斗开始！玩家 HP:${p.hp} 对手:${ms.map((m) => m.name).join(', ')}`);
 
-    let rounds = 0;
+    let rounds  = 0;
     let victory = false;
 
+    /* =================================================================
+     *  主循环 —— 逐回合
+     * ================================================================= */
     for (let r = 1; r <= MAX_ROUNDS; r++) {
       rounds = r;
-      if (player.regenHp > 0 && player.hp > 0) {
-        const heal = Math.min(player.regenHp, player.maxHp - player.hp);
-        player.hp += heal;
-        this.log(r, '玩家', `再生恢复 ${heal} HP`, { effectTriggered: '再生' });
+
+      /* ------------ ① 回合开始结算 (DOT/再生/CD--) ------------ */
+      this.runRoundStartEffects(r, p, ms);
+      if (p.hp <= 0) {
+        this.pushLog(r, '系统', '玩家阵亡，战斗失败！');
+        victory = false; break;
       }
+      if (ms.every((m) => m.stats.hp <= 0)) {
+        this.pushLog(r, '系统', '所有怪物已被击败，胜利！');
+        victory = true; break;
+      }
+
+      /* ------------ ② 双方同时攻击 (先收集再 apply) ------------ */
+      const pending: PendingDamage = {
+        toMonster: 0, monsterHeal: 0, toPlayer: 0, playerHeal: 0,
+        logs: [], monsterStunTurns: 0, playerStunTurns: 0,
+        playerPoisonTurns: 0, playerPoisonDmg: 0,
+      };
+
+      this.collectPlayerTurn(r, p, ms,
+        hasCombo, hasLifesteal, hasShield, critBoost, pending);
 
       for (const mon of ms) {
         if (mon.stats.hp <= 0) continue;
-        if (mon.poisonTurns > 0) {
-          mon.stats.hp -= mon.poisonDamage;
-          mon.poisonTurns--;
-          this.log(r, mon.name, `受到毒素伤害 ${mon.poisonDamage}`, { damage: mon.poisonDamage });
-          mon.skills.forEach((s) => (s.currentCd = Math.max(0, s.currentCd - 1)));
-          if (mon.stats.hp <= 0) this.log(r, mon.name, '中毒死亡！');
-        } else {
-          mon.skills.forEach((s) => (s.currentCd = Math.max(0, s.currentCd - 1)));
-        }
+        this.collectMonsterTurn(r, mon, p,
+          hasDodge, hasShield, hasThorns, pending);
       }
 
-      if (player.stunTurns > 0) {
-        player.stunTurns--;
-        this.log(r, '玩家', '被眩晕，跳过行动！', { effectTriggered: '眩晕' });
-      } else if (player.hp > 0) {
-        const alive = ms.filter((m) => m.stats.hp > 0);
-        if (alive.length === 0) break;
-        const target = alive[Math.floor(Math.random() * alive.length)];
-        this.playerAttack(r, player, target, hasCombo, hasLifesteal, hasShield, critBoost);
-        if (player.enraged && !player._rageApp) {
-          this.log(r, '玩家', '血量过低，狂暴攻击提升！', { effectTriggered: '狂暴' });
-          player._rageApp = true;
-        }
+      // 集中 apply
+      p.hp = Math.max(0, p.hp - pending.toPlayer + pending.playerHeal);
+      if (pending.playerStunTurns > 0) p.stunTurns += pending.playerStunTurns;
+      if (pending.playerPoisonTurns > 0) {
+        p._poisonTurns = pending.playerPoisonTurns;
+        p._poisonDmg   = pending.playerPoisonDmg;
       }
 
       for (const mon of ms) {
-        if (mon.stats.hp <= 0 || player.hp <= 0) continue;
-        if (mon.stunTurns > 0) {
-          mon.stunTurns--;
-          this.log(r, mon.name, '被眩晕，跳过行动！', { effectTriggered: '眩晕' });
-          continue;
+        if (pending.targetMonsterId && mon.id === pending.targetMonsterId) {
+          mon.stats.hp = Math.max(0,
+            Math.min(mon.stats.maxHp, mon.stats.hp - pending.toMonster + pending.monsterHeal));
         }
-        this.monsterAttack(r, mon, player, hasDodge, hasShield, hasThorns);
       }
 
-      if (player.hp <= 0) {
-        this.log(r, '系统', '玩家阵亡，战斗失败！');
-        victory = false;
-        break;
+      /* ------------ ③ 胜负判定 ------------ */
+      if (p.hp <= 0) {
+        this.pushLog(r, '系统', '玩家阵亡，战斗失败！');
+        victory = false; break;
       }
       if (ms.every((m) => m.stats.hp <= 0)) {
-        this.log(r, '系统', '所有怪物已被击败，胜利！');
-        victory = true;
-        break;
+        this.pushLog(r, '系统', '所有怪物已被击败，胜利！');
+        victory = true; break;
       }
     }
 
-    if (!ms.every((m) => m.stats.hp <= 0) && player.hp > 0 && rounds >= MAX_ROUNDS) {
-      this.log(MAX_ROUNDS, '系统', `回合耗尽，按剩余HP判定：玩家${player.hp} 怪物${ms.filter((m) => m.stats.hp > 0).reduce((s, m) => s + m.stats.hp, 0)}`);
-      victory = player.hp > ms.filter((m) => m.stats.hp > 0).reduce((s, m) => s + m.stats.hp, 0);
+    /* ------------ 回合耗尽 → 按剩余HP比较 ------------ */
+    const anyAlive = ms.filter((m) => m.stats.hp > 0);
+    if (!ms.every((m) => m.stats.hp <= 0) && p.hp > 0 && rounds >= MAX_ROUNDS) {
+      const monsterHpTotal = anyAlive.reduce((s, m) => s + m.stats.hp, 0);
+      this.pushLog(MAX_ROUNDS, '系统',
+        `回合耗尽，按剩余HP判定：玩家${p.hp} 怪物合计${monsterHpTotal}`);
+      victory = p.hp > monsterHpTotal;
     }
 
-    const elapsed = performance.now() - t0;
-    if (elapsed > 20) console.warn(`[CombatEngine] 战斗模拟耗时 ${elapsed.toFixed(2)}ms 超出20ms目标`);
+    /* ------------ 性能监控 ------------ */
+    const elapsed = performance.now() - perf0;
+    if (elapsed > 20) {
+      // eslint-disable-next-line no-console
+      console.warn(`[CombatEngine] 战斗模拟耗时 ${elapsed.toFixed(2)}ms (目标 ≤20ms)`);
+    }
 
     return {
-      victory: victory && player.hp > 0,
+      victory: victory && p.hp > 0,
       rounds,
       logs: this.logs,
-      playerHp: Math.max(0, player.hp),
+      playerHp: p.hp,
       monstersRemaining: ms.filter((m) => m.stats.hp > 0).length,
     };
   }
 
-  private playerAttack(
-    r: number,
-    p: PlayerRuntime,
-    target: MonsterRuntime,
-    combo: boolean,
-    lifesteal: boolean,
-    _shield: boolean,
-    critBoost: boolean
-  ) {
-    const rageMult = p.enraged && p.hp < p.maxHp * 0.3 ? 1.3 : 1;
-    const crit = Math.random() * 100 < p.critRate;
-    const dmg = this.calcDamage(p.attack * rageMult, target.stats.defense, 1, crit, critBoost);
-    target.stats.hp -= dmg;
-    this.log(r, '玩家', `攻击 ${target.name} 造成 ${dmg} 点伤害${crit ? '（暴击！）' : ''}`, {
-      damage: dmg,
-      isCrit: crit,
-    });
-    if (lifesteal) {
-      const heal = Math.floor(dmg * 0.15);
-      const actual = Math.min(heal, p.maxHp - p.hp);
-      p.hp += actual;
-      if (actual > 0) this.log(r, '玩家', `吸血回复 ${actual} HP`, { effectTriggered: '吸血' });
-    }
-    if (target.stats.hp <= 0) this.log(r, target.name, '被击败！');
+  /* ---------- 子步骤 ---------- */
 
-    if (combo && target.stats.hp > 0 && Math.random() < 0.25) {
-      this.log(r, '玩家', `触发连击！`, { effectTriggered: '连击' });
-      const crit2 = Math.random() * 100 < p.critRate;
-      const dmg2 = this.calcDamage(p.attack * rageMult, target.stats.defense, 1, crit2, critBoost);
-      target.stats.hp -= dmg2;
-      this.log(r, '玩家', `连击攻击 ${target.name} 造成 ${dmg2} 点伤害${crit2 ? '（暴击！）' : ''}`, {
-        damage: dmg2,
-        isCrit: crit2,
-        effectTriggered: '连击',
-      });
-      if (lifesteal) {
-        const actual = Math.min(Math.floor(dmg2 * 0.15), p.maxHp - p.hp);
-        p.hp += actual;
-        if (actual > 0) this.log(r, '玩家', `吸血回复 ${actual} HP`, { effectTriggered: '吸血' });
+  /** 回合开始: 玩家再生/中毒 + 怪物中毒/CD 冷却 */
+  private runRoundStartEffects(r: number, p: PlayerRuntime, ms: MonsterRuntime[]) {
+    // 玩家: 再生
+    if (p.regenHp > 0 && p.hp > 0) {
+      const heal = Math.min(p.regenHp, p.maxHp - p.hp);
+      if (heal > 0) {
+        p.hp += heal;
+        this.pushLog(r, '玩家', `再生恢复 ${heal} HP`, { effectTriggered: '再生' });
       }
-      if (target.stats.hp <= 0) this.log(r, target.name, '被击败！');
+    }
+    // 玩家: 中毒
+    if ((p._poisonTurns ?? 0) > 0) {
+      const dmg = p._poisonDmg ?? 0;
+      p.hp = Math.max(0, p.hp - dmg);
+      this.pushLog(r, '玩家', `中毒受到 ${dmg} 持续伤害`, { damage: dmg });
+      p._poisonTurns!--;
+    }
+    // 玩家: 眩晕递减
+    if (p.stunTurns > 0) {
+      // 递减放在行动前判定时执行，这里仅日志
+    }
+
+    // 狂暴低血量提示
+    if (p.enraged && !p._rageApp && p.hp < p.maxHp * RAGE_HP_RATIO) {
+      this.pushLog(r, '玩家', `血量低于 30%，狂暴攻击+30% 激活！`, { effectTriggered: '狂暴' });
+      p._rageApp = true;
+    }
+
+    // 怪物
+    for (const mon of ms) {
+      if (mon.stats.hp <= 0) continue;
+
+      // 中毒
+      if (mon.poisonTurns > 0) {
+        mon.stats.hp = Math.max(0, mon.stats.hp - mon.poisonDamage);
+        this.pushLog(r, mon.name, `毒素伤害 ${mon.poisonDamage}`, { damage: mon.poisonDamage });
+        mon.poisonTurns--;
+        if (mon.stats.hp <= 0) {
+          this.pushLog(r, mon.name, '中毒死亡！');
+          continue;
+        }
+      }
+      // 所有技能 CD -1
+      mon.skills.forEach((sk: MonsterSkill) => {
+        sk.currentCd = Math.max(0, sk.currentCd - 1);
+      });
+      // 狂怒递减
+      if (mon.enragedTurns > 0) mon.enragedTurns--;
+      // 眩晕递减 (放到行动前再做日志)
     }
   }
 
-  private monsterAttack(
+  /** 玩家回合：计算攻击 → 写入 pending，附带特效日志 */
+  private collectPlayerTurn(
+    r: number,
+    p: PlayerRuntime,
+    ms: MonsterRuntime[],
+    combo: boolean,
+    lifesteal: boolean,
+    _shield: boolean,
+    critBoost: boolean,
+    pd: PendingDamage,
+  ) {
+    if (p.stunTurns > 0) {
+      p.stunTurns--;
+      this.pushLog(r, '玩家', '被眩晕，跳过本回合！', { effectTriggered: '眩晕' });
+      return;
+    }
+    if (p.hp <= 0) return;
+
+    const alive = ms.filter((m) => m.stats.hp > 0);
+    if (alive.length === 0) return;
+    const target = alive[Math.floor(Math.random() * alive.length)];
+    pd.targetMonsterId = target.id;
+
+    // 狂暴倍率
+    const rageMult = (p.enraged && p.hp < p.maxHp * RAGE_HP_RATIO) ? RAGE_ATK_MULT : 1;
+
+    // 主攻击
+    const doPlayerAttack = (label: string, effectTag?: string) => {
+      const crit = Math.random() * 100 < p.critRate;
+      const dmg = this.calcDamage(p.attack * rageMult, target.stats.defense, 1, crit, critBoost);
+      pd.toMonster += dmg;
+      this.pushLog(r, '玩家',
+        `${label}${target.name} 造成 ${dmg} 点伤害${crit ? '（暴击！）' : ''}`,
+        { damage: dmg, isCrit: crit, effectTriggered: effectTag });
+      // 吸血
+      if (lifesteal) {
+        const heal = Math.floor(dmg * LIFESTEAL_RATIO);
+        const actual = Math.max(0, Math.min(heal, p.maxHp - p.hp));
+        if (actual > 0) {
+          pd.playerHeal += actual;
+          this.pushLog(r, '玩家', `吸血回复 ${actual} HP`, { effectTriggered: '吸血' });
+        }
+      }
+      if (target.stats.hp - pd.toMonster <= 0) {
+        this.pushLog(r, target.name, '被击败！');
+      }
+      return dmg;
+    };
+
+    doPlayerAttack('攻击 ');
+
+    // 连击
+    if (combo && target.stats.hp - pd.toMonster > 0 && Math.random() < COMBO_CHANCE) {
+      this.pushLog(r, '玩家', `触发连击！`, { effectTriggered: '连击' });
+      doPlayerAttack('连击 → ', '连击');
+    }
+  }
+
+  /** 怪物回合：逐个计算怪物技能/普攻 → 写入 pending */
+  private collectMonsterTurn(
     r: number,
     mon: MonsterRuntime,
     p: PlayerRuntime,
     dodge: boolean,
     shield: boolean,
-    thorns: boolean
+    thorns: boolean,
+    pd: PendingDamage,
   ) {
-    let skillUsed: MonsterRuntime['skills'][0] | null = null;
+    if (mon.stats.hp <= 0) return;
+
+    // 眩晕
+    if (mon.stunTurns > 0) {
+      mon.stunTurns--;
+      this.pushLog(r, mon.name, '被眩晕，跳过本回合！', { effectTriggered: '眩晕' });
+      return;
+    }
+
+    // ---------- 技能选择 (CD=0 且随机命中) ----------
+    let skillUsed: MonsterSkill | null = null;
     for (const sk of mon.skills) {
-      if (sk.currentCd === 0 && Math.random() < 0.4) {
-        skillUsed = sk;
-        sk.currentCd = sk.cd;
+      if (sk.currentCd === 0 && Math.random() < MONSTER_SKILL_CHANCE) {
+        skillUsed = { ...sk };
+        sk.currentCd = sk.cd;  // 立即进入冷却
         break;
       }
     }
 
+    // ---------- 非伤害技能立即结算 ----------
     if (skillUsed) {
       if (skillUsed.id === 'heal') {
-        const h = Math.floor(mon.stats.maxHp * 0.25);
-        mon.stats.hp = Math.min(mon.stats.maxHp, mon.stats.hp + h);
-        this.log(r, mon.name, `使用 ${skillUsed.name} 回复 ${h} HP`);
+        const heal = Math.floor(mon.stats.maxHp * 0.25);
+        pd.monsterHeal += heal;
+        this.pushLog(r, mon.name, `使用 ${skillUsed.name} 回复 ${heal} HP`);
         return;
       }
       if (skillUsed.id === 'enrage') {
         mon.enragedTurns = 2;
-        this.log(r, mon.name, `使用 ${skillUsed.name}，攻击提升2回合`);
+        this.pushLog(r, mon.name, `使用 ${skillUsed.name}，攻击 +40% (2回合)`);
         return;
       }
     }
 
-    if (dodge && Math.random() < 0.15) {
-      this.log(r, mon.name, `攻击玩家，但被完全闪避！`, { isDodge: true, effectTriggered: '闪避' });
+    // ---------- 闪避判定 ----------
+    if (dodge && Math.random() < DODGE_CHANCE) {
+      this.pushLog(r, mon.name, `攻击玩家，但被完全闪避！`,
+        { isDodge: true, effectTriggered: '闪避' });
       return;
     }
 
+    // ---------- 伤害计算 ----------
     const rageMult = mon.enragedTurns > 0 ? 1.4 : 1;
     const mult = skillUsed ? skillUsed.mult : 1;
     const crit = Math.random() * 100 < mon.stats.critRate;
     let dmg = this.calcDamage(mon.stats.attack * rageMult, p.defense, mult, crit, false);
 
-    if (skillUsed?.id === 'pierce') {
-      dmg = Math.floor(dmg * 1.15);
-    }
+    if (skillUsed?.id === 'pierce') dmg = Math.floor(dmg * 1.15);
 
+    // 护盾 (仅首次)
     if (shield && !p.shieldUsed) {
-      dmg = Math.floor(dmg * 0.5);
+      dmg = Math.floor(dmg * SHIELD_RATIO);
       p.shieldUsed = true;
-      this.log(r, '玩家', `护盾抵消一半伤害！`, { effectTriggered: '护盾' });
+      this.pushLog(r, '玩家', `护盾抵消一半伤害！`, { effectTriggered: '护盾' });
     }
 
-    p.hp -= dmg;
-    this.log(r, mon.name, `${skillUsed ? `使用 ${skillUsed.name}` : '攻击'}玩家，造成 ${dmg} 点伤害${crit ? '（暴击！）' : ''}${skillUsed?.id === 'pierce' ? '（穿透）' : ''}`, {
-      damage: dmg,
-      isCrit: crit,
-    });
+    pd.toPlayer += dmg;
 
+    // 日志
+    const pierceTag = skillUsed?.id === 'pierce' ? '（穿透）' : '';
+    const skillVerb = skillUsed ? `使用 ${skillUsed.name}` : '攻击';
+    this.pushLog(r, mon.name,
+      `${skillVerb}玩家，造成 ${dmg} 点伤害${crit ? '（暴击！）' : ''}${pierceTag}`,
+      { damage: dmg, isCrit: crit });
+
+    // 眩晕/毒附加效果
     if (skillUsed?.id === 'stun' && Math.random() < 0.5) {
-      p.stunTurns = 1;
-      this.log(r, mon.name, `玩家被眩晕！`, { effectTriggered: '眩晕' });
+      pd.playerStunTurns += 1;
+      this.pushLog(r, mon.name, `玩家被眩晕 1 回合！`, { effectTriggered: '眩晕' });
     }
     if (skillUsed?.id === 'poison') {
-      p._poisonTurns = 2;
-      p._poisonDmg = Math.floor(dmg * 0.3);
-      this.log(r, mon.name, `玩家中毒，下回合持续伤害`);
+      pd.playerPoisonTurns = 2;
+      pd.playerPoisonDmg   = Math.floor(dmg * 0.3);
+      this.pushLog(r, mon.name,
+        `玩家中毒，2 回合内每回合受 ${pd.playerPoisonDmg} 持续伤害`);
     }
 
+    // 反伤
     if (thorns) {
-      const back = Math.floor(dmg * 0.2);
-      mon.stats.hp -= back;
-      this.log(r, mon.name, `反伤受到 ${back} 点伤害`, { damage: back, effectTriggered: '反伤' });
-      if (mon.stats.hp <= 0) this.log(r, mon.name, '被反伤击败！');
+      const back = Math.floor(dmg * THORNS_RATIO);
+      pd.toMonster += back;
+      this.pushLog(r, mon.name, `反伤受到 ${back} 点伤害`,
+        { damage: back, effectTriggered: '反伤' });
+      if (mon.stats.hp - pd.toMonster <= 0) {
+        this.pushLog(r, mon.name, '被反伤击败！');
+      }
     }
   }
 }
-
-

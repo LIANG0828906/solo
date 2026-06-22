@@ -1,90 +1,200 @@
+/**
+ * ================================================================
+ *  App.tsx  ——  React UI 主组件 (赛博朋克暗色主题)
+ * ================================================================
+ *
+ * 【职责】
+ *  - 三栏布局：左侧(难度/属性/装备/按钮) / 中间(怪物/战利品/背包) / 右侧(战斗日志)
+ *  - 订阅 MainSimulator 的 GameState 变更驱动 UI 刷新
+ *  - 用户操作 → 调用 simulator.enterBattle() / runCombat() / craft() 等
+ *  - 提供合成弹窗：拖拽(drag & drop) + 粒子爆散 + 新道具旋转放大动画
+ *
+ * 【文件间调用关系】
+ *
+ *  ┌─────────────────────────────────────────────────────────────┐
+ *  │  外部: 用户交互 (点击/拖拽)                                  │
+ *  └─────────────────────────┬───────────────────────────────────┘
+ *                            │
+ *  ┌─────────────────────────▼───────────────────────────────────┐
+ *  │                        App.tsx (本文件)                     │
+ *  │                                                             │
+ *  │  ┌─ useState<GameState>  ←  simulator.subscribe()          │
+ *  │  │  └─ 每次 emit → setState → React 重绘                    │
+ *  │  │                                                          │
+ *  │  ├─ 难度按钮 onClick → simulator.setDifficulty()           │
+ *  │  │                          └─ ▶ resetLevel()              │
+ *  │  │                                                          │
+ *  │  ├─ "进入关卡" onClick → handleBattle()                     │
+ *  │  │   ├─ simulator.enterBattle() → 战利品+怪物              │
+ *  │  │   └─ setTimeout → simulator.runCombat() → CombatResult  │
+ *  │  │                                                          │
+ *  │  ├─ 背包 ItemCard onClick → simulator.equipItem()          │
+ *  │  ├─ 装备 Card "卸下" → simulator.unequipItem()             │
+ *  │  │                                                          │
+ *  │  └─ "合成工坊" → CraftModal 子组件:                         │
+ *  │      ├─ ItemCard onDragStart(e)  → 加 .item-dragging 类   │
+ *  │      │   e.dataTransfer.setData('itemId', id)              │
+ *  │      ├─ Slot onDragEnter/Leave → 切换 .slot-drop-zone     │
+ *  │      ├─ Slot onDrop(e) → onDropSlot(e, idx)                │
+ *  │      │  → 读取 itemId → 更新 slots[3]                       │
+ *  │      └─ "开始合成" → simulator.craft(slots)                 │
+ *  │         ├─ 成功 → 槽位 .craft-flash + 粒子爆散 .particle-burst
+ *  │         │         + 结果卡 .card-spawn                     │
+ *  │         └─ 失败 → 显示错误信息                              │
+ *  └────────────────────────────┬────────────────────────────────┘
+ *                               │ 调用
+ *  ┌────────────────────────────▼────────────────────────────────┐
+ *  │                 MainSimulator (全局单例)                    │
+ *  │    (ItemGenerator / CraftRecipe / CombatEngine 调度器)     │
+ *  └─────────────────────────────────────────────────────────────┘
+ *
+ * ================================================================
+ */
+
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import type { Item, Difficulty, CombatLogEntry, ItemQuality } from './types';
-import { simulator, GameState } from './MainSimulator';
+import { simulator, type GameState } from './MainSimulator';
 
-const QUALITY_COLORS: Record<ItemQuality, { border: string; glow: string; text: string; bg: string }> = {
-  white: { border: '#b0b0b0', glow: 'rgba(176,176,176,0.35)', text: '#e8e8e8', bg: 'rgba(176,176,176,0.08)' },
-  blue: { border: '#4fa8ff', glow: 'rgba(79,168,255,0.45)', text: '#7cc4ff', bg: 'rgba(79,168,255,0.10)' },
+/* ==================== 常量：品质配色 / 文字 ==================== */
+
+const QUALITY_COLORS: Record<ItemQuality, {
+  border: string; glow: string; text: string; bg: string;
+}> = {
+  white:  { border: '#b0b0b0', glow: 'rgba(176,176,176,0.35)', text: '#e8e8e8', bg: 'rgba(176,176,176,0.08)' },
+  blue:   { border: '#4fa8ff', glow: 'rgba(79,168,255,0.45)', text: '#7cc4ff', bg: 'rgba(79,168,255,0.10)' },
   purple: { border: '#c77dff', glow: 'rgba(199,125,255,0.5)', text: '#e0b0ff', bg: 'rgba(199,125,255,0.12)' },
-  gold: { border: '#ffd166', glow: 'rgba(255,209,102,0.6)', text: '#ffe39a', bg: 'rgba(255,209,102,0.14)' },
+  gold:   { border: '#ffd166', glow: 'rgba(255,209,102,0.6)', text: '#ffe39a', bg: 'rgba(255,209,102,0.14)' },
 };
 
 const QUALITY_NAMES: Record<ItemQuality, string> = {
-  white: '普通',
-  blue: '稀有',
-  purple: '史诗',
-  gold: '传说',
+  white: '普通', blue: '稀有', purple: '史诗', gold: '传说',
 };
 
 const TYPE_NAMES: Record<string, string> = {
-  weapon: '武器',
-  armor: '防具',
-  accessory: '饰品',
+  weapon: '武器', armor: '防具', accessory: '饰品',
 };
 
 const DIFF_LABELS: Record<Difficulty, { label: string; color: string }> = {
-  easy: { label: '简单', color: '#4ade80' },
+  easy:   { label: '简单', color: '#4ade80' },
   normal: { label: '普通', color: '#60a5fa' },
-  hard: { label: '困难', color: '#f87171' },
+  hard:   { label: '困难', color: '#f87171' },
 };
 
-// ---------- Item Card ----------
+/* ==================== 子组件：ItemCard ==================== */
+
 interface ItemCardProps {
   item: Item;
   compact?: boolean;
   onClick?: () => void;
+  /** 拖拽开始 —— 通常 setData('itemId', item.id) */
   onDragStart?: (e: React.DragEvent, item: Item) => void;
   draggable?: boolean;
+  /** 合成成功时的霓虹高光 */
   highlight?: boolean;
+  /** 右上角小标签 (例: "品质↑") */
   tag?: string;
+  /** 合成成功后槽位闪烁 */
+  flash?: boolean;
+  /** 新卡旋转放大动画 */
+  spawn?: boolean;
+  /** className 追加 */
+  className?: string;
 }
-const ItemCard: React.FC<ItemCardProps> = ({ item, compact, onClick, onDragStart, draggable, highlight, tag }) => {
+
+const ItemCard: React.FC<ItemCardProps> = ({
+  item, compact, onClick, onDragStart, draggable, highlight, tag, flash, spawn, className,
+}) => {
   const c = QUALITY_COLORS[item.quality];
   const style: React.CSSProperties = {
     border: `1.5px solid ${c.border}`,
-    boxShadow: highlight ? `0 0 16px ${c.glow}, 0 0 8px #0ff inset` : `0 0 10px ${c.glow}`,
+    boxShadow: highlight
+      ? `0 0 16px ${c.glow}, 0 0 8px #0ff inset, 0 0 24px rgba(255,0,255,0.35)`
+      : `0 0 10px ${c.glow}`,
     background: c.bg,
     borderRadius: 12,
     padding: compact ? 8 : 12,
-    cursor: onClick || draggable ? 'pointer' : 'default',
-    transition: 'transform 0.18s, box-shadow 0.18s',
+    cursor: onClick || draggable ? 'grab' : 'default',
+    transition: 'transform 0.18s ease, box-shadow 0.18s ease',
     userSelect: 'none',
     position: 'relative',
     overflow: 'hidden',
   };
+
+  const cls = [
+    'item-card',
+    item.upgraded ? 'upgraded' : '',
+    highlight ? 'hl' : '',
+    flash ? 'craft-flash' : '',
+    spawn ? 'card-spawn' : '',
+    className || '',
+  ].filter(Boolean).join(' ');
+
   return (
     <div
-      className={`item-card ${item.upgraded ? 'upgraded' : ''} ${highlight ? 'hl' : ''}`}
+      className={cls}
       style={style}
       onClick={onClick}
       draggable={draggable}
-      onDragStart={(e) => onDragStart && onDragStart(e, item)}
+      onDragStart={(e) => {
+        if (!onDragStart && !draggable) return;
+        const el = e.currentTarget;
+        el.classList.add('item-dragging');
+        try {
+          e.dataTransfer.setData('itemId', item.id);
+          e.dataTransfer.effectAllowed = 'move';
+        } catch { /* ignore */ }
+        onDragStart?.(e, item);
+      }}
+      onDragEnd={(e) => {
+        const el = e.currentTarget;
+        el.classList.remove('item-dragging');
+      }}
     >
       {tag && (
-        <span style={{
-          position: 'absolute', top: 6, right: 6, fontSize: 10, padding: '1px 6px',
-          borderRadius: 4, background: 'rgba(0,255,255,0.18)', color: '#0ff', border: '1px solid rgba(0,255,255,0.4)',
-          letterSpacing: 0.5
+        <span className="item-tag" style={{
+          position: 'absolute', top: 6, right: 6, fontSize: 10,
+          padding: '1px 6px', borderRadius: 4, letterSpacing: 0.5,
+          background: 'rgba(0,255,255,0.18)',
+          color: '#0ff',
+          border: '1px solid rgba(0,255,255,0.4)',
         }}>{tag}</span>
       )}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: compact ? 4 : 8 }}>
-        <span style={{ color: c.text, fontWeight: 700, fontSize: compact ? 13 : 15, textShadow: `0 0 6px ${c.glow}` }}>
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        marginBottom: compact ? 4 : 8,
+      }}>
+        <span style={{
+          color: c.text, fontWeight: 700,
+          fontSize: compact ? 13 : 15,
+          textShadow: `0 0 6px ${c.glow}`,
+        }}>
           {item.name}
         </span>
       </div>
-      <div style={{ display: 'flex', gap: 6, marginBottom: compact ? 4 : 8, flexWrap: 'wrap' }}>
-        <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 4, border: `1px solid ${c.border}`, color: c.text }}>{TYPE_NAMES[item.type]}</span>
-        <span style={{ fontSize: 11, padding: '2px 6px', borderRadius: 4, background: c.bg, color: c.text, border: `1px solid ${c.border}` }}>{QUALITY_NAMES[item.quality]}</span>
+      <div style={{
+        display: 'flex', gap: 6, marginBottom: compact ? 4 : 8, flexWrap: 'wrap',
+      }}>
+        <span style={{
+          fontSize: 11, padding: '2px 6px', borderRadius: 4,
+          border: `1px solid ${c.border}`, color: c.text,
+        }}>{TYPE_NAMES[item.type]}</span>
+        <span style={{
+          fontSize: 11, padding: '2px 6px', borderRadius: 4,
+          background: c.bg, color: c.text,
+          border: `1px solid ${c.border}`,
+        }}>{QUALITY_NAMES[item.quality]}</span>
       </div>
       <div style={{ fontSize: 12, lineHeight: 1.7, color: '#b9c7ff' }}>
-        {item.stats.attack > 0 && <div>⚔ 攻击 +{item.stats.attack}</div>}
-        {item.stats.defense > 0 && <div>🛡 防御 +{item.stats.defense}</div>}
+        {item.stats.attack   > 0 && <div>⚔ 攻击 +{item.stats.attack}</div>}
+        {item.stats.defense  > 0 && <div>🛡 防御 +{item.stats.defense}</div>}
         {item.stats.critRate > 0 && <div>💥 暴击率 +{item.stats.critRate}%</div>}
       </div>
       {item.effect && !compact && (
         <div style={{
           marginTop: 10, padding: '6px 8px', borderRadius: 6, fontSize: 11,
-          background: 'rgba(255,0,255,0.08)', border: '1px dashed rgba(255,0,255,0.45)', color: '#f0a6ff'
+          background: 'rgba(255,0,255,0.08)',
+          border: '1px dashed rgba(255,0,255,0.45)',
+          color: '#f0a6ff',
         }}>
           ✦ {item.effect.name}：{item.effect.desc}
         </div>
@@ -93,195 +203,332 @@ const ItemCard: React.FC<ItemCardProps> = ({ item, compact, onClick, onDragStart
   );
 };
 
-// ---------- Craft Modal ----------
+/* ==================== 子组件：CraftModal 合成弹窗 ==================== */
+
 interface CraftModalProps {
   open: boolean;
   inventory: Item[];
   onClose: () => void;
-  onCraft: (mats: (Item | undefined)[]) => { success: boolean; result?: Item; error?: string };
+  onCraft: (mats: (Item | undefined | null)[]) => {
+    success: boolean; result?: Item; error?: string;
+  };
 }
-const CraftModal: React.FC<CraftModalProps> = ({ open, inventory, onClose, onCraft }) => {
-  const [slots, setSlots] = useState<(Item | undefined)[]>([undefined, undefined, undefined]);
-  const [result, setResult] = useState<{ item?: Item; error?: string } | null>(null);
-  const [anim, setAnim] = useState(false);
-  const [particles, setParticles] = useState<{ id: number; x: number; y: number; c: string }[]>([]);
 
-  useEffect(() => { if (!open) { setSlots([undefined, undefined, undefined]); setResult(null); setAnim(false); } }, [open]);
+interface Particle { id: number; tx: number; ty: number; c: string; size: number; delay: number; }
+
+const CraftModal: React.FC<CraftModalProps> = ({ open, inventory, onClose, onCraft }) => {
+  const [slots, setSlots]     = useState<(Item | undefined)[]>([undefined, undefined, undefined]);
+  const [result, setResult]   = useState<{ item?: Item; error?: string } | null>(null);
+  const [anim, setAnim]       = useState(false);
+  const [particles, setParticles] = useState<Particle[]>([]);
+  const [hoverSlotIdx, setHoverSlotIdx] = useState<number | null>(null);
+  const [flashSlots, setFlashSlots] = useState<boolean[]>([false, false, false]);
+  const [resultSpawn, setResultSpawn] = useState(false);
+
+  const particleIdRef = useRef(0);
+
+  // 关闭弹窗时清空
+  useEffect(() => {
+    if (!open) {
+      setSlots([undefined, undefined, undefined]);
+      setResult(null);
+      setAnim(false);
+      setParticles([]);
+      setHoverSlotIdx(null);
+      setFlashSlots([false, false, false]);
+      setResultSpawn(false);
+    }
+  }, [open]);
+
+  /* ---------- 拖放：槽位 onDrop ---------- */
+
+  const onDragOverSlot = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+  const onDragEnterSlot = (_e: React.DragEvent, idx: number) => {
+    setHoverSlotIdx(idx);
+  };
+  const onDragLeaveSlot = (idx: number) => {
+    if (hoverSlotIdx === idx) setHoverSlotIdx(null);
+  };
 
   const onDropSlot = (e: React.DragEvent, idx: number) => {
     e.preventDefault();
-    const id = e.dataTransfer.getData('itemId');
+    setHoverSlotIdx(null);
+    let id = '';
+    try   { id = e.dataTransfer.getData('itemId'); } catch { /* ignore */ }
     if (!id) return;
-    const item = inventory.find((it) => it.id === id) || slots.find((s) => s?.id === id);
+
+    const item = inventory.find((it) => it.id === id)
+              || slots.find((s) => s?.id === id);
     if (!item) return;
+
     const next = [...slots];
     const prevIdx = next.findIndex((s) => s?.id === id);
+
     if (prevIdx >= 0) next[prevIdx] = undefined;
+
     if (next[idx] && prevIdx < 0) {
-      const old = next[idx]!;
-      const invIdx = inventory.findIndex((i) => i.id === old.id);
-      if (invIdx >= 0 || inventory.length === 0) {
-      } else {
-        const empty = next.findIndex((s, i) => s === undefined && i !== idx && i !== prevIdx);
-        if (empty >= 0) next[empty] = old; else return;
-      }
+      const empty = next.findIndex((s, i) => s === undefined && i !== idx);
+      if (empty >= 0) next[empty] = next[idx];
+    } else if (next[idx] && prevIdx >= 0) {
+      next[prevIdx] = next[idx];
     }
     next[idx] = item;
     setSlots(next);
     setResult(null);
+    setResultSpawn(false);
   };
 
   const availableItems = inventory.filter((i) => !slots.some((s) => s?.id === i.id));
 
+  /* ---------- 生成 28 个粒子 (使用 CSS 变量 --tx/--ty) ---------- */
+
+  const spawnParticles = useCallback(() => {
+    const list: Particle[] = [];
+    const colors = ['#0ff', '#f0f', '#ff0', '#8f0', '#0f8'];
+    const count = 28;
+    for (let i = 0; i < count; i++) {
+      const angle = (i / count) * Math.PI * 2 + Math.random() * 0.3;
+      const dist  = 110 + Math.random() * 130;
+      list.push({
+        id: ++particleIdRef.current,
+        tx: Math.cos(angle) * dist,
+        ty: Math.sin(angle) * dist - 40,
+        c:  colors[(Math.random() * colors.length) | 0],
+        size: 6 + Math.random() * 8,
+        delay: Math.random() * 90,
+      });
+    }
+    setParticles(list);
+    setTimeout(() => setParticles([]), 1100);
+  }, []);
+
+  /* ---------- 点击合成 ---------- */
+
   const handleCraft = () => {
     setResult(null);
-    const r = onCraft(slots);
-    if (r.success && r.result) {
-      const ps: { id: number; x: number; y: number; c: string }[] = [];
-      const colors = ['#0ff', '#f0f', '#ffd166', '#c77dff', '#4fa8ff'];
-      for (let i = 0; i < 28; i++) {
-        ps.push({
-          id: i,
-          x: (Math.random() - 0.5) * 260,
-          y: (Math.random() - 0.5) * 260,
-          c: colors[Math.floor(Math.random() * colors.length)],
-        });
+    setResultSpawn(false);
+    const out = onCraft(slots);
+    setAnim(true);
+    setFlashSlots([false, false, false]);
+
+    setTimeout(() => {
+      setAnim(false);
+      if (out.success && out.result) {
+        setFlashSlots([true, true, true]);
+        spawnParticles();
+        setTimeout(() => setResultSpawn(true), 320);
+        setResult({ item: out.result });
+        setTimeout(() => {
+          setSlots([undefined, undefined, undefined]);
+          setFlashSlots([false, false, false]);
+        }, 1400);
+      } else {
+        setResult({ error: out.error || '合成失败' });
       }
-      setParticles(ps);
-      setAnim(true);
-      setResult({ item: r.result });
-      setTimeout(() => { setSlots([undefined, undefined, undefined]); setParticles([]); }, 1400);
-    } else {
-      setResult({ error: r.error });
-    }
+    }, 260);
   };
 
   if (!open) return null;
 
+  const canCraft = slots.every(Boolean) && slots.length === 3;
+
   return (
     <div style={{
-      position: 'fixed', inset: 0, zIndex: 100, display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: 'rgba(10, 0, 25, 0.72)', backdropFilter: 'blur(10px)', padding: 16
-    }} onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()} className="craft-modal"
-        style={{
-          width: '100%', maxWidth: 720, maxHeight: '92vh', overflow: 'auto',
-          borderRadius: 16, padding: 24,
-          background: 'linear-gradient(135deg, rgba(26,10,46,0.95), rgba(12,30,60,0.92))',
-          border: '1.5px solid #0ff',
-          boxShadow: '0 0 40px rgba(0,255,255,0.28), 0 0 90px rgba(255,0,255,0.12) inset',
-          position: 'relative'
-        }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
-          <h2 style={{ margin: 0, fontSize: 22, color: '#0ff', textShadow: '0 0 12px rgba(0,255,255,0.7)', letterSpacing: 1 }}>
-            ⚗ 道具合成工坊
-          </h2>
-          <button onClick={onClose} style={{
-            background: 'transparent', border: '1px solid rgba(255,0,255,0.5)', color: '#f0f',
-            padding: '6px 14px', borderRadius: 6, cursor: 'pointer', minHeight: 36, minWidth: 44, fontSize: 14
-          }}>✕ 关闭</button>
-        </div>
+      position: 'fixed', inset: 0, zIndex: 100,
+      background: 'rgba(10, 2, 28, 0.82)',
+      backdropFilter: 'blur(10px)',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      padding: 16,
+    }} onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
 
+      {/* 背景六边形 */}
+      <div className="hex-grid-bg" style={{ opacity: 0.08 }} />
+
+      <div className="craft-modal" style={{
+        width: 'min(920px, 100%)', maxHeight: '92vh', overflow: 'auto',
+        background: 'linear-gradient(180deg, rgba(36,12,68,0.95), rgba(20,6,42,0.95))',
+        border: '1.5px solid rgba(0,255,255,0.35)',
+        borderRadius: 18,
+        boxShadow: '0 0 60px rgba(0,255,255,0.22), 0 0 120px rgba(255,0,255,0.12) inset',
+        padding: 22, position: 'relative',
+      }}>
+        <button onClick={onClose} style={{
+          position: 'absolute', top: 14, right: 14,
+          background: 'rgba(255,0,80,0.18)', border: '1px solid rgba(255,80,120,0.5)',
+          color: '#ff8fa8', borderRadius: 8, padding: '4px 12px',
+          fontSize: 13, fontWeight: 700, minHeight: 34,
+        }}>✕ 关闭</button>
+
+        <h2 style={{
+          margin: 0, marginBottom: 18,
+          color: '#0ff', fontSize: 22, letterSpacing: 2,
+          textShadow: '0 0 12px rgba(0,255,255,0.6)',
+        }}>⚗ 合成工坊 <span style={{ fontSize: 13, color: '#888', marginLeft: 12 }}>
+          拖拽 3 件同类型道具到槽位
+        </span></h2>
+
+        {/* -------- 合成三槽 -------- */}
         <div style={{
-          display: 'flex', gap: 14, alignItems: 'center', justifyContent: 'center',
-          padding: 24, margin: '0 -24px 16px',
-          background: 'rgba(0,0,0,0.25)', borderTop: '1px dashed rgba(0,255,255,0.3)', borderBottom: '1px dashed rgba(255,0,255,0.3)',
-          position: 'relative', overflow: 'hidden'
+          display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)',
+          gap: 14, marginBottom: 18, position: 'relative',
         }}>
-          {particles.map((p) => (
-            <span key={p.id} className="particle" style={{
-              position: 'absolute', left: '50%', top: '50%',
-              width: 6, height: 6, borderRadius: '50%',
-              background: p.c, boxShadow: `0 0 10px ${p.c}`,
-              transform: `translate(${p.x}px, ${p.y}px)`,
-              opacity: 0,
-              transition: 'transform 0.9s ease-out, opacity 0.9s ease-out',
-            }} />
-          ))}
-          {slots.map((s, i) => (
-            <React.Fragment key={i}>
-              <div onDragOver={(e) => e.preventDefault()} onDrop={(e) => onDropSlot(e, i)}
+          {slots.map((s, idx) => {
+            const isHover = hoverSlotIdx === idx;
+            const cls = ['craft-slot', isHover ? 'slot-drop-zone' : ''].filter(Boolean).join(' ');
+            return (
+              <div
+                key={idx}
+                className={cls}
+                onDragOver={onDragOverSlot}
+                onDragEnter={(e) => onDragEnterSlot(e, idx)}
+                onDragLeave={() => onDragLeaveSlot(idx)}
+                onDrop={(e) => onDropSlot(e, idx)}
                 style={{
-                  width: 150, height: 180, borderRadius: 12,
-                  border: `2px dashed ${s ? QUALITY_COLORS[s.quality].border : 'rgba(0,255,255,0.5)'}`,
-                  background: s ? QUALITY_COLORS[s.quality].bg : 'rgba(0,255,255,0.04)',
-                  boxShadow: s ? `0 0 14px ${QUALITY_COLORS[s.quality].glow}` : 'none',
+                  minHeight: 170,
+                  border: '2px dashed rgba(0,255,255,0.28)',
+                  borderRadius: 14,
+                  padding: 10,
+                  background: 'rgba(0,255,255,0.04)',
                   display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  flexShrink: 0, position: 'relative',
-                }}>
+                }}
+              >
                 {s ? (
-                  <div style={{ width: '100%', padding: 6 }}>
-                    <ItemCard item={s} compact onClick={() => { const next = [...slots]; next[i] = undefined; setSlots(next); }} />
-                  </div>
+                  <ItemCard item={s} flash={flashSlots[idx]}
+                    draggable
+                    onDragStart={() => {}}
+                  />
                 ) : (
-                  <span style={{ color: 'rgba(0,255,255,0.55)', fontSize: 36 }}>＋</span>
+                  <div style={{
+                    color: 'rgba(0,255,255,0.35)', fontSize: 13,
+                    letterSpacing: 1,
+                  }}>
+                    槽位 {idx + 1} · 拖入道具
+                  </div>
                 )}
-                <span style={{ position: 'absolute', top: 6, left: 8, fontSize: 11, color: 'rgba(0,255,255,0.75)' }}>槽 {i + 1}</span>
               </div>
-              {i < 2 && <span style={{ color: '#0ff', fontSize: 26, textShadow: '0 0 10px #0ff' }}>+</span>}
-            </React.Fragment>
-          ))}
-          <span style={{ color: '#f0f', fontSize: 26, textShadow: '0 0 10px #f0f', margin: '0 6px' }}>=</span>
-          <div style={{
-            width: 150, height: 180, borderRadius: 12, flexShrink: 0,
-            border: `2px solid ${result?.item ? QUALITY_COLORS[result.item.quality].border : 'rgba(255,0,255,0.55)'}`,
-            background: result?.item ? QUALITY_COLORS[result.item.quality].bg : 'rgba(255,0,255,0.06)',
-            boxShadow: result?.item ? `0 0 20px ${QUALITY_COLORS[result.item.quality].glow}` : 'none',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative',
-            overflow: 'hidden'
-          }}>
-            {result?.item ? (
-              <div className={`craft-result ${anim ? 'show' : ''}`} style={{ width: '100%', padding: 6 }}>
-                <ItemCard item={result.item} compact highlight tag={result.item.upgraded ? '品质↑' : '合成'} />
-              </div>
-            ) : result?.error ? (
-              <span style={{ color: '#f87171', fontSize: 12, textAlign: 'center', padding: 8 }}>{result.error}</span>
-            ) : (
-              <span style={{ color: 'rgba(255,0,255,0.65)', fontSize: 32 }}>?</span>
-            )}
-            <span style={{ position: 'absolute', top: 6, left: 8, fontSize: 11, color: 'rgba(255,0,255,0.85)' }}>结果</span>
+            );
+          })}
+
+          {/* 粒子爆散层 */}
+          <div className="particle-layer">
+            {particles.map((p) => (
+              <span
+                key={p.id}
+                className="particle-burst"
+                style={{
+                  width: p.size, height: p.size,
+                  marginLeft: -p.size / 2, marginTop: -p.size / 2,
+                  ['--tx' as any]: `${p.tx}px`,
+                  ['--ty' as any]: `${p.ty}px`,
+                  ['--c' as any]:  p.c,
+                  animationDelay: `${p.delay}ms`,
+                }}
+              />
+            ))}
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'center', marginBottom: 18 }}>
-          <button onClick={handleCraft}
+        {/* -------- 按钮 + 结果 -------- */}
+        <div style={{
+          display: 'flex', gap: 14, alignItems: 'center',
+          marginBottom: 22, flexWrap: 'wrap',
+        }}>
+          <button
+            disabled={!canCraft || anim}
+            onClick={handleCraft}
             style={{
-              minHeight: 44, minWidth: 140, padding: '10px 24px', fontSize: 15, fontWeight: 700,
-              borderRadius: 8, cursor: 'pointer', letterSpacing: 1,
-              background: 'linear-gradient(135deg, rgba(0,255,255,0.2), rgba(255,0,255,0.2))',
-              color: '#fff', border: '1.5px solid #0ff',
-              boxShadow: '0 0 18px rgba(0,255,255,0.45)',
-              transition: 'all 0.2s'
-            }}>
-            ⚡ 开始合成
+              padding: '12px 22px', fontSize: 15, fontWeight: 700,
+              borderRadius: 12, letterSpacing: 1,
+              background: canCraft && !anim
+                ? 'linear-gradient(90deg, #0ff, #a0f, #f0f)'
+                : 'rgba(80,80,100,0.3)',
+              color: canCraft && !anim ? '#1a0a2e' : '#777',
+              border: 'none',
+              boxShadow: canCraft && !anim
+                ? '0 0 24px rgba(0,255,255,0.5), 0 0 44px rgba(255,0,255,0.35)'
+                : 'none',
+              cursor: canCraft && !anim ? 'pointer' : 'not-allowed',
+            }}
+          >
+            {anim ? '⚙ 合成中…' : '✦ 开始合成'}
           </button>
-          <button onClick={() => { setSlots([undefined, undefined, undefined]); setResult(null); }}
-            style={{
-              minHeight: 44, minWidth: 120, padding: '10px 20px', fontSize: 14,
-              borderRadius: 8, cursor: 'pointer',
-              background: 'transparent', color: '#8fa3ff',
-              border: '1px solid rgba(143,163,255,0.4)',
-            }}>清空槽位</button>
-        </div>
 
-        <div style={{ fontSize: 12, color: '#6b82c5', textAlign: 'center', marginBottom: 18 }}>
-          提示：将3件相同类型道具（武器/防具/饰品）拖入槽位即可合成，有概率提升品质 ✦
-        </div>
+          <button onClick={() => {
+            setSlots([undefined, undefined, undefined]);
+            setResult(null);
+            setResultSpawn(false);
+            setFlashSlots([false, false, false]);
+          }} style={{
+            padding: '10px 18px', borderRadius: 10,
+            background: 'rgba(255,255,255,0.05)',
+            border: '1px solid rgba(255,255,255,0.18)',
+            color: '#aab', fontSize: 13,
+          }}>清空槽位</button>
 
-        <div>
-          <div style={{ fontSize: 14, color: '#0ff', marginBottom: 10, fontWeight: 600 }}>📦 背包（{availableItems.length}） - 拖拽至上方槽位</div>
-          {availableItems.length === 0 ? (
-            <div style={{ padding: 24, textAlign: 'center', color: 'rgba(143,163,255,0.6)', fontSize: 13, border: '1px dashed rgba(143,163,255,0.25)', borderRadius: 8 }}>
-              背包暂无可用道具，战斗胜利后可获得战利品
+          {/* 合成结果卡 */}
+          {result?.item && (
+            <div style={{
+              marginLeft: 'auto', display: 'flex',
+              alignItems: 'center', gap: 14,
+            }}>
+              <span style={{
+                color: '#ffd166', fontWeight: 700, letterSpacing: 1,
+                textShadow: '0 0 10px rgba(255,209,102,0.6)',
+              }}>合成成功！</span>
+              <div style={{ width: 220 }}>
+                <ItemCard
+                  item={result.item}
+                  spawn={resultSpawn}
+                  highlight
+                  tag="✨ NEW"
+                />
+              </div>
             </div>
+          )}
+          {result?.error && (
+            <div style={{
+              marginLeft: 'auto',
+              color: '#ff6b8a', fontSize: 13,
+              padding: '8px 14px', borderRadius: 8,
+              background: 'rgba(255,60,100,0.1)',
+              border: '1px solid rgba(255,80,120,0.4)',
+            }}>⚠ {result.error}</div>
+          )}
+        </div>
+
+        {/* -------- 背包网格 (可拖拽) -------- */}
+        <div style={{
+          borderTop: '1px dashed rgba(0,255,255,0.2)',
+          paddingTop: 16,
+        }}>
+          <div style={{
+            color: '#aac', fontSize: 13, marginBottom: 10, letterSpacing: 0.5,
+          }}>🎒 可用道具（拖入上方槽位） <span style={{color:'#667'}}>
+            · 共 {availableItems.length} 件
+          </span></div>
+          {availableItems.length === 0 ? (
+            <div style={{
+              color: '#667', fontSize: 13, padding: 32, textAlign: 'center',
+              background: 'rgba(255,255,255,0.02)', borderRadius: 10,
+              border: '1px dashed rgba(255,255,255,0.08)',
+            }}>背包中暂无可用道具</div>
           ) : (
-            <div className="inventory-grid" style={{
-              display: 'grid', gap: 10,
-              gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))',
+            <div className="inventory-grid grid scroll" style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+              gap: 12, maxHeight: 320, overflow: 'auto',
+              padding: 4,
             }}>
               {availableItems.map((it) => (
-                <ItemCard key={it.id} item={it} compact draggable
-                  onDragStart={(e, item) => e.dataTransfer.setData('itemId', item.id)} />
+                <ItemCard
+                  key={it.id}
+                  item={it}
+                  draggable
+                  onDragStart={() => {}}
+                />
               ))}
             </div>
           )}
@@ -291,536 +538,565 @@ const CraftModal: React.FC<CraftModalProps> = ({ open, inventory, onClose, onCra
   );
 };
 
-// ---------- Main App ----------
-const App: React.FC = () => {
-  const [state, setState] = useState<GameState>(simulator.getState());
+/* ==================== 根组件 App ==================== */
+
+export const App: React.FC = () => {
+  const [state, setState] = useState<GameState>(() => simulator.getState());
   const [craftOpen, setCraftOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [playing, setPlaying] = useState(false);
-  const [visibleLogs, setVisibleLogs] = useState<CombatLogEntry[]>([]);
-  const logRef = useRef<HTMLDivElement>(null);
-  const timeoutsRef = useRef<number[]>([]);
+  const toastTimer = useRef<number | null>(null);
+  const autoScrollRef = useRef<HTMLDivElement>(null);
 
-  useEffect(() => simulator.subscribe(setState), []);
-
+  /* ----- 订阅全局状态 ----- */
   useEffect(() => {
-    if (state.lastCombat && playing) {
-      timeoutsRef.current.forEach(clearTimeout);
-      timeoutsRef.current = [];
-      setVisibleLogs([]);
-      const total = state.lastCombat.logs.length;
-      const perStep = Math.max(1, Math.ceil(total / 40));
-      const delay = Math.max(25, 1800 / Math.max(total, 1));
-      let i = 0;
-      const step = () => {
-        i += perStep;
-        setVisibleLogs(state.lastCombat!.logs.slice(0, Math.min(i, total)));
-        if (i < total) {
-          const t = window.setTimeout(step, delay);
-          timeoutsRef.current.push(t);
-        } else {
-          setPlaying(false);
-        }
-      };
-      const t0 = window.setTimeout(step, 80);
-      timeoutsRef.current.push(t0);
-      return () => timeoutsRef.current.forEach(clearTimeout);
-    } else if (!state.lastCombat) {
-      setVisibleLogs([]);
-    }
-  }, [state.lastCombat, playing]);
-
-  useEffect(() => {
-    if (logRef.current) {
-      logRef.current.scrollTop = logRef.current.scrollHeight;
-    }
-  }, [visibleLogs]);
-
-  const showToast = useCallback((msg: string) => {
-    setToast(msg);
-    window.setTimeout(() => setToast(null), 2400);
+    const unsub = simulator.subscribe((s) => setState({ ...s }));
+    return unsub;
   }, []);
 
-  const playerTotal = useMemo(() => {
-    const equipped = [state.equipped.weapon, state.equipped.armor, state.equipped.accessory].filter(Boolean) as Item[];
-    return {
-      maxHp: state.playerBase.maxHp,
-      attack: state.playerBase.attack + equipped.reduce((s, i) => s + i.stats.attack, 0),
-      defense: state.playerBase.defense + equipped.reduce((s, i) => s + i.stats.defense, 0),
-      critRate: +(state.playerBase.critRate + equipped.reduce((s, i) => s + i.stats.critRate, 0)).toFixed(1),
-    };
-  }, [state.playerBase, state.equipped]);
+  /* ----- toast 自动消失 ----- */
+  const showToast = useCallback((msg: string) => {
+    setToast(msg);
+    if (toastTimer.current) window.clearTimeout(toastTimer.current);
+    toastTimer.current = window.setTimeout(() => setToast(null), 2200);
+  }, []);
 
+  /* ----- 战斗日志自动滚动 ----- */
+  useEffect(() => {
+    const el = autoScrollRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [state.combatLog.length]);
+
+  /* ----- 动作处理 ----- */
   const handleBattle = () => {
-    if (playing) return;
+    if (state.inBattle) { showToast('战斗进行中…'); return; }
     simulator.enterBattle();
-    setPlaying(true);
+    showToast(`进入关卡 Lv.${state.level} · 怪物 ${state.monsters.length} 只`);
     window.setTimeout(() => {
-      simulator.runCombat();
-    }, 260);
+      const r = simulator.runCombat();
+      if (r?.win) showToast(`🏆 战斗胜利！获得 ${r.rewardItems?.length || 0} 件战利品`);
+      else if (r) showToast('💀 战斗失败');
+    }, 200);
   };
 
-  const handleEquip = (item: Item) => {
-    simulator.equipItem(item);
-    showToast(`已装备：${item.name}`);
+  const handleSetDifficulty = (d: Difficulty) => {
+    if (state.inBattle) { showToast('战斗中无法切换难度'); return; }
+    simulator.setDifficulty(d);
+    showToast(`难度已切换：${DIFF_LABELS[d].label}`);
   };
 
-  const handleCraft = (mats: (Item | undefined)[]) => {
+  const handleEquip = (it: Item) => {
+    const r = simulator.equipItem(it);
+    if (!r.ok) showToast(`装备失败：${r.error || '未知'}`);
+    else showToast(`已装备 ${it.name}`);
+  };
+  const handleUnequip = (slot: 'weapon' | 'armor' | 'accessory') => {
+    const r = simulator.unequipItem(slot);
+    if (!r.ok) showToast(`卸下失败：${r.error || '未知'}`);
+  };
+
+  const handleCraft = (mats: (Item | undefined | null)[]) => {
     const r = simulator.craft(mats);
-    if (r.success && r.result) {
-      showToast(`合成成功！获得 ${r.result.name}${r.result.upgraded ? '（品质提升）' : ''}`);
-    }
-    return r;
+    if (!r.success) return { success: false, error: r.error };
+    showToast(`合成成功：${r.result?.name}`);
+    return { success: true, result: r.result };
   };
 
-  const groupedLogs = useMemo(() => {
-    const map = new Map<number, CombatLogEntry[]>();
-    for (const l of visibleLogs) {
-      if (!map.has(l.round)) map.set(l.round, []);
-      map.get(l.round)!.push(l);
-    }
-    return Array.from(map.entries()).sort(([a], [b]) => a - b);
-  }, [visibleLogs]);
+  /* ----- 派生计算 ----- */
+  const totalStats = useMemo(() => state.playerStats, [state.playerStats]);
 
-  const hpPct = Math.max(0, Math.min(100, (state.playerBase.hp / state.playerBase.maxHp) * 100));
+  const HP_PCT = (hp: number, max: number) =>
+    Math.max(0, Math.min(100, (hp / Math.max(1, max)) * 100));
+
+  /* ==================== 渲染 ==================== */
 
   return (
     <div className="app-root" style={{
-      minHeight: '100vh', width: '100%',
-      background: 'radial-gradient(ellipse at 20% 10%, rgba(0,255,255,0.08), transparent 50%), radial-gradient(ellipse at 80% 90%, rgba(255,0,255,0.08), transparent 50%), #1a0a2e',
-      color: '#e0e7ff', fontFamily: '"PingFang SC", "Microsoft YaHei", system-ui, sans-serif',
-      position: 'relative', overflowX: 'hidden',
+      minHeight: '100vh',
+      background: 'radial-gradient(ellipse at top, #2a0f4a 0%, #1a0a2e 45%, #0a051a 100%)',
+      color: '#e0e8ff', position: 'relative',
     }}>
-      {/* Hex grid bg */}
-      <div className="hex-grid" aria-hidden="true" />
+      <div className="hex-grid-bg" />
+
+      {/* 顶部标题 - 霓虹呼吸边框 */}
+      <header className="neon-header" style={{
+        padding: '26px 24px 18px', textAlign: 'center', position: 'relative',
+        borderBottom: '1px solid rgba(0,255,255,0.18)',
+        background: 'linear-gradient(180deg, rgba(0,255,255,0.05), transparent)',
+      }}>
+        <h1 style={{
+          margin: 0, fontSize: 28, letterSpacing: 6, fontWeight: 800,
+          color: '#fff',
+          textShadow:
+            '0 0 10px #0ff, 0 0 22px #0ff, 0 0 4px #f0f, 0 0 18px #f0f',
+        }}>
+          CYBER&nbsp;ROGUE · 道具合成模拟器
+        </h1>
+        <div style={{
+          marginTop: 8, fontSize: 12, color: '#89a', letterSpacing: 2,
+        }}>PROCEDURAL · CRAFT · TURN-BASED COMBAT · v1.0</div>
+      </header>
 
       {/* Toast */}
       {toast && (
-        <div style={{
-          position: 'fixed', top: 80, left: '50%', transform: 'translateX(-50%)', zIndex: 200,
-          padding: '10px 22px', borderRadius: 8,
-          background: 'linear-gradient(135deg, rgba(26,10,46,0.95), rgba(12,30,60,0.92))',
-          border: '1px solid #0ff', color: '#0ff', fontSize: 14,
-          boxShadow: '0 0 22px rgba(0,255,255,0.4)', animation: 'slideIn 0.3s ease',
+        <div className="toast-slide" style={{
+          position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)',
+          zIndex: 200, padding: '10px 20px', borderRadius: 10,
+          background: 'rgba(26,10,46,0.96)',
+          border: '1px solid rgba(0,255,255,0.45)',
+          boxShadow: '0 0 22px rgba(0,255,255,0.35)',
+          color: '#0ff', fontSize: 13, fontWeight: 600, letterSpacing: 0.5,
         }}>{toast}</div>
       )}
 
-      {/* Header */}
-      <header style={{
-        padding: '28px 24px 18px', textAlign: 'center', position: 'relative',
-      }}>
-        <div style={{
-          display: 'inline-block', padding: '14px 44px', borderRadius: 14,
-          border: '2px solid #0ff', position: 'relative',
-          boxShadow: '0 0 30px rgba(0,255,255,0.35), 0 0 60px rgba(255,0,255,0.18) inset',
-          background: 'rgba(10, 4, 28, 0.55)', backdropFilter: 'blur(6px)',
+      {/* 主体三栏 */}
+      <main style={{ padding: 18, position: 'relative' }}>
+        <div className="main-grid" style={{
+          display: 'grid',
+          gridTemplateColumns: '320px 1fr 360px',
+          gap: 16, alignItems: 'start',
         }}>
-          <h1 style={{
-            margin: 0, fontSize: 'clamp(22px, 4vw, 34px)',
-            background: 'linear-gradient(90deg, #0ff 0%, #f0f 50%, #0ff 100%)',
-            WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent',
-            fontWeight: 900, letterSpacing: 3,
-            textShadow: '0 0 24px rgba(0,255,255,0.5)',
+          {/* -------- 左栏：难度 / 属性 / 装备 / 按钮 -------- */}
+          <section style={{
+            background: 'rgba(26,14,56,0.55)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(0,255,255,0.22)',
+            borderRadius: 14, padding: 16,
+            boxShadow: '0 0 30px rgba(0,0,0,0.4)',
           }}>
-            ROGUELIKE · 道具掉落与合成模拟器
-          </h1>
-          <div style={{ fontSize: 12, color: '#7890c8', marginTop: 6, letterSpacing: 4 }}>
-            ▸ CYBER · DUNGEON · ROGUE ◂
-          </div>
-        </div>
-      </header>
-
-      {/* Main layout */}
-      <main style={{
-        display: 'grid', gap: 16, padding: '8px 16px 32px', maxWidth: 1600, margin: '0 auto',
-        gridTemplateColumns: 'minmax(0, 320px) minmax(0, 1fr) minmax(0, 380px)',
-      }} className="main-grid">
-
-        {/* LEFT: status & actions */}
-        <section style={{
-          borderRadius: 14, padding: 16,
-          background: 'rgba(20, 8, 40, 0.72)', backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(0,255,255,0.25)',
-          boxShadow: '0 0 20px rgba(0,0,0,0.4)',
-          display: 'flex', flexDirection: 'column', gap: 16,
-          minHeight: 0
-        }}>
-          <div>
-            <div style={{ fontSize: 13, color: '#7ca6ff', marginBottom: 10, fontWeight: 600, letterSpacing: 1 }}>⚙ 难度选择</div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8 }}>
-              {(Object.keys(DIFF_LABELS) as Difficulty[]).map((d) => (
-                <button key={d} onClick={() => simulator.setDifficulty(d)}
-                  style={{
-                    minHeight: 44, padding: '8px 6px', borderRadius: 8, cursor: 'pointer',
-                    fontSize: 13, fontWeight: 700,
-                    background: state.difficulty === d
-                      ? `linear-gradient(135deg, ${DIFF_LABELS[d].color}33, ${DIFF_LABELS[d].color}11)`
-                      : 'rgba(255,255,255,0.03)',
-                    border: `1.5px solid ${state.difficulty === d ? DIFF_LABELS[d].color : 'rgba(143,163,255,0.25)'}`,
-                    color: state.difficulty === d ? DIFF_LABELS[d].color : '#9db4ff',
-                    boxShadow: state.difficulty === d ? `0 0 14px ${DIFF_LABELS[d].color}55` : 'none',
-                    transition: 'all 0.2s',
-                  }}>
-                  {DIFF_LABELS[d].label}
-                </button>
-              ))}
+            {/* 难度按钮 */}
+            <div style={{ marginBottom: 18 }}>
+              <h3 style={{ margin: 0, marginBottom: 10, color: '#f0f', fontSize: 14, letterSpacing: 1.5, textShadow: '0 0 8px rgba(255,0,255,0.5)' }}>
+                ◈ 难度选择
+              </h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 8 }}>
+                {(['easy', 'normal', 'hard'] as Difficulty[]).map((d) => {
+                  const active = state.difficulty === d;
+                  const meta = DIFF_LABELS[d];
+                  return (
+                    <button key={d} onClick={() => handleSetDifficulty(d)} disabled={state.inBattle} style={{
+                      padding: '10px 4px', borderRadius: 10, fontSize: 13, fontWeight: 700,
+                      background: active
+                        ? `linear-gradient(180deg, ${meta.color}33, ${meta.color}11)`
+                        : 'rgba(255,255,255,0.04)',
+                      border: `1.5px solid ${active ? meta.color : 'rgba(255,255,255,0.12)'}`,
+                      color: active ? meta.color : '#aac',
+                      boxShadow: active ? `0 0 14px ${meta.color}66` : 'none',
+                      transition: 'all 0.2s',
+                    }}>{meta.label}</button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
 
-          <div style={{ padding: 14, borderRadius: 10, background: 'rgba(0,0,0,0.25)', border: '1px solid rgba(143,163,255,0.15)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
-              <span style={{ fontSize: 13, color: '#0ff', fontWeight: 700 }}>👤 冒险者</span>
-              <span style={{ fontSize: 11, color: '#f0f', padding: '2px 8px', borderRadius: 4, background: 'rgba(255,0,255,0.12)', border: '1px solid rgba(255,0,255,0.4)' }}>LV {state.level}</span>
+            {/* 关卡信息 */}
+            <div style={{ marginBottom: 18, padding: 12, borderRadius: 10, background: 'rgba(0,255,255,0.04)', border: '1px solid rgba(0,255,255,0.16)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#9ab' }}>
+                <span>关卡等级</span><span style={{ color: '#ffd166', fontWeight: 700 }}>Lv.{state.level}</span>
+              </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#9ab', marginTop: 6 }}>
+                <span>累计关卡</span><span style={{ color: '#0ff' }}>{state.totalRuns}</span>
+              </div>
             </div>
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#b9c7ff', marginBottom: 4 }}>
-                <span>HP</span>
-                <span style={{ color: hpPct > 50 ? '#4ade80' : hpPct > 25 ? '#fbbf24' : '#f87171' }}>
-                  {state.playerBase.hp} / {playerTotal.maxHp}
+
+            {/* HP条 */}
+            <div style={{ marginBottom: 18 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, marginBottom: 6 }}>
+                <span style={{ color: '#9ab' }}>❤ 生命值</span>
+                <span style={{ color: '#ff7a8a', fontWeight: 700 }}>
+                  {totalStats.hp} / {totalStats.maxHp}
                 </span>
               </div>
-              <div style={{ height: 10, borderRadius: 6, background: 'rgba(255,255,255,0.08)', overflow: 'hidden' }}>
-                <div style={{
-                  width: `${hpPct}%`, height: '100%', transition: 'width 0.6s',
-                  background: `linear-gradient(90deg, ${hpPct > 50 ? '#4ade80' : hpPct > 25 ? '#fbbf24' : '#f87171'}, #0ff)`,
-                  boxShadow: `0 0 10px ${hpPct > 50 ? '#4ade80' : hpPct > 25 ? '#fbbf24' : '#f87171'}`,
-                }} />
+              <div style={{
+                height: 14, borderRadius: 7, overflow: 'hidden',
+                background: 'rgba(255,60,100,0.12)',
+                border: '1px solid rgba(255,80,120,0.3)',
+              }}>
+                <div
+                  className="hp-bar-fill"
+                  style={{
+                    height: '100%',
+                    width: `${HP_PCT(totalStats.hp, totalStats.maxHp)}%`,
+                    background: 'linear-gradient(90deg, #ff5577, #ff8080)',
+                    boxShadow: '0 0 10px rgba(255,80,120,0.6)',
+                  }}
+                />
               </div>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, fontSize: 12 }}>
-              <StatRow label="⚔ 攻击" value={playerTotal.attack} base={state.playerBase.attack} color="#0ff" />
-              <StatRow label="🛡 防御" value={playerTotal.defense} base={state.playerBase.defense} color="#4fa8ff" />
-              <StatRow label="💥 暴击" value={`${playerTotal.critRate}%`} base={`${state.playerBase.critRate}%`} color="#ffd166" />
-            </div>
-          </div>
 
-          <div>
-            <div style={{ fontSize: 13, color: '#7ca6ff', marginBottom: 8, fontWeight: 600, letterSpacing: 1 }}>🎽 装备栏</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {(['weapon', 'armor', 'accessory'] as const).map((t) => {
-                const item = state.equipped[t];
-                return (
-                  <div key={t} style={{
-                    padding: 8, borderRadius: 8,
-                    background: 'rgba(0,0,0,0.2)',
-                    border: `1px dashed ${item ? QUALITY_COLORS[item.quality].border : 'rgba(143,163,255,0.25)'}`,
-                  }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: '#7ca6ff', marginBottom: 4 }}>
-                      <span>{TYPE_NAMES[t]}</span>
-                      {item && <button onClick={() => simulator.unequipItem(t)}
-                        style={{ background: 'transparent', border: 'none', color: '#f87171', fontSize: 11, cursor: 'pointer', padding: 2 }}>卸下</button>}
-                    </div>
-                    {item ? <ItemCard item={item} compact onClick={() => simulator.unequipItem(t)} />
-                      : <div style={{ padding: 10, textAlign: 'center', fontSize: 12, color: 'rgba(143,163,255,0.5)' }}>未装备（从背包装备）</div>}
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: 'auto' }}>
-            <button onClick={handleBattle} disabled={playing || state.playerBase.hp <= 0}
-              style={{
-                minHeight: 48, padding: '12px 16px', fontSize: 15, fontWeight: 800, letterSpacing: 2,
-                borderRadius: 10, cursor: playing || state.playerBase.hp <= 0 ? 'not-allowed' : 'pointer',
-                background: playing ? 'rgba(124,166,255,0.15)' : 'linear-gradient(135deg, rgba(0,255,255,0.3), rgba(255,0,255,0.22))',
-                color: playing ? '#7ca6ff' : '#fff',
-                border: `2px solid ${playing ? 'rgba(124,166,255,0.4)' : '#f0f'}`,
-                boxShadow: playing ? 'none' : '0 0 22px rgba(255,0,255,0.45)',
-                transition: 'all 0.2s', opacity: state.playerBase.hp <= 0 ? 0.5 : 1,
-              }}>
-              {playing ? '⚔ 战斗中...' : state.playerBase.hp <= 0 ? '☠ 你已阵亡（切换难度重置）' : `⚔ 进入第 ${state.level} 关`}
-            </button>
-            <button onClick={() => setCraftOpen(true)}
-              style={{
-                minHeight: 44, padding: '10px 16px', fontSize: 14, fontWeight: 700,
-                borderRadius: 10, cursor: 'pointer',
-                background: 'rgba(255,209,102,0.1)',
-                color: '#ffd166',
-                border: '1.5px solid rgba(255,209,102,0.6)',
-                boxShadow: '0 0 14px rgba(255,209,102,0.25)',
-              }}>
-              ⚗ 打开合成工坊（背包 {state.inventory.length}）
-            </button>
-            <button onClick={() => simulator.resetLevel()}
-              style={{
-                minHeight: 40, padding: '8px 16px', fontSize: 12,
-                borderRadius: 8, cursor: 'pointer',
-                background: 'transparent', color: '#8fa3ff',
-                border: '1px solid rgba(143,163,255,0.25)',
-              }}>↻ 重置角色进度</button>
-          </div>
-        </section>
-
-        {/* CENTER: Items, rewards, monsters */}
-        <section style={{ display: 'flex', flexDirection: 'column', gap: 16, minHeight: 0 }}>
-          {state.monsters.length > 0 && (
-            <div style={{
-              borderRadius: 14, padding: 16,
-              background: 'linear-gradient(135deg, rgba(40,8,16,0.7), rgba(26,10,46,0.82))', backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(248,113,113,0.4)',
-              boxShadow: '0 0 24px rgba(248,113,113,0.15)',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div style={{ fontSize: 15, color: '#f87171', fontWeight: 700, letterSpacing: 1 }}>
-                  👹 当前战场 · 第 {state.level} 关
-                </div>
-                {state.lastCombat && (
-                  <div style={{
-                    padding: '4px 12px', borderRadius: 6, fontSize: 12, fontWeight: 700,
-                    background: state.lastCombat.victory ? 'rgba(74,222,128,0.18)' : 'rgba(248,113,113,0.18)',
-                    color: state.lastCombat.victory ? '#4ade80' : '#f87171',
-                    border: `1px solid ${state.lastCombat.victory ? 'rgba(74,222,128,0.5)' : 'rgba(248,113,113,0.5)'}`,
-                  }}>
-                    {state.lastCombat.victory ? '✓ 战斗胜利' : '✗ 战斗失败'}（{state.lastCombat.rounds} 回合）
-                  </div>
-                )}
+            {/* 玩家属性面板 */}
+            <div style={{ marginBottom: 18 }}>
+              <h3 style={{ margin: 0, marginBottom: 10, color: '#0ff', fontSize: 14, letterSpacing: 1.5, textShadow: '0 0 8px rgba(0,255,255,0.5)' }}>
+                ⚡ 玩家属性
+              </h3>
+              <div style={{ display: 'grid', gap: 7, fontSize: 13 }}>
+                <StatRow label="⚔ 攻击" value={`+${totalStats.attack}`} color="#ff9a66" />
+                <StatRow label="🛡 防御" value={`+${totalStats.defense}`} color="#66b3ff" />
+                <StatRow label="💥 暴击率" value={`${totalStats.critRate}%`} color="#ffd166" />
+                <StatRow label="💨 闪避率" value={`${totalStats.dodgeRate}%`} color="#a0f0ff" />
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 10 }}>
-                {state.monsters.map((m) => {
-                  const last = state.lastCombat;
-                  const isDead = last && !last.victory ? false : false;
-                  const hpP = Math.max(0, m.stats.hp / m.stats.maxHp * 100);
+            </div>
+
+            {/* 装备槽 */}
+            <div style={{ marginBottom: 18 }}>
+              <h3 style={{ margin: 0, marginBottom: 10, color: '#c77dff', fontSize: 14, letterSpacing: 1.5, textShadow: '0 0 8px rgba(199,125,255,0.5)' }}>
+                ◆ 当前装备
+              </h3>
+              <div style={{ display: 'grid', gap: 10 }}>
+                {(['weapon', 'armor', 'accessory'] as const).map((slot) => {
+                  const eq = state.equipped[slot];
                   return (
-                    <div key={m.id} style={{
-                      padding: 12, borderRadius: 10,
-                      background: 'rgba(0,0,0,0.35)',
-                      border: `1px solid rgba(248,113,113,${isDead ? 0.15 : 0.4})`,
-                      opacity: isDead ? 0.5 : 1,
+                    <div key={slot} style={{
+                      padding: 10, borderRadius: 10,
+                      background: 'rgba(255,255,255,0.03)',
+                      border: '1px solid rgba(255,255,255,0.1)',
                     }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, alignItems: 'center' }}>
-                        <span style={{ color: '#ffb4b4', fontWeight: 700, fontSize: 14 }}>{m.name}</span>
-                        <span style={{ fontSize: 10, color: '#8b9ad1' }}>[{m.type}]</span>
-                      </div>
-                      <div style={{ height: 7, borderRadius: 4, background: 'rgba(255,255,255,0.08)', marginBottom: 6, overflow: 'hidden' }}>
-                        <div style={{
-                          width: `${hpP}%`, height: '100%',
-                          background: 'linear-gradient(90deg, #f87171, #fbbf24)',
-                          boxShadow: '0 0 8px #f87171',
-                        }} />
-                      </div>
-                      <div style={{ fontSize: 11, color: '#c7b4ff', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 4 }}>
-                        <span>❤ {m.stats.hp}/{m.stats.maxHp}</span>
-                        <span>⚔ {m.stats.attack}</span>
-                        <span>🛡 {m.stats.defense}</span>
-                      </div>
-                      <div style={{ marginTop: 6, display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                        {m.skills.map((s) => (
-                          <span key={s.id} style={{
-                            fontSize: 10, padding: '2px 6px', borderRadius: 4,
-                            background: 'rgba(255,0,255,0.08)', color: '#f0a6ff',
-                            border: '1px solid rgba(255,0,255,0.35)',
-                          }} title={s.desc}>{s.name}</span>
-                        ))}
-                      </div>
+                      <div style={{
+                        fontSize: 11, color: '#89a', marginBottom: 6, letterSpacing: 1,
+                      }}>{TYPE_NAMES[slot]}槽</div>
+                      {eq ? (
+                        <div>
+                          <ItemCard item={eq} compact />
+                          <button onClick={() => handleUnequip(slot)} style={{
+                            marginTop: 6, width: '100%', padding: '6px 8px',
+                            fontSize: 11, borderRadius: 6,
+                            background: 'rgba(255,100,100,0.12)',
+                            border: '1px solid rgba(255,120,120,0.3)',
+                            color: '#ff99aa', minHeight: 30,
+                          }}>卸下</button>
+                        </div>
+                      ) : (
+                        <div style={{ color: '#556', fontSize: 11, textAlign: 'center', padding: '14px 0' }}>
+                          — 空 —
+                        </div>
+                      )}
                     </div>
                   );
                 })}
               </div>
             </div>
-          )}
 
-          {state.battleRewards.length > 0 && (
+            {/* 动作按钮 */}
+            <div style={{ display: 'grid', gap: 10 }}>
+              <button onClick={handleBattle} disabled={state.inBattle} style={{
+                padding: '14px 16px', fontSize: 15, fontWeight: 800,
+                letterSpacing: 2, borderRadius: 12,
+                background: state.inBattle
+                  ? 'rgba(100,100,120,0.3)'
+                  : 'linear-gradient(90deg, #00ffaacc, #00ffff)',
+                color: state.inBattle ? '#778' : '#0a0520',
+                border: 'none',
+                boxShadow: state.inBattle ? 'none' : '0 0 22px rgba(0,255,255,0.55)',
+              }}>{state.inBattle ? '⚔ 战斗中…' : `▶ 进入关卡 Lv.${state.level}`}</button>
+
+              <button onClick={() => setCraftOpen(true)} style={{
+                padding: '12px 16px', fontSize: 14, fontWeight: 700,
+                letterSpacing: 1.5, borderRadius: 12,
+                background: 'linear-gradient(90deg, rgba(199,125,255,0.25), rgba(255,0,255,0.25))',
+                border: '1.5px solid rgba(255,0,255,0.5)',
+                color: '#f0a6ff',
+                boxShadow: '0 0 20px rgba(255,0,255,0.28)',
+              }}>⚗ 合成工坊（背包 {state.inventory.length}）</button>
+
+              <button onClick={() => simulator.resetLevel()} disabled={state.inBattle} style={{
+                padding: '10px 12px', fontSize: 12, borderRadius: 10,
+                background: 'rgba(255,255,255,0.04)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                color: '#89a',
+              }}>↺ 重置当前关卡</button>
+            </div>
+          </section>
+
+          {/* -------- 中栏：怪物 / 战利品 / 背包 -------- */}
+          <section style={{ display: 'grid', gap: 16 }}>
+            {/* 怪物面板 */}
             <div style={{
+              background: 'rgba(56,12,32,0.55)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(255,80,130,0.22)',
               borderRadius: 14, padding: 16,
-              background: 'linear-gradient(135deg, rgba(8,24,40,0.75), rgba(26,10,46,0.82))', backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(255,209,102,0.35)',
-              boxShadow: '0 0 20px rgba(255,209,102,0.12)',
+              boxShadow: '0 0 30px rgba(0,0,0,0.4)',
             }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div style={{ fontSize: 15, color: '#ffd166', fontWeight: 700, letterSpacing: 1 }}>
-                  🎁 战利品（{state.battleRewards.length} 件）{state.lastCombat?.victory ? '— 已存入背包' : '— 战斗胜利后可获得'}
+              <h3 style={{ margin: 0, marginBottom: 12, color: '#ff6b8a', fontSize: 14, letterSpacing: 1.5, textShadow: '0 0 8px rgba(255,100,140,0.5)' }}>
+                👾 敌方单位 · {state.monsters.length}
+              </h3>
+              {state.monsters.length === 0 ? (
+                <div style={{ color: '#667', fontSize: 12, padding: 28, textAlign: 'center',
+                  border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 10, }}>
+                  尚未进入关卡 —— 点击左侧「进入关卡」开始战斗
                 </div>
-              </div>
-              <div className="items-grid" style={{
-                display: 'grid', gap: 12,
-                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-              }}>
-                {state.battleRewards.map((it) => (
-                  <ItemCard key={it.id} item={it} />
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div style={{
-            borderRadius: 14, padding: 16, flex: 1, minHeight: 300,
-            background: 'rgba(16, 8, 34, 0.72)', backdropFilter: 'blur(8px)',
-            border: '1px solid rgba(79,168,255,0.25)',
-            boxShadow: '0 0 20px rgba(0,0,0,0.4)',
-          }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-              <div style={{ fontSize: 15, color: '#4fa8ff', fontWeight: 700, letterSpacing: 1 }}>
-                📦 背包 · 道具仓库（{state.inventory.length}）
-              </div>
-              <div style={{ fontSize: 11, color: '#7890c8' }}>点击道具可装备</div>
-            </div>
-            {state.inventory.length === 0 ? (
-              <div style={{ padding: 40, textAlign: 'center', color: 'rgba(143,163,255,0.55)', fontSize: 13,
-                border: '1px dashed rgba(143,163,255,0.25)', borderRadius: 10 }}>
-                背包空空如也，进入关卡战斗获得战利品吧！
-              </div>
-            ) : (
-              <div style={{
-                display: 'grid', gap: 12,
-                gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
-                maxHeight: 520, overflow: 'auto', paddingRight: 4,
-              }} className="scroll">
-                {state.inventory.map((it) => (
-                  <ItemCard key={it.id} item={it} onClick={() => handleEquip(it)}
-                    draggable onDragStart={(e, i) => e.dataTransfer.setData('itemId', i.id)} />
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-
-        {/* RIGHT: combat log */}
-        <section style={{
-          borderRadius: 14, padding: 16,
-          background: 'rgba(12, 20, 42, 0.72)', backdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255,0,255,0.25)',
-          boxShadow: '0 0 20px rgba(0,0,0,0.4)',
-          display: 'flex', flexDirection: 'column', minHeight: 0
-        }}>
-          <div style={{ fontSize: 15, color: '#f0f', fontWeight: 700, letterSpacing: 1, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span>📜 战斗日志</span>
-            <span style={{ fontSize: 10, color: '#7890c8', fontWeight: 400, marginLeft: 'auto' }}>
-              {visibleLogs.length} / {state.lastCombat?.logs.length ?? 0} 条
-            </span>
-          </div>
-          <div ref={logRef} className="log-scroll scroll" style={{
-            flex: 1, minHeight: 400, maxHeight: 720, overflow: 'auto',
-            paddingRight: 6,
-          }}>
-            {groupedLogs.length === 0 ? (
-              <div style={{ padding: 40, textAlign: 'center', color: 'rgba(185,199,255,0.45)', fontSize: 13, lineHeight: 1.8 }}>
-                暂无战斗记录<br/>
-                <span style={{ fontSize: 11 }}>点击「进入关卡」开启战斗，日志将实时展示于此</span>
-              </div>
-            ) : (
-              groupedLogs.map(([round, entries]) => (
-                <div key={round} style={{ marginBottom: 14 }}>
-                  <div style={{
-                    display: 'inline-block', fontSize: 11, padding: '2px 10px', marginBottom: 6,
-                    borderRadius: 4, letterSpacing: 1,
-                    background: 'rgba(0,255,255,0.1)', border: '1px solid rgba(0,255,255,0.4)',
-                    color: '#0ff',
-                  }}>
-                    {round === 0 ? '◇ 战斗开始' : `回合 ${round}`}
-                  </div>
-                  {entries.map((l, idx) => (
-                    <div key={idx} className="log-line"
-                      style={{
-                        display: 'grid', gridTemplateColumns: '64px 80px 1fr', gap: 8,
-                        padding: '5px 8px', borderRadius: 5, fontSize: 12.5, lineHeight: 1.65,
-                        alignItems: 'start',
-                        borderLeft: `2px solid ${l.actor === '系统' ? '#7890c8' : l.actor === '玩家' ? '#0ff' : '#f87171'}55`,
-                        marginBottom: 2,
-                        background: l.isCrit ? 'rgba(255,0,255,0.06)' : 'rgba(255,255,255,0.02)',
+              ) : (
+                <div style={{ display: 'grid', gap: 10,
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))' }}>
+                  {state.monsters.map((m) => {
+                    const pct = HP_PCT(m.stats.hp, m.stats.maxHp);
+                    return (
+                      <div key={m.id} style={{
+                        padding: 12, borderRadius: 10,
+                        background: 'linear-gradient(180deg, rgba(255,60,100,0.08), rgba(100,20,40,0.08))',
+                        border: `1px solid ${m.stats.hp <= 0 ? 'rgba(120,120,120,0.3)' : 'rgba(255,100,140,0.3)'}`,
+                        opacity: m.stats.hp <= 0 ? 0.45 : 1,
                       }}>
-                      <span style={{
-                        fontFamily: '"Consolas", "SF Mono", monospace',
-                        fontSize: 11, color: '#6b82c5', paddingTop: 2
-                      }}>{l.timestamp}</span>
-                      <span style={{
-                        fontFamily: '"Consolas", monospace', fontSize: 11.5,
-                        color: l.actor === '玩家' ? '#0ff' : l.actor === '系统' ? '#c7c9d6' : '#ffb4b4',
-                        textShadow: l.actor === '玩家' ? '0 0 6px #0ff55' : '',
-                        paddingTop: 2, whiteSpace: 'nowrap',
-                      }}>{l.actor.padEnd(6, ' ')}</span>
-                      <span style={{
-                        fontFamily: '"Consolas", "Source Code Pro", monospace',
-                        color: '#d7ddf5', wordBreak: 'break-all',
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                          <span style={{ color: '#ffaabb', fontWeight: 700, fontSize: 14 }}>{m.name}</span>
+                          <span style={{ fontSize: 10, color: '#888', padding: '1px 6px',
+                            border: '1px solid rgba(255,120,160,0.3)', borderRadius: 4 }}>
+                            Lv.{m.level}
+                          </span>
+                        </div>
+                        <div style={{
+                          height: 10, borderRadius: 5, overflow: 'hidden',
+                          background: 'rgba(255,60,100,0.1)', marginBottom: 8,
+                          border: '1px solid rgba(255,80,120,0.2)',
+                        }}>
+                          <div className="hp-bar-fill" style={{
+                            height: '100%', width: `${pct}%`,
+                            background: 'linear-gradient(90deg, #ff3366, #ff8899)',
+                          }} />
+                        </div>
+                        <div style={{ display: 'grid', gap: 3, fontSize: 11, color: '#cda' }}>
+                          <div>❤ {m.stats.hp} / {m.stats.maxHp}</div>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            <span>⚔ {m.stats.attack}</span>
+                            <span>🛡 {m.stats.defense}</span>
+                          </div>
+                        </div>
+                        {m.skills.length > 0 && (
+                          <div style={{ marginTop: 8, padding: 6, borderRadius: 6,
+                            background: 'rgba(255,160,40,0.06)',
+                            border: '1px dashed rgba(255,180,60,0.25)', fontSize: 10,
+                            color: '#ffc980', lineHeight: 1.6 }}>
+                            {m.skills.map((s) => (
+                              <div key={s.id}>✧ {s.name}（CD {s.cd}回合）</div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* 战利品 */}
+            <div style={{
+              background: 'rgba(26,54,56,0.55)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(0,255,180,0.22)',
+              borderRadius: 14, padding: 16,
+            }}>
+              <h3 style={{ margin: 0, marginBottom: 12, color: '#4fffc8', fontSize: 14, letterSpacing: 1.5, textShadow: '0 0 8px rgba(0,255,180,0.4)' }}>
+                🎁 战利品（点击拾取到背包） · {state.battleRewards.length}
+              </h3>
+              {state.battleRewards.length === 0 ? (
+                <div style={{ color: '#556', fontSize: 12, padding: 20, textAlign: 'center',
+                  border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 10 }}>
+                  暂无战利品 —— 完成战斗后可获得随机道具
+                </div>
+              ) : (
+                <div className="items-grid grid" style={{
+                  display: 'grid', gap: 12,
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                }}>
+                  {state.battleRewards.map((it) => (
+                    <ItemCard
+                      key={it.id}
+                      item={it}
+                      onClick={() => {
+                        const r = simulator.pickupReward(it.id);
+                        if (r.ok) showToast(`已拾取 ${it.name}`);
                       }}
-                        dangerouslySetInnerHTML={{
-                          __html: l.action
-                            .replace(/(\d+)/g, (_, n) => `<span style="color:#f0f;font-weight:700;text-shadow:0 0 6px #f0f66;">${n}</span>`)
-                            .replace(/（暴击！）/g, '<span style="color:#f0f;font-weight:700">（暴击！）</span>')
-                            .replace(/（穿透）/g, '<span style="color:#ffd166">（穿透）</span>'),
-                        }}
-                      />
-                    </div>
+                      tag="拾取"
+                    />
                   ))}
                 </div>
-              ))
-            )}
-          </div>
-          {state.lastCombat && !playing && (
-            <div style={{
-              marginTop: 12, padding: 12, borderRadius: 10,
-              background: state.lastCombat.victory ? 'linear-gradient(135deg, rgba(74,222,128,0.12), rgba(0,255,255,0.08))' : 'linear-gradient(135deg, rgba(248,113,113,0.12), rgba(255,0,255,0.06))',
-              border: `1px solid ${state.lastCombat.victory ? 'rgba(74,222,128,0.45)' : 'rgba(248,113,113,0.45)'}`,
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontWeight: 700, fontSize: 14, marginBottom: 4 }}>
-                <span>{state.lastCombat.victory ? '🏆' : '💀'}</span>
-                <span style={{ color: state.lastCombat.victory ? '#4ade80' : '#f87171' }}>
-                  {state.lastCombat.victory ? '战斗胜利！' : '战斗失败...'}
-                </span>
-              </div>
-              <div style={{ fontSize: 11.5, color: '#b9c7ff', lineHeight: 1.7 }}>
-                回合数：{state.lastCombat.rounds} · 剩余HP：{state.lastCombat.playerHp} · 存活怪物：{state.lastCombat.monstersRemaining}
-              </div>
+              )}
             </div>
-          )}
-        </section>
+
+            {/* 背包 */}
+            <div style={{
+              background: 'rgba(44,26,74,0.55)',
+              backdropFilter: 'blur(12px)',
+              border: '1px solid rgba(199,125,255,0.22)',
+              borderRadius: 14, padding: 16,
+            }}>
+              <h3 style={{ margin: 0, marginBottom: 12, color: '#c77dff', fontSize: 14, letterSpacing: 1.5, textShadow: '0 0 8px rgba(199,125,255,0.4)' }}>
+                🎒 背包（点击装备） · {state.inventory.length}
+              </h3>
+              {state.inventory.length === 0 ? (
+                <div style={{ color: '#556', fontSize: 12, padding: 20, textAlign: 'center',
+                  border: '1px dashed rgba(255,255,255,0.08)', borderRadius: 10 }}>
+                  背包为空
+                </div>
+              ) : (
+                <div className="items-grid grid" style={{
+                  display: 'grid', gap: 12,
+                  gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+                }}>
+                  {state.inventory.map((it) => (
+                    <ItemCard
+                      key={it.id}
+                      item={it}
+                      onClick={() => handleEquip(it)}
+                      tag="装备"
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
+          {/* -------- 右栏：战斗日志 -------- */}
+          <section style={{
+            background: 'rgba(10,14,38,0.65)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(120,150,255,0.22)',
+            borderRadius: 14, padding: 16,
+            position: 'sticky', top: 16,
+          }}>
+            <h3 style={{ margin: 0, marginBottom: 12, color: '#8ab4ff', fontSize: 14, letterSpacing: 1.5, textShadow: '0 0 8px rgba(120,160,255,0.5)' }}>
+              📜 战斗日志 · {state.combatLog.length}
+            </h3>
+            <div
+              ref={autoScrollRef}
+              className="log-scroll scroll"
+              style={{
+                maxHeight: '72vh', minHeight: 520, overflow: 'auto',
+                padding: 10, borderRadius: 10,
+                background: 'rgba(0,4,20,0.55)',
+                border: '1px solid rgba(120,160,255,0.12)',
+                fontSize: 12.5, lineHeight: 1.75,
+              }}
+            >
+              {state.combatLog.length === 0 ? (
+                <div style={{ color: '#445', padding: '40px 12px', textAlign: 'center', fontSize: 12 }}>
+                  暂无战斗记录<br /><span style={{color:'#334', fontSize: 11}}>
+                    点击「进入关卡」开始战斗
+                  </span>
+                </div>
+              ) : (
+                <LogList logs={state.combatLog} />
+              )}
+            </div>
+          </section>
+        </div>
       </main>
 
-      <CraftModal open={craftOpen} inventory={state.inventory} onClose={() => setCraftOpen(false)} onCraft={handleCraft} />
-
-      <style>{`
-        @keyframes slideIn { from { opacity: 0; transform: translate(-50%, -12px);} to { opacity: 1; transform: translate(-50%, 0);} }
-        @keyframes craftShow {
-          0% { transform: scale(0.3) rotate(-180deg); opacity: 0; }
-          60% { transform: scale(1.15) rotate(15deg); opacity: 1; }
-          100% { transform: scale(1) rotate(0); opacity: 1; }
-        }
-        .craft-result { opacity: 0; transform: scale(0.3) rotate(-90deg); }
-        .craft-result.show { animation: craftShow 0.9s cubic-bezier(0.34, 1.56, 0.64, 1) forwards; }
-        .particle.show { opacity: 1; }
-        .craft-modal .particle { animation: particleFly 1s ease-out forwards; }
-        @keyframes particleFly {
-          0% { opacity: 0; transform: translate(0, 0) scale(1); }
-          20% { opacity: 1; }
-          100% { opacity: 0; transform: translate(var(--px, 0), var(--py, 0)) scale(0.2); }
-        }
-        .hex-grid {
-          position: absolute; inset: 0; pointer-events: none; opacity: 0.08;
-          background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='56' height='64' viewBox='0 0 56 64'><path d='M28 2 L52 16 L52 48 L28 62 L4 48 L4 16 Z' fill='none' stroke='%230ff' stroke-width='1'/></svg>");
-          background-size: 56px 64px;
-          mask-image: radial-gradient(ellipse at center, black 30%, transparent 85%);
-        }
-        .item-card:hover { transform: translateY(-2px); }
-        .scroll::-webkit-scrollbar { width: 6px; height: 6px; }
-        .scroll::-webkit-scrollbar-track { background: transparent; }
-        .scroll::-webkit-scrollbar-thumb { background: rgba(0,255,255,0.25); border-radius: 3px; }
-        .scroll::-webkit-scrollbar-thumb:hover { background: rgba(0,255,255,0.45); }
-        @media (max-width: 1080px) {
-          .main-grid { grid-template-columns: 1fr !important; }
-        }
-        button:active { transform: scale(0.97); }
-        .log-line:hover { background: rgba(0,255,255,0.04) !important; }
-      `}</style>
+      {/* 合成弹窗 */}
+      <CraftModal
+        open={craftOpen}
+        inventory={state.inventory}
+        onClose={() => setCraftOpen(false)}
+        onCraft={handleCraft}
+      />
     </div>
   );
 };
 
-const StatRow: React.FC<{ label: string; value: string | number; base: string | number; color: string }> = ({ label, value, base, color }) => {
-  const diff = typeof value === 'number' && typeof base === 'number' ? value - base : 0;
-  return (
-    <div style={{
-      background: 'rgba(0,0,0,0.25)', borderRadius: 6, padding: '6px 8px',
-      border: `1px solid ${color}22`, display: 'flex', justifyContent: 'space-between', alignItems: 'center'
-    }}>
-      <span style={{ color: '#b9c7ff' }}>{label}</span>
-      <span style={{ color, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
-        {value}
-        {typeof diff === 'number' && diff > 0 && (
-          <span style={{ fontSize: 10, color: '#4ade80' }}>+{diff}</span>
-        )}
-      </span>
-    </div>
-  );
+/* ==================== 小组件 ==================== */
+
+const StatRow: React.FC<{ label: string; value: string; color: string }> = ({ label, value, color }) => (
+  <div style={{
+    display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+    padding: '8px 12px', borderRadius: 8,
+    background: 'rgba(255,255,255,0.03)',
+    border: `1px solid ${color}22`,
+  }}>
+    <span style={{ color: '#cde' }}>{label}</span>
+    <span style={{ color, fontWeight: 700, textShadow: `0 0 6px ${color}66` }}>{value}</span>
+  </div>
+);
+
+/**
+ * 战斗日志渲染：
+ *  - 按回合分组（turn > 0 且 turn 递增时显示分隔线）
+ *  - 每行动显示时间戳
+ *  - 数字全部洋红高亮 (#ff50ff)
+ */
+const LogList: React.FC<{ logs: CombatLogEntry[] }> = ({ logs }) => {
+  const MAGENTA = '#ff4fff';
+  const highlightNumbers = (text: string): React.ReactNode => {
+    if (!text) return text;
+    const parts: React.ReactNode[] = [];
+    const re = /-?\d+\.?\d*/g;
+    let last = 0; let m: RegExpExecArray | null; let key = 0;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) parts.push(text.slice(last, m.index));
+      parts.push(
+        <span key={key++} style={{
+          color: MAGENTA, fontWeight: 700,
+          textShadow: `0 0 6px ${MAGENTA}aa`,
+        }}>{m[0]}</span>
+      );
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) parts.push(text.slice(last));
+    return parts;
+  };
+
+  let lastTurn = -1;
+  const elements: React.ReactNode[] = [];
+  let k = 0;
+  logs.forEach((log) => {
+    if (log.turn > 0 && log.turn !== lastTurn) {
+      lastTurn = log.turn;
+      elements.push(
+        <div key={`turn-${log.turn}-${k++}`} style={{
+          marginTop: 6, marginBottom: 6,
+          fontSize: 11, color: '#0ff', letterSpacing: 2, fontWeight: 700,
+          padding: '4px 8px', borderRadius: 6,
+          background: 'linear-gradient(90deg, rgba(0,255,255,0.1), transparent)',
+          borderLeft: '2px solid #0ff',
+          textShadow: '0 0 6px rgba(0,255,255,0.6)',
+        }}>
+          ━━━ 回合 {log.turn} ━━━
+        </div>
+      );
+    }
+    const t = log.timestamp;
+    const ts = typeof t === 'number'
+      ? new Date(t).toLocaleTimeString('zh-CN', { hour12: false })
+      : String(t || '').split(' ').pop() || '';
+    const tsShort = ts.slice(3); // mm:ss
+
+    const colorMap: Record<string, string> = {
+      info:    '#b9c7ff',
+      player:  '#66ffbb',
+      monster: '#ff8faa',
+      crit:    '#ffd166',
+      dodge:   '#80d8ff',
+      effect:  '#ffaaff',
+      system:  '#8ab4ff',
+      win:     '#66ff99',
+      lose:    '#ff6b8a',
+    };
+
+    elements.push(
+      <div key={`log-${log.id || k++}`} className="log-line" style={{
+        display: 'grid',
+        gridTemplateColumns: '44px 52px 1fr',
+        gap: 8, marginBottom: 3, padding: '2px 2px',
+        alignItems: 'start',
+      }}>
+        <span style={{ color: '#557', fontSize: 11, fontFamily: 'monospace' }}>
+          {tsShort}
+        </span>
+        <span style={{
+          fontSize: 10, padding: '1px 6px', borderRadius: 4,
+          background: (colorMap[log.type] || '#888') + '22',
+          color: colorMap[log.type] || '#aaa',
+          border: `1px solid ${colorMap[log.type] || '#888'}44`,
+          textAlign: 'center',
+          letterSpacing: 0.3,
+          textTransform: 'uppercase',
+        }}>{log.type}</span>
+        <span style={{ color: colorMap[log.type] || '#ccd', lineHeight: 1.6 }}>
+          {highlightNumbers(log.message)}
+        </span>
+      </div>
+    );
+  });
+
+  return <>{elements}</>;
 };
 
 export default App;

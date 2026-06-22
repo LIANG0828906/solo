@@ -1,7 +1,41 @@
-*, *::before, *::after {
-  box-sizing: border-box;
-}
+/**
+ * ================================================================
+ *  styles.css  ——  Roguelike 模拟器全局样式 & 动画
+ * ================================================================
+ *
+ * 【职责】
+ *  - 赛博朋克暗色主题 (深紫 #1a0a2e + 霓虹蓝 #0ff + 洋红 #f0f)
+ *  - 响应式布局: desktop 3栏 / tablet 2栏 / mobile 1栏
+ *  - 合成弹窗动画: 粒子爆散 (.particle-burst) + 新卡旋转放大 (.card-spawn)
+ *  - 拖拽反馈: 拖拽源半透明 + 拖入槽位高亮
+ *  - 性能优化: will-change + contain 提升渲染速度
+ *
+ * 【文件间调用关系】
+ *
+ *   App.tsx (React 组件)
+ *      │  className ← string
+ *      ▼
+ *   styles.css (本文件)
+ *      │
+ *      ├─ .craft-slot         ← 合成弹窗三个拖放槽
+ *      │     └─ onDragOver / onDrop 的视觉反馈高亮
+ *      ├─ .particle-burst     ← 合成成功的 28 个粒子
+ *      │     └─ @keyframes burstParticle  + 随机 --tx/--ty
+ *      ├─ .card-spawn         ← 新道具卡旋转放大出现
+ *      │     └─ @keyframes spawnCard (scale 0.3→1.1→1 + rotate)
+ *      ├─ .item-dragging      ← onDragStart 期间加的类
+ *      │     └─ opacity 0.5 + scale 0.92
+ *      ├─ .slot-drop-zone    ← onDragEnter 高亮边框
+ *      └─ .log-scroll         ← 战斗日志 contain:strict 优化
+ *
+ *   使用本文件的组件： App.tsx 中所有 className 引用
+ *   构建流程:  Vite → postcss → dist/assets/index-*.css
+ *
+ * ================================================================
+ */
 
+/* ========== 基础 reset ========== */
+*, *::before, *::after { box-sizing: border-box; }
 html, body, #root {
   margin: 0;
   padding: 0;
@@ -9,43 +43,189 @@ html, body, #root {
   background: #1a0a2e;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  color-scheme: dark;
 }
-
-body {
-  overscroll-behavior: none;
-}
+body { overscroll-behavior: none; }
 
 button {
   font-family: inherit;
   outline: none;
   -webkit-tap-highlight-color: transparent;
 }
+button:hover       { filter: brightness(1.12); }
+button:active      { transform: scale(0.97); }
+button:disabled    { filter: grayscale(0.4); cursor: not-allowed !important; }
+button             { min-height: 44px; min-width: 44px; }
 
-button:hover {
-  filter: brightness(1.12);
-}
+.app-root { -webkit-user-select: none; user-select: none; }
 
-button:disabled {
-  filter: grayscale(0.4);
-}
+::selection { background: rgba(255, 0, 255, 0.4); color: #fff; }
 
-.app-root {
-  -webkit-user-select: none;
-  user-select: none;
-}
-
+/* ========== 性能优化 ========== */
 .item-card, .craft-modal, button {
   will-change: transform, opacity;
 }
-
 .items-grid, .inventory-grid {
   contain: layout paint style;
 }
-
 .log-scroll {
   contain: strict;
 }
 
+/* ========== 滚动条 (赛博朋克 蓝色霓虹) ========== */
+.scroll::-webkit-scrollbar          { width: 6px; height: 6px; }
+.scroll::-webkit-scrollbar-track    { background: transparent; }
+.scroll::-webkit-scrollbar-thumb    {
+  background: rgba(0, 255, 255, 0.25);
+  border-radius: 3px;
+}
+.scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 255, 255, 0.45);
+}
+
+/* ========== 拖拽反馈 ========== */
+
+/** 被拖拽中的原始卡片 (源) */
+.item-dragging {
+  opacity: 0.45 !important;
+  transform: scale(0.92) rotate(-2deg) !important;
+  transition: opacity 0.12s, transform 0.12s;
+}
+
+/** 合成三个槽位 (drop zone) */
+.craft-slot {
+  transition:
+    border-color 0.18s,
+    box-shadow 0.18s,
+    transform 0.18s,
+    background 0.18s;
+}
+.craft-slot:hover { transform: translateY(-1px); }
+
+/** 拖拽悬停在槽位上方 - 高亮反馈 */
+.slot-drop-zone {
+  border-color: #0ff !important;
+  box-shadow:
+    0 0 24px rgba(0, 255, 255, 0.55),
+    inset 0 0 16px rgba(0, 255, 255, 0.18) !important;
+  background: rgba(0, 255, 255, 0.08) !important;
+  transform: translateY(-3px) scale(1.02) !important;
+}
+
+/* ========== 合成粒子爆散动画 ========== */
+
+/**
+ *  粒子外层容器 (合成时在按钮中心上方生成)
+ *  position: absolute, 居中于合成按钮
+ */
+.particle-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+  z-index: 50;
+}
+
+/** 单个粒子 - 使用 CSS 变量 --tx / --ty (px) */
+.particle-burst {
+  position: absolute;
+  left: 50%;
+  top:  50%;
+  width:  8px;
+  height: 8px;
+  margin-left: -4px;
+  margin-top:  -4px;
+  border-radius: 50%;
+  opacity: 0;
+  transform: translate(0, 0) scale(1);
+  animation: burstParticle 900ms cubic-bezier(0.15, 0.7, 0.25, 1) forwards;
+  /* 每个粒子的 --tx/--ty 由 App.tsx 通过 inline style 设置 */
+  --tx: 0px;
+  --ty: 0px;
+  --c:  #0ff;
+  background: var(--c);
+  box-shadow:
+    0 0 10px var(--c),
+    0 0 18px var(--c);
+}
+
+@keyframes burstParticle {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.4);
+  }
+  15% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--tx), var(--ty)) scale(0.2);
+  }
+}
+
+/* ========== 新道具卡 - 旋转放大出现 ========== */
+
+.card-spawn {
+  transform-origin: center center;
+  backface-visibility: hidden;
+  animation: spawnCard 900ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes spawnCard {
+  0% {
+    opacity: 0;
+    transform: scale(0.25) rotate(-160deg);
+    filter: brightness(2.5) saturate(1.8);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1.14) rotate(18deg);
+    filter: brightness(1.5) saturate(1.3);
+  }
+  65% {
+    transform: scale(0.96) rotate(-8deg);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) rotate(0);
+    filter: brightness(1) saturate(1);
+  }
+}
+
+/* 合成成功后槽位的闪烁效果 */
+.craft-flash {
+  animation: slotFlash 520ms ease-out 2;
+}
+
+@keyframes slotFlash {
+  0%, 100% { filter: brightness(1); }
+  50%      { filter: brightness(2.2) drop-shadow(0 0 16px #f0f); }
+}
+
+/* ========== 战斗日志条目 滚动淡入 ========== */
+.log-line {
+  animation: logFadeIn 260ms ease-out both;
+}
+@keyframes logFadeIn {
+  from { opacity: 0; transform: translateX(-6px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+/* ========== Toast 滑入 ========== */
+.toast-slide {
+  animation: toastIn 320ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translate(-50%, -16px); }
+  to   { opacity: 1; transform: translate(-50%, 0); }
+}
+
+/* ========== 响应式布局 ========== */
+
+/* 平板：3 栏 → 堆叠 1 栏 */
 @media (max-width: 1080px) {
   .main-grid {
     grid-template-columns: 1fr !important;
@@ -56,26 +236,58 @@ button:disabled {
   }
 }
 
+/* 手机：按钮 + 卡片最小尺寸 */
 @media (max-width: 640px) {
-  header {
-    padding: 20px 12px 10px !important;
-  }
-  main {
-    padding: 6px 10px 24px !important;
-  }
+  header { padding: 20px 12px 10px !important; }
+  main   { padding: 6px  10px 24px !important; }
   button {
     min-height: 44px !important;
-    min-width: 44px !important;
+    min-width:  44px !important;
+    padding: 10px 14px !important;
   }
-  .item-card {
-    padding: 10px !important;
-  }
-  h1 {
-    letter-spacing: 1px !important;
+  .item-card { padding: 10px !important; }
+  h1 { letter-spacing: 1px !important; }
+  .log-line {
+    grid-template-columns: 54px 64px 1fr !important;
+    font-size: 11.5px !important;
   }
 }
 
-::selection {
-  background: rgba(255, 0, 255, 0.4);
-  color: #fff;
+/* ========== 背景 六边形网格 (赛博朋克风格) ========== */
+.hex-grid-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.09;
+  background-image: url("data:image/svg+xml;utf8,\
+<svg xmlns='http://www.w3.org/2000/svg' width='56' height='64' viewBox='0 0 56 64'>\
+  <path d='M28 2 L52 16 L52 48 L28 62 L4 48 L4 16 Z'\
+        fill='none' stroke='%230ff' stroke-width='1'/>\
+</svg>");
+  background-size: 56px 64px;
+  mask-image: radial-gradient(ellipse at center, black 25%, transparent 85%);
+  -webkit-mask-image: radial-gradient(ellipse at center, black 25%, transparent 85%);
+}
+
+/* ========== 霓虹标题边框呼吸 ========== */
+.neon-header {
+  animation: neonPulse 3.8s ease-in-out infinite;
+}
+@keyframes neonPulse {
+  0%, 100% {
+    box-shadow:
+      0 0 30px rgba(0, 255, 255, 0.30),
+      0 0 60px rgba(255, 0, 255, 0.18) inset;
+  }
+  50% {
+    box-shadow:
+      0 0 46px rgba(0, 255, 255, 0.55),
+      0 0 80px rgba(255, 0, 255, 0.32) inset;
+  }
+}
+
+/* ========== HP 条平滑过渡 ========== */
+.hp-bar-fill {
+  transition: width 520ms cubic-bezier(0.22, 1, 0.36, 1),
+              background 520ms;
 }
