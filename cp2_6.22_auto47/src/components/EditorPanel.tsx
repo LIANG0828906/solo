@@ -31,12 +31,13 @@ export default function EditorPanel({
       <div className="control-group">
         <label>
           <span>字号</span>
-          <span className="control-value">{params.fontSize}px</span>
+          <span className="control-value">{params.fontSize.toFixed(1)} px</span>
         </label>
         <input
           type="range"
           min="12"
           max="72"
+          step="0.5"
           value={params.fontSize}
           onChange={(e) => onChange({ fontSize: Number(e.target.value) })}
         />
@@ -45,22 +46,22 @@ export default function EditorPanel({
       <div className="control-group">
         <label>
           <span>行高</span>
-          <span className="control-value">{params.lineHeight.toFixed(1)}</span>
+          <span className="control-value">{params.lineHeight.toFixed(1)} 倍</span>
         </label>
         <input
           type="range"
-          min="10"
-          max="25"
-          step="1"
-          value={params.lineHeight * 10}
-          onChange={(e) => onChange({ lineHeight: Number(e.target.value) / 10 })}
+          min="1"
+          max="2.5"
+          step="0.05"
+          value={params.lineHeight}
+          onChange={(e) => onChange({ lineHeight: Number(e.target.value) })}
         />
       </div>
 
       <div className="control-group">
         <label>
           <span>字间距</span>
-          <span className="control-value">{params.letterSpacing}px</span>
+          <span className="control-value">{params.letterSpacing.toFixed(1)} px</span>
         </label>
         <input
           type="range"
@@ -75,12 +76,13 @@ export default function EditorPanel({
       <div className="control-group">
         <label>
           <span>段落宽度</span>
-          <span className="control-value">{params.paragraphWidth}%</span>
+          <span className="control-value">{params.paragraphWidth.toFixed(1)} %</span>
         </label>
         <input
           type="range"
           min="30"
           max="100"
+          step="0.5"
           value={params.paragraphWidth}
           onChange={(e) => onChange({ paragraphWidth: Number(e.target.value) })}
         />
