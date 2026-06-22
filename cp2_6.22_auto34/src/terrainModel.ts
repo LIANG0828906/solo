@@ -190,9 +190,9 @@ export class TerrainModel {
 
   private createFaultEdgeLines(): THREE.LineSegments {
     const geometry = new THREE.BufferGeometry();
-    const edgeCount = this.layerCount * 2;
     const segmentsPerEdge = 30;
-    const positions = new Float32Array(edgeCount * segmentsPerEdge * 2 * 3);
+    const totalLines = 2 + this.layerCount + 1;
+    const positions = new Float32Array(totalLines * segmentsPerEdge * 2 * 3);
     geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
     const material = new THREE.ShaderMaterial({
@@ -295,8 +295,21 @@ export class TerrainModel {
     const colorArr = colors.array as Float32Array;
     const faultType = type || this.currentParams.type;
     const dipRad = THREE.MathUtils.degToRad(this.currentParams.dipAngle);
+    const halfW = this.blockWidth / 2;
+    const halfH = this.totalHeight / 2;
+    const halfD = this.blockDepth / 2;
+
     const faultNormalX = Math.sin(dipRad);
     const faultNormalY = Math.cos(dipRad);
+    const faultNormalZ = 0;
+
+    const strikeDirX = 0;
+    const strikeDirY = 0;
+    const strikeDirZ = 1;
+
+    const dipDirX = Math.cos(dipRad);
+    const dipDirY = -Math.sin(dipRad);
+    const dipDirZ = 0;
 
     let emitCount: number;
     let speedMul: number;
@@ -323,13 +336,20 @@ export class TerrainModel {
     let emitted = 0;
     for (let i = 0; i < this.particleCount && emitted < emitCount; i++) {
       if (this.particleLifetimes[i] <= 0) {
-        const t = Math.random();
-        const y = -this.totalHeight / 2 + t * this.totalHeight;
-        const xOffset = (y + this.totalHeight / 2) / this.totalHeight * Math.tan(dipRad) * this.totalHeight / 2;
+        const y = -halfH + Math.random() * this.totalHeight;
+        const z = -halfD + Math.random() * this.blockDepth;
 
-        posArr[i * 3] = xOffset + (Math.random() - 0.5) * 0.15;
-        posArr[i * 3 + 1] = y + (Math.random() - 0.5) * 0.1;
-        posArr[i * 3 + 2] = (Math.random() - 0.5) * this.blockDepth * 0.8;
+        let x: number;
+        if (faultType === 'strike-slip') {
+          x = (Math.random() - 0.5) * 0.2;
+        } else {
+          x = (y + halfH) / Math.tan(dipRad) - halfW;
+        }
+
+        const normalJitter = (Math.random() - 0.5) * 0.2;
+        posArr[i * 3] = x + faultNormalX * normalJitter;
+        posArr[i * 3 + 1] = y + faultNormalY * normalJitter;
+        posArr[i * 3 + 2] = z + faultNormalZ * normalJitter;
 
         const colorVar = Math.random() * 0.2;
         colorArr[i * 3] = Math.min(1.0, baseColor.r + colorVar);
@@ -339,13 +359,20 @@ export class TerrainModel {
         const spread = 2.5 * speedMul;
         if (faultType === 'strike-slip') {
           const side = Math.random() > 0.5 ? 1 : -1;
-          this.particleVelocities[i * 3] = side * (Math.random() * 1.5 + 1.0) * speedMul;
+          this.particleVelocities[i * 3] = (Math.random() - 0.5) * spread * 0.5;
           this.particleVelocities[i * 3 + 1] = Math.random() * 0.5 * speedMul;
-          this.particleVelocities[i * 3 + 2] = (Math.random() - 0.5) * spread;
+          this.particleVelocities[i * 3 + 2] = side * (Math.random() * 1.5 + 1.0) * speedMul;
         } else {
-          this.particleVelocities[i * 3] = (Math.random() - 0.5) * spread + faultNormalX * normalDir * 1.2 * speedMul;
-          this.particleVelocities[i * 3 + 1] = Math.random() * spread * 0.8 + 0.8 * speedMul;
-          this.particleVelocities[i * 3 + 2] = (Math.random() - 0.5) * spread;
+          const tangentSpeed = Math.random() * spread;
+          const normalSpeed = Math.random() * spread * 0.5 + normalDir * 1.2 * speedMul;
+          const useStrike = Math.random() > 0.5;
+          const tangentX = useStrike ? strikeDirX : dipDirX;
+          const tangentY = useStrike ? strikeDirY : dipDirY;
+          const tangentZ = useStrike ? strikeDirZ : dipDirZ;
+
+          this.particleVelocities[i * 3] = tangentX * tangentSpeed + faultNormalX * normalSpeed;
+          this.particleVelocities[i * 3 + 1] = tangentY * tangentSpeed + faultNormalY * normalSpeed + 0.8 * speedMul;
+          this.particleVelocities[i * 3 + 2] = tangentZ * tangentSpeed + (Math.random() - 0.5) * spread;
         }
 
         this.particleLifetimes[i] = 0.8 + Math.random() * 0.7;
@@ -497,77 +524,94 @@ export class TerrainModel {
     const positions = this.faultEdgeLines.geometry.getAttribute('position') as THREE.BufferAttribute;
     const arr = positions.array as Float32Array;
     const segmentsPerEdge = 30;
+    const halfW = this.blockWidth / 2;
     const halfH = this.totalHeight / 2;
     const halfD = this.blockDepth / 2;
     const layerThickness = this.totalHeight / this.layerCount;
 
     let vertexIndex = 0;
 
-    for (let layerIdx = 0; layerIdx < this.layerCount; layerIdx++) {
-      const yBase = -halfH + layerIdx * layerThickness;
-      const yTop = yBase + layerThickness;
+    const getFaultX = (y: number) => (y + halfH) / tanDip - halfW;
 
-      for (const zSign of [-1, 1]) {
-        const z = zSign * halfD;
+    const getOffset = (x: number, y: number): [number, number, number] => {
+      const faultXAtY = getFaultX(y);
+      const isHangingWall = x < faultXAtY;
+      let dx = 0, dy = 0, dz = 0;
 
-        for (let i = 0; i < segmentsPerEdge; i++) {
-          const t0 = i / segmentsPerEdge;
-          const t1 = (i + 1) / segmentsPerEdge;
-
-          const y0 = yBase + t0 * layerThickness;
-          const y1 = yBase + t1 * layerThickness;
-
-          const x0 = (y0 + halfH) / tanDip - this.blockWidth / 2;
-          const x1 = (y1 + halfH) / tanDip - this.blockWidth / 2;
-
-          const getOffset = (x: number, y: number): [number, number, number] => {
-            const faultXAtY = (y + halfH) / tanDip - this.blockWidth / 2;
-            const isHangingWall = x < faultXAtY;
-            let dx = 0, dy = 0, dz = 0;
-
-            if (type === 'normal') {
-              if (isHangingWall) {
-                dy = -maxDisp * progress * Math.cos(dipRad);
-                dx = -maxDisp * progress * Math.sin(dipRad);
-              }
-            } else if (type === 'reverse') {
-              if (isHangingWall) {
-                dy = maxDisp * progress * Math.cos(dipRad) * 0.7;
-                dx = maxDisp * progress * Math.sin(dipRad);
-              }
-            } else if (type === 'strike-slip') {
-              if (x < 0) {
-                dz = maxDisp * progress * 0.8;
-              } else {
-                dz = -maxDisp * progress * 0.8;
-              }
-            }
-
-            const crackWidth = 0.04 * progress;
-            if (type !== 'strike-slip') {
-              const distToFault = Math.abs(x - faultXAtY);
-              const crackFactor = Math.max(0, 1 - distToFault / 0.3);
-              if (isHangingWall) {
-                dx -= crackWidth * crackFactor;
-              } else {
-                dx += crackWidth * crackFactor;
-              }
-            }
-
-            return [dx, dy, dz];
-          };
-
-          const [dx0, dy0, dz0] = getOffset(x0, y0);
-          const [dx1, dy1, dz1] = getOffset(x1, y1);
-
-          arr[vertexIndex++] = x0 + dx0;
-          arr[vertexIndex++] = y0 + dy0;
-          arr[vertexIndex++] = z + dz0;
-
-          arr[vertexIndex++] = x1 + dx1;
-          arr[vertexIndex++] = y1 + dy1;
-          arr[vertexIndex++] = z + dz1;
+      if (type === 'normal') {
+        if (isHangingWall) {
+          dy = -maxDisp * progress * Math.cos(dipRad);
+          dx = -maxDisp * progress * Math.sin(dipRad);
         }
+      } else if (type === 'reverse') {
+        if (isHangingWall) {
+          dy = maxDisp * progress * Math.cos(dipRad) * 0.7;
+          dx = maxDisp * progress * Math.sin(dipRad);
+        }
+      } else if (type === 'strike-slip') {
+        if (x < 0) {
+          dz = maxDisp * progress * 0.8;
+        } else {
+          dz = -maxDisp * progress * 0.8;
+        }
+      }
+
+      const crackWidth = 0.04 * progress;
+      if (type !== 'strike-slip') {
+        const distToFault = Math.abs(x - faultXAtY);
+        const crackFactor = Math.max(0, 1 - distToFault / 0.3);
+        if (isHangingWall) {
+          dx -= crackWidth * crackFactor;
+        } else {
+          dx += crackWidth * crackFactor;
+        }
+      }
+
+      return [dx, dy, dz];
+    };
+
+    for (const zSign of [-1, 1]) {
+      const z = zSign * halfD;
+      for (let i = 0; i < segmentsPerEdge; i++) {
+        const t0 = i / segmentsPerEdge;
+        const t1 = (i + 1) / segmentsPerEdge;
+        const y0 = -halfH + t0 * this.totalHeight;
+        const y1 = -halfH + t1 * this.totalHeight;
+        const x0 = getFaultX(y0);
+        const x1 = getFaultX(y1);
+
+        const [dx0, dy0, dz0] = getOffset(x0, y0);
+        const [dx1, dy1, dz1] = getOffset(x1, y1);
+
+        arr[vertexIndex++] = x0 + dx0;
+        arr[vertexIndex++] = y0 + dy0;
+        arr[vertexIndex++] = z + dz0;
+
+        arr[vertexIndex++] = x1 + dx1;
+        arr[vertexIndex++] = y1 + dy1;
+        arr[vertexIndex++] = z + dz1;
+      }
+    }
+
+    for (let layerIdx = 0; layerIdx <= this.layerCount; layerIdx++) {
+      const y = -halfH + layerIdx * layerThickness;
+      const x = getFaultX(y);
+      for (let i = 0; i < segmentsPerEdge; i++) {
+        const t0 = i / segmentsPerEdge;
+        const t1 = (i + 1) / segmentsPerEdge;
+        const z0 = -halfD + t0 * this.blockDepth;
+        const z1 = -halfD + t1 * this.blockDepth;
+
+        const [dx0, dy0, dz0] = getOffset(x, y);
+        const [dx1, dy1, dz1] = getOffset(x, y);
+
+        arr[vertexIndex++] = x + dx0;
+        arr[vertexIndex++] = y + dy0;
+        arr[vertexIndex++] = z0 + dz0;
+
+        arr[vertexIndex++] = x + dx1;
+        arr[vertexIndex++] = y + dy1;
+        arr[vertexIndex++] = z1 + dz1;
       }
     }
 

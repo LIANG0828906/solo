@@ -115,6 +115,25 @@ export class UIPanel {
     if (type === 'normal') {
       svgContent = `
         <defs>
+          <linearGradient id="arrow1" x1="50%" y1="100%" x2="50%" y2="0%">
+            <stop offset="0%" style="stop-color:#ff6644;stop-opacity:0.3"/>
+            <stop offset="100%" style="stop-color:#ff6644;stop-opacity:1"/>
+          </linearGradient>
+          <linearGradient id="arrow2" x1="50%" y1="0%" x2="50%" y2="100%">
+            <stop offset="0%" style="stop-color:#ff6644;stop-opacity:0.3"/>
+            <stop offset="100%" style="stop-color:#ff6644;stop-opacity:1"/>
+          </linearGradient>
+        </defs>
+        <rect x="20" y="30" width="70" height="45" fill="#c97b4b" stroke="#5a3e25" stroke-width="1.5" rx="2"/>
+        <rect x="110" y="42" width="70" height="45" fill="#8b6140" stroke="#5a3e25" stroke-width="1.5" rx="2"/>
+        <line x1="85" y1="20" x2="115" y2="95" stroke="#ffffff" stroke-width="2.5" stroke-dasharray="4,2" opacity="0.9"/>
+        <path d="M 100 15 L 100 35 L 95 30 L 100 35 L 105 30" fill="none" stroke="#ff8855" stroke-width="2"/>
+        <path d="M 100 105 L 100 85 L 95 90 L 100 90 L 105 90" fill="none" stroke="#ff8855" stroke-width="2"/>
+        <text x="100" y="110" text-anchor="middle" fill="#a8d888" font-size="10" font-family="Georgia">拉张应力 ↑ ↓</text>
+      `;
+    } else if (type === 'reverse') {
+      svgContent = `
+        <defs>
           <linearGradient id="arrow1" x1="0%" y1="50%" x2="100%" y2="50%">
             <stop offset="0%" style="stop-color:#ff6644;stop-opacity:0.3"/>
             <stop offset="100%" style="stop-color:#ff6644;stop-opacity:1"/>
@@ -124,36 +143,17 @@ export class UIPanel {
             <stop offset="100%" style="stop-color:#ff6644;stop-opacity:1"/>
           </linearGradient>
         </defs>
-        <rect x="20" y="30" width="70" height="45" fill="#c97b4b" stroke="#5a3e25" stroke-width="1.5" rx="2"/>
-        <rect x="110" y="42" width="70" height="45" fill="#8b6140" stroke="#5a3e25" stroke-width="1.5" rx="2"/>
-        <line x1="85" y1="20" x2="115" y2="95" stroke="#ffffff" stroke-width="2.5" stroke-dasharray="4,2" opacity="0.9"/>
-        <path d="M 55 15 L 35 15 L 40 10 L 35 15 L 40 20" fill="none" stroke="#ff8855" stroke-width="2"/>
-        <path d="M 145 15 L 165 15 L 160 10 L 165 15 L 160 20" fill="none" stroke="#ff8855" stroke-width="2"/>
-        <text x="100" y="110" text-anchor="middle" fill="#a8d888" font-size="10" font-family="Georgia">拉张应力 ← →</text>
-      `;
-    } else if (type === 'reverse') {
-      svgContent = `
-        <defs>
-          <linearGradient id="arrow1" x1="100%" y1="50%" x2="0%" y2="50%">
-            <stop offset="0%" style="stop-color:#ff6644;stop-opacity:0.3"/>
-            <stop offset="100%" style="stop-color:#ff6644;stop-opacity:1"/>
-          </linearGradient>
-          <linearGradient id="arrow2" x1="0%" y1="50%" x2="100%" y2="50%">
-            <stop offset="0%" style="stop-color:#ff6644;stop-opacity:0.3"/>
-            <stop offset="100%" style="stop-color:#ff6644;stop-opacity:1"/>
-          </linearGradient>
-        </defs>
         <rect x="20" y="38" width="70" height="45" fill="#c97b4b" stroke="#5a3e25" stroke-width="1.5" rx="2"/>
         <rect x="95" y="25" width="70" height="45" fill="#8b6140" stroke="#5a3e25" stroke-width="1.5" rx="2"/>
         <line x1="80" y1="95" x2="110" y2="15" stroke="#ffffff" stroke-width="2.5" stroke-dasharray="4,2" opacity="0.9"/>
-        <path d="M 35 15 L 55 15 L 50 10 L 55 15 L 50 20" fill="none" stroke="#ff8855" stroke-width="2"/>
-        <path d="M 165 15 L 145 15 L 150 10 L 145 15 L 150 20" fill="none" stroke="#ff8855" stroke-width="2"/>
+        <path d="M 35 55 L 55 55 L 50 50 L 55 55 L 50 60" fill="none" stroke="#ff8855" stroke-width="2"/>
+        <path d="M 165 55 L 145 55 L 150 50 L 145 55 L 150 60" fill="none" stroke="#ff8855" stroke-width="2"/>
         <text x="100" y="110" text-anchor="middle" fill="#a8d888" font-size="10" font-family="Georgia">挤压应力 → ←</text>
       `;
     } else if (type === 'strike-slip') {
       svgContent = `
         <defs>
-          <linearGradient id="arrow1" x1="0%" y1="0%" x2="100%" y2="100%">
+          <linearGradient id="arrow1" x1="0%" y1="100%" x2="100%" y2="0%">
             <stop offset="0%" style="stop-color:#ff6644;stop-opacity:0.3"/>
             <stop offset="100%" style="stop-color:#ff6644;stop-opacity:1"/>
           </linearGradient>
@@ -161,11 +161,9 @@ export class UIPanel {
         <rect x="20" y="25" width="75" height="30" fill="#c97b4b" stroke="#5a3e25" stroke-width="1.5" rx="2"/>
         <rect x="105" y="45" width="75" height="30" fill="#8b6140" stroke="#5a3e25" stroke-width="1.5" rx="2"/>
         <line x1="100" y1="10" x2="100" y2="105" stroke="#ffffff" stroke-width="2.5" stroke-dasharray="4,2" opacity="0.9"/>
-        <path d="M 20 60 L 60 60 L 55 55 L 60 60 L 55 65" fill="none" stroke="#ff8855" stroke-width="2"/>
-        <path d="M 180 40 L 140 40 L 145 35 L 140 40 L 145 45" fill="none" stroke="#ff8855" stroke-width="2"/>
-        <path d="M 100 15 L 100 35 L 95 30 L 100 35 L 105 30" fill="none" stroke="#ff8855" stroke-width="2"/>
-        <path d="M 100 95 L 100 75 L 95 80 L 100 80 L 105 80" fill="none" stroke="#ff8855" stroke-width="2"/>
-        <text x="100" y="110" text-anchor="middle" fill="#a8d888" font-size="10" font-family="Georgia">剪切应力 ↕ ↔</text>
+        <path d="M 30 55 L 60 35 L 55 30 L 60 35 L 55 40" fill="none" stroke="#ff8855" stroke-width="2"/>
+        <path d="M 170 55 L 140 75 L 145 80 L 140 75 L 145 70" fill="none" stroke="#ff8855" stroke-width="2"/>
+        <text x="100" y="110" text-anchor="middle" fill="#a8d888" font-size="10" font-family="Georgia">剪切应力 ⇄</text>
       `;
     }
 
@@ -211,8 +209,5 @@ export class UIPanel {
 
   public update(dt: number): void {
     this.updateValueDisplays();
-    this.handlers.onDipChange(this.targetDipValue);
-    this.handlers.onDisplacementChange(this.targetDisplacementValue);
-    this.handlers.onSlipSpeedChange(this.targetSlipSpeedValue);
   }
 }

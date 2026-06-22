@@ -219,7 +219,8 @@ export class FaultAnimator {
     }
 
     const dipRad = THREE.MathUtils.degToRad(this.currentParams.dipAngle);
-    this.clippingPlane.normal.set(Math.sin(dipRad), Math.cos(dipRad), 0);
+    this.clippingPlane.normal.set(0, 0, 1);
+    this.clippingPlane.constant = 0;
 
     const sliceGeometry = this.terrain.getSliceGeometry();
 
