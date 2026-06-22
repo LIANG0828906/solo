@@ -1,0 +1,116 @@
+.card {
+  position: relative;
+  background: var(--card-background);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-light);
+  transition: var(--transition);
+  cursor: pointer;
+  overflow: hidden;
+  animation: fadeInUp 0.4s ease;
+  content-visibility: auto;
+  contain-intrinsic-size: 200px;
+}
+
+.card:hover {
+  box-shadow: var(--shadow-hover);
+  border-color: var(--primary-color);
+}
+
+.card.deleting {
+  animation: slideOutRight 0.5s ease forwards;
+}
+
+.name {
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+  margin-bottom: 12px;
+  color: var(--text-primary);
+}
+
+.categoryTag {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 500;
+  color: white;
+  margin-bottom: 16px;
+}
+
+.categorySucculent {
+  background-color: var(--category-succulent);
+}
+
+.categoryFoliage {
+  background-color: var(--category-foliage);
+}
+
+.categoryFlowering {
+  background-color: var(--category-flowering);
+}
+
+.categoryAquatic {
+  background-color: var(--category-aquatic);
+}
+
+.infoRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.infoRow:last-child {
+  border-bottom: none;
+}
+
+.infoLabel {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.infoValue {
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.deleteBtn {
+  position: absolute;
+  left: -50px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 40px;
+  height: 40px;
+  border-radius: var(--radius-full);
+  background: var(--danger-color);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 18px;
+  animation: pulse 1.5s infinite;
+  transition: var(--transition);
+  z-index: 10;
+}
+
+.deleteBtn:hover {
+  background: #c0392b;
+  transform: translateY(-50%) scale(1.1);
+}
+
+.card.showDelete .deleteBtn {
+  left: 16px;
+}
+
+.card.showDelete {
+  padding-left: 68px;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+}
