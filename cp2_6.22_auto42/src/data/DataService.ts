@@ -34,12 +34,17 @@ const tryPorts = ['3001', '3002', '3003', '3004', '3005', '3006', '3007', '3008'
 const detectBase = async (): Promise<string> => {
   for (const p of tryPorts) {
     try {
-      const url = `http://localhost:${p}/api/health`;
+      const url = `http://localhost:${p}/api/typhoon/path`;
       const ctrl = new AbortController();
-      const id = setTimeout(() => ctrl.abort(), 250);
+      const id = setTimeout(() => ctrl.abort(), 400);
       const r = await fetch(url, { signal: ctrl.signal }).catch(() => null);
       clearTimeout(id);
-      if (r && r.ok) return `http://localhost:${p}/api`;
+      if (r && r.ok) {
+        const body = await r.json().catch(() => null);
+        if (body && Array.isArray(body.data) && body.data.length > 0) {
+          return `http://localhost:${p}/api`;
+        }
+      }
     } catch { /* ignore */ }
   }
   return 'http://localhost:3002/api';

@@ -48,6 +48,7 @@ export class TyphoonScene {
   private cityHeatSprites: Map<string, THREE.Sprite> = new Map(); // 新增：贴地径向渐变热力Sprite
   private cityLabels: Map<string, HTMLDivElement> = new Map();
   private heatmapTexture!: THREE.Texture;  // 预计算热力图径向渐变贴图
+  private labelsContainer!: HTMLDivElement;
   private raycaster = new THREE.Raycaster();
   private mouseNdc = new THREE.Vector2();
 
@@ -66,14 +67,15 @@ export class TyphoonScene {
   // 相机过渡
   private cameraMode: CameraMode = 'perspective3d';
   private cameraTransitionActive = false;
-  private cameraTransitionDuration = 1.0;   // 1秒平滑过渡
+  private cameraTransitionDuration = 1.0;
   private cameraTransitionT = 0;
   private cameraTransitionFrom = new THREE.Vector3();
   private cameraTransitionTarget = new THREE.Vector3();
   private cameraLookAtFrom = new THREE.Vector3();
   private cameraLookAtTarget = new THREE.Vector3();
-  private cameraUpFrom = new THREE.Vector3(0, 1, 0);
-  private cameraUpTarget = new THREE.Vector3(0, 1, 0);
+  // 使用四元数插值（slerp）避免 up 向量经零向量导致的抖动
+  private cameraQuatFrom = new THREE.Quaternion();
+  private cameraQuatTarget = new THREE.Quaternion();
   private cameraFovFrom = 50;
   private cameraFovTarget = 50;
 
@@ -543,28 +545,35 @@ export class TyphoonScene {
     if (this.cameraMode === mode) return;
     this.cameraMode = mode;
 
-    // 记录当前相机状态（无论当前是3d还是2d都用3d相机来过渡）
+    // 记录当前相机位置和朝向（四元数）
     this.cameraTransitionFrom.copy(this.camera3d.position);
-    this.cameraLookAtFrom.copy(this.controls.target);
-    this.cameraUpFrom.copy(this.camera3d.up);
+    this.cameraQuatFrom.copy(this.camera3d.quaternion);
     this.cameraFovFrom = this.camera3d.fov;
 
-    // 目标状态
+    // 计算目标位置
     if (mode === 'ortho2d') {
       this.cameraTransitionTarget.set(0, 11.5, 0.0001);
       this.cameraLookAtTarget.set(0, 0, 0);
-      this.cameraUpTarget.set(0, 0, -1);
-      this.cameraFovTarget = 20; // 2D过程中逐渐压缩FOV模拟正交感
+      this.cameraFovTarget = 18;
     } else {
       this.cameraTransitionTarget.set(0, 0.8, 5.2);
       this.cameraLookAtTarget.set(0, 0, 0);
-      this.cameraUpTarget.set(0, 1, 0);
       this.cameraFovTarget = 50;
     }
 
+    // 计算目标四元数（通过临时相机推算）
+    const tmpCam = this.camera3d.clone();
+    tmpCam.position.copy(this.cameraTransitionTarget);
+    if (mode === 'ortho2d') {
+      tmpCam.up.set(0, 0, -1);
+    } else {
+      tmpCam.up.set(0, 1, 0);
+    }
+    tmpCam.lookAt(this.cameraLookAtTarget);
+    this.cameraQuatTarget.copy(tmpCam.quaternion);
+
     this.cameraTransitionT = 0;
     this.cameraTransitionActive = true;
-    // 过渡期间始终使用 camera3d，在最后一帧切换
     this.currentCamera = this.camera3d;
     this.controls.enabled = false;
   }
@@ -587,34 +596,35 @@ export class TyphoonScene {
   // ========== 主循环 ==========
 
   private update(dt: number): void {
-    // ========= 相机平滑过渡（1秒，easeOutCubic） =========
+    // ========= 相机平滑过渡（1秒，easeOutCubic + 四元数 slerp） =========
     if (this.cameraTransitionActive) {
       this.cameraTransitionT += dt;
       const tRaw = THREE.MathUtils.clamp(this.cameraTransitionT / this.cameraTransitionDuration, 0, 1);
       const e = easeOutCubic(tRaw);
 
-      // 插值位置 / 观察点 / up 向量
-      const pos = this.cameraTransitionFrom.clone().lerp(this.cameraTransitionTarget, e);
-      const look = this.cameraLookAtFrom.clone().lerp(this.cameraLookAtTarget, e);
-      const up = this.cameraUpFrom.clone().lerp(this.cameraUpTarget, e).normalize();
+      // 位置线性插值
+      this.camera3d.position.lerpVectors(this.cameraTransitionFrom, this.cameraTransitionTarget, e);
 
-      this.camera3d.position.copy(pos);
-      this.camera3d.up.copy(up);
-      this.camera3d.lookAt(look);
+      // 朝向：四元数球面插值（slerp），避免 up 向量经零向量导致的抖动
+      this.camera3d.quaternion.slerpQuaternions(this.cameraQuatFrom, this.cameraQuatTarget, e);
+
+      // FOV 平滑过渡
       this.camera3d.fov = this.cameraFovFrom + (this.cameraFovTarget - this.cameraFovFrom) * e;
       this.camera3d.updateProjectionMatrix();
 
-      // 经纬度网格 & 城市名标签淡入（向 ortho2d 过渡时淡入，反向淡出）
-      const gridVisibility = this.cameraMode === 'ortho2d' ? e : 1 - e;
-      this.grid2dHelper.visible = gridVisibility > 0.02;
+      // 经纬度网格 & 城市名标签淡入/淡出（与相机过渡同步）
+      const gridVisibility = this.cameraMode === 'ortho2d' ? e : (1 - e);
+      const showGrid = gridVisibility > 0.02;
+      if (this.grid2dHelper.visible !== showGrid) {
+        this.grid2dHelper.visible = showGrid;
+      }
       this.grid2dHelper.traverse(obj => {
         if ((obj as any).material) {
-          const m = (obj as any).material as THREE.LineBasicMaterial;
-          m.opacity = 0.25 * gridVisibility;
+          ((obj as any).material as THREE.LineBasicMaterial).opacity = 0.25 * gridVisibility;
         }
       });
       for (const [, label] of this.cityLabels) {
-        label.style.opacity = String(gridVisibility);
+        label.style.opacity = String(THREE.MathUtils.clamp(gridVisibility, 0, 1).toFixed(2));
       }
 
       // 最后一帧：切换到正式相机
@@ -630,8 +640,9 @@ export class TyphoonScene {
           for (const [, label] of this.cityLabels) label.style.opacity = '1';
         } else {
           this.currentCamera = this.camera3d;
-          this.controls.enabled = true;
           this.camera3d.up.set(0, 1, 0);
+          this.controls.target.set(0, 0, 0);
+          this.controls.enabled = true;
           this.grid2dHelper.visible = false;
           for (const [, label] of this.cityLabels) label.style.opacity = '0';
         }
@@ -721,40 +732,41 @@ export class TyphoonScene {
     for (const city of this.cityData) {
       const ti = Math.min(step, city.timeline.length - 1);
       const s = city.timeline[ti];
+      const dl = s.disasterLevel as 1 | 2 | 3;
+      const col = TyphoonScene.disasterColor(dl);
+
+      // 城市标记点
       const g = this.cityMarkers.get(city.cityId);
       if (g) {
         const tipMat = g.userData.tipMat as THREE.MeshBasicMaterial;
-        const col = TyphoonScene.disasterColor(s.disasterLevel as 1 | 2 | 3);
         tipMat.color.copy(col);
-        // 脉冲动画：高等级脉冲幅度更大
+        tipMat.needsUpdate = true;
         const pulsePhase = performance.now() * 0.005 + city.cityId.charCodeAt(0);
-        const pulse = 1 + Math.sin(pulsePhase) * (s.disasterLevel >= 3 ? 0.28 : 0.12);
-        g.scale.setScalar(pulse * (s.disasterLevel >= 2 ? 1.15 : 1));
+        const pulse = 1 + Math.sin(pulsePhase) * (dl >= 3 ? 0.28 : 0.12);
+        g.scale.setScalar(pulse * (dl >= 2 ? 1.15 : 1));
       }
 
-      // 贴地半球
+      // 贴地半球：灾害等级决定半径和颜色
       const heat = this.cityHeatSpheres.get(city.cityId);
       if (heat) {
         const hm = heat.material as THREE.MeshBasicMaterial;
-        const col = TyphoonScene.disasterColor(s.disasterLevel as 1 | 2 | 3);
         hm.color.copy(col);
-        hm.opacity = 0.12 + s.disasterLevel * 0.14;
-        // 半径按灾害等级缩放（1~3级对应 0.6x → 1.0x → 1.55x）
-        const sc = 0.5 + s.disasterLevel * 0.45;
+        hm.needsUpdate = true;
+        hm.opacity = 0.12 + dl * 0.14;
+        const sc = 0.5 + dl * 0.45;
         heat.scale.setScalar(sc);
         heat.visible = this.showHeatmap;
       }
 
-      // 径向渐变 Sprite（发光效果，Additive blending）
+      // 径向渐变 Sprite：灾害等级决定半径、颜色和透明度
       const sprite = this.cityHeatSprites.get(city.cityId);
       if (sprite) {
         const sm = sprite.material as THREE.SpriteMaterial;
-        const col = TyphoonScene.disasterColor(s.disasterLevel as 1 | 2 | 3);
         sm.color.copy(col);
-        // 高等级透明度更高更亮
-        sm.opacity = 0.35 + s.disasterLevel * 0.22;
+        sm.needsUpdate = true;
+        sm.opacity = 0.35 + dl * 0.22;
         const baseSize = (sprite.userData.baseSize as number) ?? 0.5;
-        const sc = 0.55 + s.disasterLevel * 0.5;
+        const sc = 0.55 + dl * 0.5;
         sprite.scale.set(baseSize * sc, baseSize * sc, 1);
         sprite.visible = this.showHeatmap;
       }

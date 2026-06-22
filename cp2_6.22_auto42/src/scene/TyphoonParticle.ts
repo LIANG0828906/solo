@@ -11,10 +11,10 @@ export interface ParticleState {
 }
 
 // ============ 全局性能优化：查找表 ============
-const TRIG_TABLE_SIZE = 4096;                 // 2 的幂，便于 & 取模
+const TRIG_TABLE_SIZE = 4096;
 const TRIG_TABLE_MASK = TRIG_TABLE_SIZE - 1;
 const TRIG_TABLE_STEP = (Math.PI * 2) / TRIG_TABLE_SIZE;
-const TRIG_TABLE_INV_STEP = 1 / TRIG_TABLE_STEP;
+const TRIG_TABLE_INV_STEP = TRIG_TABLE_SIZE / (Math.PI * 2);
 
 const SIN_TABLE = new Float32Array(TRIG_TABLE_SIZE);
 const COS_TABLE = new Float32Array(TRIG_TABLE_SIZE);
@@ -24,21 +24,34 @@ for (let i = 0; i < TRIG_TABLE_SIZE; i++) {
   COS_TABLE[i] = Math.cos(a);
 }
 
+/**
+ * 将任意角度归一化到 [0, 2π) 区间，确保非负
+ * 处理负角度和超出 2π 的情况
+ */
+function normalizeAngle(angle: number): number {
+  const TAU = Math.PI * 2;
+  let t = angle % TAU;
+  if (t < 0) t += TAU;
+  return t;
+}
+
 /** 快速 sin，通过 LUT + 线性插值，误差 < 0.0005 */
 function fastSin(angle: number): number {
-  const t = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  const t = normalizeAngle(angle);
   const idxF = t * TRIG_TABLE_INV_STEP;
   const i0 = (idxF | 0) & TRIG_TABLE_MASK;
   const i1 = (i0 + 1) & TRIG_TABLE_MASK;
-  const f = idxF - (idxF | 0);
+  const f = idxF - (i0 | 0);
   return SIN_TABLE[i0] + (SIN_TABLE[i1] - SIN_TABLE[i0]) * f;
 }
+
+/** 快速 cos，通过 LUT + 线性插值，误差 < 0.0005 */
 function fastCos(angle: number): number {
-  const t = ((angle % (Math.PI * 2)) + Math.PI * 2) % (Math.PI * 2);
+  const t = normalizeAngle(angle);
   const idxF = t * TRIG_TABLE_INV_STEP;
   const i0 = (idxF | 0) & TRIG_TABLE_MASK;
   const i1 = (i0 + 1) & TRIG_TABLE_MASK;
-  const f = idxF - (idxF | 0);
+  const f = idxF - (i0 | 0);
   return COS_TABLE[i0] + (COS_TABLE[i1] - COS_TABLE[i0]) * f;
 }
 

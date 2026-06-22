@@ -189,34 +189,46 @@ function generateHeatmap(timeStep: number, path: DataPoint[], cities: CityImpact
 
 // ============ 启动Express服务 ============
 const app = express();
+
+// CORS 中间件（必须在路由注册之前）
 app.use(cors({ origin: '*' }));
+app.use(express.json());
 
 // 核心数据缓存，进程启动时一次性生成
 const TYPHOON_PATH = generateTyphoonPath();
 const CITIES = generateCities(TYPHOON_PATH);
 
-// 按职责分组的 Router 实例（替代直接 app.get）
+// ============ 路由注册：使用 express.Router() 实例 ============
 const typhoonRouter = express.Router();
 
+// GET /api/typhoon/path → 返回台风路径坐标数组（72个时间步）
 typhoonRouter.get('/path', (_req: Request, res: Response) => {
   res.json({ data: TYPHOON_PATH });
 });
 
+// GET /api/typhoon/cities → 返回受影响城市列表及灾害等级
 typhoonRouter.get('/cities', (_req: Request, res: Response) => {
   res.json({ data: CITIES });
 });
 
+// GET /api/typhoon/heatmap?time=N → 返回该时间步的热力图数据网格
 typhoonRouter.get('/heatmap', (req: Request, res: Response) => {
   const t = parseInt(String(req.query.time ?? '0'), 10);
   const timeStep = isNaN(t) ? 0 : Math.min(Math.max(0, t), TOTAL_STEPS - 1);
   res.json({ data: generateHeatmap(timeStep, TYPHOON_PATH, CITIES) });
 });
 
-// 把 Router 挂载到 /api/typhoon 前缀
+// 将 Router 挂载到 /api/typhoon 前缀
+// 最终路由: /api/typhoon/path, /api/typhoon/cities, /api/typhoon/heatmap
 app.use('/api/typhoon', typhoonRouter);
 
-// 健康检查
+// 健康检查（独立端点，不走 Router）
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
+
+// 404 兜底：所有未匹配的 /api/* 路由返回明确错误信息
+app.use('/api', (_req, res) => {
+  res.status(404).json({ error: 'Not Found', hint: 'Available: /api/typhoon/path, /api/typhoon/cities, /api/typhoon/heatmap?time=N, /api/health' });
+});
 
 const PORT_CANDIDATES: number[] = [3001, 3002, 3003, 3004, 3005, 3006, 3007];
 

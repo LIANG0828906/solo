@@ -146,27 +146,49 @@ export class CityInfoPanel {
 
   /**
    * 打开面板：从底部弹入，带弹性 cubic-bezier 过渡，背景同步虚化
+   * 两帧策略：第一帧设为初始偏移（屏幕外），第二帧设为目标位置触发 transition
    */
   openFor(cityId: string): void {
     this.currentCityId = cityId;
     this.open = true;
     this.renderFor(cityId);
 
-    // 触发浏览器重绘后应用最终状态，确保 transition 生效
+    // 第一帧：确保面板在屏幕外 + 可交互（transition 的起始状态）
+    this.panel.style.pointerEvents = 'auto';
+    this.panel.style.opacity = '0';
+    if (window.innerWidth < 768) {
+      this.panel.style.transform = 'translateY(110%)';
+    } else {
+      this.panel.style.transform = 'translate(-50%, 110%)';
+    }
+
+    // 背景遮罩：从透明/无模糊开始
+    Object.assign(this.backdrop.style, {
+      background: 'rgba(5,10,30,0)',
+      backdropFilter: 'blur(0px)',
+      WebkitBackdropFilter: 'blur(0px)',
+      pointerEvents: 'auto',
+    });
+
+    // 第二帧：浏览器已渲染初始状态，现在设置目标值触发 CSS transition
     requestAnimationFrame(() => {
-      // 背景遮罩淡入 + 虚化
-      Object.assign(this.backdrop.style, {
-        opacity: '1',
-        background: 'rgba(5,10,30,0.45)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
-        pointerEvents: 'auto',
+      requestAnimationFrame(() => {
+        // 面板滑入
+        this.panel.style.opacity = '1';
+        if (window.innerWidth < 768) {
+          this.panel.style.transform = 'translateY(0)';
+        } else {
+          this.panel.style.transform = 'translate(-50%, -24px)';
+        }
+
+        // 背景同步虚化
+        Object.assign(this.backdrop.style, {
+          opacity: '1',
+          background: 'rgba(5,10,30,0.45)',
+          backdropFilter: 'blur(8px)',
+          WebkitBackdropFilter: 'blur(8px)',
+        });
       });
-
-      this.panel.style.opacity = '1';
-      this.panel.style.pointerEvents = 'auto';
-
-      this._applyMedia();
     });
   }
 
@@ -177,26 +199,28 @@ export class CityInfoPanel {
     this.open = false;
     this.currentCityId = null;
 
-    // 背景淡出 + 去虚化
-    Object.assign(this.backdrop.style, {
-      opacity: '0',
-      background: 'rgba(5,10,30,0)',
-      backdropFilter: 'blur(0px)',
-      WebkitBackdropFilter: 'blur(0px)',
-      pointerEvents: 'none',
-    });
-
+    // 面板滑出（使用 transition 反向动画）
     this.panel.style.opacity = '0';
-    // 移出屏幕（弹性反向不需要，直接线性）
     if (window.innerWidth < 768) {
       this.panel.style.transform = 'translateY(110%)';
     } else {
       this.panel.style.transform = 'translate(-50%, 110%)';
     }
 
+    // 背景同步淡出 + 去虚化
+    Object.assign(this.backdrop.style, {
+      opacity: '0',
+      background: 'rgba(5,10,30,0)',
+      backdropFilter: 'blur(0px)',
+      WebkitBackdropFilter: 'blur(0px)',
+    });
+
     // 动画结束后锁定事件
     window.setTimeout(() => {
-      if (!this.open) this.panel.style.pointerEvents = 'none';
+      if (!this.open) {
+        this.panel.style.pointerEvents = 'none';
+        this.backdrop.style.pointerEvents = 'none';
+      }
     }, CityInfoPanel.DURATION_PANEL_MS);
   }
 
