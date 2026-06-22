@@ -167,6 +167,7 @@ export default function SubmissionPanel() {
 
       <div className="flex-1 overflow-hidden">
         <CodeMirror
+          key={language}
           value={code}
           onChange={setCode}
           extensions={extensionsMap[language]}
