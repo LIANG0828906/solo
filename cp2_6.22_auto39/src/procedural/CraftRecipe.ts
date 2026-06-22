@@ -43,6 +43,7 @@
  */
 
 import type { Item, ItemQuality, ItemType } from '../types';
+import { assertCritRate } from '../types';
 import { Q_MULT, EFF_CHANCE, Q_SUFFIX, pickWeighted, EFFECTS } from './ItemGenerator';
 
 /* -------------------- 常量 -------------------- */
@@ -104,40 +105,110 @@ function rollQuality(baseQ: ItemQuality): ItemQuality {
 
 /* -------------------- 主类 -------------------- */
 
+/** 校验错误码分类 —— 便于 UI 根据 code 做差异化提示 */
+export type ValidateErrorCode =
+  | 'NOT_ARRAY'
+  | 'WRONG_LENGTH'
+  | 'EMPTY_SLOT'
+  | 'TYPE_MISMATCH'
+  | 'ITEM_CORRUPTED';
+
+export interface ValidateResult {
+  ok: boolean;
+  /** 错误码，便于 UI 分支处理 */
+  code?: ValidateErrorCode;
+  /** 空槽索引集合 (EMPTY_SLOT 时填充) */
+  emptySlots?: number[];
+  /** 不一致的道具类型集合 (TYPE_MISMATCH 时填充) */
+  mismatchedTypes?: ItemType[];
+  /** 人类可读中文错误 */
+  reason?: string;
+}
+
+const ZH_TYPE: Record<ItemType, string> = {
+  weapon: '武器', armor: '防具', accessory: '饰品',
+};
+
 export class CraftRecipe {
   /**
-   * 校验是否可合成
-   * 步骤:
-   *   1) 数组本身有效
-   *   2) 长度严格 === 3
-   *   3) 3 个槽位均非 undefined/null
-   *   4) 3 个道具 type 字段完全一致
+   * ★ 合成槽位校验 (validateSlots) —— 按需求检查：
+   *   ① 参数本身是否为数组
+   *   ② 长度严格 === 3
+   *   ③ 逐个空槽检查，并收集所有空槽索引（便于 UI 统一标红）
+   *   ④ 3 个道具 type 字段完全一致（不检查品质，品质只影响合成概率）
+   *   ⑤ 每个 Item.id / type 字段完整性校验
+   *
+   * @returns ValidateResult —— 包含错误码 + 空槽列表，便于 App.tsx 差异化渲染
    */
-  static canCraft(materials: (Item | undefined | null)[]): { ok: boolean; reason?: string } {
+  static validateSlots(materials: (Item | undefined | null)[]): ValidateResult {
     if (!Array.isArray(materials)) {
-      return { ok: false, reason: '参数无效：需要数组' };
+      return {
+        ok: false,
+        code: 'NOT_ARRAY',
+        reason: '参数无效：合成材料需要是数组',
+      };
     }
     if (materials.length !== 3) {
-      return { ok: false, reason: `需要 3 件材料，当前 ${materials.length} 件` };
+      return {
+        ok: false,
+        code: 'WRONG_LENGTH',
+        reason: `合成配方需要 3 个槽位，当前传入 ${materials.length} 个`,
+      };
     }
+
+    // ---- ③ 空槽检查：一次性收集所有空槽，便于 UI 逐个高亮 ----
+    const emptySlots: number[] = [];
     for (let i = 0; i < 3; i++) {
-      if (!materials[i]) {
-        return { ok: false, reason: `第 ${i + 1} 个槽位未填充` };
-      }
-    }
-    const arr = materials as Item[];
-    const firstType: ItemType = arr[0].type;
-    for (let i = 1; i < 3; i++) {
-      if (arr[i].type !== firstType) {
-        const zhName = (t: ItemType) =>
-          t === 'weapon' ? '武器' : t === 'armor' ? '防具' : '饰品';
+      const m = materials[i];
+      if (m === null || m === undefined) {
+        emptySlots.push(i);
+      } else if (typeof m !== 'object' || !m.id || !m.type) {
         return {
           ok: false,
-          reason: `类型不一致：第1件(${zhName(arr[0].type)}) ≠ 第${i + 1}件(${zhName(arr[i].type)})`,
+          code: 'ITEM_CORRUPTED',
+          reason: `第 ${i + 1} 件道具数据损坏（缺少 id/type）`,
         };
       }
     }
+    if (emptySlots.length > 0) {
+      const zh = emptySlots.map((i) => `槽位${i + 1}`).join('、');
+      return {
+        ok: false,
+        code: 'EMPTY_SLOT',
+        emptySlots,
+        reason: `${zh} 未放入道具`,
+      };
+    }
+
+    // ---- ④ 检查 3 件道具 type 是否一致（不检查 quality）----
+    const arr = materials as Item[];
+    const types: ItemType[] = [arr[0].type, arr[1].type, arr[2].type];
+    const first: ItemType = types[0];
+    const mismatched: ItemType[] = [];
+    for (let i = 1; i < 3; i++) {
+      if (types[i] !== first) mismatched.push(types[i]);
+    }
+    if (mismatched.length > 0) {
+      const uniqTypes = Array.from(new Set(types));
+      const zhAll = uniqTypes.map((t) => ZH_TYPE[t]).join(' vs ');
+      return {
+        ok: false,
+        code: 'TYPE_MISMATCH',
+        mismatchedTypes: uniqTypes,
+        reason: `道具类型必须一致（当前：${zhAll}）`,
+      };
+    }
+
     return { ok: true };
+  }
+
+  /**
+   * 旧方法 canCraft 别名，保持向后兼容。
+   * 新代码请调用 validateSlots() 获取完整错误码与空槽索引。
+   */
+  static canCraft(materials: (Item | undefined | null)[]): { ok: boolean; reason?: string } {
+    const r = this.validateSlots(materials);
+    return { ok: r.ok, reason: r.reason };
   }
 
   /**
@@ -146,9 +217,11 @@ export class CraftRecipe {
    */
   static craft(
     materials: (Item | undefined | null)[],
-  ): { success: boolean; result?: Item; error?: string } {
-    const check = this.canCraft(materials);
-    if (!check.ok) return { success: false, error: check.reason };
+  ): { success: boolean; result?: Item; error?: string; code?: ValidateErrorCode } {
+    const check = this.validateSlots(materials);
+    if (!check.ok) {
+      return { success: false, error: check.reason, code: check.code };
+    }
     const arr = materials as Item[];
 
     const type: ItemType = arr[0].type;
@@ -172,10 +245,11 @@ export class CraftRecipe {
       { attack: 0, defense: 0, critRate: 0 },
     );
 
+    const rawCrit = Math.max(0, Math.min(45, Math.floor(Math.max(total.critRate / 3, 0.5) * qMult * 10) / 10));
     const stats: Item['stats'] = {
       attack:   Math.max(0, Math.min(90, Math.floor(Math.max(total.attack   / 3, 2) * qMult))),
       defense:  Math.max(0, Math.min(72, Math.floor(Math.max(total.defense  / 3, 1) * qMult))),
-      critRate: Math.max(0, Math.min(45, Math.floor(Math.max(total.critRate / 3, 0.5) * qMult * 10) / 10)),
+      critRate: assertCritRate(rawCrit), // ★ 品牌类型，强制范围+1位小数
     };
 
     // ---- 步骤 3: 特效 (优先继承材料的，否则按 EFF_CHANCE 随机) ----

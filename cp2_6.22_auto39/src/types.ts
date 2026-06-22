@@ -47,6 +47,58 @@ export type ItemQuality = 'white' | 'blue' | 'purple' | 'gold';
 export type ItemType    = 'weapon' | 'armor'  | 'accessory';
 export type Difficulty  = 'easy'   | 'normal' | 'hard';
 
+/* ================================================================
+ *  ★ 数值约束品牌类型 (Branded Types) + 运行时校验
+ * ================================================================
+ *  TypeScript 无法直接限定 number 的取值范围，这里使用
+ *  "品牌类型 + 类型守卫/断言" 组合，强制所有 critRate 必须
+ *  通过 assertCritRate() 才能赋值，从类型层 + 运行时双层约束。
+ * ================================================================ */
+
+/**
+ * CritRate —— 暴击率品牌类型
+ * 取值范围: 0.0 ≤ x ≤ 45.0，步长 0.1 (保留 1 位小数)
+ * ⚠️ 不可直接字面量赋值，必须通过 assertCritRate() 构造
+ */
+export type CritRate = number & {
+  readonly __brand: unique symbol;
+  readonly __min:   0;
+  readonly __max:   45;
+  readonly __step:  0.1;
+};
+
+/** critRate 允许的上下界与步长常量（运行时也用） */
+export const CRIT_RATE = {
+  MIN:  0,
+  MAX:  45,
+  STEP: 0.1,
+} as const;
+
+/**
+ * 类型守卫：运行时检查值是否落在 [0, 45] 且为 0.1 整数倍
+ */
+export function isCritRate(v: unknown): v is CritRate {
+  if (typeof v !== 'number' || Number.isNaN(v) || !Number.isFinite(v)) return false;
+  if (v < CRIT_RATE.MIN || v > CRIT_RATE.MAX) return false;
+  // 保留 1 位小数后与原值相等（避免 0.1 + 0.2 = 0.30000000000000004 的情况）
+  const rounded = Math.round(v * 10) / 10;
+  return Math.abs(rounded - v) < 1e-8;
+}
+
+/**
+ * 断言函数：将任意 number 夹紧并归一化为 CritRate
+ *   - 越界 → 夹到 [0,45]
+ *   - 多余小数 → 四舍五入保留 1 位
+ * 这是构造 CritRate 实例的**唯一合法入口**
+ */
+export function assertCritRate(v: number): CritRate {
+  let n = v;
+  if (n < CRIT_RATE.MIN) n = CRIT_RATE.MIN;
+  if (n > CRIT_RATE.MAX) n = CRIT_RATE.MAX;
+  n = Math.round(n * 10) / 10;
+  return n as CritRate;
+}
+
 /**
  * ItemEffect —— 道具随机特效
  * id:    全局唯一英文标识，供 CombatEngine 按 id 匹配逻辑
@@ -64,12 +116,12 @@ export interface ItemEffect {
  * ItemStats —— 道具基础属性，数值范围严格约束如下
  *   attack:   integer, 0~90    (武器为 10~30 × 品质倍率，其余类型通常为 0)
  *   defense:  integer, 0~72    (防具为 8~24 × 品质倍率，其余类型通常为 0)
- *   critRate: number,  0~45%   (保留 1 位小数，饰品/武器附加)
+ *   critRate: CritRate, 0~45   (品牌类型 + 运行时 assertCritRate 强制约束)
  */
 export interface ItemStats {
-  attack:   number;   // 0 ≤ attack ≤ 90,   整数
-  defense:  number;   // 0 ≤ defense ≤ 72,  整数
-  critRate: number;   // 0 ≤ critRate ≤ 45, 保留 1 位小数
+  attack:   number;    // 0 ≤ attack ≤ 90,   整数
+  defense:  number;    // 0 ≤ defense ≤ 72,  整数
+  critRate: CritRate;  // ★ 通过 assertCritRate() 构造，保证 [0,45] + 1位小数
 }
 
 /**
@@ -149,19 +201,36 @@ export interface PlayerStats {
 }
 
 /**
+ * 高亮片段 —— UI 层按此结构直接应用样式
+ * 不需要再从文本中正则提取，语义明确、性能更好
+ */
+export interface HighlightSpan {
+  /** 要高亮显示的原始内容（通常是数字字符串） */
+  text: string;
+  /** 高亮颜色: 默认 #f0f (洋红)，暴击/治疗可区分 */
+  color?: 'magenta' | 'gold' | 'cyan' | 'green' | 'red';
+  /** 要应用的语义 class: damage/crit/heal/effect */
+  semantic?: 'damage' | 'crit' | 'heal' | 'effect' | 'dodge';
+}
+
+/**
  * CombatLogEntry —— 战斗日志单条
- * 由 CombatEngine.log() 写入，按 round 字段分组后传入 App.tsx 渲染。
- * 所有数值字段（damage 等）在 UI 上以洋红 #f0f 高亮显示。
+ * 由 CombatEngine.pushLog() 写入，按 round 字段分组后传入 App.tsx 渲染。
+ * ⭐ highlights 字段 —— UI 层直接遍历该数组应用洋红高亮，
+ * 不需要再从 action 文本中正则提取，避免数字误判（如年份/CD回合等）。
  */
 export interface CombatLogEntry {
-  round:           number;    // 回合号，0 = 战斗开始
-  timestamp:       string;    // HH:MM:SS，由 CombatEngine 内部生成
-  actor:           string;    // '玩家' | 怪物名 | '系统'
-  action:          string;    // 人类可读动作描述，含数字占位
-  damage?:         number;    // 本次造成的伤害（可选）
-  isCrit?:         boolean;   // 是否暴击
-  isDodge?:        boolean;   // 是否闪避
-  effectTriggered?: string;   // 触发的特效中文名（如 "吸血"/"连击"）
+  round:              number;         // 回合号，0 = 战斗开始
+  timestamp:          string;         // HH:MM:SS，由 CombatEngine 内部生成
+  actor:              string;         // '玩家' | 怪物名 | '系统'
+  action:             string;         // 人类可读动作描述（纯文本）
+  /** ⭐ 需要高亮的片段列表 —— App.tsx 无需再解析 */
+  highlights?:        HighlightSpan[];
+  /** 本次造成的伤害（可选，向后兼容） */
+  damage?:            number;
+  isCrit?:            boolean;        // 是否暴击
+  isDodge?:           boolean;        // 是否闪避
+  effectTriggered?:   string;         // 触发的特效中文名（如 "吸血"/"连击"）
 }
 
 /**

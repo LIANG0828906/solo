@@ -39,8 +39,9 @@
  */
 
 import type {
-  Item, Difficulty, ItemQuality, ItemType, ItemEffect, ItemStats,
+  Item, Difficulty, ItemQuality, ItemType, ItemEffect, ItemStats, CritRate,
 } from '../types';
+import { assertCritRate } from '../types';
 
 /* -------------------- 可调常量 (品质权重 / 数值范围) -------------------- */
 
@@ -179,10 +180,11 @@ export class ItemGenerator {
       const rollEff = Math.random() < EFF_CHANCE[quality];
       const eff = rollEff ? EFFECTS[Math.floor(Math.random() * EFFECTS.length)] : null;
 
+      // ★ critRate 使用 assertCritRate 品牌类型：夹紧[0,45] + 保证1位小数
       const stats: ItemStats = {
         attack:   clamp(Math.floor(baseAtk  * qMult),        0, 90),
         defense:  clamp(Math.floor(baseDef  * qMult),        0, 72),
-        critRate: clamp(Math.floor(baseCrit * qMult * 10) / 10,  0, 45),
+        critRate: assertCritRate(clamp(Math.floor(baseCrit * qMult * 10) / 10, 0, 45)),
       };
 
       items.push({

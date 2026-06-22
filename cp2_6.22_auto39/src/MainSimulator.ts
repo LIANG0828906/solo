@@ -226,25 +226,32 @@ export class MainSimulator {
   /* ============== 难度 & 重置 ============== */
 
   /**
-   * 切换难度 —— 按照需求"重置当前关卡"
+   * 切换难度 —— 按照需求"重置当前关卡"，把新难度写入 state 持久化
    */
   setDifficulty(d: Difficulty): void {
+    // ⭐ 先把难度写入 state，再调用 resetLevel（resetLevel 内部会保留该值）
     this.state.difficulty = d;
     this.resetLevel();
   }
 
   /**
-   * 重置所有状态：等级/HP/背包/装备/战斗记录
+   * ⭐ 重置所有状态：等级/HP/背包/装备/战斗记录
+   * @param newDifficulty 可选 - 若传入，同时将难度重置为该值（等价于 setDifficulty）
    */
-  resetLevel(): void {
+  resetLevel(newDifficulty?: Difficulty): void {
+    if (newDifficulty) this.state.difficulty = newDifficulty;
     this.state.level         = 1;
+    this.state.totalRuns     = 0;
     this.state.playerBase    = { ...BASE_PLAYER };
     this.state.inventory     = [];
     this.state.equipped      = {};
     this.state.battleRewards = [];
     this.state.monsters      = [];
     this.state.lastCombat    = undefined;
+    this.state.combatLog     = [];
     this.state.combatPlaying = false;
+    this.state.inBattle      = false;
+    // this.state.difficulty —— 不重置，保留用户选择的难度值
     this.emit();
   }
 
@@ -252,11 +259,13 @@ export class MainSimulator {
 
   /**
    * 步骤 1：进入关卡
+   *   - totalRuns +1（累计战斗尝试次数）
    *   - 生成 3~5 件战利品（预览用）
    *   - 生成 1~2 只怪物
    * @returns 战利品预览列表
    */
   enterBattle(): Item[] {
+    this.state.totalRuns    += 1;   // ⭐ 累计战斗次数 UI 展示用
     this.state.battleRewards = ItemGenerator.generate(
       3 + Math.floor(Math.random() * 3),
       this.state.difficulty,
@@ -266,7 +275,9 @@ export class MainSimulator {
       this.state.difficulty,
     );
     this.state.lastCombat    = undefined;
+    this.state.combatLog     = [];
     this.state.combatPlaying = true;
+    this.state.inBattle      = true;
     this.emit();
     return this.state.battleRewards;
   }
@@ -294,8 +305,10 @@ export class MainSimulator {
     );
 
     this.state.lastCombat    = result;
+    this.state.combatLog     = [...result.logs]; // ⭐ 日志保存到 state
     this.state.playerBase.hp = result.playerHp;
     this.state.combatPlaying = false;
+    this.state.inBattle      = false;
 
     if (result.victory) {
       this.state.inventory.push(...this.state.battleRewards);
@@ -311,30 +324,54 @@ export class MainSimulator {
 
   /**
    * 装备某道具 → 若该槽位已有装备则退回背包
+   * @returns { ok, error? } —— 统一格式，便于 App.tsx 做反馈
    */
-  equipItem(item: Item): boolean {
+  equipItem(item: Item): { ok: boolean; error?: string } {
+    if (!item || !item.id || !item.type) {
+      return { ok: false, error: '道具数据无效' };
+    }
+    if (this.state.combatPlaying) {
+      return { ok: false, error: '战斗中无法更换装备' };
+    }
     const slot = item.type;
-    // 1) 从背包中移除
-    const idx = this.state.inventory.findIndex((i) => i.id === item.id);
-    if (idx >= 0) this.state.inventory.splice(idx, 1);
-    // 2) 旧装备退包
+
+    // 1) 从背包中移除（若道具不在背包但在槽位中则允许移动）
+    const inBagIdx = this.state.inventory.findIndex((i) => i.id === item.id);
+    if (inBagIdx >= 0) this.state.inventory.splice(inBagIdx, 1);
+
+    // 2) 从其他槽位移入（用户可能想换手）
+    (['weapon', 'armor', 'accessory'] as const).forEach((k) => {
+      if (k !== slot && this.state.equipped[k]?.id === item.id) {
+        delete this.state.equipped[k];
+      }
+    });
+
+    // 3) 旧装备退包
     const old = this.state.equipped[slot];
-    if (old) this.state.inventory.push(old);
-    // 3) 写入槽位
+    if (old && old.id !== item.id) this.state.inventory.push(old);
+
+    // 4) 写入槽位
     this.state.equipped[slot] = item;
     this.emit();
-    return true;
+    return { ok: true };
   }
 
   /**
    * 卸下某槽位 → 回退至背包
+   * @returns { ok, error? } —— 统一格式
    */
-  unequipItem(type: 'weapon' | 'armor' | 'accessory'): void {
+  unequipItem(type: 'weapon' | 'armor' | 'accessory'): { ok: boolean; error?: string } {
+    if (this.state.combatPlaying) {
+      return { ok: false, error: '战斗中无法卸下装备' };
+    }
     const it = this.state.equipped[type];
-    if (!it) return;
+    if (!it) {
+      return { ok: false, error: '该槽位无装备' };
+    }
     this.state.inventory.push(it);
     delete this.state.equipped[type];
     this.emit();
+    return { ok: true };
   }
 
   /** 工具：快速获取已装备列表 */

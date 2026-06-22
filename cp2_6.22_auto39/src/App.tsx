@@ -82,13 +82,69 @@ const DIFF_LABELS: Record<Difficulty, { label: string; color: string }> = {
 
 /* ==================== 子组件：ItemCard ==================== */
 
+/**
+ * 拖拽来源标识 —— 防止从浏览器外部/非道具区域拖入触发异常合成
+ *   'inventory'   = 背包道具
+ *   'equipped'    = 已装备道具（合成时允许直接拖装备合成）
+ *   'craftSlot'   = 合成槽内道具（在 3 个槽之间互换）
+ *   'reward'      = 战利品区道具（拾取前就允许拖？保留扩展）
+ */
+export type DragSource = 'inventory' | 'equipped' | 'craftSlot' | 'reward';
+
+/** 写入 dataTransfer 的 JSON 负载，避免多处字符串拼接 */
+interface DragPayload {
+  itemId: string;
+  source: DragSource;
+  /** 拖拽开始时的时间戳，用于简单反欺诈（防跨页面伪造） */
+  ts: number;
+}
+
+/** dataTransfer 中使用的 mime 类型，自定义避免与浏览器其他数据冲突 */
+export const DRAG_MIME = 'application/x-roguelike-item';
+export const DRAG_MIME_LEGACY = 'text/plain';
+
+/** 序列化 + 写入合法拖拽来源（ItemCard 必须经过此函数才允许 drop） */
+export function writeDragPayload(
+  e: React.DragEvent,
+  itemId: string,
+  source: DragSource,
+): void {
+  const payload: DragPayload = { itemId, source, ts: Date.now() };
+  const json = JSON.stringify(payload);
+  try {
+    e.dataTransfer.setData(DRAG_MIME, json);
+    // 兼容：某些浏览器需要 text/plain 才能被 drop 读取
+    e.dataTransfer.setData(DRAG_MIME_LEGACY, json);
+    e.dataTransfer.effectAllowed = 'move';
+  } catch { /* ignore */ }
+}
+
+/** 读取并校验 payload：返回 null 表示非法来源 / 伪造数据 */
+export function readDragPayload(e: React.DragEvent): DragPayload | null {
+  let raw = '';
+  try   { raw = e.dataTransfer.getData(DRAG_MIME) || e.dataTransfer.getData(DRAG_MIME_LEGACY); }
+  catch { return null; }
+  if (!raw) return null;
+  try {
+    const p = JSON.parse(raw) as DragPayload;
+    if (!p || !p.itemId || !p.source) return null;
+    if (!['inventory', 'equipped', 'craftSlot', 'reward'].includes(p.source)) return null;
+    if (typeof p.ts === 'number' && Date.now() - p.ts > 60_000) return null; // 超过 60s 过期
+    return p;
+  } catch {
+    return null;
+  }
+}
+
 interface ItemCardProps {
   item: Item;
   compact?: boolean;
   onClick?: () => void;
-  /** 拖拽开始 —— 通常 setData('itemId', item.id) */
+  /** 拖拽开始 —— 通常调用 writeDragPayload */
   onDragStart?: (e: React.DragEvent, item: Item) => void;
   draggable?: boolean;
+  /** ⭐ 拖拽来源（写入 payload），校验非法拖拽的关键 */
+  dragSource?: DragSource;
   /** 合成成功时的霓虹高光 */
   highlight?: boolean;
   /** 右上角小标签 (例: "品质↑") */
@@ -102,7 +158,8 @@ interface ItemCardProps {
 }
 
 const ItemCard: React.FC<ItemCardProps> = ({
-  item, compact, onClick, onDragStart, draggable, highlight, tag, flash, spawn, className,
+  item, compact, onClick, onDragStart, draggable, dragSource,
+  highlight, tag, flash, spawn, className,
 }) => {
   const c = QUALITY_COLORS[item.quality];
   const style: React.CSSProperties = {
@@ -129,6 +186,9 @@ const ItemCard: React.FC<ItemCardProps> = ({
     className || '',
   ].filter(Boolean).join(' ');
 
+  // ⭐ 默认拖拽来源：未传则根据 draggable 降级用 inventory（兼容旧调用）
+  const src: DragSource = dragSource || (draggable ? 'inventory' : 'inventory');
+
   return (
     <div
       className={cls}
@@ -139,10 +199,8 @@ const ItemCard: React.FC<ItemCardProps> = ({
         if (!onDragStart && !draggable) return;
         const el = e.currentTarget;
         el.classList.add('item-dragging');
-        try {
-          e.dataTransfer.setData('itemId', item.id);
-          e.dataTransfer.effectAllowed = 'move';
-        } catch { /* ignore */ }
+        // ⭐ 统一通过 writeDragPayload 写入，含 source + ts 过期校验
+        writeDragPayload(e, item.id, src);
         onDragStart?.(e, item);
       }}
       onDragEnd={(e) => {
@@ -208,6 +266,8 @@ const ItemCard: React.FC<ItemCardProps> = ({
 interface CraftModalProps {
   open: boolean;
   inventory: Item[];
+  /** 已装备道具也允许直接拖入合成槽（用户常想把旧装备合成掉） */
+  equipped: { weapon?: Item; armor?: Item; accessory?: Item };
   onClose: () => void;
   onCraft: (mats: (Item | undefined | null)[]) => {
     success: boolean; result?: Item; error?: string;
@@ -216,7 +276,24 @@ interface CraftModalProps {
 
 interface Particle { id: number; tx: number; ty: number; c: string; size: number; delay: number; }
 
-const CraftModal: React.FC<CraftModalProps> = ({ open, inventory, onClose, onCraft }) => {
+/** 品质 → 粒子密度/颜色配置，便于不同品质合成差异明显 */
+const QUALITY_PARTICLE_CFG: Record<string, {
+  count: number;
+  colors: string[];
+  baseDist: [number, number];
+  sizeRange: [number, number];
+}> = {
+  white:  { count: 16, colors: ['#cccccc', '#b0b0b0'],             baseDist: [80,  110], sizeRange: [5, 7]  },
+  blue:   { count: 22, colors: ['#4fa8ff', '#0ff', '#80e0ff'],     baseDist: [100, 140], sizeRange: [6, 9]  },
+  purple: { count: 30, colors: ['#c77dff', '#f0f', '#a080ff'],     baseDist: [110, 170], sizeRange: [7, 11] },
+  gold:   { count: 40, colors: ['#ffd166', '#ff0', '#ffa040', '#fff'], baseDist: [120, 200], sizeRange: [8, 14] },
+};
+
+const CraftModal: React.FC<CraftModalProps> = ({
+  open, inventory, equipped, onClose, onCraft,
+  /** ★ 外部可传入自定义粒子配置；不传则根据最高材料品质自动取 QUALITY_PARTICLE_CFG */
+  overrideParticleCfg,
+}: CraftModalProps & { overrideParticleCfg?: typeof QUALITY_PARTICLE_CFG[string] }) => {
   const [slots, setSlots]     = useState<(Item | undefined)[]>([undefined, undefined, undefined]);
   const [result, setResult]   = useState<{ item?: Item; error?: string } | null>(null);
   const [anim, setAnim]       = useState(false);
@@ -224,6 +301,8 @@ const CraftModal: React.FC<CraftModalProps> = ({ open, inventory, onClose, onCra
   const [hoverSlotIdx, setHoverSlotIdx] = useState<number | null>(null);
   const [flashSlots, setFlashSlots] = useState<boolean[]>([false, false, false]);
   const [resultSpawn, setResultSpawn] = useState(false);
+  /** ⭐ 非法拖拽时 toast 提示 */
+  const [dragError, setDragError] = useState<string | null>(null);
 
   const particleIdRef = useRef(0);
 
@@ -237,8 +316,16 @@ const CraftModal: React.FC<CraftModalProps> = ({ open, inventory, onClose, onCra
       setHoverSlotIdx(null);
       setFlashSlots([false, false, false]);
       setResultSpawn(false);
+      setDragError(null);
     }
   }, [open]);
+
+  // 拖拽错误自动消失
+  useEffect(() => {
+    if (!dragError) return;
+    const t = window.setTimeout(() => setDragError(null), 1800);
+    return () => window.clearTimeout(t);
+  }, [dragError]);
 
   /* ---------- 拖放：槽位 onDrop ---------- */
 
@@ -256,13 +343,30 @@ const CraftModal: React.FC<CraftModalProps> = ({ open, inventory, onClose, onCra
   const onDropSlot = (e: React.DragEvent, idx: number) => {
     e.preventDefault();
     setHoverSlotIdx(null);
-    let id = '';
-    try   { id = e.dataTransfer.getData('itemId'); } catch { /* ignore */ }
-    if (!id) return;
 
+    // ---- ⭐ 第一步：校验 payload 合法性（MIME类型 + 来源 + 过期）----
+    const payload = readDragPayload(e);
+    if (!payload) {
+      setDragError('⚠ 非法拖拽：请从背包/装备/槽位中拖入道具');
+      return;
+    }
+    // 第二步：来源必须是 4 类合法来源之一
+    const allowedSources: DragSource[] = ['inventory', 'equipped', 'craftSlot', 'reward'];
+    if (!allowedSources.includes(payload.source)) {
+      setDragError(`⚠ 不允许的拖拽来源：${payload.source}`);
+      return;
+    }
+    const id = payload.itemId;
+
+    // ---- 第三步：从合法来源池（背包 + 装备 + 已有槽位）中查找对应 Item ----
+    const equippedList: Item[] = [equipped.weapon, equipped.armor, equipped.accessory].filter(Boolean) as Item[];
     const item = inventory.find((it) => it.id === id)
+              || equippedList.find((it) => it.id === id)
               || slots.find((s) => s?.id === id);
-    if (!item) return;
+    if (!item) {
+      setDragError('⚠ 拖拽失败：未找到对应道具');
+      return;
+    }
 
     const next = [...slots];
     const prevIdx = next.findIndex((s) => s?.id === id);
@@ -281,7 +385,18 @@ const CraftModal: React.FC<CraftModalProps> = ({ open, inventory, onClose, onCra
     setResultSpawn(false);
   };
 
-  const availableItems = inventory.filter((i) => !slots.some((s) => s?.id === i.id));
+  // 背包 + 装备 中尚未入槽的道具（全部可用）
+  const equippedList: Item[] = [equipped.weapon, equipped.armor, equipped.accessory].filter(Boolean) as Item[];
+  const availableItems = [...inventory, ...equippedList]
+    .filter((i) => !slots.some((s) => s?.id === i.id));
+
+  // 最高材料品质 → 计算粒子配置
+  const maxMaterialQuality: string = (() => {
+    const order = ['white', 'blue', 'purple', 'gold'];
+    let maxIdx = 0;
+    slots.forEach((s) => { if (s) maxIdx = Math.max(maxIdx, order.indexOf(s.quality)); });
+    return order[maxIdx];
+  })();
 
   /* ---------- 生成 28 个粒子 (使用 CSS 变量 --tx/--ty) ---------- */
 

@@ -56,8 +56,47 @@
 
 import type {
   Monster, PlayerStats, CombatLogEntry, CombatResult, Item, MonsterSkill,
+  HighlightSpan,
 } from '../types';
 import { MonsterTemplate } from './MonsterTemplate';
+
+/* -------------------- 日志高亮自动提取 -------------------- */
+
+/**
+ * 从一条 action 文本中自动提取数字片段 → HighlightSpan[]
+ * 同时根据上下文（关键字）推断颜色与语义 class：
+ *   - 含"暴击" → gold + crit
+ *   - 含"闪避" → cyan + dodge
+ *   - 含"恢复"/"回复"/"治疗"/"吸血"/"再生" → green + heal
+ *   - 含"特效"/"激活"/"触发" → magenta + effect
+ *   - 其余默认 magenta + damage（伤害数值）
+ */
+function autoHighlights(action: string, extra?: Partial<CombatLogEntry>): HighlightSpan[] {
+  const spans: HighlightSpan[] = [];
+  const re = /-?\d+(?:\.\d+)?/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(action)) !== null) {
+    const text = m[0];
+    let color: HighlightSpan['color'] = 'magenta';
+    let semantic: HighlightSpan['semantic'] = 'damage';
+
+    if (extra?.isCrit)              { color = 'gold';    semantic = 'crit';   }
+    else if (extra?.isDodge)        { color = 'cyan';    semantic = 'dodge';  }
+    else if (extra?.effectTriggered){ color = 'magenta'; semantic = 'effect'; }
+    else if (/恢复|回复|治疗|吸血|再生|HP/.test(action)) {
+      color = 'green'; semantic = 'heal';
+    }
+    else if (/闪避|躲开|miss/i.test(action)) {
+      color = 'cyan'; semantic = 'dodge';
+    }
+    else if (/暴击|致命一击|critical/i.test(action)) {
+      color = 'gold'; semantic = 'crit';
+    }
+
+    spans.push({ text, color, semantic });
+  }
+  return spans;
+}
 
 /* -------------------- 常量 -------------------- */
 
@@ -138,15 +177,23 @@ export class CombatEngine {
   private logs: CombatLogEntry[] = [];
   private seq = 0;
 
-  /** 内部日志写入：自动分配时间戳与回合号 */
+  /**
+   * ★ 内部日志写入：
+   *   ① 自动分配时间戳 / 回合号 / 自增 seq
+   *   ② 从 action 自动提取数字 → 写入 highlights 数组
+   *   ③ UI 层无需再做正则，直接遍历 highlights 即可高亮
+   */
   private pushLog(round: number, actor: string, action: string,
                   extra?: Partial<CombatLogEntry>): void {
+    const merged: Partial<CombatLogEntry> = extra || {};
     this.logs.push({
       round,
       timestamp: timestamp(round, this.seq++),
       actor,
       action,
-      ...(extra || {}),
+      // ★ UI 直接消费该字段，颜色/语义已推断好
+      highlights: autoHighlights(action, merged),
+      ...merged,
     });
   }
 
