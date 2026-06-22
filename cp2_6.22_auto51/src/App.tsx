@@ -32,7 +32,8 @@ export default function App() {
   const [selectedSchemeIndex, setSelectedSchemeIndex] = useState(2)
   const [history, setHistory] = useState<HistoryItem[]>([])
   const [isFlying, setIsFlying] = useState(false)
-  const [flyStyle, setFlyStyle] = useState<React.CSSProperties | null>(null)
+  const [flyPosition, setFlyPosition] = useState({ x: 0, y: 0, scale: 1, opacity: 1, color: '' })
+  const flyAnimationRef = useRef<number | null>(null)
   const historyListRef = useRef<HTMLDivElement>(null)
   const wheelContainerRef = useRef<HTMLDivElement>(null)
 
@@ -120,32 +121,51 @@ export default function App() {
     const endX = wheelRect.left + wheelRect.width / 2
     const endY = wheelRect.top + wheelRect.height / 2
 
-    setFlyStyle({
-      position: 'fixed',
-      left: startX - 24,
-      top: startY - 24,
-      width: '48px',
-      height: '48px',
-      borderRadius: '50%',
-      backgroundColor: item.primaryColor,
-      zIndex: 9999,
-      pointerEvents: 'none',
-      boxShadow: `0 0 40px ${item.primaryColor}90, 0 0 80px ${item.primaryColor}50`,
-      '--end-x': `${endX - startX}px`,
-      '--end-y': `${endY - startY}px`,
-      animation: 'flyToWheel 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards',
-    } as React.CSSProperties)
+    const duration = 400
+    const startTime = performance.now()
 
+    setFlyPosition({ x: startX, y: startY, scale: 1, opacity: 1, color: item.primaryColor })
     setIsFlying(true)
 
-    setTimeout(() => {
-      setPrimaryColor(item.primaryColor)
-      setSchemeType(item.schemeType)
-      setSchemeColors(item.schemeColors.map(c => ({ ...c, shades: { ...c.shades } })))
-      setSelectedSchemeIndex(2)
-      setIsFlying(false)
-      setFlyStyle(null)
-    }, 400)
+    const animate = (currentTime: number) => {
+      const elapsed = currentTime - startTime
+      const progress = Math.min(elapsed / duration, 1)
+
+      const easeProgress = 1 - Math.pow(1 - progress, 3)
+
+      const currentX = startX + (endX - startX) * easeProgress
+      const currentY = startY + (endY - startY) * easeProgress
+      const currentScale = 1 - 0.7 * easeProgress
+      const currentOpacity = 1 - 0.3 * easeProgress
+
+      setFlyPosition({
+        x: currentX,
+        y: currentY,
+        scale: currentScale,
+        opacity: currentOpacity,
+        color: item.primaryColor,
+      })
+
+      if (progress < 1) {
+        flyAnimationRef.current = requestAnimationFrame(animate)
+      } else {
+        setPrimaryColor(item.primaryColor)
+        setSchemeType(item.schemeType)
+        setSchemeColors(item.schemeColors.map(c => ({ ...c, shades: { ...c.shades } })))
+        setSelectedSchemeIndex(2)
+        setIsFlying(false)
+      }
+    }
+
+    flyAnimationRef.current = requestAnimationFrame(animate)
+  }, [])
+
+  useEffect(() => {
+    return () => {
+      if (flyAnimationRef.current) {
+        cancelAnimationFrame(flyAnimationRef.current)
+      }
+    }
   }, [])
 
   const handleClearHistory = useCallback(() => {
@@ -816,8 +836,24 @@ export default function App() {
         </div>
       </div>
 
-      {isFlying && flyStyle && (
-        <div style={flyStyle} />
+      {isFlying && (
+        <div
+          style={{
+            position: 'fixed',
+            left: flyPosition.x - 24,
+            top: flyPosition.y - 24,
+            width: '48px',
+            height: '48px',
+            borderRadius: '50%',
+            backgroundColor: flyPosition.color,
+            zIndex: 9999,
+            pointerEvents: 'none',
+            boxShadow: `0 0 30px ${flyPosition.color}90, 0 0 60px ${flyPosition.color}60`,
+            transform: `scale(${flyPosition.scale})`,
+            opacity: flyPosition.opacity,
+            willChange: 'transform, opacity, left, top',
+          }}
+        />
       )}
 
       <style>{`

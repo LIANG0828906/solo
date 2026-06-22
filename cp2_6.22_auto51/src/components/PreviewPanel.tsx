@@ -4,6 +4,8 @@ interface PreviewPanelProps {
   primaryColor: string
 }
 
+const TRANSITION_ALL = 'all 0.3s ease'
+
 export default function PreviewPanel({ primaryColor }: PreviewPanelProps) {
   const hsl = hexToHsl(primaryColor)
 
@@ -13,6 +15,7 @@ export default function PreviewPanel({ primaryColor }: PreviewPanelProps) {
   const accentColor = hslToHex(hsl.h, hsl.s, 45)
   const hoverColor = hslToHex(hsl.h, hsl.s, 55)
   const borderColor = hslToHex(hsl.h, Math.min(100, hsl.s * 0.6), 60)
+  const gradientEnd = hslToHex((hsl.h + 60) % 360, hsl.s, 55)
 
   const cardBg = 'rgba(26, 26, 46, 0.6)'
 
@@ -22,12 +25,15 @@ export default function PreviewPanel({ primaryColor }: PreviewPanelProps) {
       display: 'flex',
       flexDirection: 'column',
       gap: '24px',
+      backgroundColor: 'transparent',
+      color: '#e8e8e8',
     }}>
       <h3 style={{
         fontSize: '16px',
         fontWeight: 600,
-        color: 'var(--text-primary)',
+        color: '#e8e8e8',
         marginBottom: '4px',
+        transition: TRANSITION_ALL,
       }}>
         实时预览
       </h3>
@@ -41,10 +47,15 @@ export default function PreviewPanel({ primaryColor }: PreviewPanelProps) {
           background: lightBg,
           borderRadius: '12px',
           padding: '24px',
-          transition: 'background-color 0.3s ease',
+          transition: TRANSITION_ALL,
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.2)',
         }}>
-          <div style={{ fontSize: '12px', color: lightText, marginBottom: '12px', transition: 'color 0.3s ease' }}>
+          <div style={{
+            fontSize: '12px',
+            color: lightText,
+            marginBottom: '12px',
+            transition: TRANSITION_ALL,
+          }}>
             浅色主题
           </div>
 
@@ -56,17 +67,19 @@ export default function PreviewPanel({ primaryColor }: PreviewPanelProps) {
               borderRadius: '8px',
               fontSize: '14px',
               fontWeight: 500,
-              transition: 'background-color 0.3s ease, transform 0.2s ease, box-shadow 0.3s ease',
+              transition: TRANSITION_ALL,
               boxShadow: `0 2px 8px ${primaryColor}40`,
               marginBottom: '16px',
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = hoverColor
               e.currentTarget.style.transform = 'scale(1.05)'
+              e.currentTarget.style.boxShadow = `0 4px 16px ${hoverColor}50`
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = primaryColor
               e.currentTarget.style.transform = 'scale(1)'
+              e.currentTarget.style.boxShadow = `0 2px 8px ${primaryColor}40`
             }}
           >
             主要按钮
@@ -77,7 +90,7 @@ export default function PreviewPanel({ primaryColor }: PreviewPanelProps) {
             borderRadius: '8px',
             padding: '16px',
             border: `1px solid ${borderColor}40`,
-            transition: 'border-color 0.3s ease',
+            transition: TRANSITION_ALL,
           }}>
             <div style={{
               width: '40px',
@@ -85,12 +98,23 @@ export default function PreviewPanel({ primaryColor }: PreviewPanelProps) {
               borderRadius: '8px',
               backgroundColor: primaryColor,
               marginBottom: '12px',
-              transition: 'background-color 0.3s ease',
+              transition: TRANSITION_ALL,
+              boxShadow: `0 2px 6px ${primaryColor}30`,
             }} />
-            <div style={{ fontSize: '14px', fontWeight: 600, color: lightText, marginBottom: '4px', transition: 'color 0.3s ease' }}>
+            <div style={{
+              fontSize: '14px',
+              fontWeight: 600,
+              color: lightText,
+              marginBottom: '4px',
+              transition: TRANSITION_ALL,
+            }}>
               卡片标题
             </div>
-            <div style={{ fontSize: '12px', color: '#888' }}>
+            <div style={{
+              fontSize: '12px',
+              color: '#888',
+              transition: TRANSITION_ALL,
+            }}>
               这是一张示例卡片
             </div>
           </div>
@@ -100,10 +124,15 @@ export default function PreviewPanel({ primaryColor }: PreviewPanelProps) {
           background: darkBg,
           borderRadius: '12px',
           padding: '24px',
-          transition: 'background-color 0.3s ease',
+          transition: TRANSITION_ALL,
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.3)',
         }}>
-          <div style={{ fontSize: '12px', color: '#a0a0b8', marginBottom: '12px' }}>
+          <div style={{
+            fontSize: '12px',
+            color: '#a0a0b8',
+            marginBottom: '12px',
+            transition: TRANSITION_ALL,
+          }}>
             深色主题
           </div>
 
@@ -111,9 +140,10 @@ export default function PreviewPanel({ primaryColor }: PreviewPanelProps) {
             position: 'relative',
             borderRadius: '12px',
             padding: '2px',
-            background: `linear-gradient(135deg, ${primaryColor}, ${hslToHex((hsl.h + 60) % 360, hsl.s, 55)})`,
+            background: `linear-gradient(135deg, ${primaryColor}, ${gradientEnd})`,
             marginBottom: '16px',
-            transition: 'background 0.3s ease',
+            transition: TRANSITION_ALL,
+            boxShadow: `0 4px 16px ${primaryColor}30`,
           }}>
             <div style={{
               backgroundColor: cardBg,
@@ -121,11 +151,22 @@ export default function PreviewPanel({ primaryColor }: PreviewPanelProps) {
               WebkitBackdropFilter: 'blur(10px)',
               borderRadius: '10px',
               padding: '16px',
+              transition: TRANSITION_ALL,
             }}>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: '#fff', marginBottom: '8px' }}>
+              <div style={{
+                fontSize: '14px',
+                fontWeight: 600,
+                color: '#fff',
+                marginBottom: '8px',
+                transition: TRANSITION_ALL,
+              }}>
                 毛玻璃卡片
               </div>
-              <div style={{ fontSize: '12px', color: '#a0a0b8' }}>
+              <div style={{
+                fontSize: '12px',
+                color: '#a0a0b8',
+                transition: TRANSITION_ALL,
+              }}>
                 渐变边框 + 模糊效果
               </div>
             </div>
@@ -140,18 +181,20 @@ export default function PreviewPanel({ primaryColor }: PreviewPanelProps) {
               fontSize: '14px',
               fontWeight: 500,
               border: `2px solid ${accentColor}`,
-              transition: 'background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease, transform 0.2s ease',
+              transition: TRANSITION_ALL,
               width: '100%',
             }}
             onMouseEnter={(e) => {
               e.currentTarget.style.backgroundColor = accentColor
               e.currentTarget.style.color = '#fff'
               e.currentTarget.style.transform = 'scale(1.05)'
+              e.currentTarget.style.boxShadow = `0 4px 16px ${accentColor}40`
             }}
             onMouseLeave={(e) => {
               e.currentTarget.style.backgroundColor = 'transparent'
               e.currentTarget.style.color = accentColor
               e.currentTarget.style.transform = 'scale(1)'
+              e.currentTarget.style.boxShadow = 'none'
             }}
           >
             轮廓按钮
@@ -185,15 +228,20 @@ export default function PreviewPanel({ primaryColor }: PreviewPanelProps) {
                 alignItems: 'center',
                 justifyContent: 'flex-end',
                 padding: '8px',
-                transition: 'background-color 0.3s ease, transform 0.2s ease',
+                transition: TRANSITION_ALL,
                 boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)',
                 cursor: 'pointer',
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)'
+                e.currentTarget.style.transform = 'translateY(-3px)'
+                e.currentTarget.style.boxShadow = '0 6px 16px rgba(0, 0, 0, 0.3)'
               }}
               onMouseLeave={(e) => {
                 e.currentTarget.style.transform = 'translateY(0)'
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.2)'
+              }}
+              onClick={() => {
+                // 可以复制颜色或设置为主色
               }}
               title={shadeColor}
             >
@@ -201,7 +249,7 @@ export default function PreviewPanel({ primaryColor }: PreviewPanelProps) {
                 fontSize: '10px',
                 fontWeight: 600,
                 color: isDark ? '#fff' : '#333',
-                transition: 'color 0.3s ease',
+                transition: TRANSITION_ALL,
               }}>
                 {shade}
               </span>
@@ -209,7 +257,7 @@ export default function PreviewPanel({ primaryColor }: PreviewPanelProps) {
                 fontSize: '9px',
                 color: isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.5)',
                 marginTop: '2px',
-                transition: 'color 0.3s ease',
+                transition: TRANSITION_ALL,
                 textTransform: 'lowercase',
               }}>
                 {shadeColor.slice(1)}

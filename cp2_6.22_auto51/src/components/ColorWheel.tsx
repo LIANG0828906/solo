@@ -159,11 +159,26 @@ export default function ColorWheel({ color, onChange, size = 280 }: ColorWheelPr
     }
   }, [getColorFromPosition, onChange])
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+  const handleCanvasMouseDown = useCallback((e: React.MouseEvent<HTMLCanvasElement>) => {
     e.preventDefault()
-    setIsDragging(true)
-    updateColor(e.clientX, e.clientY)
-  }, [updateColor])
+    const newColor = getColorFromPosition(e.clientX, e.clientY)
+    if (newColor) {
+      setIsDragging(true)
+      onChange(newColor)
+    }
+  }, [getColorFromPosition, onChange])
+
+  const handleCanvasTouchStart = useCallback((e: React.TouchEvent<HTMLCanvasElement>) => {
+    if (e.touches.length > 0) {
+      const touch = e.touches[0]
+      const newColor = getColorFromPosition(touch.clientX, touch.clientY)
+      if (newColor) {
+        e.preventDefault()
+        setIsDragging(true)
+        onChange(newColor)
+      }
+    }
+  }, [getColorFromPosition, onChange])
 
   useEffect(() => {
     if (!isDragging) return
@@ -203,6 +218,7 @@ export default function ColorWheel({ color, onChange, size = 280 }: ColorWheelPr
     window.addEventListener('mouseup', handleMouseUp)
     window.addEventListener('touchmove', handleTouchMove, { passive: true })
     window.addEventListener('touchend', handleTouchEnd)
+    window.addEventListener('touchcancel', handleTouchEnd)
 
     animationRef.current = requestAnimationFrame(render)
 
@@ -211,6 +227,7 @@ export default function ColorWheel({ color, onChange, size = 280 }: ColorWheelPr
       window.removeEventListener('mouseup', handleMouseUp)
       window.removeEventListener('touchmove', handleTouchMove)
       window.removeEventListener('touchend', handleTouchEnd)
+      window.removeEventListener('touchcancel', handleTouchEnd)
       if (animationRef.current) {
         cancelAnimationFrame(animationRef.current)
       }
@@ -222,14 +239,6 @@ export default function ColorWheel({ color, onChange, size = 280 }: ColorWheelPr
     drawSelector()
   }, [drawWheel, drawSelector])
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    if (e.touches.length > 0) {
-      const touch = e.touches[0]
-      setIsDragging(true)
-      updateColor(touch.clientX, touch.clientY)
-    }
-  }, [updateColor])
-
   return (
     <div
       style={{
@@ -239,20 +248,22 @@ export default function ColorWheel({ color, onChange, size = 280 }: ColorWheelPr
         cursor: isDragging ? 'grabbing' : 'grab',
         userSelect: 'none',
         touchAction: 'none',
+        backgroundColor: 'transparent',
       }}
-      onMouseDown={handleMouseDown}
-      onTouchStart={handleTouchStart}
     >
       <canvas
         ref={canvasRef}
         width={size}
         height={size}
+        onMouseDown={handleCanvasMouseDown}
+        onTouchStart={handleCanvasTouchStart}
         style={{
           width: size,
           height: size,
           filter: 'drop-shadow(0 8px 32px rgba(0, 0, 0, 0.4))',
           display: 'block',
           borderRadius: '50%',
+          backgroundColor: '#1a1a2e',
         }}
       />
     </div>
