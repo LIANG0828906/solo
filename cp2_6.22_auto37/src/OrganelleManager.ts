@@ -9,6 +9,12 @@ export interface OrganelleData {
   highlightColor: number;
 }
 
+export type CollisionShape =
+  | { type: 'sphere'; center: THREE.Vector3; radius: number }
+  | { type: 'ellipsoid'; center: THREE.Vector3; radii: THREE.Vector3; rotation: THREE.Quaternion }
+  | { type: 'box'; min: THREE.Vector3; max: THREE.Vector3 }
+  | { type: 'composite'; shapes: CollisionShape[] };
+
 export class OrganelleInstance {
   public group: THREE.Group;
   public data: OrganelleData;
@@ -21,6 +27,7 @@ export class OrganelleInstance {
   public rotationSpeed: THREE.Vector3;
   public basePosition: THREE.Vector3;
   public boundingRadius: number;
+  public collisionShape: CollisionShape;
 }
 
 export const ORGANELLE_TYPES: Record<string, { name: string; nameEn: string; baseColor: number; highlightColor: number; count: number }> = {
@@ -105,23 +112,70 @@ export class OrganelleManager {
 
     let mesh: THREE.Mesh;
     let boundingRadius: number;
+    let collisionShape: CollisionShape;
 
     switch (type) {
-      case 'mitochondrion':
+      case 'mitochondrion': {
         mesh = this.createMitochondrion(color);
         boundingRadius = 2.2;
+        const randomYaw = Math.random() * Math.PI * 2;
+        const randomPitch = Math.random() * 0.3;
+        const quat = new THREE.Quaternion().setFromEuler(new THREE.Euler(randomPitch, randomYaw, 0));
+        group.setRotationFromQuaternion(quat);
+        collisionShape = {
+          type: 'ellipsoid',
+          center: position.clone(),
+          radii: new THREE.Vector3(1.9, 0.95, 1.05),
+          rotation: quat.clone()
+        };
         break;
-      case 'endoplasmicReticulum':
+      }
+      case 'endoplasmicReticulum': {
         mesh = this.createEndoplasmicReticulum(color);
         boundingRadius = 5.5;
+        const spheres: CollisionShape[] = [];
+        for (let i = 0; i < 7; i++) {
+          const theta = (i / 7) * Math.PI * 2;
+          const phi = Math.acos(2 * Math.random() - 1);
+          const r = 1.5 + Math.random() * 2.0;
+          spheres.push({
+            type: 'sphere',
+            center: new THREE.Vector3(
+              r * Math.sin(phi) * Math.cos(theta),
+              r * Math.sin(phi) * Math.sin(theta),
+              r * Math.cos(phi)
+            ),
+            radius: 1.5
+          });
+        }
+        collisionShape = { type: 'composite', shapes: spheres };
         break;
-      case 'golgi':
+      }
+      case 'golgi': {
         mesh = this.createGolgi(color);
         boundingRadius = 4.0;
+        const golgiQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.random() * Math.PI, Math.PI / 4));
+        group.setRotationFromQuaternion(golgiQuat);
+        const golgiShapes: CollisionShape[] = [];
+        for (let i = -2; i <= 2; i++) {
+          golgiShapes.push({
+            type: 'ellipsoid',
+            center: new THREE.Vector3(0, i * 0.6, 0),
+            radii: new THREE.Vector3(2.4, 0.6, 2.4),
+            rotation: golgiQuat.clone()
+          });
+        }
+        collisionShape = { type: 'composite', shapes: golgiShapes };
         break;
+      }
       case 'lysosome':
         mesh = this.createLysosome(color);
         boundingRadius = 1.2;
+        collisionShape = {
+          type: 'sphere',
+          center: position.clone(),
+          radius: 1.1
+        };
         break;
       default:
         return null;
@@ -153,6 +207,7 @@ export class OrganelleManager {
       ),
       basePosition: position.clone(),
       boundingRadius,
+      collisionShape,
       isHighlighted: false
     };
   }
@@ -448,6 +503,11 @@ export class OrganelleManager {
       rotationSpeed: new THREE.Vector3(0.002, 0.0035, 0.002),
       basePosition: position.clone(),
       boundingRadius: 7.2,
+      collisionShape: {
+        type: 'sphere',
+        center: position.clone(),
+        radius: 7.0
+      },
       isHighlighted: false
     };
   }
@@ -615,11 +675,78 @@ export class OrganelleManager {
     return this.organelles.filter(o => o.data.type === type);
   }
 
+  private testSphereCollision(
+    cameraPos: THREE.Vector3,
+    cameraRadius: number,
+    shape: { type: 'sphere'; center: THREE.Vector3; radius: number },
+    organellePosition: THREE.Vector3
+  ): boolean {
+    const worldCenter = shape.center.clone().add(organellePosition);
+    return cameraPos.distanceTo(worldCenter) < shape.radius + cameraRadius + 0.15;
+  }
+
+  private testEllipsoidCollision(
+    cameraPos: THREE.Vector3,
+    cameraRadius: number,
+    shape: { type: 'ellipsoid'; center: THREE.Vector3; radii: THREE.Vector3; rotation: THREE.Quaternion },
+    organellePosition: THREE.Vector3
+  ): boolean {
+    const worldCenter = shape.center.clone().add(organellePosition);
+    const invRot = shape.rotation.clone().invert();
+    const localPos = cameraPos.clone().sub(worldCenter).applyQuaternion(invRot);
+
+    const effectiveRadii = shape.radii.clone().addScalar(cameraRadius + 0.15);
+    const nx = localPos.x / effectiveRadii.x;
+    const ny = localPos.y / effectiveRadii.y;
+    const nz = localPos.z / effectiveRadii.z;
+    return (nx * nx + ny * ny + nz * nz) < 1.0;
+  }
+
+  private testBoxCollision(
+    cameraPos: THREE.Vector3,
+    cameraRadius: number,
+    shape: { type: 'box'; min: THREE.Vector3; max: THREE.Vector3 },
+    organellePosition: THREE.Vector3
+  ): boolean {
+    const localPos = cameraPos.clone().sub(organellePosition);
+    const closest = new THREE.Vector3(
+      Math.max(shape.min.x, Math.min(localPos.x, shape.max.x)),
+      Math.max(shape.min.y, Math.min(localPos.y, shape.max.y)),
+      Math.max(shape.min.z, Math.min(localPos.z, shape.max.z))
+    );
+    return localPos.distanceTo(closest) < cameraRadius + 0.15;
+  }
+
+  private testCollisionShape(
+    cameraPos: THREE.Vector3,
+    cameraRadius: number,
+    shape: CollisionShape,
+    organellePosition: THREE.Vector3
+  ): boolean {
+    switch (shape.type) {
+      case 'sphere':
+        return this.testSphereCollision(cameraPos, cameraRadius, shape, organellePosition);
+      case 'ellipsoid':
+        return this.testEllipsoidCollision(cameraPos, cameraRadius, shape, organellePosition);
+      case 'box':
+        return this.testBoxCollision(cameraPos, cameraRadius, shape, organellePosition);
+      case 'composite':
+        for (const sub of shape.shapes) {
+          if (this.testCollisionShape(cameraPos, cameraRadius, sub, organellePosition)) {
+            return true;
+          }
+        }
+        return false;
+    }
+  }
+
   public checkCollision(position: THREE.Vector3, cameraRadius: number = 0.8): boolean {
     for (const organelle of this.organelles) {
       const dist = position.distanceTo(organelle.group.position);
-      if (dist < organelle.boundingRadius + cameraRadius + 0.3) {
-        return true;
+      if (dist < organelle.boundingRadius + cameraRadius + 0.5) {
+        if (this.testCollisionShape(position, cameraRadius, organelle.collisionShape, organelle.group.position)) {
+          return true;
+        }
       }
     }
     const distFromCenter = position.length();

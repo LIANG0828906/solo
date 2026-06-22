@@ -4,6 +4,76 @@ import { UIOverlay } from './UIOverlay';
 
 const CELL_RADIUS = 45;
 
+class SimplexNoise3D {
+  private perm: Uint8Array;
+
+  constructor(seed: number = 1337) {
+    this.perm = new Uint8Array(512);
+    const p = new Uint8Array(256);
+    for (let i = 0; i < 256; i++) p[i] = i;
+    let s = seed;
+    for (let i = 255; i > 0; i--) {
+      s = (s * 16807) % 2147483647;
+      const j = s % (i + 1);
+      [p[i], p[j]] = [p[j], p[i]];
+    }
+    for (let i = 0; i < 512; i++) this.perm[i] = p[i & 255];
+  }
+
+  private fade(t: number): number {
+    return t * t * t * (t * (t * 6 - 15) + 10);
+  }
+
+  private lerp(a: number, b: number, t: number): number {
+    return a + t * (b - a);
+  }
+
+  private grad(hash: number, x: number, y: number, z: number): number {
+    const h = hash & 15;
+    const u = h < 8 ? x : y;
+    const v = h < 4 ? y : h === 12 || h === 14 ? x : z;
+    return ((h & 1) === 0 ? u : -u) + ((h & 2) === 0 ? v : -v);
+  }
+
+  public noise(x: number, y: number, z: number): number {
+    const X = Math.floor(x) & 255;
+    const Y = Math.floor(y) & 255;
+    const Z = Math.floor(z) & 255;
+    x -= Math.floor(x);
+    y -= Math.floor(y);
+    z -= Math.floor(z);
+    const u = this.fade(x);
+    const v = this.fade(y);
+    const w = this.fade(z);
+    const A = this.perm[X] + Y;
+    const AA = this.perm[A] + Z;
+    const AB = this.perm[A + 1] + Z;
+    const B = this.perm[X + 1] + Y;
+    const BA = this.perm[B] + Z;
+    const BB = this.perm[B + 1] + Z;
+
+    return this.lerp(
+      this.lerp(
+        this.lerp(this.grad(this.perm[AA], x, y, z), this.grad(this.perm[BA], x - 1, y, z), u),
+        this.lerp(this.grad(this.perm[AB], x, y - 1, z), this.grad(this.perm[BB], x - 1, y - 1, z), u),
+        v
+      ),
+      this.lerp(
+        this.lerp(this.grad(this.perm[AA + 1], x, y, z - 1), this.grad(this.perm[BA + 1], x - 1, y, z - 1), u),
+        this.lerp(this.grad(this.perm[AB + 1], x, y - 1, z - 1), this.grad(this.perm[BB + 1], x - 1, y - 1, z - 1), u),
+        v
+      ),
+      w
+    );
+  }
+}
+
+interface ParticleData {
+  velocity: THREE.Vector3;
+  phase: number;
+  seed: THREE.Vector3;
+}
+
 interface CameraTween {
   active: boolean;
   startPos: THREE.Vector3;
@@ -26,7 +96,8 @@ export class CellScene {
   private cellMembrane: THREE.Mesh;
   private innerGlow: THREE.Mesh;
   private particleSystem: THREE.Points;
-  private particleData: { velocity: THREE.Vector3; phase: number }[] = [];
+  private particleData: ParticleData[] = [];
+  private noise: SimplexNoise3D = new SimplexNoise3D(42);
 
   private keys: Record<string, boolean> = {};
   private isDragging: boolean = false;
@@ -211,12 +282,13 @@ export class CellScene {
       sizes[i] = 0.08 + Math.random() * 0.18;
 
       this.particleData.push({
-        velocity: new THREE.Vector3(
-          (Math.random() - 0.5) * 0.8,
-          (Math.random() - 0.5) * 0.8,
-          (Math.random() - 0.5) * 0.8
-        ),
-        phase: Math.random() * Math.PI * 2
+        velocity: new THREE.Vector3(0, 0, 0),
+        phase: Math.random() * Math.PI * 2,
+        seed: new THREE.Vector3(
+          Math.random() * 100,
+          Math.random() * 100,
+          Math.random() * 100
+        )
       });
     }
 
@@ -350,18 +422,25 @@ export class CellScene {
       this.organelleManager.checkHover(this.camera, e.clientX, e.clientY);
     });
 
-    this.renderer.domElement.addEventListener('click', (e) => {
-      const panelOpen = this.uiOverlay.isInfoPanelOpen();
-      const target = e.target as HTMLElement;
-      if (target.closest('.info-panel')) return;
-      if (target.closest('.preset-btn')) return;
+    let panelClosedThisFrame = false;
+    const origOutsideCb = () => {
+      this.uiOverlay.hideInfoPanel();
+      this.organelleManager.clearSelected();
+      panelClosedThisFrame = true;
+    };
+    this.uiOverlay.setOnPanelOutsideClickCallback(origOutsideCb);
 
+    this.renderer.domElement.addEventListener('mousedown', (e) => {
+      panelClosedThisFrame = false;
+      (e as Event).stopPropagation();
+    });
+
+    this.renderer.domElement.addEventListener('click', (e) => {
+      (e as Event).stopPropagation();
+      if (panelClosedThisFrame) return;
       const clickedType = this.organelleManager.handleClick(this.camera);
       if (clickedType) {
         this.uiOverlay.showInfoPanel(clickedType);
-      } else if (panelOpen) {
-        this.uiOverlay.hideInfoPanel();
-        this.organelleManager.clearSelected();
       }
     });
 
@@ -557,9 +636,32 @@ export class CellScene {
     }
   }
 
+  private sampleFlowField(x: number, y: number, z: number, elapsed: number, seed: THREE.Vector3): THREE.Vector3 {
+    const scale = 0.035;
+    const tScale = 0.08;
+
+    const nx = this.noise.noise(x * scale + seed.x, y * scale + seed.y, z * scale + elapsed * tScale);
+    const ny = this.noise.noise(x * scale + 100 + seed.x, y * scale + 100 + seed.y, z * scale + elapsed * tScale + 50);
+    const nz = this.noise.noise(x * scale + 200 + seed.x, y * scale + 200 + seed.y, z * scale + elapsed * tScale + 100);
+
+    const angleX = nx * Math.PI * 2;
+    const angleY = ny * Math.PI * 2;
+    const angleZ = nz * Math.PI * 2;
+
+    return new THREE.Vector3(
+      Math.sin(angleX) * Math.cos(angleY),
+      Math.sin(angleY),
+      Math.cos(angleX) * Math.sin(angleZ)
+    );
+  }
+
   private updateParticles(delta: number, elapsed: number): void {
     const positions = this.particleSystem.geometry.attributes.position as THREE.BufferAttribute;
     const posArray = positions.array as Float32Array;
+
+    const flowStrength = 4.5;
+    const velocityDamping = 0.92;
+    const flowBlend = 0.35;
 
     for (let i = 0; i < this.particleData.length; i++) {
       const data = this.particleData[i];
@@ -569,25 +671,42 @@ export class CellScene {
       let y = posArray[idx + 1];
       let z = posArray[idx + 2];
 
-      const wobble = new THREE.Vector3(
-        Math.sin(elapsed * 0.5 + data.phase) * 0.02,
-        Math.cos(elapsed * 0.4 + data.phase * 1.3) * 0.02,
-        Math.sin(elapsed * 0.6 + data.phase * 0.7) * 0.02
+      const flowDir = this.sampleFlowField(x, y, z, elapsed, data.seed);
+
+      const flowVelocity = flowDir.multiplyScalar(flowStrength);
+      data.velocity.lerp(flowVelocity, flowBlend);
+      data.velocity.multiplyScalar(velocityDamping);
+
+      const microWobble = new THREE.Vector3(
+        Math.sin(elapsed * 1.8 + data.phase) * 0.08,
+        Math.cos(elapsed * 1.5 + data.phase * 1.7) * 0.08,
+        Math.sin(elapsed * 2.1 + data.phase * 0.9) * 0.08
       );
 
-      x += (data.velocity.x * delta + wobble.x);
-      y += (data.velocity.y * delta + wobble.y);
-      z += (data.velocity.z * delta + wobble.z);
+      x += data.velocity.x * delta + microWobble.x * delta;
+      y += data.velocity.y * delta + microWobble.y * delta;
+      z += data.velocity.z * delta + microWobble.z * delta;
 
       const dist = Math.sqrt(x * x + y * y + z * z);
-      if (dist > CELL_RADIUS - 1.5) {
+      if (dist > CELL_RADIUS - 1.2) {
         const norm = 1 / dist;
         const nx = x * norm;
         const ny = y * norm;
         const nz = z * norm;
-        data.velocity.reflect(new THREE.Vector3(nx, ny, nz));
-        data.velocity.multiplyScalar(0.95);
-        const clampR = CELL_RADIUS - 1.6;
+        const normal = new THREE.Vector3(nx, ny, nz);
+        const vDotN = data.velocity.dot(normal);
+        if (vDotN > 0) {
+          data.velocity.sub(normal.clone().multiplyScalar(2 * vDotN));
+          data.velocity.multiplyScalar(0.85);
+        }
+        const tangent = new THREE.Vector3().crossVectors(normal, new THREE.Vector3(0, 1, 0));
+        if (tangent.lengthSq() < 0.001) {
+          tangent.set(1, 0, 0);
+        }
+        tangent.normalize();
+        data.velocity.add(tangent.multiplyScalar(0.5));
+
+        const clampR = CELL_RADIUS - 1.4;
         x = nx * clampR;
         y = ny * clampR;
         z = nz * clampR;

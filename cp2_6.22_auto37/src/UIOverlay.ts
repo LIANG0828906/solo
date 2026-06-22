@@ -46,7 +46,10 @@ export class UIOverlay {
   private infoPanel: HTMLElement;
   private hoverLabel: HTMLElement;
   private currentOrganelleElement: HTMLElement;
-  private cameraTweenActive: boolean = false;
+
+  private onPanelOutsideClickCallback: (() => void) | null = null;
+  private pendingRequestId: number | null = null;
+  private pendingFlipTarget: HTMLElement | null = null;
 
   constructor() {
     this.container = document.getElementById('app')!;
@@ -57,6 +60,7 @@ export class UIOverlay {
     this.hoverLabel = this.createHoverLabel();
     this.currentOrganelleElement = this.hudTopLeft.querySelector('.current-name') as HTMLElement;
     this.setupResponsive();
+    this.setupGlobalClickHandler();
   }
 
   private createGlassElement(className: string): HTMLElement {
@@ -175,6 +179,13 @@ export class UIOverlay {
 
       button.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (this.pendingRequestId !== null) {
+          if (this.pendingFlipTarget) {
+            this.pendingFlipTarget.style.transition = 'none';
+            this.pendingFlipTarget.style.transform = '';
+          }
+          this.pendingFlipTarget = null;
+        }
         this.animateButtonFlip(button);
         const event = new CustomEvent('presetView', { detail: { preset: btn.key } });
         document.dispatchEvent(event);
@@ -188,15 +199,44 @@ export class UIOverlay {
   }
 
   private animateButtonFlip(button: HTMLElement): void {
-    button.style.transition = 'transform 0.5s cubic-bezier(0.4, 0, 0.2, 1)';
+    button.style.transition = 'transform 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
     button.style.transform = 'perspective(400px) rotateY(180deg)';
-    setTimeout(() => {
-      button.style.transform = 'perspective(400px) rotateY(360deg)';
-      setTimeout(() => {
-        button.style.transition = 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
-        button.style.transform = '';
-      }, 250);
-    }, 250);
+    this.pendingFlipTarget = button;
+    this.pendingRequestId = window.setTimeout(() => {
+      if (this.pendingFlipTarget === button) {
+        button.style.transform = 'perspective(400px) rotateY(360deg)';
+        this.pendingRequestId = window.setTimeout(() => {
+          if (this.pendingFlipTarget === button) {
+            button.style.transition = 'all 0.35s cubic-bezier(0.4, 0, 0.2, 1)';
+            button.style.transform = '';
+          }
+          this.pendingFlipTarget = null;
+          this.pendingRequestId = null;
+        }, 180);
+      }
+    }, 180);
+  }
+
+  private setupGlobalClickHandler(): void {
+    document.addEventListener(
+      'mousedown',
+      (e) => {
+        if (!this.isInfoPanelOpen()) return;
+        const target = e.target as HTMLElement;
+        if (!target.closest('.info-panel')) {
+          if (this.onPanelOutsideClickCallback) {
+            this.onPanelOutsideClickCallback();
+          } else {
+            this.hideInfoPanel();
+          }
+        }
+      },
+      true
+    );
+  }
+
+  public setOnPanelOutsideClickCallback(cb: () => void): void {
+    this.onPanelOutsideClickCallback = cb;
   }
 
   private createInfoPanel(): HTMLElement {
@@ -335,7 +375,7 @@ export class UIOverlay {
   }
 
   public isInfoPanelOpen(): boolean {
-    return this.infoPanel.style.pointerEvents === 'auto';
+    return this.infoPanel.style.right !== '-420px' && this.infoPanel.style.right !== '';
   }
 
   private setupResponsive(): void {
@@ -359,12 +399,6 @@ export class UIOverlay {
     resize();
   }
 
-  public setCameraTweenState(active: boolean): void {
-    this.cameraTweenActive = active;
-    this.hudBottomLeft.querySelectorAll('.preset-btn').forEach(btn => {
-      (btn as HTMLButtonElement).disabled = active;
-      (btn as HTMLElement).style.opacity = active ? '0.5' : '1';
-      (btn as HTMLElement).style.cursor = active ? 'not-allowed' : 'pointer';
-    });
+  public setCameraTweenState(_active: boolean): void {
   }
 }
