@@ -1,0 +1,111 @@
+.export-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.export-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 24px;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #6BCB77, #4CAF50);
+  color: white;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease-out;
+  box-shadow: 0 4px 16px rgba(107, 203, 119, 0.4);
+  font-family: inherit;
+}
+
+.export-button:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(107, 203, 119, 0.5);
+}
+
+.export-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.export-button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.export-loading {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.export-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: exportSpin 0.8s linear infinite;
+}
+
+@keyframes exportSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.export-content {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.export-icon {
+  font-size: 1.125rem;
+}
+
+.export-success {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 16px;
+  background: rgba(107, 203, 119, 0.15);
+  border-radius: 8px;
+  color: #4CAF50;
+  font-size: 0.875rem;
+  font-weight: 500;
+  animation: successFadeIn 0.3s ease-out;
+}
+
+@keyframes successFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (max-width: 768px) {
+  .export-container {
+    flex-direction: column;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .export-button {
+    width: 100%;
+    justify-content: center;
+    padding: 14px 20px;
+    font-size: 1rem;
+  }
+
+  .export-success {
+    justify-content: center;
+    padding: 10px 16px;
+  }
+}

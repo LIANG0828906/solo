@@ -1,0 +1,149 @@
+.app {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 32px 48px;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.header-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app-title {
+  margin: 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #4a4a6a;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.title-emoji {
+  font-size: 2rem;
+}
+
+.app-subtitle {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: #6a6a8a;
+  font-weight: 400;
+}
+
+.app-main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 32px;
+  padding: 32px 48px;
+}
+
+.section-left {
+  grid-column: 1;
+  grid-row: 1;
+  animation: fadeInUp 0.6s ease-out 0.1s both;
+}
+
+.section-right {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  animation: fadeInUp 0.6s ease-out 0.2s both;
+}
+
+.section-full {
+  grid-column: 1 / -1;
+  grid-row: 2;
+  animation: fadeInUp 0.6s ease-out 0.3s both;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.app-footer {
+  padding: 24px 48px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.3);
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.app-footer p {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #6a6a8a;
+}
+
+@media (max-width: 768px) {
+  .app-header {
+    flex-direction: column;
+    gap: 16px;
+    padding: 24px 20px;
+    text-align: center;
+  }
+
+  .app-title {
+    font-size: 1.5rem;
+    justify-content: center;
+  }
+
+  .title-emoji {
+    font-size: 1.75rem;
+  }
+
+  .app-subtitle {
+    font-size: 0.875rem;
+  }
+
+  .app-main {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto auto auto;
+    gap: 24px;
+    padding: 20px;
+  }
+
+  .section-left {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .section-right {
+    grid-column: 1;
+    grid-row: 2;
+    gap: 24px;
+  }
+
+  .section-full {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .app-footer {
+    padding: 20px;
+  }
+
+  .app-footer p {
+    font-size: 0.8125rem;
+  }
+}
