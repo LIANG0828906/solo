@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>星系碰撞模拟器</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: linear-gradient(135deg, #0a0a1a 0%, #1a0a2e 50%, #0d001a 100%);
+      font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+      color: #e0e0ff;
+    }
+
+    #app {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    #canvas-container {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    canvas {
+      display: block;
+      width: 100% !important;
+      height: 100% !important;
+    }
+
+    .control-panel {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      width: 300px;
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      background: rgba(20, 15, 50, 0.55);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(120, 100, 255, 0.25);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 8px 32px rgba(80, 50, 200, 0.2);
+      z-index: 10;
+    }
+
+    .control-panel::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    .control-panel::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 3px;
+    }
+
+    .control-panel::-webkit-scrollbar-thumb {
+      background: rgba(120, 100, 255, 0.4);
+      border-radius: 3px;
+    }
+
+    .panel-title {
+      font-size: 18px;
+      font-weight: 600;
+      margin-bottom: 20px;
+      text-align: center;
+      background: linear-gradient(90deg, #6ee7ff, #c084fc, #f472b6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: 2px;
+    }
+
+    .section-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #a5b4fc;
+      margin: 16px 0 10px;
+      padding-bottom: 6px;
+      border-bottom: 1px solid rgba(120, 100, 255, 0.2);
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .control-group {
+      margin-bottom: 14px;
+    }
+
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: #c4b5fd;
+      margin-bottom: 6px;
+    }
+
+    .control-value {
+      color: #6ee7ff;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .slider {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 6px;
+      border-radius: 3px;
+      background: linear-gradient(90deg, rgba(80, 50, 200, 0.3), rgba(30, 20, 80, 0.3));
+      outline: none;
+      cursor: pointer;
+      transition: box-shadow 0.3s ease;
+    }
+
+    .slider:hover {
+      box-shadow: 0 0 12px rgba(120, 100, 255, 0.5);
+    }
+
+    .slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6ee7ff, #c084fc);
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(110, 231, 255, 0.6);
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    .slider::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+      box-shadow: 0 0 16px rgba(110, 231, 255, 0.9);
+    }
+
+    .button-group {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      flex: 1;
+      min-width: 70px;
+      padding: 10px 12px;
+      border: 1px solid rgba(120, 100, 255, 0.4);
+      border-radius: 8px;
+      background: rgba(80, 50, 200, 0.2);
+      color: #e0e0ff;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn:hover {
+      background: rgba(120, 100, 255, 0.35);
+      border-color: rgba(120, 100, 255, 0.7);
+      box-shadow: 0 0 16px rgba(120, 100, 255, 0.4);
+      transform: translateY(-1px);
+    }
+
+    .btn.active {
+      background: rgba(110, 231, 255, 0.25);
+      border-color: rgba(110, 231, 255, 0.7);
+      box-shadow: 0 0 12px rgba(110, 231, 255, 0.5);
+    }
+
+    .stats-panel {
+      position: absolute;
+      top: 20px;
+      right: 20px;
+      background: rgba(20, 15, 50, 0.55);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(120, 100, 255, 0.25);
+      border-radius: 12px;
+      padding: 16px 20px;
+      z-index: 10;
+      min-width: 180px;
+    }
+
+    .stats-title {
+      font-size: 12px;
+      color: #a5b4fc;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .stat-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin: 8px 0;
+      font-size: 13px;
+    }
+
+    .stat-label {
+      color: #c4b5fd;
+    }
+
+    .stat-value {
+      color: #6ee7ff;
+      font-weight: 600;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .timeline-container {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: calc(100% - 380px);
+      max-width: 800px;
+      background: rgba(20, 15, 50, 0.55);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(120, 100, 255, 0.25);
+      border-radius: 12px;
+      padding: 14px 20px;
+      z-index: 10;
+    }
+
+    .timeline-controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .timeline-btn {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 1px solid rgba(120, 100, 255, 0.4);
+      background: rgba(80, 50, 200, 0.2);
+      color: #e0e0ff;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.3s ease;
+      font-size: 14px;
+    }
+
+    .timeline-btn:hover {
+      background: rgba(120, 100, 255, 0.35);
+      box-shadow: 0 0 12px rgba(120, 100, 255, 0.5);
+    }
+
+    .timeline-slider {
+      flex: 1;
+    }
+
+    .time-display {
+      font-size: 12px;
+      color: #a5b4fc;
+      min-width: 100px;
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .speed-btns {
+      display: flex;
+      gap: 4px;
+    }
+
+    .speed-btn {
+      padding: 4px 8px;
+      font-size: 11px;
+      border-radius: 4px;
+      border: 1px solid rgba(120, 100, 255, 0.3);
+      background: rgba(80, 50, 200, 0.15);
+      color: #c4b5fd;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .speed-btn:hover {
+      background: rgba(120, 100, 255, 0.3);
+    }
+
+    .speed-btn.active {
+      background: rgba(110, 231, 255, 0.25);
+      color: #6ee7ff;
+      border-color: rgba(110, 231, 255, 0.5);
+    }
+
+    @media (max-width: 768px) {
+      .control-panel {
+        width: calc(100% - 40px);
+        max-height: 40vh;
+        top: 10px;
+        left: 10px;
+        right: 10px;
+      }
+
+      .stats-panel {
+        top: auto;
+        bottom: 160px;
+        right: 10px;
+        left: 10px;
+        min-width: auto;
+      }
+
+      .timeline-container {
+        width: calc(100% - 20px);
+        bottom: 10px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div id="canvas-container"></div>
+
+    <div class="control-panel" id="control-panel">
+      <div class="panel-title">✦ 星系碰撞模拟器 ✦</div>
+
+      <div class="section-title">星系参数</div>
+
+      <div class="control-group">
+        <div class="control-label">
+          <span>星系1质量</span>
+          <span class="control-value" id="mass1-value">1.0</span>
+        </div>
+        <input type="range" class="slider" id="mass1" min="0.3" max="3" step="0.1" value="1">
+      </div>
+
+      <div class="control-group">
+        <div class="control-label">
+          <span>星系2质量</span>
+          <span class="control-value" id="mass2-value">0.8</span>
+        </div>
+        <input type="range" class="slider" id="mass2" min="0.3" max="3" step="0.1" value="0.8">
+      </div>
+
+      <div class="control-group">
+        <div class="control-label">
+          <span>初始距离</span>
+          <span class="control-value" id="distance-value">120</span>
+        </div>
+        <input type="range" class="slider" id="distance" min="60" max="200" step="5" value="120">
+      </div>
+
+      <div class="control-group">
+        <div class="control-label">
+          <span>碰撞角度 (°)</span>
+          <span class="control-value" id="angle-value">45</span>
+        </div>
+        <input type="range" class="slider" id="angle" min="0" max="180" step="5" value="45">
+      </div>
+
+      <div class="control-group">
+        <div class="control-label">
+          <span>速度倍数</span>
+          <span class="control-value" id="velocity-value">1.0</span>
+        </div>
+        <input type="range" class="slider" id="velocity" min="0.2" max="3" step="0.1" value="1">
+      </div>
+
+      <div class="section-title">粒子设置</div>
+
+      <div class="control-group">
+        <div class="control-label">
+          <span>粒子数量</span>
+          <span class="control-value" id="particles-value">8000</span>
+        </div>
+        <input type="range" class="slider" id="particles" min="1000" max="15000" step="500" value="8000">
+      </div>
+
+      <div class="button-group">
+        <button class="btn" id="reset-btn">重置模拟</button>
+        <button class="btn" id="recreate-btn">重建星系</button>
+      </div>
+    </div>
+
+    <div class="stats-panel">
+      <div class="stats-title">能量状态</div>
+      <div class="stat-item">
+        <span class="stat-label">动能</span>
+        <span class="stat-value" id="kinetic-energy">0.00</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">势能</span>
+        <span class="stat-value" id="potential-energy">0.00</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">总能量</span>
+        <span class="stat-value" id="total-energy">0.00</span>
+      </div>
+      <div class="stat-item">
+        <span class="stat-label">FPS</span>
+        <span class="stat-value" id="fps">60</span>
+      </div>
+    </div>
+
+    <div class="timeline-container">
+      <div class="timeline-controls">
+        <button class="timeline-btn" id="play-btn" title="播放/暂停">▶</button>
+        <button class="timeline-btn" id="reset-timeline-btn" title="重置">⟲</button>
+        <div class="time-display">
+          <span id="current-time">0.00</span> / <span id="total-time">100.00</span>s
+        </div>
+        <input type="range" class="slider timeline-slider" id="timeline" min="0" max="100" step="0.1" value="0">
+        <div class="speed-btns">
+          <button class="speed-btn" data-speed="0.5">0.5x</button>
+          <button class="speed-btn active" data-speed="1">1x</button>
+          <button class="speed-btn" data-speed="2">2x</button>
+          <button class="speed-btn" data-speed="4">4x</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
