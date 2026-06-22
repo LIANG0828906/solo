@@ -30,7 +30,7 @@ declare global {
   }
 }
 
-router.post('/api/routes', (req: Request, res: Response): void => {
+router.post('/routes', (req: Request, res: Response): void => {
   const { name, description, points } = req.body as { name: string; description: string; points: RoutePoint[] };
   
   if (!name || !points || points.length < 2) {
@@ -61,7 +61,7 @@ router.post('/api/routes', (req: Request, res: Response): void => {
   res.status(201).json(route);
 });
 
-router.get('/api/routes/:id', (req: Request, res: Response): void => {
+router.get('/routes/:id', (req: Request, res: Response): void => {
   const { id } = req.params;
   const route = req.app.locals.routes.get(id);
   
@@ -73,7 +73,7 @@ router.get('/api/routes/:id', (req: Request, res: Response): void => {
   res.json(route);
 });
 
-router.get('/api/routes/:id/elevation', (req: Request, res: Response): void => {
+router.get('/routes/:id/elevation', (req: Request, res: Response): void => {
   const { id } = req.params;
   const route = req.app.locals.routes.get(id);
   
@@ -86,7 +86,7 @@ router.get('/api/routes/:id/elevation', (req: Request, res: Response): void => {
   res.json(elevationData);
 });
 
-router.get('/api/routes/:id/weather', (req: Request, res: Response): void => {
+router.get('/routes/:id/weather', (req: Request, res: Response): void => {
   const { id } = req.params;
   const route = req.app.locals.routes.get(id);
   
@@ -99,7 +99,7 @@ router.get('/api/routes/:id/weather', (req: Request, res: Response): void => {
   res.json(weatherData);
 });
 
-router.post('/api/activities', (req: Request, res: Response): void => {
+router.post('/activities', (req: Request, res: Response): void => {
   const { routeId, name, date, participants } = req.body as { routeId: string; name: string; date: string; participants?: string[] };
   
   if (!routeId || !name || !date) {
@@ -131,7 +131,7 @@ router.post('/api/activities', (req: Request, res: Response): void => {
   res.status(201).json(activity);
 });
 
-router.get('/api/activities/:code', (req: Request, res: Response): void => {
+router.get('/activities/:code', (req: Request, res: Response): void => {
   const { code } = req.params;
   const activityId = req.app.locals.inviteCodeToActivityId.get(code);
   const activity = activityId ? req.app.locals.activities.get(activityId) : null;
@@ -144,7 +144,7 @@ router.get('/api/activities/:code', (req: Request, res: Response): void => {
   res.json(activity);
 });
 
-router.post('/api/routes/:id/calories', (req: Request, res: Response): void => {
+router.post('/routes/:id/calories', (req: Request, res: Response): void => {
   const { id } = req.params;
   const { weight, packWeight } = req.body as { weight: number; packWeight: number };
   
@@ -169,9 +169,44 @@ router.post('/api/routes/:id/calories', (req: Request, res: Response): void => {
   res.json(calorieData);
 });
 
-router.get('/api/gear/default', (req: Request, res: Response): void => {
+router.get('/gear/default', (req: Request, res: Response): void => {
   const gearList: GearItem[] = getDefaultGearList();
   res.json(gearList);
+});
+
+router.get('/routes/:id/gear', (req: Request, res: Response): void => {
+  const { id } = req.params;
+  const route = req.app.locals.routes.get(id);
+  
+  if (!route) {
+    res.status(404).json({ error: 'Route not found' });
+    return;
+  }
+
+  if (route.gearItems && route.gearItems.length > 0) {
+    res.json(route.gearItems);
+  } else {
+    const defaultGear: GearItem[] = getDefaultGearList().map((item) => ({
+      ...item,
+      checked: item.essential,
+    }));
+    res.json(defaultGear);
+  }
+});
+
+router.post('/routes/:id/gear', (req: Request, res: Response): void => {
+  const { id } = req.params;
+  const { gearItems } = req.body as { gearItems: GearItem[] };
+  
+  const route = req.app.locals.routes.get(id);
+  
+  if (!route) {
+    res.status(404).json({ error: 'Route not found' });
+    return;
+  }
+
+  route.gearItems = gearItems;
+  res.json({ success: true, count: gearItems.length });
 });
 
 export default router;

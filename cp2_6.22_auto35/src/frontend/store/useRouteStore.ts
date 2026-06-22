@@ -29,6 +29,10 @@ interface RouteState {
   gearItems: GearItem[];
   toggleGearItem: (id: string) => void;
   setGearItems: (items: GearItem[]) => void;
+  addGearItem: (name: string, category: GearItem['category'], quantity?: number) => void;
+  removeGearItem: (id: string) => void;
+  saveGearToRoute: (routeId: string) => Promise<void>;
+  loadGearFromRoute: (routeId: string) => Promise<void>;
 
   weatherData: WeatherData[];
   setWeatherData: (data: WeatherData[]) => void;
@@ -48,6 +52,13 @@ interface RouteState {
 
   isPanelExpanded: boolean;
   togglePanel: () => void;
+
+  isDrawing: boolean;
+  setIsDrawing: (drawing: boolean) => void;
+  finishDrawing: () => void;
+
+  elevationProfile: ElevationPoint[];
+  setElevationProfile: (data: ElevationPoint[]) => void;
 
   fetchWeather: (routeId: string) => Promise<void>;
   fetchGearList: () => Promise<void>;
@@ -94,6 +105,40 @@ export const useRouteStore = create<RouteState>((set, get) => ({
       ),
     })),
   setGearItems: (items) => set({ gearItems: items }),
+  addGearItem: (name, category, quantity) =>
+    set((state) => ({
+      gearItems: [
+        ...state.gearItems,
+        {
+          id: `custom-${Date.now()}`,
+          name,
+          checked: false,
+          category,
+          quantity,
+          isCustom: true,
+        },
+      ],
+    })),
+  removeGearItem: (id) =>
+    set((state) => ({
+      gearItems: state.gearItems.filter((item) => item.id !== id),
+    })),
+  saveGearToRoute: async (routeId) => {
+    try {
+      const { gearItems } = get();
+      await axios.post(`/api/routes/${routeId}/gear`, { gearItems });
+    } catch (error) {
+      console.error('Failed to save gear:', error);
+    }
+  },
+  loadGearFromRoute: async (routeId) => {
+    try {
+      const response = await axios.get(`/api/routes/${routeId}/gear`);
+      set({ gearItems: response.data });
+    } catch (error) {
+      console.error('Failed to load gear:', error);
+    }
+  },
 
   weatherData: [],
   setWeatherData: (data) => set({ weatherData: data }),
@@ -122,6 +167,13 @@ export const useRouteStore = create<RouteState>((set, get) => ({
   isPanelExpanded: true,
   togglePanel: () =>
     set((state) => ({ isPanelExpanded: !state.isPanelExpanded })),
+
+  isDrawing: true,
+  setIsDrawing: (drawing) => set({ isDrawing: drawing }),
+  finishDrawing: () => set({ isDrawing: false }),
+
+  elevationProfile: [],
+  setElevationProfile: (data) => set({ elevationProfile: data }),
 
   fetchWeather: async (routeId) => {
     try {

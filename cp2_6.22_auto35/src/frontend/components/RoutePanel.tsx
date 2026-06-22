@@ -10,7 +10,7 @@ import {
   Area,
   ReferenceArea
 } from 'recharts';
-import { Copy, ChevronDown, ChevronUp, User, Package } from 'lucide-react';
+import { Copy, ChevronDown, ChevronUp, User, Package, Plus, X } from 'lucide-react';
 import useRouteStore from '../store/useRouteStore';
 
 const RoutePanel: React.FC = () => {
@@ -25,6 +25,10 @@ const RoutePanel: React.FC = () => {
   const inviteCode = useRouteStore((state) => state.inviteCode);
   const togglePanel = useRouteStore((state) => state.togglePanel);
   const toggleGearItem = useRouteStore((state) => state.toggleGearItem);
+  const addGearItem = useRouteStore((state) => state.addGearItem);
+  const removeGearItem = useRouteStore((state) => state.removeGearItem);
+  const saveGearToRoute = useRouteStore((state) => state.saveGearToRoute);
+  const loadGearFromRoute = useRouteStore((state) => state.loadGearFromRoute);
   const setUserProfile = useRouteStore((state) => state.setUserProfile);
   const fetchWeather = useRouteStore((state) => state.fetchWeather);
   const fetchGearList = useRouteStore((state) => state.fetchGearList);
@@ -32,6 +36,9 @@ const RoutePanel: React.FC = () => {
   const fetchElevation = useRouteStore((state) => state.fetchElevation);
 
   const [copied, setCopied] = useState(false);
+  const [newGearName, setNewGearName] = useState('');
+  const [newGearCategory, setNewGearCategory] = useState<'essentials' | 'clothing' | 'food' | 'emergency' | 'custom'>('custom');
+  const [newGearQuantity, setNewGearQuantity] = useState(1);
 
   useEffect(() => {
     fetchGearList();
@@ -42,14 +49,29 @@ const RoutePanel: React.FC = () => {
       fetchWeather(route.id);
       fetchElevation(route.id);
       fetchCalories(route.id, userProfile.weight, userProfile.packWeight);
+      loadGearFromRoute(route.id);
     }
-  }, [route, fetchWeather, fetchElevation, fetchCalories, userProfile.weight, userProfile.packWeight]);
+  }, [route, fetchWeather, fetchElevation, fetchCalories, loadGearFromRoute, userProfile.weight, userProfile.packWeight]);
 
   const handleCopyInviteCode = async () => {
     if (inviteCode) {
       await navigator.clipboard.writeText(inviteCode);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  const handleAddGear = () => {
+    if (newGearName.trim()) {
+      addGearItem(newGearName.trim(), newGearCategory, newGearQuantity);
+      setNewGearName('');
+      setNewGearQuantity(1);
+    }
+  };
+
+  const handleSaveGear = async () => {
+    if (route) {
+      await saveGearToRoute(route.id);
     }
   };
 
@@ -190,19 +212,86 @@ const RoutePanel: React.FC = () => {
       </div>
 
       <div className="panel-section">
-        <h3 className="section-title">装备清单</h3>
+        <h3 className="section-title">
+          装备清单
+          <button className="save-gear-btn" onClick={handleSaveGear}>
+            保存
+          </button>
+        </h3>
         <div className="gear-list">
-          {gearItems.map((item) => (
-            <label key={item.id} className="gear-item">
-              <input
-                type="checkbox"
-                checked={item.checked}
-                onChange={() => toggleGearItem(item.id)}
-              />
-              <span className="gear-name">{item.name}</span>
-              <span className="gear-category">{item.category}</span>
-            </label>
-          ))}
+          {(['essentials', 'clothing', 'food', 'emergency', 'custom'] as const).map((category) => {
+            const categoryItems = gearItems.filter((item) => item.category === category);
+            if (categoryItems.length === 0) return null;
+            const categoryNames: Record<string, string> = {
+              essentials: '必备物品',
+              clothing: '服装装备',
+              food: '食物补给',
+              emergency: '应急物品',
+              custom: '自定义装备'
+            };
+            return (
+              <div key={category} className="gear-category-group">
+                <div className="gear-category-title">{categoryNames[category]}</div>
+                {categoryItems.map((item) => (
+                  <div key={item.id} className="gear-item">
+                    <label className="gear-item-label">
+                      <input
+                        type="checkbox"
+                        checked={item.checked}
+                        onChange={() => toggleGearItem(item.id)}
+                      />
+                      <span className="gear-name">{item.name}</span>
+                      {item.quantity && item.quantity > 1 && (
+                        <span className="gear-quantity">x{item.quantity}</span>
+                      )}
+                    </label>
+                    <button
+                      className="gear-delete-btn"
+                      onClick={() => removeGearItem(item.id)}
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            );
+          })}
+        </div>
+        <div className="add-gear-section">
+          <div className="add-gear-title">添加自定义装备</div>
+          <div className="add-gear-form">
+            <input
+              type="text"
+              className="add-gear-input"
+              placeholder="装备名称"
+              value={newGearName}
+              onChange={(e) => setNewGearName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleAddGear()}
+            />
+            <select
+              className="add-gear-select"
+              value={newGearCategory}
+              onChange={(e) => setNewGearCategory(e.target.value as typeof newGearCategory)}
+            >
+              <option value="essentials">必备</option>
+              <option value="clothing">服装</option>
+              <option value="food">食物</option>
+              <option value="emergency">应急</option>
+              <option value="custom">自定义</option>
+            </select>
+            <input
+              type="number"
+              className="add-gear-quantity"
+              placeholder="数量"
+              value={newGearQuantity}
+              onChange={(e) => setNewGearQuantity(Math.max(1, Number(e.target.value)))}
+              min="1"
+            />
+            <button className="add-gear-btn" onClick={handleAddGear}>
+              <Plus size={16} />
+              添加
+            </button>
+          </div>
         </div>
       </div>
 
@@ -526,27 +615,73 @@ const RoutePanel: React.FC = () => {
           font-size: 13px;
         }
 
+        .section-title {
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+        }
+
+        .save-gear-btn {
+          padding: 6px 12px;
+          background: #FF9800;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 12px;
+          font-weight: 600;
+          transition: background 0.2s;
+        }
+
+        .save-gear-btn:hover {
+          background: #F57C00;
+        }
+
         .gear-list {
           display: flex;
           flex-direction: column;
-          gap: 6px;
-          max-height: 200px;
+          gap: 12px;
+          max-height: 300px;
           overflow-y: auto;
+          margin-bottom: 12px;
+        }
+
+        .gear-category-group {
+          display: flex;
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .gear-category-title {
+          font-size: 12px;
+          font-weight: 600;
+          color: #6D4C41;
+          padding: 0 4px;
+          margin-bottom: 2px;
         }
 
         .gear-item {
           display: flex;
           align-items: center;
+          justify-content: space-between;
           gap: 10px;
           background: white;
           padding: 10px 12px;
           border-radius: 6px;
-          cursor: pointer;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.05);
           transition: background 0.2s;
         }
 
         .gear-item:hover {
           background: #f5f5f5;
+        }
+
+        .gear-item-label {
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          flex: 1;
+          cursor: pointer;
         }
 
         .gear-item input[type="checkbox"] {
@@ -562,12 +697,93 @@ const RoutePanel: React.FC = () => {
           color: #333;
         }
 
-        .gear-category {
-          font-size: 11px;
-          color: #999;
-          background: #f0f0f0;
-          padding: 2px 6px;
+        .gear-quantity {
+          font-size: 12px;
+          color: #FF9800;
+          font-weight: 600;
+        }
+
+        .gear-delete-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          width: 24px;
+          height: 24px;
+          background: transparent;
+          border: none;
           border-radius: 4px;
+          color: #999;
+          cursor: pointer;
+          opacity: 0;
+          transition: all 0.2s;
+        }
+
+        .gear-item:hover .gear-delete-btn {
+          opacity: 1;
+        }
+
+        .gear-delete-btn:hover {
+          background: #ffebee;
+          color: #f44336;
+        }
+
+        .add-gear-section {
+          background: #FFF8E1;
+          border: 2px dashed #FFB74D;
+          border-radius: 8px;
+          padding: 12px;
+        }
+
+        .add-gear-title {
+          font-size: 13px;
+          font-weight: 600;
+          color: #6D4C41;
+          margin-bottom: 10px;
+        }
+
+        .add-gear-form {
+          display: flex;
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .add-gear-input,
+        .add-gear-select,
+        .add-gear-quantity {
+          width: 100%;
+          padding: 8px 10px;
+          border: 1px solid #e0e0e0;
+          border-radius: 6px;
+          font-size: 13px;
+          outline: none;
+          box-sizing: border-box;
+          transition: border-color 0.2s;
+        }
+
+        .add-gear-input:focus,
+        .add-gear-select:focus,
+        .add-gear-quantity:focus {
+          border-color: #FF9800;
+        }
+
+        .add-gear-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 6px;
+          padding: 10px;
+          background: #FF9800;
+          color: white;
+          border: none;
+          border-radius: 6px;
+          cursor: pointer;
+          font-size: 14px;
+          font-weight: 600;
+          transition: background 0.2s;
+        }
+
+        .add-gear-btn:hover {
+          background: #F57C00;
         }
 
         .weather-cards {

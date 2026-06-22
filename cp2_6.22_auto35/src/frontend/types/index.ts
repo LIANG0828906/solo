@@ -37,7 +37,9 @@ export type GearItem = {
   id: string;
   name: string;
   checked: boolean;
-  category: 'essentials' | 'clothing' | 'food' | 'emergency';
+  category: 'essentials' | 'clothing' | 'food' | 'emergency' | 'custom';
+  quantity?: number;
+  isCustom?: boolean;
 };
 
 export type WeatherData = {

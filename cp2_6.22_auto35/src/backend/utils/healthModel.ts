@@ -26,6 +26,7 @@ export interface Route {
   maxElevation: number;
   minElevation: number;
   estimatedTime: number;
+  gearItems?: GearItem[];
   createdAt: Date;
 }
 
@@ -57,6 +58,9 @@ export interface GearItem {
   category: string;
   weight: number;
   essential: boolean;
+  checked?: boolean;
+  quantity?: number;
+  isCustom?: boolean;
 }
 
 export function calculateDistance(points: RoutePoint[]): number {
