@@ -30,7 +30,7 @@ export default function App() {
   useEffect(() => {
     const timers: number[] = []
     notifications.forEach((n) => {
-      const t = window.setTimeout(() => removeNotification(n.id), 4000)
+      const t = window.setTimeout(() => removeNotification(n.id), 3000)
       timers.push(t)
     })
     return () => timers.forEach((t) => clearTimeout(t))
@@ -54,13 +54,13 @@ export default function App() {
   const notifIcon = (type: string) => {
     switch (type) {
       case 'success':
-        return <CheckCircle2 className="w-4 h-4 text-green-500" />
+        return <CheckCircle2 className="w-5 h-5 text-white/95" />
       case 'error':
-        return <XCircle className="w-4 h-4 text-red-500" />
+        return <XCircle className="w-5 h-5 text-white/95" />
       case 'warning':
-        return <AlertTriangle className="w-4 h-4 text-amber-500" />
+        return <AlertTriangle className="w-5 h-5 text-white/95" />
       default:
-        return <Info className="w-4 h-4 text-primary-500" />
+        return <Info className="w-5 h-5 text-white/95" />
     }
   }
 
@@ -146,31 +146,48 @@ export default function App() {
           </div>
         </header>
 
-        {/* Top Notifications */}
-        <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 space-y-2 w-[480px] max-w-[90%] pointer-events-none">
-          {notifications.map((n) => (
-            <div
-              key={n.id}
-              className={`pointer-events-auto flex items-start gap-3 px-4 py-3 rounded-xl shadow-lg animate-fade-in bg-white border-l-4 ${
-                n.type === 'error'
-                  ? 'border-red-500'
-                  : n.type === 'warning'
-                    ? 'border-amber-500'
-                    : n.type === 'success'
-                      ? 'border-green-500'
-                      : 'border-primary-500'
-              }`}
-            >
-              {notifIcon(n.type)}
-              <span className="text-sm text-gray-700 flex-1">{n.message}</span>
-              <button
-                onClick={() => removeNotification(n.id)}
-                className="text-gray-400 hover:text-gray-600"
+        {/* Top Notifications Banner */}
+        <div className="fixed top-5 left-1/2 -translate-x-1/2 z-50 space-y-3 w-[520px] max-w-[92%] pointer-events-none">
+          {notifications.map((n) => {
+            const isSuccess = n.type === 'success'
+            const isError = n.type === 'error'
+            const isWarning = n.type === 'warning'
+            return (
+              <div
+                key={n.id}
+                className={`pointer-events-auto flex items-center gap-3 px-5 py-3.5 rounded-2xl shadow-xl animate-fade-in text-white ${
+                  isSuccess
+                    ? 'bg-gradient-to-r from-[#1e3a5f] to-[#284a7f]'
+                    : isError
+                      ? 'bg-gradient-to-r from-[#e53e3e] to-[#f56565]'
+                      : isWarning
+                        ? 'bg-gradient-to-r from-[#d97706] to-[#f59e0b]'
+                        : 'bg-gradient-to-r from-[#2563eb] to-[#3b82f6]'
+                }`}
+                style={{
+                  boxShadow: isSuccess
+                    ? '0 10px 30px -8px rgba(30, 58, 95, 0.55)'
+                    : isError
+                      ? '0 10px 30px -8px rgba(229, 62, 62, 0.55)'
+                      : '0 10px 30px -8px rgba(37, 99, 235, 0.45)',
+                }}
               >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          ))}
+                <div className="shrink-0 w-9 h-9 rounded-full bg-white/15 flex items-center justify-center">
+                  {notifIcon(n.type)}
+                </div>
+                <span className="text-sm font-medium leading-relaxed flex-1 text-white/95">
+                  {n.message}
+                </span>
+                <button
+                  onClick={() => removeNotification(n.id)}
+                  className="shrink-0 w-7 h-7 rounded-lg hover:bg-white/15 flex items-center justify-center text-white/80 hover:text-white transition-colors"
+                  aria-label="关闭通知"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )
+          })}
         </div>
 
         {/* Content */}

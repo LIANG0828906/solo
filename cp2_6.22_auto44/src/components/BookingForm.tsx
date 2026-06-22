@@ -3,6 +3,7 @@ import { X, Users, FileText, CalendarClock, AlertCircle } from 'lucide-react'
 import { useAppStore } from '@/store/appStore'
 import { apiService } from '@/services/apiService'
 import type { BookingCreateInput } from '@/types'
+import { v4 as uuid } from 'uuid'
 import {
   HOURS,
   buildDateTime,
@@ -30,6 +31,7 @@ export default function BookingForm({
   const devices = useAppStore((s) => s.devices)
   const bookings = useAppStore((s) => s.bookings)
   const addToast = useAppStore((s) => s.addToast)
+  const addNotification = useAppStore((s) => s.addNotification)
 
   const [title, setTitle] = useState('')
   const [roomId, setRoomId] = useState(defaultRoomId)
@@ -80,19 +82,47 @@ export default function BookingForm({
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault()
     if (!title.trim()) {
-      triggerShake('请填写会议名称')
+      const msg = '请填写会议名称'
+      triggerShake(msg)
+      addNotification({
+        id: uuid(),
+        type: 'error',
+        message: msg,
+        timestamp: Date.now(),
+      })
       return
     }
     if (startHour >= endHour) {
-      triggerShake('结束时间必须晚于开始时间')
+      const msg = '结束时间必须晚于开始时间'
+      triggerShake(msg)
+      addNotification({
+        id: uuid(),
+        type: 'error',
+        message: msg,
+        timestamp: Date.now(),
+      })
       return
     }
     if (participants < 1) {
-      triggerShake('参与人数至少为 1 人')
+      const msg = '参与人数至少为 1 人'
+      triggerShake(msg)
+      addNotification({
+        id: uuid(),
+        type: 'error',
+        message: msg,
+        timestamp: Date.now(),
+      })
       return
     }
     if (room && participants > room.capacity) {
-      triggerShake(`参与人数超过会议室容量（最大 ${room.capacity} 人）`)
+      const msg = `参与人数超过会议室容量（最大 ${room.capacity} 人）`
+      triggerShake(msg)
+      addNotification({
+        id: uuid(),
+        type: 'error',
+        message: msg,
+        timestamp: Date.now(),
+      })
       return
     }
 
@@ -115,7 +145,6 @@ export default function BookingForm({
     try {
       setSubmitting(true)
 
-      // 第一步：先调用设备可用性检查接口
       if (deviceIds.length > 0) {
         const availResult = await apiService.checkDeviceAvailability(
           deviceIds,
@@ -128,25 +157,38 @@ export default function BookingForm({
             .map((c) => c.deviceName)
             .join('、')
           const conflictTitle = first.conflictingBooking.title
-          triggerShake(
-            `设备冲突：「${devNames}」与会议「${conflictTitle}」时间重叠，请选择其他时间或设备`
-          )
+          const msg = `设备冲突：「${devNames}」与会议「${conflictTitle}」时间重叠，请选择其他时间或设备`
+          triggerShake(msg)
+          addNotification({
+            id: uuid(),
+            type: 'error',
+            message: msg,
+            timestamp: Date.now(),
+          })
           setSubmitting(false)
           return
         }
       }
 
-      // 第二步：设备可用后再提交预约
       const created = await apiService.createBooking(payload)
-      addToast({
-        id: created.id,
+      const bookedRoom = rooms.find((r) => r.id === created.roomId)
+      addNotification({
+        id: uuid(),
         type: 'success',
-        message: `预约成功：${created.title}`,
-        bookingId: created.id,
+        message: `「${created.title}」已成功预约 ${bookedRoom?.name || '会议室'}（${bookedRoom?.location || ''}）`,
+        timestamp: Date.now(),
       })
+      setSubmitting(false)
       onClose()
     } catch (err: any) {
-      triggerShake(err.message || '预约失败，请重试')
+      const msg = err.message || '预约失败，请重试'
+      triggerShake(msg)
+      addNotification({
+        id: uuid(),
+        type: 'error',
+        message: msg,
+        timestamp: Date.now(),
+      })
     } finally {
       setSubmitting(false)
     }
