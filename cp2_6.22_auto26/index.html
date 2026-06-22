@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>粒子特效编辑器</title>
+  <link rel="stylesheet" href="src/style.css">
+</head>
+<body>
+  <div class="app-container">
+    <header class="header">
+      <div class="header-title">
+        <span class="logo-icon">✦</span>
+        <h1>粒子特效编辑器</h1>
+      </div>
+      <div class="header-actions">
+        <button id="modeToggle" class="mode-toggle-btn" title="切换模式">
+          <span class="mode-icon">✏️</span>
+        </button>
+      </div>
+    </header>
+
+    <main class="main-content">
+      <div class="canvas-wrapper">
+        <div id="canvas-container" class="canvas-container"></div>
+      </div>
+      <aside id="control-panel" class="control-panel">
+        <div class="panel-section">
+          <div class="panel-header">
+            <h2>预设</h2>
+          </div>
+          <div class="panel-content">
+            <select id="presetSelect" class="preset-select">
+            </select>
+            <div class="preset-buttons">
+              <button id="exportBtn" class="btn btn-secondary">导出</button>
+              <button id="importBtn" class="btn btn-secondary">导入</button>
+              <input type="file" id="importFile" accept=".json" style="display: none;">
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section collapsed" data-section="emission">
+          <div class="panel-header collapsible">
+            <h2>发射参数</h2>
+            <span class="collapse-icon">▼</span>
+          </div>
+          <div class="panel-content">
+            <div class="control-group">
+              <label>
+                <span class="label-text">发射速率</span>
+                <span class="label-value" id="emissionRateValue">50</span>
+              </label>
+              <input type="range" id="emissionRate" min="0" max="200" value="50" class="slider">
+            </div>
+            <div class="control-group">
+              <label>
+                <span class="label-text">扩散角度</span>
+                <span class="label-value" id="spreadAngleValue">360</span>
+              </label>
+              <input type="range" id="spreadAngle" min="0" max="360" value="360" class="slider">
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section collapsed" data-section="motion">
+          <div class="panel-header collapsible">
+            <h2>运动参数</h2>
+            <span class="collapse-icon">▼</span>
+          </div>
+          <div class="panel-content">
+            <div class="control-group">
+              <label>
+                <span class="label-text">初始速度</span>
+                <span class="label-value" id="speedValue">200</span>
+              </label>
+              <input type="range" id="speed" min="0" max="500" value="200" class="slider">
+            </div>
+            <div class="control-group">
+              <label>
+                <span class="label-text">生命周期</span>
+                <span class="label-value" id="lifetimeValue">2.0</span>
+              </label>
+              <input type="range" id="lifetime" min="0.1" max="5" step="0.1" value="2" class="slider">
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-section collapsed" data-section="appearance">
+          <div class="panel-header collapsible">
+            <h2>外观参数</h2>
+            <span class="collapse-icon">▼</span>
+          </div>
+          <div class="panel-content">
+            <div class="control-group">
+              <label>
+                <span class="label-text">粒子大小</span>
+                <span class="label-value" id="sizeValue">8</span>
+              </label>
+              <input type="range" id="size" min="1" max="20" value="8" class="slider">
+            </div>
+            <div class="control-group color-group">
+              <label>
+                <span class="label-text">起始颜色</span>
+              </label>
+              <input type="color" id="startColor" value="#ff6600" class="color-picker">
+            </div>
+            <div class="control-group color-group">
+              <label>
+                <span class="label-text">结束颜色</span>
+              </label>
+              <input type="color" id="endColor" value="#ff0000" class="color-picker">
+            </div>
+          </div>
+        </div>
+      </aside>
+    </main>
+
+    <footer class="status-bar">
+      <div class="status-item">
+        <span class="status-label">粒子数:</span>
+        <span id="particleCount" class="status-value">0</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">FPS:</span>
+        <span id="fpsCounter" class="status-value">60</span>
+      </div>
+      <div class="status-item">
+        <span class="status-label">模式:</span>
+        <span id="modeLabel" class="status-value">编辑模式</span>
+      </div>
+    </footer>
+  </div>
+
+  <script type="module" src="src/main.ts"></script>
+</body>
+</html>
