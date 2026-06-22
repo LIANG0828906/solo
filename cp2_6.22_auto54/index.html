@@ -130,33 +130,46 @@
       -webkit-backdrop-filter: blur(10px);
       z-index: 100;
       transition: left 0.5s cubic-bezier(0.16, 1, 0.3, 1);
+      opacity: 1;
     }
 
     #info-panel.visible {
       left: 24px;
     }
 
+    #info-panel.hiding {
+      left: -400px;
+    }
+
     #panel-close {
       position: absolute;
       top: 14px;
       right: 14px;
-      width: 28px;
-      height: 28px;
+      width: 32px;
+      height: 32px;
       border-radius: 50%;
-      background: rgba(255, 255, 255, 0.08);
-      border: none;
-      color: #e0e0ff;
-      font-size: 16px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      color: rgba(224, 224, 255, 0.7);
+      font-size: 14px;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.2s ease;
+      transition: all 0.25s ease;
+      line-height: 1;
     }
 
     #panel-close:hover {
-      background: rgba(255, 255, 255, 0.15);
+      background: rgba(255, 215, 0, 0.2);
+      border-color: rgba(255, 215, 0, 0.4);
+      color: #ffd700;
       transform: rotate(90deg);
+    }
+
+    #panel-close:active {
+      background: rgba(255, 215, 0, 0.3);
+      transform: rotate(90deg) scale(0.92);
     }
 
     #star-name {
@@ -165,8 +178,14 @@
       font-weight: normal;
       margin-bottom: 8px;
       letter-spacing: 6px;
-      text-shadow: 0 0 20px rgba(255, 215, 0, 0.4),
-                   0 0 40px rgba(255, 215, 0, 0.2);
+      text-shadow:
+        0 0 20px rgba(255, 215, 0, 0.4),
+        0 0 40px rgba(255, 215, 0, 0.2),
+        1px 1px 2px rgba(255, 200, 0, 0.6),
+        -1px -1px 2px rgba(255, 200, 0, 0.3),
+        0 0 8px rgba(255, 215, 0, 0.5);
+      -webkit-text-stroke: 0.5px rgba(255, 200, 0, 0.5);
+      paint-order: stroke fill;
       font-family: "STKaiti", "KaiTi", "楷体", "华文楷体", "Microsoft YaHei", serif;
     }
 

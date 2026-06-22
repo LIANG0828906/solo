@@ -5,6 +5,7 @@ export interface StarOfficialData {
   id: string;
   name: string;
   pinyin: string;
+  englishName: string;
   constellation: string;
   description: string;
   stars: { ra: number; dec: number; brightness: number; name?: string }[];
@@ -29,11 +30,11 @@ const SPHERE_RADIUS = 100;
 const DEFAULT_STAR_SIZE = 3;
 const HOVER_STAR_SIZE = 4.5;
 const HIGHLIGHT_STAR_SIZE = 6;
-const LERP_FACTOR = 0.1;
+const LERP_FACTOR = 0.18;
 
 export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
   {
-    id: 'jiao', name: '角宿', pinyin: 'jiaosu', constellation: '东方苍龙七宿',
+    id: 'jiao', name: '角宿', pinyin: 'jiaosu', englishName: 'Horn', constellation: '东方苍龙七宿',
     description: '角宿二星，为苍龙之角，主造化万物，传布阳气，主春耕、农桑、造化。角宿一为室女座α，是全天第十七亮星。',
     stars: [
       { ra: 201.298, dec: -11.161, brightness: 1.0, name: '角宿一(室女座α)' },
@@ -46,7 +47,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0x4fc3f7
   },
   {
-    id: 'kang', name: '亢宿', pinyin: 'kangsù', constellation: '东方苍龙七宿',
+    id: 'kang', name: '亢宿', pinyin: 'kangsù', englishName: 'Neck', constellation: '东方苍龙七宿',
     description: '亢宿四星，为苍龙之前颈，主朝廷、庙殿、君臣、礼法。亢宿象征天子之内朝，总摄天下奏事。',
     stars: [
       { ra: 213.227, dec: -10.270, brightness: 0.85, name: '亢宿一(室女座κ)' },
@@ -59,7 +60,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0x81c784
   },
   {
-    id: 'di', name: '氐宿', pinyin: 'disu', constellation: '东方苍龙七宿',
+    id: 'di', name: '氐宿', pinyin: 'disu', englishName: 'Root', constellation: '东方苍龙七宿',
     description: '氐宿四星，为苍龙之前胸，主后妃之府、妾媵之室。氐宿为天子之路寝，又主疫疾、灾病。',
     stars: [
       { ra: 222.693, dec: -16.042, brightness: 0.85, name: '氐宿一(天秤座α)' },
@@ -73,7 +74,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0xaed581
   },
   {
-    id: 'fang', name: '房宿', pinyin: 'fangsu', constellation: '东方苍龙七宿',
+    id: 'fang', name: '房宿', pinyin: 'fangsu', englishName: 'Room', constellation: '东方苍龙七宿',
     description: '房宿四星，为苍龙之腹，为明堂，天子布政之宫。房宿主车马、驿传、仓储、府藏，又为四辅之官。',
     stars: [
       { ra: 239.717, dec: -26.432, brightness: 0.85, name: '房宿一(天蝎座π)' },
@@ -86,7 +87,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0xffb74d
   },
   {
-    id: 'xin', name: '心宿', pinyin: 'xinsu', constellation: '东方苍龙七宿',
+    id: 'xin', name: '心宿', pinyin: 'xinsu', englishName: 'Heart', constellation: '东方苍龙七宿',
     description: '心宿三星，为苍龙之心，中央大星为天王，前后二星为庶子。心宿主火星、明堂、祭祀，大火星为古代授时标准星。',
     stars: [
       { ra: 245.292, dec: -25.584, brightness: 0.85, name: '心宿一(天蝎座σ)' },
@@ -99,7 +100,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0xff8a65
   },
   {
-    id: 'wei', name: '尾宿', pinyin: 'weisù', constellation: '东方苍龙七宿',
+    id: 'wei', name: '尾宿', pinyin: 'weisù', englishName: 'Tail', constellation: '东方苍龙七宿',
     description: '尾宿九星，为苍龙之尾，主后宫、九子、君臣、后妃。尾宿为九江口，主水事，又主盗贼、奸佞。',
     stars: [
       { ra: 252.892, dec: -38.060, brightness: 0.75, name: '尾宿一(天蝎座μ)' },
@@ -114,7 +115,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0xef5350
   },
   {
-    id: 'ji', name: '箕宿', pinyin: 'jisu', constellation: '东方苍龙七宿',
+    id: 'ji', name: '箕宿', pinyin: 'jisu', englishName: 'Winnowing Basket', constellation: '东方苍龙七宿',
     description: '箕宿四星，为苍龙之尾末，主口舌、谗谤、风伯。箕宿好风，主八风、五音、讴谣、客馆。',
     stars: [
       { ra: 271.319, dec: -30.456, brightness: 0.8, name: '箕宿一(人马座γ)' },
@@ -127,7 +128,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0xec407a
   },
   {
-    id: 'dou', name: '斗宿', pinyin: 'dousu', constellation: '北方玄武七宿',
+    id: 'dou', name: '斗宿', pinyin: 'dousu', englishName: 'Dipper', constellation: '北方玄武七宿',
     description: '斗宿六星，为玄武之蛇身，为南斗，主寿、禄、爵、赏。南斗六星君主天子寿命、宰相爵禄之位。',
     stars: [
       { ra: 279.908, dec: -27.056, brightness: 0.75, name: '斗宿一(人马座φ)' },
@@ -141,7 +142,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0x7986cb
   },
   {
-    id: 'niu', name: '牛宿', pinyin: 'niusù', constellation: '北方玄武七宿',
+    id: 'niu', name: '牛宿', pinyin: 'niusù', englishName: 'Ox', constellation: '北方玄武七宿',
     description: '牛宿六星，为玄武之牛身，主牺牲、牧养、农耕。牛宿为牵牛，主桥梁、道路、关梁、驿亭。',
     stars: [
       { ra: 305.267, dec: -14.780, brightness: 0.8, name: '牛宿一(摩羯座β)' },
@@ -155,7 +156,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0x5c6bc0
   },
   {
-    id: 'nü', name: '女宿', pinyin: 'nüsù', constellation: '北方玄武七宿',
+    id: 'nü', name: '女宿', pinyin: 'nüsù', englishName: 'Girl', constellation: '北方玄武七宿',
     description: '女宿四星，为玄武之女身，为须女，主妇功、女工、布帛。女宿主嫁娶、生育、后宫、阴事。',
     stars: [
       { ra: 311.952, dec: -9.488, brightness: 0.8, name: '女宿一(宝瓶座ε Albali)' },
@@ -168,7 +169,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0x3f51b5
   },
   {
-    id: 'xu', name: '虚宿', pinyin: 'xusu', constellation: '北方玄武七宿',
+    id: 'xu', name: '虚宿', pinyin: 'xusu', englishName: 'Emptiness', constellation: '北方玄武七宿',
     description: '虚宿二星，为玄武之龟身，主庙堂、祭祀、丧事、哭泣。虚宿为冢宰之官，主死丧哀泣，又主北方水事。',
     stars: [
       { ra: 322.893, dec: -5.573, brightness: 0.85, name: '虚宿一(宝瓶座β Sadalsuud)' },
@@ -181,7 +182,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0x3949ab
   },
   {
-    id: 'wei2', name: '危宿', pinyin: 'weisù', constellation: '北方玄武七宿',
+    id: 'wei2', name: '危宿', pinyin: 'weisù', englishName: 'Rooftop', constellation: '北方玄武七宿',
     description: '危宿三星，为玄武之龟盖，主房屋、宗庙、祭祀。危宿为栋宇之官，主天市、架屋、盖房、土功。',
     stars: [
       { ra: 333.766, dec: -0.072, brightness: 0.8, name: '危宿一(宝瓶座α Sadalmelik)' },
@@ -194,7 +195,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0x303f9f
   },
   {
-    id: 'shi', name: '室宿', pinyin: 'shisù', constellation: '北方玄武七宿',
+    id: 'shi', name: '室宿', pinyin: 'shisù', englishName: 'House', constellation: '北方玄武七宿',
     description: '室宿二星，为玄武之龟体，主营室、军旅、土木工程。室宿为太庙，天子之宫，主土功、田猎、休息。',
     stars: [
       { ra: 346.179, dec: 15.205, brightness: 0.85, name: '室宿一(飞马座α Markab)' },
@@ -208,7 +209,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0x283593
   },
   {
-    id: 'bi', name: '壁宿', pinyin: 'bisù', constellation: '北方玄武七宿',
+    id: 'bi', name: '壁宿', pinyin: 'bisù', englishName: 'Wall', constellation: '北方玄武七宿',
     description: '壁宿二星，为玄武之龟尾，主文章、图书、秘府。壁宿为东壁，主文章、图书、秘籍，天下图书之秘府。',
     stars: [
       { ra: 3.004, dec: 15.184, brightness: 0.85, name: '壁宿一(飞马座γ Algenib)' },
@@ -221,7 +222,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0x1a237e
   },
   {
-    id: 'kui', name: '奎宿', pinyin: 'kuísu', constellation: '西方白虎七宿',
+    id: 'kui', name: '奎宿', pinyin: 'kuísu', englishName: 'Legs', constellation: '西方白虎七宿',
     description: '奎宿十六星，为白虎之足，主文章、图书、秘府、武库。奎宿为封豕，主兵甲、武库、库兵、大水。',
     stars: [
       { ra: 6.449, dec: 22.950, brightness: 0.75, name: '奎宿一(仙女座η)' },
@@ -236,7 +237,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0xffd54f
   },
   {
-    id: 'lou', name: '娄宿', pinyin: 'lousu', constellation: '西方白虎七宿',
+    id: 'lou', name: '娄宿', pinyin: 'lousu', englishName: 'Bond', constellation: '西方白虎七宿',
     description: '娄宿三星，为白虎之腹，主苑牧、牺牲、祭祀、兴兵聚众。娄宿为牧苑之官，主牺牲、宗庙、社稷。',
     stars: [
       { ra: 29.083, dec: 20.804, brightness: 0.8, name: '娄宿一(白羊座β Sheratan)' },
@@ -249,7 +250,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0xffa726
   },
   {
-    id: 'wei3', name: '胃宿', pinyin: 'wèisu', constellation: '西方白虎七宿',
+    id: 'wei3', name: '胃宿', pinyin: 'wèisu', englishName: 'Stomach', constellation: '西方白虎七宿',
     description: '胃宿三星，为白虎之胸胃，主仓廪、五谷、府藏、积聚。胃宿为天子之仓，主五谷、丝帛、财物、库藏。',
     stars: [
       { ra: 42.483, dec: 27.431, brightness: 0.7, name: '胃宿一(白羊座35)' },
@@ -262,7 +263,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0xff9800
   },
   {
-    id: 'ang', name: '昴宿', pinyin: 'mǎosu', constellation: '西方白虎七宿',
+    id: 'ang', name: '昴宿', pinyin: 'mǎosu', englishName: 'Pleiades', constellation: '西方白虎七宿',
     description: '昴宿七星，为白虎之毛，主髦头、胡兵、狱事、口舌。昴宿为旄头，主西方之宿，主丧、狱、胡、戎。',
     stars: [
       { ra: 55.504, dec: 24.468, brightness: 0.75, name: '昴宿一(金牛座17 Electra)' },
@@ -277,7 +278,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0xfb8c00
   },
   {
-    id: 'bi4', name: '毕宿', pinyin: 'bisù', constellation: '西方白虎七宿',
+    id: 'bi4', name: '毕宿', pinyin: 'bisù', englishName: 'Net', constellation: '西方白虎七宿',
     description: '毕宿八星，为白虎之爪，主畋猎、边兵、刑罚、雨师。毕宿为罕车，主弋猎、边兵、刑罚，毕星好雨。',
     stars: [
       { ra: 68.980, dec: 16.510, brightness: 0.95, name: '毕宿五(金牛座α Aldebaran)' },
@@ -292,7 +293,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0xf57c00
   },
   {
-    id: 'zui', name: '觜宿', pinyin: 'zisu', constellation: '西方白虎七宿',
+    id: 'zui', name: '觜宿', pinyin: 'zisu', englishName: 'Turtle Beak', constellation: '西方白虎七宿',
     description: '觜宿三星，为白虎之头口，主收敛、万物、军旅。觜宿为虎首，主军旅、收敛、葆旅、万物。',
     stars: [
       { ra: 79.169, dec: 9.938, brightness: 0.7, name: '觜宿一(猎户座λ Meissa)' },
@@ -305,7 +306,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0xef6c00
   },
   {
-    id: 'shen', name: '参宿', pinyin: 'shensu', constellation: '西方白虎七宿',
+    id: 'shen', name: '参宿', pinyin: 'shensu', englishName: 'Orion', constellation: '西方白虎七宿',
     description: '参宿七星，为白虎之前身，主斩刈、权衡、大将。参宿为西方宿，主军事、征伐、杀伐，参宿七星中有三星为参宿腰带。',
     stars: [
       { ra: 78.634, dec: -8.202, brightness: 1.0, name: '参宿七(猎户座β Rigel)' },
@@ -320,7 +321,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0xe65100
   },
   {
-    id: 'jing', name: '井宿', pinyin: 'jingsu', constellation: '南方朱雀七宿',
+    id: 'jing', name: '井宿', pinyin: 'jingsu', englishName: 'Well', constellation: '南方朱雀七宿',
     description: '井宿八星，为朱雀之首，主水事、法令、酒旗。井宿为南门，主水衡、法令、公平、贤士。',
     stars: [
       { ra: 90.987, dec: 22.462, brightness: 0.7, name: '井宿一(双子座μ Tejat)' },
@@ -336,7 +337,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0x4dd0e1
   },
   {
-    id: 'gui', name: '鬼宿', pinyin: 'guǐsu', constellation: '南方朱雀七宿',
+    id: 'gui', name: '鬼宿', pinyin: 'guǐsu', englishName: 'Ghost', constellation: '南方朱雀七宿',
     description: '鬼宿四星，为朱雀之目，主祠祀、死亡、疾病。鬼宿为天目，主祭祀、死亡、疾病、妖祥，中央一星为积尸气。',
     stars: [
       { ra: 126.271, dec: 18.965, brightness: 0.7, name: '鬼宿一(巨蟹座θ)' },
@@ -350,7 +351,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0x26c6da
   },
   {
-    id: 'liu', name: '柳宿', pinyin: 'liǔsu', constellation: '南方朱雀七宿',
+    id: 'liu', name: '柳宿', pinyin: 'liǔsu', englishName: 'Willow', constellation: '南方朱雀七宿',
     description: '柳宿八星，为朱雀之喙，主草木、膳食、酒食。柳宿为朱雀之口，主饮食、仓库、庖厨、木果。',
     stars: [
       { ra: 135.875, dec: 5.418, brightness: 0.65, name: '柳宿一(长蛇座δ Mautinah)' },
@@ -366,7 +367,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0x00bcd4
   },
   {
-    id: 'xing', name: '星宿', pinyin: 'xīngsù', constellation: '南方朱雀七宿',
+    id: 'xing', name: '星宿', pinyin: 'xīngsù', englishName: 'Star', constellation: '南方朱雀七宿',
     description: '星宿七星，为朱雀之颈，主衣服、文章、太阳。星宿为七星，主衣裳、文绣、太阳、光明、贤士。',
     stars: [
       { ra: 141.936, dec: -8.674, brightness: 0.9, name: '星宿一(长蛇座α Alphard)' },
@@ -381,7 +382,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0x00acc1
   },
   {
-    id: 'zhang', name: '张宿', pinyin: 'zhāngsù', constellation: '南方朱雀七宿',
+    id: 'zhang', name: '张宿', pinyin: 'zhāngsù', englishName: 'Extension', constellation: '南方朱雀七宿',
     description: '张宿六星，为朱雀之嗉，主珍宝、宗庙、天厨。张宿为朱雀之嗉，主宗庙、天子、嫔御、赏赐。',
     stars: [
       { ra: 147.837, dec: -14.835, brightness: 0.7, name: '张宿一(长蛇座υ1)' },
@@ -395,7 +396,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0x0097a7
   },
   {
-    id: 'yi', name: '翼宿', pinyin: 'yisu', constellation: '南方朱雀七宿',
+    id: 'yi', name: '翼宿', pinyin: 'yisu', englishName: 'Wings', constellation: '南方朱雀七宿',
     description: '翼宿二十二星，为朱雀之翼翮，主俳倡、戏乐、蛮夷。翼宿为羽翼，主远夷、宾客、俳倡、戏乐、文章。',
     stars: [
       { ra: 156.860, dec: -18.305, brightness: 0.7, name: '翼宿一(巨爵座α Alkes)' },
@@ -410,7 +411,7 @@ export const STAR_OFFICIALS_DATA: StarOfficialData[] = [
     color: 0x00838f
   },
   {
-    id: 'zhen', name: '轸宿', pinyin: 'zhěnsù', constellation: '南方朱雀七宿',
+    id: 'zhen', name: '轸宿', pinyin: 'zhěnsù', englishName: 'Chariot', constellation: '南方朱雀七宿',
     description: '轸宿四星，为朱雀之尾，主车骑、载任、丧葬。轸宿为车，主载任、有司、大车、丧事、冢宰。',
     stars: [
       { ra: 173.559, dec: -17.485, brightness: 0.8, name: '轸宿一(乌鸦座γ Gienah)' },
@@ -840,6 +841,30 @@ export class StarField {
     return false;
   }
 
+  private fuzzyMatchEnglish(query: string, englishName: string): boolean {
+    const lowerQuery = query.toLowerCase();
+    const lowerEnglish = englishName.toLowerCase();
+
+    if (lowerEnglish.includes(lowerQuery)) return true;
+
+    const englishWords = lowerEnglish.split(/\s+/);
+    const matchAnyWord = englishWords.some(word => word.startsWith(lowerQuery));
+    if (matchAnyWord) return true;
+
+    let queryIdx = 0;
+    for (let i = 0; i < lowerEnglish.length && queryIdx < lowerQuery.length; i++) {
+      if (lowerEnglish[i] === lowerQuery[queryIdx]) {
+        queryIdx++;
+      }
+    }
+    if (queryIdx === lowerQuery.length) return true;
+
+    const initials = englishWords.map(w => w[0]).join('');
+    if (initials.includes(lowerQuery)) return true;
+
+    return false;
+  }
+
   public searchStarOfficials(query: string): StarOfficial[] {
     if (!query.trim()) return [];
     const lowerQuery = query.toLowerCase().trim();
@@ -852,14 +877,17 @@ export class StarField {
       } else {
         return this.fuzzyMatchPinyin(query, off.data.pinyin) ||
           this.fuzzyMatchPinyin(query, off.data.name) ||
+          this.fuzzyMatchEnglish(query, off.data.englishName) ||
           off.data.constellation.includes(query);
       }
     });
 
     results.sort((a, b) => {
-      const aMatch = a.data.name.startsWith(query) ? 0 : 1;
-      const bMatch = b.data.name.startsWith(query) ? 0 : 1;
-      return aMatch - bMatch;
+      const aExact = a.data.englishName.toLowerCase() === lowerQuery ? -1 :
+                     a.data.name.startsWith(query) ? 0 : 1;
+      const bExact = b.data.englishName.toLowerCase() === lowerQuery ? -1 :
+                     b.data.name.startsWith(query) ? 0 : 1;
+      return aExact - bExact;
     });
 
     return results.slice(0, 8);

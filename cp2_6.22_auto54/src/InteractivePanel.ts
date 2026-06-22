@@ -69,7 +69,7 @@ export class InteractivePanel {
 
       const name = document.createElement('div');
       name.className = 'search-item-name';
-      name.textContent = `${official.data.name}（${official.data.pinyin}）`;
+      name.textContent = `${official.data.name}（${official.data.pinyin} · ${official.data.englishName}）`;
 
       const sub = document.createElement('div');
       sub.className = 'search-item-sub';
@@ -97,6 +97,7 @@ export class InteractivePanel {
     this.starDescriptionEl.textContent = official.data.description;
     this.starCountEl.textContent = `包含恒星 ${official.data.stars.length} 颗`;
 
+    this.infoPanel.classList.remove('hiding');
     requestAnimationFrame(() => {
       this.infoPanel.classList.add('visible');
     });
@@ -104,6 +105,7 @@ export class InteractivePanel {
 
   public hidePanel(): void {
     this.currentOfficial = null;
+    this.infoPanel.classList.add('hiding');
     this.infoPanel.classList.remove('visible');
     this.starField.highlightStarOfficial(null);
   }
