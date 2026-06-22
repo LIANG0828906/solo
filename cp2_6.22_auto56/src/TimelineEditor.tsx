@@ -45,6 +45,12 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({
     startPan?: number;
   } | null>(null);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [contextMenu, setContextMenu] = useState<{
+    visible: boolean;
+    x: number;
+    y: number;
+    keyframeId: string | null;
+  }>({ visible: false, x: 0, y: 0, keyframeId: null });
 
   const timelineWidth = 100 * zoom;
 
@@ -171,6 +177,21 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({
       window.removeEventListener('mouseup', handleMouseUp);
     };
   }, [dragState, keyframes, onChange, pixelToTime]);
+
+  useEffect(() => {
+    if (!contextMenu.visible) return;
+
+    const closeMenu = () => {
+      setContextMenu({ visible: false, x: 0, y: 0, keyframeId: null });
+    };
+
+    window.addEventListener('mousedown', closeMenu);
+    window.addEventListener('scroll', closeMenu, true);
+    return () => {
+      window.removeEventListener('mousedown', closeMenu);
+      window.removeEventListener('scroll', closeMenu, true);
+    };
+  }, [contextMenu.visible]);
 
   const selectedKeyframe = keyframes.find((kf) => kf.id === selectedId) || null;
 
@@ -300,45 +321,97 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({
               const leftPercent = kf.time * 100;
               const isSelected = kf.id === selectedId;
               const isHovered = kf.id === hoveredId;
+              const showDelete = isHovered || isSelected;
               return (
                 <div
                   key={kf.id}
                   data-keyframe={kf.id}
-                  onMouseDown={(e) => {
-                    e.stopPropagation();
-                    setSelectedId(kf.id);
-                    setDragState({
-                      type: 'keyframe',
-                      keyframeId: kf.id,
-                      startX: e.clientX,
-                    });
-                  }}
                   onMouseEnter={() => setHoveredId(kf.id)}
                   onMouseLeave={() => setHoveredId(null)}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    setContextMenu({
+                      visible: true,
+                      x: e.clientX,
+                      y: e.clientY,
+                      keyframeId: kf.id,
+                    });
+                  }}
                   style={{
                     position: 'absolute',
                     left: `${leftPercent}%`,
                     top: TRACK_HEIGHT - KEYFRAME_SIZE / 2 - 1,
                     width: KEYFRAME_SIZE,
                     height: KEYFRAME_SIZE,
-                    transform: 'translateX(-50%)',
-                    background: isSelected
-                      ? '#00ff88'
-                      : isHovered
-                        ? '#00d4ff'
-                        : '#00ff88',
-                    borderRadius: isSelected ? '50%' : 3,
-                    cursor: 'grab',
-                    zIndex: isSelected ? 10 : 5,
-                    transition: 'border-radius 0.15s, box-shadow 0.15s',
-                    boxShadow: isHovered
-                      ? '0 0 12px 3px rgba(0,212,255,0.6)'
-                      : isSelected
-                        ? '0 0 12px 3px rgba(0,255,136,0.5)'
-                        : '0 0 6px 1px rgba(0,255,136,0.3)',
-                    opacity: isHovered || isSelected ? 1 : 0.85,
+                    transform: showDelete ? 'translateX(-50%) translateY(-2px)' : 'translateX(-50%)',
+                    transition: 'transform 0.15s',
                   }}
-                />
+                >
+                  <div
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      setSelectedId(kf.id);
+                      setDragState({
+                        type: 'keyframe',
+                        keyframeId: kf.id,
+                        startX: e.clientX,
+                      });
+                    }}
+                    style={{
+                      width: '100%',
+                      height: '100%',
+                      background: isSelected
+                        ? '#00ff88'
+                        : isHovered
+                          ? '#00d4ff'
+                          : '#00ff88',
+                      borderRadius: isSelected ? '50%' : 3,
+                      cursor: 'grab',
+                      zIndex: isSelected ? 10 : 5,
+                      transition: 'border-radius 0.15s, box-shadow 0.15s',
+                      boxShadow: isHovered
+                        ? '0 0 12px 3px rgba(0,212,255,0.6)'
+                        : isSelected
+                          ? '0 0 12px 3px rgba(0,255,136,0.5)'
+                          : '0 0 6px 1px rgba(0,255,136,0.3)',
+                      opacity: isHovered || isSelected ? 1 : 0.85,
+                    }}
+                  />
+                  <div
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                    }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      deleteKeyframe(kf.id);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      left: '50%',
+                      top: -22,
+                      transform: 'translateX(-50%)',
+                      width: 18,
+                      height: 18,
+                      borderRadius: '50%',
+                      background: '#ff4466',
+                      color: 'white',
+                      fontSize: 12,
+                      fontWeight: 'bold',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      boxShadow: '0 0 8px rgba(255,68,102,0.6)',
+                      opacity: showDelete ? 1 : 0,
+                      pointerEvents: showDelete ? 'auto' : 'none',
+                      transition: 'opacity 0.15s',
+                      zIndex: 20,
+                      userSelect: 'none',
+                    }}
+                  >
+                    ×
+                  </div>
+                </div>
               );
             })}
           </div>
@@ -372,6 +445,46 @@ const TimelineEditor: React.FC<TimelineEditorProps> = ({
           </div>
         </div>
       </div>
+
+      {contextMenu.visible && contextMenu.keyframeId && (
+        <div
+          onMouseDown={(e) => e.stopPropagation()}
+          style={{
+            position: 'fixed',
+            left: contextMenu.x,
+            top: contextMenu.y,
+            background: '#16213e',
+            border: '1px solid #2a2a4a',
+            padding: '6px 0',
+            borderRadius: 4,
+            minWidth: 120,
+            zIndex: 100,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.5)',
+          }}
+        >
+          <div
+            onClick={() => {
+              deleteKeyframe(contextMenu.keyframeId!);
+              setContextMenu({ visible: false, x: 0, y: 0, keyframeId: null });
+            }}
+            style={{
+              padding: '6px 14px',
+              cursor: 'pointer',
+              color: '#ff4466',
+              fontSize: 13,
+              transition: 'background 0.1s',
+            }}
+            onMouseEnter={(e) => {
+              (e.currentTarget as HTMLElement).style.background = '#2a2a4a';
+            }}
+            onMouseLeave={(e) => {
+              (e.currentTarget as HTMLElement).style.background = 'transparent';
+            }}
+          >
+            删除关键帧
+          </div>
+        </div>
+      )}
 
       {selectedKeyframe && (
         <div
