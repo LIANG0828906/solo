@@ -33,7 +33,10 @@ const App: React.FC = () => {
     socket.on('sensor-data', (update: any) => {
       setSensorData((prev: any) => ({
         ...prev,
-        [update.roomId]: update.sensors,
+        [update.roomId]: {
+          ...update.sensors,
+          _timestamp: update.timestamp,
+        },
       }));
 
       setHistoryData((prev: any) => {
@@ -89,7 +92,12 @@ const App: React.FC = () => {
           axios.get('/api/sensors'),
           axios.get('/api/devices'),
         ]);
-        setSensorData(sensorsRes.data);
+        const now = Date.now();
+        const withTs: Record<string, any> = {};
+        for (const [room, data] of Object.entries<any>(sensorsRes.data)) {
+          withTs[room] = { ...data, _timestamp: now };
+        }
+        setSensorData(withTs);
         setDevices(devicesRes.data);
 
         const rooms = Object.keys(sensorsRes.data);
