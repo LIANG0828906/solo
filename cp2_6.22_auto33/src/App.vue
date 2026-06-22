@@ -10,6 +10,7 @@ const canvasRef = ref<HTMLCanvasElement | null>(null)
 const fileInputRef = ref<HTMLInputElement | null>(null)
 const dropAreaRef = ref<HTMLDivElement | null>(null)
 let vizPanel: VisualizationPanel | null = null
+let particleSpeedDebounceTimer: ReturnType<typeof setTimeout> | null = null
 
 const isAudioLoaded = ref(false)
 const isPlaying = ref(false)
@@ -61,8 +62,16 @@ const savePresetsToStorage = (): void => {
 }
 
 const saveCurrentPreset = (): void => {
-  const name = presetNameInput.value.trim() || `预设 ${presets.value.length + 1}`
+  const name = presetNameInput.value.trim()
+  if (!name) {
+    alert('请输入预设名称')
+    return
+  }
   if (presets.value.length >= 5) {
+    const oldest = presets.value[0]
+    if (!confirm(`预设数量已达上限（5个），将删除最早的预设「${oldest.name}」，是否继续？`)) {
+      return
+    }
     presets.value.shift()
   }
   const preset: VisualizationPreset = {
@@ -195,7 +204,10 @@ const switchEffect = (type: EffectType): void => {
 }
 
 watch(particleSpeed, (v) => {
-  if (vizPanel) vizPanel.setParticleSpeed(v)
+  if (particleSpeedDebounceTimer) clearTimeout(particleSpeedDebounceTimer)
+  particleSpeedDebounceTimer = setTimeout(() => {
+    if (vizPanel) vizPanel.setParticleSpeed(v)
+  }, 80)
 })
 
 watch(sensitivity, (v) => {
@@ -240,6 +252,7 @@ onMounted(() => {
 })
 
 onUnmounted(() => {
+  if (particleSpeedDebounceTimer) clearTimeout(particleSpeedDebounceTimer)
   vizPanel?.dispose()
   audioController.dispose()
   window.removeEventListener('resize', handleResize)

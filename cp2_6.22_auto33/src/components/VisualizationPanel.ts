@@ -130,7 +130,7 @@ export class VisualizationPanel {
     this.animationId = requestAnimationFrame(this.loop)
     const now = performance.now()
     this.frameCount++
-    if (now - this.fpsLastUpdate >= 500) {
+    if (now - this.fpsLastUpdate >= 150) {
       this.fps = Math.round(this.frameCount * 1000 / (now - this.fpsLastUpdate))
       if (this.onFpsUpdate) this.onFpsUpdate(this.fps)
       this.frameCount = 0

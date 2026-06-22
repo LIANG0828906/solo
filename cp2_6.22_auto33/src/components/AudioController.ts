@@ -52,8 +52,9 @@ export class AudioController {
     this.fileName = file.name
     const arrayBuffer = await file.arrayBuffer()
     if (!this.audioContext) throw new Error('AudioContext not initialized')
-    this.audioBuffer = await this.audioContext.decodeAudioData(arrayBuffer)
-    this.loadedCallbacks.forEach(cb => cb(this.fileName, this.audioBuffer!.duration))
+    const buffer = await this.audioContext.decodeAudioData(arrayBuffer)
+    this.audioBuffer = buffer
+    this.loadedCallbacks.forEach(cb => cb(this.fileName, buffer.duration))
   }
 
   play(): void {
@@ -105,7 +106,9 @@ export class AudioController {
     }
     this.isPlaying = false
     this.pausedAt = 0
+    this.startTime = 0
     this.stateCallbacks.forEach(cb => cb(false))
+    this.progressCallbacks.forEach(cb => cb(0, this.getDuration()))
     if (this.animationId) {
       cancelAnimationFrame(this.animationId)
       this.animationId = null
