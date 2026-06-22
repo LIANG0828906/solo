@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>迷雾之岛探秘</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #1a0f08;
+      font-family: Georgia, 'Times New Roman', serif;
+    }
+    #game-container {
+      width: 100vw;
+      height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: 
+        radial-gradient(ellipse at center, #3d2817 0%, #1a0f08 70%, #0d0704 100%);
+    }
+    #game-frame {
+      position: relative;
+      width: 96vw;
+      height: 96vh;
+      max-width: 1600px;
+      max-height: 1200px;
+      border: 16px solid;
+      border-image: linear-gradient(135deg, 
+        #5c3d1e 0%, #3e2815 20%, #6b4a28 40%, 
+        #3e2815 60%, #5c3d1e 80%, #2a1a0e 100%) 1;
+      box-shadow: 
+        0 0 0 4px #2a1a0e,
+        0 0 0 8px #5c3d1e,
+        0 20px 60px rgba(0, 0, 0, 0.8),
+        inset 0 0 40px rgba(0, 0, 0, 0.5);
+      background: #2a1a0e;
+      overflow: hidden;
+    }
+    #game-frame::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      pointer-events: none;
+      background:
+        repeating-linear-gradient(
+          90deg,
+          transparent 0px,
+          rgba(92, 61, 30, 0.1) 1px,
+          transparent 2px,
+          transparent 6px
+        ),
+        repeating-linear-gradient(
+          0deg,
+          transparent 0px,
+          rgba(92, 61, 30, 0.08) 1px,
+          transparent 2px,
+          transparent 8px
+        );
+      z-index: 100;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="game-frame">
+      <canvas id="game-canvas"></canvas>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
