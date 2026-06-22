@@ -191,22 +191,29 @@ function generateHeatmap(timeStep: number, path: DataPoint[], cities: CityImpact
 const app = express();
 app.use(cors({ origin: '*' }));
 
+// 核心数据缓存，进程启动时一次性生成
 const TYPHOON_PATH = generateTyphoonPath();
 const CITIES = generateCities(TYPHOON_PATH);
 
-app.get('/api/typhoon/path', (_req: Request, res: Response) => {
+// 按职责分组的 Router 实例（替代直接 app.get）
+const typhoonRouter = express.Router();
+
+typhoonRouter.get('/path', (_req: Request, res: Response) => {
   res.json({ data: TYPHOON_PATH });
 });
 
-app.get('/api/typhoon/cities', (_req: Request, res: Response) => {
+typhoonRouter.get('/cities', (_req: Request, res: Response) => {
   res.json({ data: CITIES });
 });
 
-app.get('/api/typhoon/heatmap', (req: Request, res: Response) => {
+typhoonRouter.get('/heatmap', (req: Request, res: Response) => {
   const t = parseInt(String(req.query.time ?? '0'), 10);
   const timeStep = isNaN(t) ? 0 : Math.min(Math.max(0, t), TOTAL_STEPS - 1);
   res.json({ data: generateHeatmap(timeStep, TYPHOON_PATH, CITIES) });
 });
+
+// 把 Router 挂载到 /api/typhoon 前缀
+app.use('/api/typhoon', typhoonRouter);
 
 // 健康检查
 app.get('/api/health', (_req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
