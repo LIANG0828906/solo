@@ -1,0 +1,77 @@
+.starfield {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.star {
+  position: absolute;
+  width: 2px;
+  height: 2px;
+  background: #ffffff;
+  border-radius: 50%;
+  opacity: 0.8;
+  animation: twinkle 3s infinite ease-in-out;
+}
+
+@keyframes twinkle {
+  0%, 100% { opacity: 0.3; }
+  50% { opacity: 1; }
+}
+
+.city-panel {
+  pointer-events: auto;
+  backdrop-filter: blur(10px);
+}
+
+.ticket-button {
+  transition: filter 0.2s ease;
+}
+
+.ticket-button:hover {
+  filter: brightness(1.2);
+}
+
+.gallery-nav {
+  transition: background-color 0.2s ease;
+}
+
+.gallery-nav:hover {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.golden-glow {
+  position: relative;
+}
+
+.golden-glow::before {
+  content: '';
+  position: absolute;
+  top: -8px;
+  left: -8px;
+  right: -8px;
+  bottom: -8px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(255, 215, 0, 0.2) 0%, transparent 100%);
+  animation: pulse-glow 2s infinite ease-in-out;
+  z-index: -1;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.05); }
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
