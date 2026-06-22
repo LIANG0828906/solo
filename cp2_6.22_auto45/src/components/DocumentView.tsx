@@ -70,6 +70,84 @@ const DocumentView: React.FC<DocumentViewProps> = ({
     }
   };
 
+  const posToLineCol = (pos: number) => {
+    const textBefore = content.substring(0, pos);
+    const linesBefore = textBefore.split('\n');
+    return {
+      line: linesBefore.length - 1,
+      column: linesBefore[linesBefore.length - 1].length,
+    };
+  };
+
+  const remoteSelections = useMemo(() => {
+    const elements: React.ReactNode[] = [];
+    const lineHeight = 22;
+    const charWidth = 8.4;
+    const paddingTop = 20;
+    const paddingLeft = 24;
+
+    remoteCursors.forEach((remote) => {
+      if (!remote.selection || remote.selection.start === remote.selection.end) return;
+
+      const start = Math.min(remote.selection.start, remote.selection.end);
+      const end = Math.max(remote.selection.start, remote.selection.end);
+      const startLC = posToLineCol(start);
+      const endLC = posToLineCol(end);
+
+      if (startLC.line === endLC.line) {
+        const top = paddingTop + startLC.line * lineHeight;
+        const left = paddingLeft + startLC.column * charWidth;
+        const width = (endLC.column - startLC.column) * charWidth;
+        elements.push(
+          <div
+            key={`sel-${remote.userId}`}
+            style={{
+              position: 'absolute',
+              top: `${top + 2}px`,
+              left: `${left}px`,
+              width: `${Math.max(width, charWidth)}px`,
+              height: `${lineHeight - 6}px`,
+              backgroundColor: `${remote.color}40`,
+              borderRadius: 2,
+              pointerEvents: 'none',
+              zIndex: 9,
+            }}
+          />
+        );
+      } else {
+        for (let line = startLC.line; line <= endLC.line; line++) {
+          const top = paddingTop + line * lineHeight;
+          let left = paddingLeft;
+          let width = 9999;
+          if (line === startLC.line) {
+            left = paddingLeft + startLC.column * charWidth;
+          }
+          if (line === endLC.line) {
+            width = endLC.column * charWidth;
+          }
+          elements.push(
+            <div
+              key={`sel-${remote.userId}-${line}`}
+              style={{
+                position: 'absolute',
+                top: `${top + 2}px`,
+                left: `${left}px`,
+                width: `${width}px`,
+                height: `${lineHeight - 6}px`,
+                backgroundColor: `${remote.color}35`,
+                borderRadius: 2,
+                pointerEvents: 'none',
+                zIndex: 9,
+              }}
+            />
+          );
+        }
+      }
+    });
+
+    return elements;
+  }, [remoteCursors, content]);
+
   const remoteCursorElements = useMemo(() => {
     const elements: React.ReactNode[] = [];
     const lineHeight = 22;
@@ -111,14 +189,33 @@ const DocumentView: React.FC<DocumentViewProps> = ({
     <div className="editor-area">
       <div className="editor-wrapper">
         <div className="line-numbers">
-          {lines.map((_, idx) => (
-            <div
-              key={idx}
-              className={`line-number ${currentLine === idx ? 'highlight' : ''}`}
-            >
-              {idx + 1}
-            </div>
-          ))}
+          {showDiff && diffLines
+            ? diffLines.map((diff, idx) => (
+                <div
+                  key={idx}
+                  className={`line-number ${currentLine === idx ? 'highlight' : ''}`}
+                  style={{
+                    color: diff.type === 'added' ? 'var(--success)' : diff.type === 'removed' ? 'var(--danger)' : undefined,
+                    backgroundColor: diff.type === 'added'
+                      ? 'rgba(72, 187, 120, 0.08)'
+                      : diff.type === 'removed'
+                      ? 'rgba(245, 101, 101, 0.08)'
+                      : undefined,
+                  }}
+                >
+                  {diff.type === 'removed' && diff.oldLineNumber !== undefined
+                    ? diff.oldLineNumber + 1
+                    : diff.lineNumber + 1}
+                </div>
+              ))
+            : lines.map((_, idx) => (
+                <div
+                  key={idx}
+                  className={`line-number ${currentLine === idx ? 'highlight' : ''}`}
+                >
+                  {idx + 1}
+                </div>
+              ))}
         </div>
         <div className="document-content" style={{ minHeight: textareaHeight }}>
           {mode === 'edit' ? (
@@ -134,6 +231,12 @@ const DocumentView: React.FC<DocumentViewProps> = ({
                 onSelect={handleSelect}
                 onClick={handleSelect}
                 onKeyUp={handleSelect}
+                onKeyDown={handleSelect}
+                onMouseUp={handleSelect}
+                onMouseMove={(e) => {
+                  if (e.buttons === 1) handleSelect();
+                }}
+                onInput={handleSelect}
                 onScroll={handleScroll}
                 disabled={disabled}
                 style={{ height: textareaHeight }}
@@ -151,7 +254,8 @@ const DocumentView: React.FC<DocumentViewProps> = ({
                   overflow: 'hidden',
                 }}
               >
-                <div style={{ padding: '20px 24px' }}>
+                <div style={{ padding: '20px 24px', position: 'relative' }}>
+                  {remoteSelections}
                   {remoteCursorElements}
                 </div>
               </div>
@@ -163,8 +267,29 @@ const DocumentView: React.FC<DocumentViewProps> = ({
                     <div
                       key={idx}
                       className={`line-content ${diff.type === 'added' ? 'added' : diff.type === 'removed' ? 'removed' : ''} ${currentLine === idx ? 'current-line' : ''}`}
+                      style={{ position: 'relative' }}
                     >
-                      {diff.content || '\u00A0'}
+                      <span
+                        style={{
+                          position: 'absolute',
+                          left: 0,
+                          top: 0,
+                          bottom: 0,
+                          width: 20,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 700,
+                          fontSize: 12,
+                          color: diff.type === 'added' ? 'var(--success)' : diff.type === 'removed' ? 'var(--danger)' : 'var(--text-secondary)',
+                          userSelect: 'none',
+                        }}
+                      >
+                        {diff.type === 'added' ? '+' : diff.type === 'removed' ? '−' : ' '}
+                      </span>
+                      <span style={{ paddingLeft: 22, display: 'inline-block' }}>
+                        {diff.content || '\u00A0'}
+                      </span>
                     </div>
                   ))
                 : lines.map((line, idx) => (

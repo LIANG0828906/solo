@@ -11,6 +11,8 @@ interface VersionPanelProps {
   isCollapsed: boolean;
   onToggleCollapse: () => void;
   currentVersionId?: string;
+  mobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 function formatTime(timestamp: number): string {
@@ -91,6 +93,8 @@ const VersionPanel: React.FC<VersionPanelProps> = ({
   isCollapsed,
   onToggleCollapse,
   currentVersionId,
+  mobileOpen,
+  onCloseMobile,
 }) => {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [versionName, setVersionName] = useState('');
@@ -103,7 +107,7 @@ const VersionPanel: React.FC<VersionPanelProps> = ({
     }
   };
 
-  if (isCollapsed) {
+  if (isCollapsed && !mobileOpen) {
     return (
       <div className="sidebar-left collapsed">
         <button className="collapse-btn" onClick={onToggleCollapse} style={{ position: 'absolute', top: 12, left: 0 }}>
@@ -113,16 +117,26 @@ const VersionPanel: React.FC<VersionPanelProps> = ({
     );
   }
 
+  const sidebarClasses = ['sidebar-left'];
+  if (isCollapsed && !mobileOpen) sidebarClasses.push('collapsed');
+  if (mobileOpen) sidebarClasses.push('mobile-open');
+
   return (
-    <aside className="sidebar-left">
+    <aside className={sidebarClasses.join(' ')}>
       <div className="sidebar-header">
         <div className="sidebar-title">
           📜 版本历史
           <span className="section-count">{versions.length}</span>
         </div>
-        <button className="collapse-btn" onClick={onToggleCollapse}>
-          ◀
-        </button>
+        {mobileOpen ? (
+          <button className="collapse-btn" onClick={onCloseMobile}>
+            ✕
+          </button>
+        ) : (
+          <button className="collapse-btn" onClick={onToggleCollapse}>
+            ◀
+          </button>
+        )}
       </div>
       <div className="sidebar-content">
         {versions.length === 0 ? (

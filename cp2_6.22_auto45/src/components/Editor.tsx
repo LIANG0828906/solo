@@ -44,11 +44,15 @@ const Editor: React.FC<EditorProps> = ({ documentId, currentUser }) => {
   const [editMode, setEditMode] = useState<'edit' | 'diff'>('edit');
   const [showCreateVersionModal, setShowCreateVersionModal] = useState(false);
   const [newVersionName, setNewVersionName] = useState('');
+  const [iAmLockHolder, setIAmLockHolder] = useState(false);
+  const [lockCountdown, setLockCountdown] = useState(0);
 
   const socketRef = useRef<Socket | null>(null);
   const lastContentRef = useRef('');
   const lastEmitRef = useRef(0);
+  const lastCursorEmitRef = useRef(0);
   const heartbeatRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const countdownRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const addedLinesTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const addToast = useCallback((type: Toast['type'], message: string) => {
@@ -235,13 +239,41 @@ const Editor: React.FC<EditorProps> = ({ documentId, currentUser }) => {
       if (data.userId !== currentUser.id) {
         setIsLocked(true);
         setLockedByName(data.userName);
+        setIAmLockHolder(false);
+        setLockCountdown(0);
+        if (countdownRef.current) {
+          clearInterval(countdownRef.current);
+          countdownRef.current = null;
+        }
         addToast('warning', `${data.userName} 锁定了文档进行编辑`);
+      } else {
+        setIAmLockHolder(true);
+        setLockCountdown(30);
+        if (countdownRef.current) clearInterval(countdownRef.current);
+        countdownRef.current = setInterval(() => {
+          setLockCountdown((prev) => {
+            if (prev <= 1) {
+              if (countdownRef.current) {
+                clearInterval(countdownRef.current);
+                countdownRef.current = null;
+              }
+              return 0;
+            }
+            return prev - 1;
+          });
+        }, 1000);
       }
     });
 
     socket.on('document:unlocked', (data) => {
       setIsLocked(false);
       setLockedByName('');
+      setIAmLockHolder(false);
+      setLockCountdown(0);
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+        countdownRef.current = null;
+      }
       if (data.userId !== currentUser.id) {
         addToast('info', `${data.userName} 释放了文档锁`);
       }
@@ -281,19 +313,28 @@ const Editor: React.FC<EditorProps> = ({ documentId, currentUser }) => {
 
   useEffect(() => {
     heartbeatRef.current = setInterval(() => {
-      if (socketRef.current?.connected) {
+      if (socketRef.current?.connected && iAmLockHolder) {
         socketRef.current.emit('document:heartbeat', {
           documentId,
           userId: currentUser.id,
         });
+        setLockCountdown(30);
       }
-    }, 15000);
+    }, 10000);
     return () => {
       if (heartbeatRef.current) {
         clearInterval(heartbeatRef.current);
       }
     };
-  }, [documentId, currentUser.id]);
+  }, [documentId, currentUser.id, iAmLockHolder]);
+
+  useEffect(() => {
+    return () => {
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+      }
+    };
+  }, []);
 
   const handleContentChange = useCallback((newContent: string) => {
     setContent(newContent);
@@ -304,11 +345,19 @@ const Editor: React.FC<EditorProps> = ({ documentId, currentUser }) => {
     if (now - lastEmitRef.current < 50) return;
     lastEmitRef.current = now;
 
-    if (isLocked && socketRef.current) {
-      socketRef.current.emit('document:lock', {
-        documentId,
-        userId: currentUser.id,
-      });
+    if (socketRef.current) {
+      if (!iAmLockHolder) {
+        socketRef.current.emit('document:lock', {
+          documentId,
+          userId: currentUser.id,
+        });
+      } else {
+        socketRef.current.emit('document:heartbeat', {
+          documentId,
+          userId: currentUser.id,
+        });
+        setLockCountdown(30);
+      }
     }
 
     setIsSaving(true);
@@ -321,10 +370,13 @@ const Editor: React.FC<EditorProps> = ({ documentId, currentUser }) => {
     lastContentRef.current = newContent;
 
     setTimeout(() => setIsSaving(false), 200);
-  }, [documentId, currentUser.id, currentUser.role, isLocked]);
+  }, [documentId, currentUser.id, currentUser.role, iAmLockHolder]);
 
   const handleCursorChange = useCallback((cursor: { line: number; column: number }, selection?: { start: number; end: number }) => {
     setCurrentLine(cursor.line);
+    const now = Date.now();
+    if (now - lastCursorEmitRef.current < 80) return;
+    lastCursorEmitRef.current = now;
     socketRef.current?.emit('cursor:update', {
       documentId,
       userId: currentUser.id,
@@ -464,7 +516,12 @@ const Editor: React.FC<EditorProps> = ({ documentId, currentUser }) => {
           <span className="app-logo">📝</span>
           <span className="document-title">{documentTitle}</span>
           <div className="document-meta">
-            {isLocked && (
+            {iAmLockHolder && lockCountdown > 0 && (
+              <span className="meta-tag" style={{ background: 'rgba(255,140,66,0.15)', color: 'var(--accent)' }}>
+                🔓 编辑锁 {lockCountdown}s
+              </span>
+            )}
+            {isLocked && !iAmLockHolder && (
               <span className="meta-tag locked">
                 🔒 {lockedByName || '其他用户'} 编辑中
               </span>
@@ -516,15 +573,19 @@ const Editor: React.FC<EditorProps> = ({ documentId, currentUser }) => {
           documentId={documentId}
           versions={versions}
           selectedVersionId={selectedVersion?.id || null}
-          onSelectVersion={handleSelectVersion}
+          onSelectVersion={(v) => {
+            handleSelectVersion(v);
+            setMobileLeftOpen(false);
+          }}
           onCreateVersion={handleCreateVersion}
           onRollback={handleRollback}
           isCollapsed={leftCollapsed}
           onToggleCollapse={() => {
             setLeftCollapsed(!leftCollapsed);
-            setMobileLeftOpen(false);
           }}
           currentVersionId={currentVersionId}
+          mobileOpen={mobileLeftOpen}
+          onCloseMobile={() => setMobileLeftOpen(false)}
         />
 
         {mobileLeftOpen && (
@@ -625,18 +686,21 @@ const Editor: React.FC<EditorProps> = ({ documentId, currentUser }) => {
           />
         )}
 
-        <aside className={`sidebar-right ${rightCollapsed ? 'collapsed' : ''} ${mobileRightOpen ? 'mobile-open' : ''}`}>
+        <aside className={`sidebar-right ${rightCollapsed && !mobileRightOpen ? 'collapsed' : ''} ${mobileRightOpen ? 'mobile-open' : ''}`}>
           <div className="sidebar-header" style={{ padding: 16 }}>
             <div className="sidebar-title" style={{ margin: 0 }}>
               👥 协作者
               <span className="section-count">{onlineCount}/{usersArray.length}</span>
             </div>
-            <button className="collapse-btn" onClick={() => {
-              setRightCollapsed(!rightCollapsed);
-              setMobileRightOpen(false);
-            }}>
-              ▶
-            </button>
+            {mobileRightOpen ? (
+              <button className="collapse-btn" onClick={() => setMobileRightOpen(false)}>
+                ✕
+              </button>
+            ) : (
+              <button className="collapse-btn" onClick={() => setRightCollapsed(!rightCollapsed)}>
+                ▶
+              </button>
+            )}
           </div>
 
           <div className="users-section">
