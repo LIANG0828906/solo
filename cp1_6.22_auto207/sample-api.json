@@ -1,0 +1,1088 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "用户管理系统 API",
+    "description": "一个完整的用户管理系统 API 示例，包含用户、订单、产品等模块",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://api.example.com/v1",
+      "description": "生产环境"
+    }
+  ],
+  "tags": [
+    {
+      "name": "用户管理",
+      "description": "用户相关的操作接口"
+    },
+    {
+      "name": "订单管理",
+      "description": "订单相关的操作接口"
+    },
+    {
+      "name": "产品管理",
+      "description": "产品相关的操作接口"
+    }
+  ],
+  "paths": {
+    "/users": {
+      "get": {
+        "tags": ["用户管理"],
+        "summary": "获取用户列表",
+        "description": "分页获取系统中所有用户的列表",
+        "operationId": "getUsers",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "description": "页码，从1开始",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 1,
+              "example": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "description": "每页数量",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 20,
+              "example": 20
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "description": "用户状态筛选",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["active", "inactive", "pending"],
+              "example": "active"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功返回用户列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "description": "响应状态码",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "description": "响应消息",
+                      "example": "success"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "total": {
+                          "type": "integer",
+                          "description": "总记录数",
+                          "example": 156
+                        },
+                        "page": {
+                          "type": "integer",
+                          "description": "当前页码",
+                          "example": 1
+                        },
+                        "pageSize": {
+                          "type": "integer",
+                          "description": "每页数量",
+                          "example": 20
+                        },
+                        "items": {
+                          "type": "array",
+                          "description": "用户列表",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "id": {
+                                "type": "string",
+                                "description": "用户ID",
+                                "example": "user_abc123def456"
+                              },
+                              "username": {
+                                "type": "string",
+                                "description": "用户名",
+                                "example": "zhangsan"
+                              },
+                              "email": {
+                                "type": "string",
+                                "format": "email",
+                                "description": "邮箱地址",
+                                "example": "zhangsan@example.com"
+                              },
+                              "nickname": {
+                                "type": "string",
+                                "description": "昵称",
+                                "example": "张三"
+                              },
+                              "status": {
+                                "type": "string",
+                                "description": "用户状态",
+                                "enum": ["active", "inactive", "pending"],
+                                "example": "active"
+                              },
+                              "createdAt": {
+                                "type": "string",
+                                "format": "date-time",
+                                "description": "创建时间",
+                                "example": "2024-01-15T10:30:00Z"
+                              }
+                            },
+                            "required": ["id", "username", "email", "status"]
+                          }
+                        }
+                      },
+                      "required": ["total", "page", "pageSize", "items"]
+                    }
+                  },
+                  "required": ["code", "message", "data"]
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "请求参数错误",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 400
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "参数错误"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["用户管理"],
+        "summary": "创建用户",
+        "description": "创建一个新的用户账号",
+        "operationId": "createUser",
+        "requestBody": {
+          "description": "用户信息",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "username": {
+                    "type": "string",
+                    "description": "用户名",
+                    "example": "lisi"
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email",
+                    "description": "邮箱地址",
+                    "example": "lisi@example.com"
+                  },
+                  "password": {
+                    "type": "string",
+                    "description": "密码",
+                    "example": "password123"
+                  },
+                  "nickname": {
+                    "type": "string",
+                    "description": "昵称",
+                    "example": "李四"
+                  }
+                },
+                "required": ["username", "email", "password"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "用户创建成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 201
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "创建成功"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "example": "user_newid123"
+                        },
+                        "username": {
+                          "type": "string",
+                          "example": "lisi"
+                        },
+                        "email": {
+                          "type": "string",
+                          "example": "lisi@example.com"
+                        },
+                        "nickname": {
+                          "type": "string",
+                          "example": "李四"
+                        },
+                        "status": {
+                          "type": "string",
+                          "example": "active"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/users/{userId}": {
+      "get": {
+        "tags": ["用户管理"],
+        "summary": "获取用户详情",
+        "description": "根据用户ID获取用户详细信息",
+        "operationId": "getUserById",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "用户ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "user_abc123def456"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功返回用户详情",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "success"
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "example": "user_abc123def456"
+                        },
+                        "username": {
+                          "type": "string",
+                          "example": "zhangsan"
+                        },
+                        "email": {
+                          "type": "string",
+                          "format": "email",
+                          "example": "zhangsan@example.com"
+                        },
+                        "nickname": {
+                          "type": "string",
+                          "example": "张三"
+                        },
+                        "avatar": {
+                          "type": "string",
+                          "format": "uri",
+                          "example": "https://example.com/avatar.png"
+                        },
+                        "phone": {
+                          "type": "string",
+                          "example": "13800138000"
+                        },
+                        "status": {
+                          "type": "string",
+                          "enum": ["active", "inactive", "pending"],
+                          "example": "active"
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        },
+                        "updatedAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      },
+                      "required": ["id", "username", "email", "status"]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "用户不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 404
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "用户不存在"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["用户管理"],
+        "summary": "更新用户信息",
+        "description": "更新指定用户的信息",
+        "operationId": "updateUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "用户ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "user_abc123def456"
+            }
+          }
+        ],
+        "requestBody": {
+          "description": "要更新的用户信息",
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nickname": {
+                    "type": "string",
+                    "description": "昵称",
+                    "example": "张三新"
+                  },
+                  "phone": {
+                    "type": "string",
+                    "description": "手机号",
+                    "example": "13900139000"
+                  },
+                  "avatar": {
+                    "type": "string",
+                    "description": "头像URL",
+                    "example": "https://example.com/new-avatar.png"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "更新成功"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["用户管理"],
+        "summary": "删除用户",
+        "description": "删除指定的用户账号",
+        "operationId": "deleteUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "path",
+            "description": "用户ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "user_abc123def456"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "删除成功"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders": {
+      "get": {
+        "tags": ["订单管理"],
+        "summary": "获取订单列表",
+        "description": "获取当前用户的订单列表",
+        "operationId": "getOrders",
+        "parameters": [
+          {
+            "name": "status",
+            "in": "query",
+            "description": "订单状态",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": ["pending", "paid", "shipped", "completed", "cancelled"],
+              "example": "pending"
+            }
+          },
+          {
+            "name": "startDate",
+            "in": "query",
+            "description": "开始日期",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2024-01-01"
+            }
+          },
+          {
+            "name": "endDate",
+            "in": "query",
+            "description": "结束日期",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "date",
+              "example": "2024-12-31"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功返回订单列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 200
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "example": "order_202401001"
+                          },
+                          "orderNo": {
+                            "type": "string",
+                            "example": "ORD202401150001"
+                          },
+                          "totalAmount": {
+                            "type": "number",
+                            "example": 299.99
+                          },
+                          "status": {
+                            "type": "string",
+                            "example": "paid"
+                          },
+                          "createdAt": {
+                            "type": "string",
+                            "format": "date-time"
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["订单管理"],
+        "summary": "创建订单",
+        "description": "创建一个新订单",
+        "operationId": "createOrder",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "products": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "productId": {
+                          "type": "string",
+                          "example": "prod_001"
+                        },
+                        "quantity": {
+                          "type": "integer",
+                          "example": 2
+                        }
+                      }
+                    }
+                  },
+                  "addressId": {
+                    "type": "string",
+                    "example": "addr_001"
+                  },
+                  "remark": {
+                    "type": "string",
+                    "example": "请尽快发货"
+                  }
+                },
+                "required": ["products", "addressId"]
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "订单创建成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 201
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "orderId": {
+                          "type": "string",
+                          "example": "order_new001"
+                        },
+                        "orderNo": {
+                          "type": "string",
+                          "example": "ORD202401150002"
+                        },
+                        "status": {
+                          "type": "string",
+                          "example": "pending"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/orders/{orderId}": {
+      "get": {
+        "tags": ["订单管理"],
+        "summary": "获取订单详情",
+        "description": "根据订单ID获取订单详细信息",
+        "operationId": "getOrderById",
+        "parameters": [
+          {
+            "name": "orderId",
+            "in": "path",
+            "description": "订单ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "order_202401001"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功返回订单详情",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 200
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "example": "order_202401001"
+                        },
+                        "orderNo": {
+                          "type": "string",
+                          "example": "ORD202401150001"
+                        },
+                        "totalAmount": {
+                          "type": "number",
+                          "example": 299.99
+                        },
+                        "status": {
+                          "type": "string",
+                          "example": "paid"
+                        },
+                        "items": {
+                          "type": "array",
+                          "items": {
+                            "type": "object",
+                            "properties": {
+                              "productId": {
+                                "type": "string",
+                                "example": "prod_001"
+                              },
+                              "productName": {
+                                "type": "string",
+                                "example": "无线蓝牙耳机"
+                              },
+                              "quantity": {
+                                "type": "integer",
+                                "example": 1
+                              },
+                              "price": {
+                                "type": "number",
+                                "example": 299.99
+                              }
+                            }
+                          }
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/products": {
+      "get": {
+        "tags": ["产品管理"],
+        "summary": "获取产品列表",
+        "description": "获取所有产品列表，支持搜索和筛选",
+        "operationId": "getProducts",
+        "parameters": [
+          {
+            "name": "keyword",
+            "in": "query",
+            "description": "搜索关键词",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "耳机"
+            }
+          },
+          {
+            "name": "category",
+            "in": "query",
+            "description": "产品分类",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "example": "electronics"
+            }
+          },
+          {
+            "name": "minPrice",
+            "in": "query",
+            "description": "最低价格",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "example": 0
+            }
+          },
+          {
+            "name": "maxPrice",
+            "in": "query",
+            "description": "最高价格",
+            "required": false,
+            "schema": {
+              "type": "number",
+              "example": 1000
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功返回产品列表",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 200
+                    },
+                    "data": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "id": {
+                            "type": "string",
+                            "example": "prod_001"
+                          },
+                          "name": {
+                            "type": "string",
+                            "example": "无线蓝牙耳机"
+                          },
+                          "description": {
+                            "type": "string",
+                            "example": "高品质无线蓝牙耳机，主动降噪"
+                          },
+                          "price": {
+                            "type": "number",
+                            "example": 299.99
+                          },
+                          "stock": {
+                            "type": "integer",
+                            "example": 156
+                          },
+                          "category": {
+                            "type": "string",
+                            "example": "electronics"
+                          },
+                          "image": {
+                            "type": "string",
+                            "format": "uri",
+                            "example": "https://example.com/product.jpg"
+                          },
+                          "isActive": {
+                            "type": "boolean",
+                            "example": true
+                          }
+                        },
+                        "required": ["id", "name", "price", "stock"]
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/products/{productId}": {
+      "get": {
+        "tags": ["产品管理"],
+        "summary": "获取产品详情",
+        "description": "根据产品ID获取产品详细信息",
+        "operationId": "getProductById",
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "description": "产品ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "prod_001"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "成功返回产品详情",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 200
+                    },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "id": {
+                          "type": "string",
+                          "example": "prod_001"
+                        },
+                        "name": {
+                          "type": "string",
+                          "example": "无线蓝牙耳机"
+                        },
+                        "description": {
+                          "type": "string",
+                          "example": "高品质无线蓝牙耳机"
+                        },
+                        "price": {
+                          "type": "number",
+                          "example": 299.99
+                        },
+                        "originalPrice": {
+                          "type": "number",
+                          "example": 399.99
+                        },
+                        "stock": {
+                          "type": "integer",
+                          "example": 156
+                        },
+                        "sales": {
+                          "type": "integer",
+                          "example": 1234
+                        },
+                        "category": {
+                          "type": "string",
+                          "example": "electronics"
+                        },
+                        "images": {
+                          "type": "array",
+                          "items": {
+                            "type": "string",
+                            "format": "uri"
+                          }
+                        },
+                        "specs": {
+                          "type": "object",
+                          "properties": {
+                            "color": {
+                              "type": "string",
+                              "example": "黑色"
+                            },
+                            "weight": {
+                              "type": "string",
+                              "example": "50g"
+                            },
+                            "battery": {
+                              "type": "string",
+                              "example": "30小时"
+                            }
+                          }
+                        },
+                        "isActive": {
+                          "type": "boolean",
+                          "example": true
+                        },
+                        "createdAt": {
+                          "type": "string",
+                          "format": "date-time"
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "产品不存在",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 404
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "产品不存在"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": ["产品管理"],
+        "summary": "更新产品",
+        "description": "更新产品信息",
+        "operationId": "updateProduct",
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "description": "产品ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "prod_001"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "example": "无线蓝牙耳机Pro"
+                  },
+                  "price": {
+                    "type": "number",
+                    "example": 349.99
+                  },
+                  "stock": {
+                    "type": "integer",
+                    "example": 200
+                  },
+                  "description": {
+                    "type": "string",
+                    "example": "升级版无线蓝牙耳机"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "更新成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "更新成功"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["产品管理"],
+        "summary": "删除产品",
+        "description": "删除指定产品",
+        "operationId": "deleteProduct",
+        "parameters": [
+          {
+            "name": "productId",
+            "in": "path",
+            "description": "产品ID",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "example": "prod_001"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "删除成功",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "code": {
+                      "type": "integer",
+                      "example": 200
+                    },
+                    "message": {
+                      "type": "string",
+                      "example": "删除成功"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}
