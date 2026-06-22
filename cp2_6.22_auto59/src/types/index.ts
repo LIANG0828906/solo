@@ -40,6 +40,16 @@ export interface NutritionGoals {
   protein: number;
   fat: number;
   carbs: number;
+  fiber?: number;
+}
+
+export interface UserProfileWithStats extends UserProfile {
+  bmr: number;
+  tdee: number;
+  recommendedCalories?: number;
+  recommendedProtein?: number;
+  recommendedFat?: number;
+  recommendedCarbs?: number;
 }
 
 export interface DailyNutrition {

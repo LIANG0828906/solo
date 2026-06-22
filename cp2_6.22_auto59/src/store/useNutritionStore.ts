@@ -77,14 +77,44 @@ export const useNutritionStore = create<NutritionState>((set, get) => ({
   fetchProfile: async () => {
     const data = await api.getProfile();
     if (data) {
-      const { bmr: _bmr, tdee: _tdee, ...profile } = data;
+      const {
+        bmr: _bmr,
+        tdee: _tdee,
+        recommendedCalories: _rc,
+        recommendedProtein: _rp,
+        recommendedFat: _rf,
+        recommendedCarbs: _rcarb,
+        ...profile
+      } = data as UserProfile & {
+        bmr: number;
+        tdee: number;
+        recommendedCalories?: number;
+        recommendedProtein?: number;
+        recommendedFat?: number;
+        recommendedCarbs?: number;
+      };
       set({ profile });
     }
   },
 
   saveProfileData: async (profile) => {
     const data = await api.saveProfile(profile);
-    const { bmr: _bmr, tdee: _tdee, ...savedProfile } = data;
+    const {
+      bmr: _bmr,
+      tdee: _tdee,
+      recommendedCalories: _rc,
+      recommendedProtein: _rp,
+      recommendedFat: _rf,
+      recommendedCarbs: _rcarb,
+      ...savedProfile
+    } = data as UserProfile & {
+      bmr: number;
+      tdee: number;
+      recommendedCalories?: number;
+      recommendedProtein?: number;
+      recommendedFat?: number;
+      recommendedCarbs?: number;
+    };
     set({ profile: savedProfile });
     const newGoals = await api.getGoals();
     if (newGoals) {
