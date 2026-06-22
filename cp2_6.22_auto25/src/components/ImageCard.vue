@@ -14,32 +14,32 @@ const emit = defineEmits<{
 }>()
 
 const store = useGalleryStore()
-const isLoaded = ref(false)
-const isVisible = ref(false)
+const isLoaded = ref<boolean>(false)
+const isVisible = ref<boolean>(false)
 const cardRef = ref<HTMLElement | null>(null)
 let observer: IntersectionObserver | null = null
 
-const isFavorite = computed(() => store.isFavorite(props.image.id))
-const placeholderColor = computed(() => getPlaceholderColor(props.image.id))
-const aspectRatio = computed(() => `${props.image.width} / ${props.image.height}`)
+const isFavorite = computed<boolean>(() => store.isFavorite(props.image.id))
+const placeholderColor = computed<string>(() => getPlaceholderColor(props.image.id))
+const aspectRatio = computed<string>(() => `${props.image.width} / ${props.image.height}`)
 
-function handleLoad() {
+function handleLoad(): void {
   isLoaded.value = true
 }
 
-function handleFavoriteClick(e: Event) {
+function handleFavoriteClick(e: MouseEvent): void {
   e.stopPropagation()
   store.toggleFavorite(props.image.id)
 }
 
-function handleCardClick() {
+function handleCardClick(): void {
   emit('click')
 }
 
-onMounted(() => {
+onMounted((): void => {
   observer = new IntersectionObserver(
-    (entries) => {
-      entries.forEach((entry) => {
+    (entries: IntersectionObserverEntry[]): void => {
+      entries.forEach((entry: IntersectionObserverEntry): void => {
         if (entry.isIntersecting) {
           isVisible.value = true
           observer?.disconnect()
@@ -54,7 +54,7 @@ onMounted(() => {
   }
 })
 
-onUnmounted(() => {
+onUnmounted((): void => {
   observer?.disconnect()
 })
 </script>
@@ -70,7 +70,7 @@ onUnmounted(() => {
       class="card-placeholder"
       :style="{ backgroundColor: placeholderColor }"
       :class="{ hidden: isLoaded }"
-    />
+    ></div>
 
     <img
       v-if="isVisible"
@@ -92,21 +92,7 @@ onUnmounted(() => {
       @click="handleFavoriteClick"
       aria-label="收藏"
     >
-      <svg
-        class="heart-icon"
-        viewBox="0 0 24 24"
-        :fill="isFavorite ? 'url(#heartGradient)' : 'none'"
-        stroke="currentColor"
-        stroke-width="2"
-      >
-        <defs>
-          <linearGradient id="heartGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stop-color="#ff6b6b" />
-            <stop offset="100%" stop-color="#ee5a24" />
-          </linearGradient>
-        </defs>
-        <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-      </svg>
+      <span class="heart">♥</span>
     </button>
   </div>
 </template>
@@ -115,6 +101,7 @@ onUnmounted(() => {
 .image-card {
   position: relative;
   width: 100%;
+  height: 100%;
   border-radius: var(--border-radius);
   overflow: hidden;
   background: var(--bg-primary);
@@ -212,14 +199,17 @@ onUnmounted(() => {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
 }
 
-.heart-icon {
-  width: 18px;
-  height: 18px;
+.heart {
+  font-size: 18px;
+  line-height: 1;
   color: var(--text-primary);
   transition: all var(--transition-fast);
 }
 
-.favorite-btn.active .heart-icon {
-  color: transparent;
+.favorite-btn.active .heart {
+  background: linear-gradient(135deg, #ff6b6b, #ee5a24);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 </style>

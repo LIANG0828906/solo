@@ -25,38 +25,38 @@ function saveToStorage<T>(key: string, value: T): void {
 
 export const useGalleryStore = defineStore('gallery', () => {
   const images = ref<ImageItem[]>(mockImages)
-  const favorites = ref<string[]>(loadFromStorage(FAVORITES_KEY, []))
-  const searchQuery = ref('')
+  const favorites = ref<string[]>(loadFromStorage<string[]>(FAVORITES_KEY, []))
+  const searchQuery = ref<string>('')
   const selectedTags = ref<string[]>([])
-  const searchHistory = ref<string[]>(loadFromStorage(HISTORY_KEY, []))
+  const searchHistory = ref<string[]>(loadFromStorage<string[]>(HISTORY_KEY, []))
 
   const allTags = computed<TagCount[]>(() => {
     const tagMap = new Map<string, number>()
-    images.value.forEach((img) => {
-      img.tags.forEach((tag) => {
+    images.value.forEach((img: ImageItem): void => {
+      img.tags.forEach((tag: string): void => {
         tagMap.set(tag, (tagMap.get(tag) || 0) + 1)
       })
     })
     return Array.from(tagMap.entries())
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => a.name.localeCompare(b.name))
+      .map(([name, count]: [string, number]) => ({ name, count }))
+      .sort((a: TagCount, b: TagCount): number => a.name.localeCompare(b.name))
   })
 
   const filteredImages = computed<ImageItem[]>(() => {
-    let result = images.value
+    let result: ImageItem[] = images.value
 
     if (searchQuery.value.trim()) {
-      const query = searchQuery.value.toLowerCase().trim()
+      const query: string = searchQuery.value.toLowerCase().trim()
       result = result.filter(
-        (img) =>
+        (img: ImageItem): boolean =>
           img.title.toLowerCase().includes(query) ||
-          img.tags.some((tag) => tag.toLowerCase().includes(query))
+          img.tags.some((tag: string): boolean => tag.toLowerCase().includes(query))
       )
     }
 
     if (selectedTags.value.length > 0) {
-      result = result.filter((img) =>
-        selectedTags.value.every((tag) => img.tags.includes(tag))
+      result = result.filter((img: ImageItem): boolean =>
+        selectedTags.value.every((tag: string): boolean => img.tags.includes(tag))
       )
     }
 
@@ -64,19 +64,40 @@ export const useGalleryStore = defineStore('gallery', () => {
   })
 
   const favoriteImages = computed<ImageItem[]>(() => {
-    return images.value.filter((img) => favorites.value.includes(img.id))
+    return images.value.filter((img: ImageItem): boolean => favorites.value.includes(img.id))
   })
 
-  const favoriteCount = computed(() => favorites.value.length)
+  const filteredFavoriteImages = computed<ImageItem[]>(() => {
+    let result: ImageItem[] = favoriteImages.value
+
+    if (searchQuery.value.trim()) {
+      const query: string = searchQuery.value.toLowerCase().trim()
+      result = result.filter(
+        (img: ImageItem): boolean =>
+          img.title.toLowerCase().includes(query) ||
+          img.tags.some((tag: string): boolean => tag.toLowerCase().includes(query))
+      )
+    }
+
+    if (selectedTags.value.length > 0) {
+      result = result.filter((img: ImageItem): boolean =>
+        selectedTags.value.every((tag: string): boolean => img.tags.includes(tag))
+      )
+    }
+
+    return result
+  })
+
+  const favoriteCount = computed<number>(() => favorites.value.length)
 
   function toggleFavorite(id: string): void {
-    const index = favorites.value.indexOf(id)
+    const index: number = favorites.value.indexOf(id)
     if (index === -1) {
       favorites.value.push(id)
     } else {
       favorites.value.splice(index, 1)
     }
-    saveToStorage(FAVORITES_KEY, favorites.value)
+    saveToStorage<string[]>(FAVORITES_KEY, favorites.value)
   }
 
   function isFavorite(id: string): boolean {
@@ -90,7 +111,7 @@ export const useGalleryStore = defineStore('gallery', () => {
       if (searchHistory.value.length > 5) {
         searchHistory.value.pop()
       }
-      saveToStorage(HISTORY_KEY, searchHistory.value)
+      saveToStorage<string[]>(HISTORY_KEY, searchHistory.value)
     }
   }
 
@@ -99,7 +120,7 @@ export const useGalleryStore = defineStore('gallery', () => {
   }
 
   function toggleTag(tag: string): void {
-    const index = selectedTags.value.indexOf(tag)
+    const index: number = selectedTags.value.indexOf(tag)
     if (index === -1) {
       selectedTags.value.push(tag)
     } else {
@@ -117,7 +138,7 @@ export const useGalleryStore = defineStore('gallery', () => {
 
   function clearSearchHistory(): void {
     searchHistory.value = []
-    saveToStorage(HISTORY_KEY, [])
+    saveToStorage<string[]>(HISTORY_KEY, [])
   }
 
   function useHistoryItem(term: string): void {
@@ -133,6 +154,7 @@ export const useGalleryStore = defineStore('gallery', () => {
     allTags,
     filteredImages,
     favoriteImages,
+    filteredFavoriteImages,
     favoriteCount,
     toggleFavorite,
     isFavorite,

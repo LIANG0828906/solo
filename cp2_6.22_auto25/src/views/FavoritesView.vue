@@ -2,32 +2,16 @@
 import { computed } from 'vue'
 import { useGalleryStore } from '@/stores/galleryStore'
 import WaterfallGrid from '@/components/WaterfallGrid.vue'
+import type { ImageItem } from '@/types'
 
 const emit = defineEmits<{
-  (e: 'open-modal', image: any): void
+  (e: 'open-modal', image: ImageItem): void
 }>()
 
 const store = useGalleryStore()
 
-const filteredFavorites = computed(() => {
-  let result = store.favoriteImages
-
-  if (store.searchQuery.trim()) {
-    const query = store.searchQuery.toLowerCase().trim()
-    result = result.filter(
-      (img) =>
-        img.title.toLowerCase().includes(query) ||
-        img.tags.some((tag) => tag.toLowerCase().includes(query))
-    )
-  }
-
-  if (store.selectedTags.length > 0) {
-    result = result.filter((img) =>
-      store.selectedTags.every((tag) => img.tags.includes(tag))
-    )
-  }
-
-  return result
+const hasFilters = computed<boolean>(() => {
+  return store.searchQuery.trim() !== '' || store.selectedTags.length > 0
 })
 </script>
 
@@ -38,14 +22,14 @@ const filteredFavorites = computed(() => {
       <p class="empty-text">暂无收藏图片</p>
       <p class="empty-subtext">点击图片卡片上的心形按钮添加收藏</p>
     </div>
-    <div v-else-if="filteredFavorites.length === 0" class="no-results">
+    <div v-else-if="store.filteredFavoriteImages.length === 0 && hasFilters" class="no-results">
       <p class="no-results-text">收藏中没有匹配的图片</p>
       <p class="no-results-subtext">尝试调整搜索关键词或筛选条件</p>
     </div>
     <WaterfallGrid
       v-else
-      :images="filteredFavorites"
-      @open-modal="(img) => emit('open-modal', img)"
+      :images="store.filteredFavoriteImages"
+      @open-modal="(img: ImageItem): void => emit('open-modal', img)"
     />
   </div>
 </template>

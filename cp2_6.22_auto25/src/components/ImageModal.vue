@@ -13,47 +13,61 @@ const emit = defineEmits<{
 }>()
 
 const store = useGalleryStore()
-const isLoaded = ref(false)
-const isClosing = ref(false)
+const isLoaded = ref<boolean>(false)
+const isClosing = ref<boolean>(false)
 const modalRef = ref<HTMLElement | null>(null)
+let closeTimeoutId: number | null = null
 
-const isFavorite = () => store.isFavorite(props.image.id)
+const isFavorite = (): boolean => store.isFavorite(props.image.id)
 
-function handleLoad() {
+function handleLoad(): void {
   isLoaded.value = true
 }
 
-function handleFavoriteClick() {
+function handleFavoriteClick(e: MouseEvent): void {
+  e.stopPropagation()
   store.toggleFavorite(props.image.id)
 }
 
-function handleClose() {
+function handleClose(): void {
+  if (isClosing.value) return
   isClosing.value = true
-  setTimeout(() => {
+  if (closeTimeoutId) {
+    clearTimeout(closeTimeoutId)
+  }
+  closeTimeoutId = window.setTimeout((): void => {
     emit('close')
-  }, 250)
+  }, 300)
 }
 
-function handleOverlayClick(e: MouseEvent) {
+function handleOverlayClick(e: MouseEvent): void {
   if (e.target === e.currentTarget) {
     handleClose()
   }
 }
 
-function handleKeydown(e: KeyboardEvent) {
+function handleKeydown(e: KeyboardEvent): void {
   if (e.key === 'Escape') {
     handleClose()
   }
 }
 
-onMounted(() => {
+function handleCloseBtnClick(e: MouseEvent): void {
+  e.stopPropagation()
+  handleClose()
+}
+
+onMounted((): void => {
   document.addEventListener('keydown', handleKeydown)
   document.body.style.overflow = 'hidden'
 })
 
-onUnmounted(() => {
+onUnmounted((): void => {
   document.removeEventListener('keydown', handleKeydown)
   document.body.style.overflow = ''
+  if (closeTimeoutId) {
+    clearTimeout(closeTimeoutId)
+  }
 })
 </script>
 
@@ -68,16 +82,14 @@ onUnmounted(() => {
       <div class="modal-content" :class="{ closing: isClosing }">
         <button
           class="close-btn"
-          @click="handleClose"
+          @click="handleCloseBtnClick"
           aria-label="关闭"
         >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M18 6 6 18M6 6l12 12"></path>
-          </svg>
+          <span class="close-icon">×</span>
         </button>
 
         <div class="image-wrapper">
-          <div class="image-placeholder" />
+          <div class="image-placeholder"></div>
           <img
             :src="image.url"
             :alt="image.title"
@@ -106,21 +118,7 @@ onUnmounted(() => {
             :class="{ active: isFavorite() }"
             @click="handleFavoriteClick"
           >
-            <svg
-              class="heart-icon"
-              viewBox="0 0 24 24"
-              :fill="isFavorite() ? 'url(#heartGradientModal)' : 'none'"
-              stroke="currentColor"
-              stroke-width="2"
-            >
-              <defs>
-                <linearGradient id="heartGradientModal" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#ff6b6b" />
-                  <stop offset="100%" stop-color="#ee5a24" />
-                </linearGradient>
-              </defs>
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-            </svg>
+            <span class="heart">♥</span>
             <span>{{ isFavorite() ? '已收藏' : '收藏' }}</span>
           </button>
         </div>
@@ -135,13 +133,14 @@ onUnmounted(() => {
   inset: 0;
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 1000;
   padding: 24px;
   opacity: 1;
-  transition: opacity var(--transition-normal);
+  transition: opacity 0.3s ease-out;
 }
 
 .modal-overlay.closing {
@@ -160,11 +159,13 @@ onUnmounted(() => {
   flex-direction: column;
   box-shadow: 0 24px 64px rgba(0, 0, 0, 0.5);
   transform: scale(1);
-  transition: transform var(--transition-normal);
+  transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+  opacity: 1;
 }
 
 .modal-content.closing {
-  transform: scale(0.9);
+  transform: scale(0.85);
+  opacity: 0.8;
 }
 
 .close-btn {
@@ -181,145 +182,3 @@ onUnmounted(() => {
   color: var(--text-primary);
   z-index: 10;
   transition: all var(--transition-fast);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-.close-btn:hover {
-  background: white;
-  transform: rotate(90deg);
-}
-
-.image-wrapper {
-  position: relative;
-  flex: 1;
-  background: #f0f0f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  min-height: 300px;
-}
-
-.image-placeholder {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
-  background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
-}
-
-@keyframes shimmer {
-  0% {
-    background-position: 200% 0;
-  }
-  100% {
-    background-position: -200% 0;
-  }
-}
-
-.modal-image {
-  max-width: 100%;
-  max-height: calc(90vh - 120px);
-  object-fit: contain;
-  opacity: 0;
-  transition: opacity var(--transition-normal);
-  position: relative;
-  z-index: 1;
-}
-
-.modal-image.loaded {
-  opacity: 1;
-}
-
-.modal-footer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 20px 24px;
-  border-top: 1px solid var(--bg-secondary);
-  gap: 16px;
-}
-
-.image-info {
-  flex: 1;
-  min-width: 0;
-}
-
-.image-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 8px;
-}
-
-.image-tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.tag-chip {
-  background: var(--bg-secondary);
-  color: var(--text-secondary);
-  font-size: 12px;
-  padding: 4px 12px;
-  border-radius: 12px;
-  font-weight: 500;
-}
-
-.favorite-btn-large {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 20px;
-  border-radius: 24px;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
-  font-size: 14px;
-  font-weight: 500;
-  transition: all var(--transition-fast);
-  white-space: nowrap;
-}
-
-.favorite-btn-large:hover {
-  background: #e9ecef;
-  transform: scale(1.02);
-}
-
-.favorite-btn-large.active {
-  background: linear-gradient(135deg, var(--favorite-start), var(--favorite-end));
-  color: white;
-}
-
-.favorite-btn-large.active:hover {
-  transform: scale(1.05);
-  box-shadow: 0 4px 16px rgba(255, 107, 107, 0.4);
-}
-
-.heart-icon {
-  width: 18px;
-  height: 18px;
-}
-
-@media (max-width: 768px) {
-  .modal-overlay {
-    padding: 0;
-  }
-
-  .modal-content {
-    max-width: 100%;
-    max-height: 100vh;
-    border-radius: 0;
-  }
-
-  .modal-footer {
-    flex-direction: column;
-    align-items: flex-start;
-    padding: 16px;
-  }
-
-  .image-title {
-    font-size: 16px;
-  }
-}
-</style>

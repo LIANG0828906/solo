@@ -10,61 +10,74 @@ const store = useGalleryStore()
 const inputValue = ref('')
 const showHistory = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
+const containerRef = ref<HTMLDivElement | null>(null)
 let debounceTimer: number | null = null
 
 const suggestions = ref<string[]>([])
 
-function updateSuggestions(query: string) {
+function updateSuggestions(query: string): void {
   if (!query.trim()) {
     suggestions.value = []
     return
   }
-  const q = query.toLowerCase()
+  const q: string = query.toLowerCase()
   const allTerms = new Set<string>()
-  
-  store.images.forEach((img) => {
+
+  store.images.forEach((img): void => {
     if (img.title.toLowerCase().includes(q)) {
       allTerms.add(img.title)
     }
-    img.tags.forEach((tag) => {
+    img.tags.forEach((tag: string): void => {
       if (tag.toLowerCase().includes(q)) {
         allTerms.add(tag)
       }
     })
   })
-  
+
   suggestions.value = Array.from(allTerms).slice(0, 5)
 }
 
-function handleInput() {
+function handleInput(e: Event): void {
+  const target = e.target as HTMLInputElement
+  const value: string = target.value
+
   if (debounceTimer) {
     clearTimeout(debounceTimer)
+    debounceTimer = null
   }
-  
-  debounceTimer = window.setTimeout(() => {
+
+  if (!value.trim()) {
+    inputValue.value = ''
+    store.clearSearchQuery()
+    suggestions.value = []
+    return
+  }
+
+  debounceTimer = window.setTimeout((): void => {
     store.setSearchQuery(inputValue.value)
     updateSuggestions(inputValue.value)
   }, 300)
 }
 
-function handleFocus() {
+function handleFocus(): void {
   showHistory.value = true
 }
 
-function handleBlur() {
-  setTimeout(() => {
+function handleBlur(): void {
+  setTimeout((): void => {
     showHistory.value = false
   }, 200)
 }
 
-function handleClear() {
+function handleClear(e: MouseEvent): void {
+  e.stopPropagation()
   inputValue.value = ''
   store.clearSearchQuery()
   suggestions.value = []
   inputRef.value?.focus()
 }
 
-function handleKeydown(e: KeyboardEvent) {
+function handleKeydown(e: KeyboardEvent): void {
   if (e.key === 'Enter') {
     emit('search-confirmed')
     showHistory.value = false
@@ -73,7 +86,7 @@ function handleKeydown(e: KeyboardEvent) {
   }
 }
 
-function selectHistory(term: string) {
+function selectHistory(term: string): void {
   inputValue.value = term
   store.useHistoryItem(term)
   showHistory.value = false
@@ -81,7 +94,7 @@ function selectHistory(term: string) {
   emit('search-confirmed')
 }
 
-function selectSuggestion(term: string) {
+function selectSuggestion(term: string): void {
   inputValue.value = term
   store.setSearchQuery(term)
   suggestions.value = []
@@ -89,32 +102,32 @@ function selectSuggestion(term: string) {
   emit('search-confirmed')
 }
 
-function handleClearHistory(e: Event) {
+function handleClearHistory(e: MouseEvent): void {
   e.stopPropagation()
   store.clearSearchHistory()
 }
 
 watch(
-  () => store.searchQuery,
-  (newVal) => {
+  (): string => store.searchQuery,
+  (newVal: string): void => {
     if (newVal !== inputValue.value) {
       inputValue.value = newVal
     }
   }
 )
 
-function handleClickOutside(e: MouseEvent) {
-  if (inputRef.value && !inputRef.value.contains(e.target as Node)) {
+function handleClickOutside(e: MouseEvent): void {
+  if (containerRef.value && !containerRef.value.contains(e.target as Node)) {
     showHistory.value = false
   }
 }
 
-onMounted(() => {
+onMounted((): void => {
   inputValue.value = store.searchQuery
   document.addEventListener('click', handleClickOutside)
 })
 
-onUnmounted(() => {
+onUnmounted((): void => {
   if (debounceTimer) {
     clearTimeout(debounceTimer)
   }
@@ -123,7 +136,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="search-container">
+  <div class="search-container" ref="containerRef">
     <div class="search-wrapper">
       <svg
         class="search-icon"
@@ -286,6 +299,7 @@ onUnmounted(() => {
   right: 0;
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   border-radius: var(--border-radius);
   box-shadow: var(--shadow-md);
   overflow: hidden;

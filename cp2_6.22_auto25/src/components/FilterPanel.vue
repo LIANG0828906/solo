@@ -7,9 +7,13 @@ const emit = defineEmits<{
 
 const store = useGalleryStore()
 
-function handleTagClick(tag: string) {
+function handleTagClick(tag: string): void {
   store.toggleTag(tag)
   emit('tag-toggled', tag)
+}
+
+function handleClearAll(): void {
+  store.clearAllTags()
 }
 </script>
 
@@ -20,7 +24,7 @@ function handleTagClick(tag: string) {
       <button
         v-if="store.selectedTags.length > 0"
         class="clear-all-btn"
-        @click="store.clearAllTags"
+        @click="handleClearAll"
       >
         清除全部
       </button>

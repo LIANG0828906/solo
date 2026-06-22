@@ -10,44 +10,46 @@ import type { ImageItem } from '@/types'
 const store = useGalleryStore()
 const route = useRoute()
 const selectedImage = ref<ImageItem | null>(null)
-const isMobileFilterOpen = ref(false)
-const isMobileSearchOpen = ref(false)
-const windowWidth = ref(window.innerWidth)
+const isMobileFilterOpen = ref<boolean>(false)
+const isMobileSearchOpen = ref<boolean>(false)
+const windowWidth = ref<number>(window.innerWidth)
 
-const isFavoritesView = computed(() => route.name === 'favorites')
+const isFavoritesView = computed<boolean>(() => route.name === 'favorites')
 
-function handleResize() {
+function handleResize(): void {
   windowWidth.value = window.innerWidth
 }
 
-function openModal(image: ImageItem) {
+function openModal(image: ImageItem): void {
   selectedImage.value = image
 }
 
-function closeModal() {
+function closeModal(): void {
   selectedImage.value = null
 }
 
-
-
-function toggleMobileFilter() {
+function toggleMobileFilter(): void {
   isMobileFilterOpen.value = !isMobileFilterOpen.value
 }
 
-function toggleMobileSearch() {
+function toggleMobileSearch(): void {
   isMobileSearchOpen.value = !isMobileSearchOpen.value
 }
 
-function closeMobilePanels() {
+function closeMobilePanels(): void {
   isMobileFilterOpen.value = false
   isMobileSearchOpen.value = false
 }
 
-onMounted(() => {
+function handleTagToggled(_tag: string): void {
+  // no-op, handled by store
+}
+
+onMounted((): void => {
   window.addEventListener('resize', handleResize)
 })
 
-onUnmounted(() => {
+onUnmounted((): void => {
   window.removeEventListener('resize', handleResize)
 })
 </script>
@@ -106,17 +108,11 @@ onUnmounted(() => {
 
     <div class="main-layout">
       <aside class="sidebar">
-        <FilterPanel />
+        <FilterPanel @tag-toggled="handleTagToggled" />
       </aside>
 
       <main class="main-content">
         <router-view @open-modal="openModal" />
-
-        <div v-if="isFavoritesView && store.favoriteImages.length === 0" class="empty-state">
-          <div class="empty-icon">♡</div>
-          <p class="empty-text">暂无收藏图片</p>
-          <p class="empty-subtext">点击图片卡片上的心形按钮添加收藏</p>
-        </div>
       </main>
     </div>
 
@@ -131,7 +127,7 @@ onUnmounted(() => {
               </svg>
             </button>
           </div>
-          <FilterPanel @tag-toggled="() => {}" />
+          <FilterPanel @tag-toggled="handleTagToggled" />
         </div>
       </div>
     </transition>
@@ -345,34 +341,12 @@ a {
   min-width: 0;
 }
 
-.empty-state {
-  text-align: center;
-  padding: 80px 24px;
-  color: var(--text-secondary);
-}
-
-.empty-icon {
-  font-size: 64px;
-  margin-bottom: 16px;
-  opacity: 0.3;
-}
-
-.empty-text {
-  font-size: 20px;
-  font-weight: 600;
-  color: var(--text-primary);
-  margin-bottom: 8px;
-}
-
-.empty-subtext {
-  font-size: 14px;
-}
-
 .mobile-filter-overlay {
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
   z-index: 200;
   display: flex;
   align-items: flex-end;
