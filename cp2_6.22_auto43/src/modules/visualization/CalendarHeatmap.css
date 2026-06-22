@@ -157,13 +157,44 @@
   color: #8a8aa8;
 }
 
+.modal-stats {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px;
+  background: rgba(139, 156, 246, 0.08);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.stat-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stat-emoji {
+  font-size: 1.25rem;
+}
+
+.stat-label {
+  font-size: 0.8125rem;
+  color: #4a4a6a;
+  font-weight: 500;
+}
+
+.record-emotion-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .legend-gradient {
   flex: 1;
   height: 8px;
   border-radius: 4px;
   background: linear-gradient(to right, 
-    rgba(139, 156, 246, 0.2), 
-    rgba(139, 156, 246, 0.9)
+    #E8F5E9, 
+    #1B5E20
   );
   margin: 0 8px;
 }

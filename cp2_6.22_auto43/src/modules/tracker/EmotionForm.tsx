@@ -45,10 +45,7 @@ const EmotionForm: React.FC<EmotionFormProps> = ({ onSubmitSuccess }) => {
   }, []);
 
   const handleNoteChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    const value = e.target.value;
-    if (value.length <= 200) {
-      setNote(value);
-    }
+    setNote(e.target.value);
   }, []);
 
   const handleSubmit = useCallback(async (e: React.FormEvent) => {
@@ -117,9 +114,7 @@ const EmotionForm: React.FC<EmotionFormProps> = ({ onSubmitSuccess }) => {
           <div className="tags-section">
             <label className="section-label">
               选择标签（1-3个）
-              {selectedTags.length > 0 && (
-                <span className="tag-counter">已选 {selectedTags.length}/3</span>
-              )}
+              <span className="tag-counter">已选 {selectedTags.length}/3</span>
             </label>
             <div className="tags-grid">
               {availableTags.map(tag => {
@@ -146,18 +141,17 @@ const EmotionForm: React.FC<EmotionFormProps> = ({ onSubmitSuccess }) => {
               <span className={`note-counter ${noteWarning}`}>{note.length}/200</span>
             </label>
             <textarea
-              className={`note-input ${noteWarning === 'danger' ? 'over-limit' : ''}`}
+              className={`note-input ${note.length > 200 ? 'over-limit' : ''}`}
               value={note}
               onChange={handleNoteChange}
               placeholder="记录一下此刻的想法..."
-              maxLength={200}
               rows={3}
             />
-            {noteWarning === 'warning' && (
-              <p className="note-warning">即将达到字数上限</p>
+            {note.length > 200 && (
+              <p className="note-error">备注不能超过200字</p>
             )}
-            {noteWarning === 'danger' && (
-              <p className="note-danger">已超过200字限制</p>
+            {note.length >= 180 && note.length <= 200 && (
+              <p className="note-warning">即将达到字数上限</p>
             )}
           </div>
 

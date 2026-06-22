@@ -71,37 +71,48 @@ const TrendChart: React.FC<TrendChartProps> = ({ refreshTrigger }) => {
       return {
         ...trend,
         formattedDate,
-        avgIntensity: Math.round(trend.avgIntensity * 10) / 10
+        avgIntensity: Math.round(trend.avgIntensity * 10) / 10,
+        ...trend.emotionCounts
       };
     });
   }, [trends]);
 
   const emotions = Object.entries(emotionConfigs) as [EmotionType, typeof emotionConfigs[EmotionType]][];
 
-  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; color: string; dataKey: string }>; label?: string }) => {
+  const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number; color: string; dataKey: string; name?: string }>; label?: string }) => {
     if (!active || !payload || !payload.length) return null;
     return (
       <div className="custom-tooltip">
-        <p className="tooltip-date">{label}</p>
-        {payload.map((entry, index) => (
-          <p key={index} className="tooltip-item" style={{ color: entry.color }}>
-            {entry.dataKey}: {entry.value}
-          </p>
-        ))}
+        <p className="tooltip-date">📅 {label}</p>
+        {payload.map((entry, index) => {
+          const emotionType = entry.dataKey as EmotionType;
+          const config = emotionConfigs[emotionType];
+          const displayName = entry.dataKey === 'avgIntensity' ? '情绪指数' : config?.label || entry.name || entry.dataKey;
+          const emoji = entry.dataKey === 'avgIntensity' ? '📊' : config?.emoji;
+          return (
+            <p key={index} className="tooltip-item" style={{ color: entry.color }}>
+              <span className="tooltip-emoji">{emoji}</span>
+              <span className="tooltip-name">{displayName}:</span>
+              <span className="tooltip-value">{typeof entry.value === 'number' ? entry.value.toFixed(1) : entry.value}</span>
+            </p>
+          );
+        })}
       </div>
     );
   };
 
-  const renderLegend = (props: { payload?: Array<{ dataKey?: string | number; color?: string; value?: string }> }) => {
-    const { payload } = props;
+  const renderLegend = (props: unknown) => {
+    const payload = (props as { payload?: Array<{ dataKey?: unknown; color?: string; value?: string }> }).payload;
     if (!payload) return null;
     return (
       <div className="custom-legend">
         {payload.map((entry, index) => {
           const dataKey = String(entry.dataKey || '');
+          if (dataKey === 'avgIntensity') return null;
           const emotionType = dataKey as EmotionType;
           const isHidden = hiddenEmotions.has(emotionType);
           const config = emotionConfigs[emotionType];
+          if (!config) return null;
           return (
             <button
               key={index}
@@ -109,9 +120,9 @@ const TrendChart: React.FC<TrendChartProps> = ({ refreshTrigger }) => {
               onClick={() => toggleEmotion(emotionType)}
               type="button"
             >
-              <span className="legend-emoji">{config?.emoji || ''}</span>
+              <span className="legend-emoji">{config.emoji}</span>
               <span className="legend-text" style={{ color: entry.color }}>
-                {config?.label || dataKey}
+                {config.label}
               </span>
             </button>
           );
@@ -184,14 +195,16 @@ const TrendChart: React.FC<TrendChartProps> = ({ refreshTrigger }) => {
                   <Line
                     key={type}
                     type="monotone"
-                    dataKey={(data) => data.emotionCounts[type] || 0}
+                    dataKey={type}
                     stroke={config.color}
                     strokeWidth={2}
-                    dot={false}
+                    dot={{ r: 3, fill: config.color }}
+                    activeDot={{ r: 5, fill: config.color, strokeWidth: 2, stroke: '#fff' }}
                     name={config.label}
                     hide={hiddenEmotions.has(type)}
-                    animationDuration={800}
+                    animationDuration={1000}
                     animationEasing="ease-out"
+                    animationBegin={100}
                   />
                 ))}
 

@@ -232,6 +232,20 @@
   animation: fadeIn 0.3s ease-out;
 }
 
+.note-error {
+  font-size: 0.75rem;
+  color: #FF5252;
+  margin: 6px 0 0 0;
+  font-weight: 600;
+  animation: shake 0.4s ease-out;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
 .errors-container {
   margin-bottom: 16px;
 }

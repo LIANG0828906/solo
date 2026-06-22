@@ -118,18 +118,17 @@ const CalendarHeatmap: React.FC<CalendarHeatmapProps> = ({ refreshTrigger }) => 
   const getIntensityColor = useCallback((summary: DailyEmotionSummary | undefined): string => {
     if (!summary || summary.records.length === 0) return 'rgba(255, 255, 255, 0.3)';
     
-    const intensity = summary.avgIntensity;
-    const dominantEmotion = summary.dominantEmotion;
-    const config = emotionConfigs[dominantEmotion];
-    const baseColor = config.color;
+    const intensity = Math.max(0, Math.min(10, summary.avgIntensity));
+    const ratio = intensity / 10;
     
-    const r = parseInt(baseColor.slice(1, 3), 16);
-    const g = parseInt(baseColor.slice(3, 5), 16);
-    const b = parseInt(baseColor.slice(5, 7), 16);
+    const startColor = { r: 232, g: 245, b: 233 };
+    const endColor = { r: 27, g: 94, b: 32 };
     
-    const alpha = 0.15 + (intensity / 10) * 0.75;
+    const r = Math.round(startColor.r + (endColor.r - startColor.r) * ratio);
+    const g = Math.round(startColor.g + (endColor.g - startColor.g) * ratio);
+    const b = Math.round(startColor.b + (endColor.b - startColor.b) * ratio);
     
-    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+    return `rgb(${r}, ${g}, ${b})`;
   }, []);
 
   const formatMonthYear = (date: Date): string => {

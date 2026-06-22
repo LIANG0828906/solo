@@ -4,27 +4,27 @@ import './ExportButton.css';
 
 const ExportButton: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
+  const [showToast, setShowToast] = useState(false);
 
   const handleExport = useCallback(async () => {
     if (isLoading) return;
 
     setIsLoading(true);
-    setShowSuccess(false);
+    setShowToast(false);
 
     try {
       const now = new Date();
       const records = await storageService.getRecordsByMonth(now.getFullYear(), now.getMonth());
       
-      await new Promise(resolve => setTimeout(resolve, 500));
+      await new Promise(resolve => setTimeout(resolve, 800));
       
       const jsonData = storageService.exportToJson(records);
       const filename = `emotion-records-${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}.json`;
       
       storageService.downloadJson(jsonData, filename);
       
-      setShowSuccess(true);
-      setTimeout(() => setShowSuccess(false), 2000);
+      setShowToast(true);
+      setTimeout(() => setShowToast(false), 3000);
     } catch (err) {
       console.error('导出失败:', err);
     } finally {
@@ -33,11 +33,12 @@ const ExportButton: React.FC = () => {
   }, [isLoading]);
 
   return (
-    <div className="export-container">
+    <div className="export-wrapper">
       <button
         className="export-button"
         onClick={handleExport}
         disabled={isLoading}
+        type="button"
       >
         {isLoading ? (
           <span className="export-loading">
@@ -51,11 +52,14 @@ const ExportButton: React.FC = () => {
           </span>
         )}
       </button>
-      
-      {showSuccess && (
-        <span className="export-success">
-          ✓ 下载成功！
-        </span>
+
+      {showToast && (
+        <div className="toast-container">
+          <div className="toast toast-success">
+            <span className="toast-icon">✓</span>
+            <span className="toast-message">下载成功！</span>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -120,13 +120,16 @@ export async function getMoodTrends(days: number): Promise<MoodTrend[]> {
 export function generateSuggestions(records: EmotionRecord[]): Suggestion[] {
   const suggestions: Suggestion[] = [];
   
-  if (records.length === 0) {
+  const uniqueDates = new Set(records.map(r => r.date));
+  const hasEnoughData = uniqueDates.size >= 7;
+
+  if (!hasEnoughData) {
     return [
       {
         id: uuidv4(),
-        title: '开始记录心情',
-        description: '记录您的第一条情绪，开启自我觉察之旅。每天只需几分钟，了解自己的情绪模式。',
-        icon: '🌟',
+        title: '记录更多情绪数据',
+        description: '为了获得更个性化的建议，请继续记录您的情绪。建议连续记录7天以上，以便系统更准确地分析您的情绪模式。',
+        icon: '📊',
         category: 'activity'
       },
       {
@@ -157,36 +160,67 @@ export function generateSuggestions(records: EmotionRecord[]): Suggestion[] {
   const angryRatio = (emotionCounts.angry || 0) / totalRecords;
   const happyRatio = (emotionCounts.happy || 0) / totalRecords;
   const calmRatio = (emotionCounts.calm || 0) / totalRecords;
+  const surprisedRatio = (emotionCounts.surprised || 0) / totalRecords;
 
-  if (anxiousRatio > 0.3) {
+  const sortedRecords = [...records].sort((a, b) => a.timestamp - b.timestamp);
+  const dailyIntensities = new Map<string, number[]>();
+  sortedRecords.forEach(r => {
+    const existing = dailyIntensities.get(r.date) || [];
+    existing.push(emotionConfigs[r.emotion].intensity);
+    dailyIntensities.set(r.date, existing);
+  });
+
+  const dailyAvgs = Array.from(dailyIntensities.values()).map(
+    arr => arr.reduce((a, b) => a + b, 0) / arr.length
+  );
+  
+  let fluctuationSum = 0;
+  for (let i = 1; i < dailyAvgs.length; i++) {
+    fluctuationSum += Math.abs(dailyAvgs[i] - dailyAvgs[i - 1]);
+  }
+  const fluctuation = dailyAvgs.length > 1 ? fluctuationSum / (dailyAvgs.length - 1) : 0;
+
+  const negativeRatio = sadRatio + angryRatio + anxiousRatio;
+  const lowIntensityCount = dailyAvgs.filter(avg => avg < 5).length;
+  const consecutiveLow = lowIntensityCount >= 3;
+
+  if (consecutiveLow || sadRatio > 0.35) {
     suggestions.push({
       id: uuidv4(),
-      title: '尝试冥想放松',
-      description: '您近期焦虑情绪较多，试试每天花5分钟进行深呼吸冥想。找一个安静的地方，专注于呼吸的节奏。',
+      title: '建议尝试户外活动或与朋友交流',
+      description: '您近期情绪持续低落，建议多到户外走走，晒晒太阳。试着联系一位好久不见的朋友聊聊天，或者参加一些轻松的社交活动。',
+      icon: '🌳',
+      category: 'activity'
+    });
+  } else if (fluctuation > 3 || surprisedRatio > 0.25) {
+    suggestions.push({
+      id: uuidv4(),
+      title: '尝试冥想或深呼吸练习',
+      description: '您的情绪波动较大，建议每天进行10分钟冥想或深呼吸练习。这有助于稳定情绪，提高情绪调节能力。',
       icon: '🧘',
       category: 'relaxation'
     });
-  } else if (sadRatio > 0.3) {
+  } else if (anxiousRatio > 0.3) {
     suggestions.push({
       id: uuidv4(),
-      title: '记录感恩小事',
-      description: '情绪低落时，试着写下今天发生的3件值得感恩的小事。即使是阳光、一杯热茶这样的小事也可以。',
-      icon: '🙏',
-      category: 'reflection'
-    });
-  } else if (angryRatio > 0.2) {
-    suggestions.push({
-      id: uuidv4(),
-      title: '情绪暂停技巧',
-      description: '感到愤怒时，尝试6秒暂停法：深呼吸6次，或者离开当前环境10分钟。这能帮助您从情绪脑切换到理性脑。',
-      icon: '⏸️',
+      title: '渐进式肌肉放松',
+      description: '您近期焦虑情绪较多，试试渐进式肌肉放松：从脚趾开始，依次绷紧和放松每个肌肉群，直到头部。每天练习15分钟。',
+      icon: '�',
       category: 'relaxation'
+    });
+  } else if (angryRatio > 0.25) {
+    suggestions.push({
+      id: uuidv4(),
+      title: '情绪日记写作',
+      description: '当感到愤怒时，尝试写下来：是什么触发了情绪？身体有什么感受？想做出什么反应？书写能帮助您从情绪中抽离。',
+      icon: '📝',
+      category: 'reflection'
     });
   } else if (happyRatio > 0.4) {
     suggestions.push({
       id: uuidv4(),
       title: '延续快乐时光',
-      description: '您近期心情很好！尝试记录下是什么让您感到快乐，将这些积极的活动融入日常生活中。',
+      description: '您近期心情很好！尝试记录下是什么让您感到快乐，将这些积极的活动融入日常生活中，与他人分享您的快乐。',
       icon: '🎉',
       category: 'activity'
     });
@@ -201,10 +235,28 @@ export function generateSuggestions(records: EmotionRecord[]): Suggestion[] {
   } else {
     suggestions.push({
       id: uuidv4(),
-      title: '情绪日记写作',
-      description: '尝试在记录情绪时多写一些细节，不仅记录感受，也记录当时的情境和您的反应。这有助于自我理解。',
-      icon: '📝',
+      title: '探索情绪深层原因',
+      description: '尝试在记录情绪时多写一些细节：当时发生了什么？您想到了什么？身体有什么感受？这有助于深入理解自己的情绪模式。',
+      icon: '�',
       category: 'reflection'
+    });
+  }
+
+  if (negativeRatio > 0.5) {
+    suggestions.push({
+      id: uuidv4(),
+      title: '培养积极思维',
+      description: '每天结束时，写下3件当天顺利或美好的事情，即使很小。积极心理学研究表明，这个练习能有效改善长期情绪状态。',
+      icon: '✨',
+      category: 'reflection'
+    });
+  } else {
+    suggestions.push({
+      id: uuidv4(),
+      title: '保持规律作息',
+      description: '规律的睡眠和饮食对情绪稳定非常重要。建议保持固定的起床和睡觉时间，均衡饮食，适量饮水。',
+      icon: '😴',
+      category: 'activity'
     });
   }
 
@@ -213,14 +265,6 @@ export function generateSuggestions(records: EmotionRecord[]): Suggestion[] {
     title: '轻度运动释放',
     description: '每天进行15-30分钟的轻度运动，如散步、瑜伽或伸展。运动能有效改善情绪，释放压力激素。',
     icon: '🏃',
-    category: 'activity'
-  });
-
-  suggestions.push({
-    id: uuidv4(),
-    title: '建立社交连接',
-    description: '主动与朋友或家人交流，分享您的感受。良好的社会支持是情绪健康的重要保障。',
-    icon: '👥',
     category: 'activity'
   });
 
