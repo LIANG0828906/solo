@@ -1,6 +1,16 @@
 {
   "trips": [
     {
+      "id": "id-1782090749108-aarln6qfs",
+      "title": "???????",
+      "destination": "?????",
+      "startDate": "2025-12-20",
+      "endDate": "2025-12-27",
+      "coverImage": "",
+      "description": "?????????",
+      "days": []
+    },
+    {
       "id": "trip-001",
       "title": "东京五日游",
       "destination": "日本东京",
@@ -18,7 +28,7 @@
               "place": "成田国际机场",
               "description": "抵达东京，机场接机",
               "notes": "T2航站楼到达",
-              "lat": 35.7720,
+              "lat": 35.772,
               "lng": 140.3929
             },
             {
@@ -128,7 +138,7 @@
               "place": "成田国际机场",
               "description": "返程航班",
               "notes": "提前3小时到机场",
-              "lat": 35.7720,
+              "lat": 35.772,
               "lng": 140.3929
             }
           ]
@@ -162,7 +172,7 @@
               "place": "库塔海滩",
               "description": "酒店入住，海滩漫步",
               "notes": "看日落",
-              "lat": -8.7210,
+              "lat": -8.721,
               "lng": 115.1666
             }
           ]

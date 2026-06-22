@@ -87,15 +87,25 @@ function TripBoard({
 
       {trips.length === 0 ? (
         <div className="empty-state fade-in">
-          <div className="empty-icon">🌍</div>
-          <h3>还没有旅行计划</h3>
-          <p>点击上方「新建旅行」按钮，开始规划你的下一次冒险吧！</p>
-          <button
-            className="empty-create-btn"
-            onClick={() => setShowCreateModal(true)}
-          >
-            创建第一个旅行计划
-          </button>
+          <div className="empty-state-card">
+            <div className="empty-icon-wrap">
+              <span className="empty-icon">🧳</span>
+            </div>
+            <h3>开始你的第一段旅程吧</h3>
+            <p>还没有任何旅行计划？点击下方按钮，开启你的旅行规划之旅，记录每一段精彩的冒险。</p>
+            <button
+              className="empty-create-btn"
+              onClick={() => setShowCreateModal(true)}
+            >
+              <span className="btn-icon">✈️</span>
+              创建第一个旅行计划
+            </button>
+            <div className="empty-tips">
+              <span className="tip-item">🗺️ 记录旅行目的地</span>
+              <span className="tip-item">📅 规划每日行程</span>
+              <span className="tip-item">📍 地图标注地点</span>
+            </div>
+          </div>
         </div>
       ) : (
         <div className="trip-grid">
@@ -108,10 +118,11 @@ function TripBoard({
             >
               <div className="card-cover">
                 {trip.coverImage ? (
-                  <img src={trip.coverImage} alt={trip.title} />
+                  <img src={trip.coverImage} alt={trip.title} className="cover-img" />
                 ) : (
                   <div className="cover-placeholder">
-                    <span>🗺️</span>
+                    <div className="cover-gradient"></div>
+                    <span className="cover-icon">🗺️</span>
                   </div>
                 )}
                 <button
@@ -126,12 +137,19 @@ function TripBoard({
                   {highlightText(trip.title, searchQuery)}
                 </h3>
                 <p className="card-destination">
-                  📍 {highlightText(trip.destination, searchQuery)}
+                  <span className="dest-icon">📍</span>
+                  <span className="dest-text">{highlightText(trip.destination, searchQuery)}</span>
                 </p>
                 <div className="card-dates">
-                  <span className="date-badge">{trip.startDate}</span>
-                  <span className="date-arrow">→</span>
-                  <span className="date-badge">{trip.endDate}</span>
+                  <svg className="cal-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                    <line x1="16" y1="2" x2="16" y2="6"></line>
+                    <line x1="8" y1="2" x2="8" y2="6"></line>
+                    <line x1="3" y1="10" x2="21" y2="10"></line>
+                  </svg>
+                  <span className="date-range">{trip.startDate}</span>
+                  <span className="date-sep">—</span>
+                  <span className="date-range">{trip.endDate}</span>
                 </div>
                 {trip.description && (
                   <p className="card-desc">{trip.description}</p>
