@@ -1,4 +1,5 @@
-import { TerrainModel, FaultType, FaultParameters } from './terrainModel';
+import * as THREE from 'three';
+import { TerrainModel, FaultType, FaultParameters, LAYER_COLORS } from './terrainModel';
 
 export interface FaultDescription {
   title: string;
@@ -43,6 +44,18 @@ export class FaultAnimator {
   private targetDisplacement: number;
   private targetSlipSpeed: number;
 
+  private hasTriggeredParticles = false;
+
+  public sliceScene: THREE.Scene;
+  public sliceCamera: THREE.OrthographicCamera;
+  public sliceRenderer: THREE.WebGLRenderer;
+
+  private sliceMesh: THREE.Mesh | null = null;
+  private sliceFaultLine: THREE.Line | null = null;
+  private clippingPlane: THREE.Plane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
+  private activeType: FaultType | null = null;
+
   constructor(terrain: TerrainModel) {
     this.terrain = terrain;
     this.currentParams = terrain.getParameters();
@@ -52,6 +65,11 @@ export class FaultAnimator {
     this.targetDip = this.smoothedDip;
     this.targetDisplacement = this.smoothedDisplacement;
     this.targetSlipSpeed = this.smoothedSlipSpeed;
+
+    this.sliceScene = new THREE.Scene();
+    this.sliceCamera = new THREE.OrthographicCamera(-4, 4, 3.5, -3.5, 0.1, 1000);
+    this.sliceCamera.position.z = 5;
+    this.sliceRenderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
   }
 
   public onProgress(callback: ProgressCallback): void {
@@ -69,6 +87,7 @@ export class FaultAnimator {
       return;
     }
     this.animating = true;
+    this.activeType = type;
 
     this.terrain.reset();
     this.currentParams.type = type;
@@ -76,8 +95,7 @@ export class FaultAnimator {
 
     await this.delay(50);
 
-    this.terrain.triggerShake();
-    this.terrain.emitParticles();
+    this.hasTriggeredParticles = false;
 
     this.terrain.setProgress(1, true);
 
@@ -91,6 +109,13 @@ export class FaultAnimator {
         const elapsed = performance.now() - startTime;
         const t = Math.min(1, elapsed / duration);
         const eased = this.easeOutCubic(t);
+
+        if (eased >= 0.8 && !this.hasTriggeredParticles) {
+          this.hasTriggeredParticles = true;
+          this.terrain.triggerShake();
+          this.terrain.emitParticles();
+        }
+
         this.emitProgress(startProgress + (1 - startProgress) * eased);
 
         if (this.terrain.getProgress() < 0.999) {
@@ -124,6 +149,33 @@ export class FaultAnimator {
     this.terrain.setParameters({ slipSpeed: value });
   }
 
+  public updateParameters(params: Partial<FaultParameters>): void {
+    const currentProgress = this.terrain.getProgress();
+    this.currentParams = { ...this.currentParams, ...params };
+    this.terrain.setParameters(params);
+
+    if (currentProgress > 0) {
+      this.terrain.applyFault(currentProgress);
+    }
+
+    if (params.dipAngle !== undefined) {
+      this.targetDip = params.dipAngle;
+      this.smoothedDip = params.dipAngle;
+    }
+    if (params.displacement !== undefined) {
+      this.targetDisplacement = params.displacement;
+      this.smoothedDisplacement = params.displacement;
+    }
+    if (params.slipSpeed !== undefined) {
+      this.targetSlipSpeed = params.slipSpeed;
+      this.smoothedSlipSpeed = params.slipSpeed;
+    }
+
+    if (this.activeType !== null) {
+      this.updateSliceView();
+    }
+  }
+
   public getParameters(): FaultParameters {
     return { ...this.currentParams };
   }
@@ -135,6 +187,107 @@ export class FaultAnimator {
       displacement: this.smoothedDisplacement,
       slipSpeed: this.smoothedSlipSpeed
     };
+  }
+
+  public initSliceView(canvas: HTMLCanvasElement): void {
+    this.sliceRenderer.setSize(canvas.clientWidth, canvas.clientHeight);
+    this.sliceRenderer.setPixelRatio(window.devicePixelRatio);
+    canvas.appendChild(this.sliceRenderer.domElement);
+
+    this.clippingPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+    this.sliceScene.add(ambientLight);
+
+    const directionalLight = new THREE.DirectionalLight(0xffffff, 0.6);
+    directionalLight.position.set(2, 3, 5);
+    this.sliceScene.add(directionalLight);
+
+    this.updateSliceView();
+  }
+
+  public updateSliceView(): void {
+    if (this.sliceMesh) {
+      this.sliceScene.remove(this.sliceMesh);
+      this.sliceMesh.geometry.dispose();
+      (this.sliceMesh.material as THREE.Material).dispose();
+    }
+    if (this.sliceFaultLine) {
+      this.sliceScene.remove(this.sliceFaultLine);
+      this.sliceFaultLine.geometry.dispose();
+      (this.sliceFaultLine.material as THREE.Material).dispose();
+    }
+
+    const dipRad = THREE.MathUtils.degToRad(this.currentParams.dipAngle);
+    this.clippingPlane.normal.set(Math.sin(dipRad), Math.cos(dipRad), 0);
+
+    const sliceGeometry = this.terrain.getSliceGeometry();
+
+    const sliceMaterial = new THREE.MeshStandardMaterial({
+      vertexColors: true,
+      side: THREE.DoubleSide,
+      roughness: 0.9,
+      metalness: 0.05
+    });
+
+    this.sliceMesh = new THREE.Mesh(sliceGeometry, sliceMaterial);
+    this.sliceScene.add(this.sliceMesh);
+
+    const faultLineGeometry = new THREE.BufferGeometry();
+    const faultLinePositions: number[] = [];
+    const halfH = 2.5;
+    const halfW = 3;
+    const tanDip = Math.tan(dipRad);
+    const progress = this.terrain.getProgress();
+    const maxDisp = this.currentParams.displacement * 1.5;
+
+    for (let i = 0; i <= 50; i++) {
+      const t = i / 50;
+      const y = -halfH + t * 5;
+      const x = (y + halfH) / tanDip - halfW;
+
+      let offsetX = 0;
+      let offsetY = 0;
+
+      if (this.currentParams.type === 'normal') {
+        if (x < (y + halfH) / tanDip - halfW) {
+          offsetY = -maxDisp * progress * Math.cos(dipRad);
+          offsetX = -maxDisp * progress * Math.sin(dipRad);
+        }
+      } else if (this.currentParams.type === 'reverse') {
+        if (x < (y + halfH) / tanDip - halfW) {
+          offsetY = maxDisp * progress * Math.cos(dipRad) * 0.7;
+          offsetX = maxDisp * progress * Math.sin(dipRad);
+        }
+      } else if (this.currentParams.type === 'strike-slip') {
+        if (x < 0) {
+          offsetX = maxDisp * progress * 0.4;
+        } else {
+          offsetX = -maxDisp * progress * 0.4;
+        }
+      }
+
+      faultLinePositions.push(x + offsetX, y + offsetY, 0.01);
+    }
+
+    faultLineGeometry.setAttribute('position', new THREE.Float32BufferAttribute(faultLinePositions, 3));
+
+    const faultLineMaterial = new THREE.LineBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0.9,
+      linewidth: 2
+    });
+
+    this.sliceFaultLine = new THREE.Line(faultLineGeometry, faultLineMaterial);
+    this.sliceFaultLine.renderOrder = 999;
+    this.sliceScene.add(this.sliceFaultLine);
+
+    this.renderSlice();
+  }
+
+  private renderSlice(): void {
+    this.sliceRenderer.render(this.sliceScene, this.sliceCamera);
   }
 
   public update(dt: number): void {

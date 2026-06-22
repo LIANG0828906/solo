@@ -17,7 +17,7 @@ interface LayerData {
   thickness: number;
 }
 
-const LAYER_COLORS = [
+export const LAYER_COLORS = [
   0xe8b86d, 0xdaa65a, 0xc9924a, 0xc97b4b, 0xb8683a,
   0xa85730, 0x964825, 0x8b4423, 0x7c3a1e, 0x6b4423,
   0x7a5235, 0x8b6140, 0x7b5838, 0x6a4a2d, 0x5a3e25,
@@ -31,6 +31,7 @@ export class TerrainModel {
   public faultLine: THREE.Line;
   public faultGlow: THREE.Mesh;
   public particles: THREE.Points;
+  public faultEdgeLines: THREE.LineSegments;
 
   private readonly layerCount: number;
   private readonly verticesPerLayer: number;
@@ -64,6 +65,7 @@ export class TerrainModel {
     this.faultLine = this.createFaultLine();
     this.faultGlow = this.createFaultGlow();
     this.particles = this.createParticles();
+    this.faultEdgeLines = this.createFaultEdgeLines();
     this.particleVelocities = new Float32Array(this.particleCount * 3);
     this.particleLifetimes = new Float32Array(this.particleCount);
 
@@ -71,6 +73,7 @@ export class TerrainModel {
     this.group.add(this.faultGlow);
     this.group.add(this.faultLine);
     this.group.add(this.particles);
+    this.group.add(this.faultEdgeLines);
   }
 
   private createFaultLine(): THREE.Line {
@@ -185,6 +188,41 @@ export class TerrainModel {
     return new THREE.Points(geometry, material);
   }
 
+  private createFaultEdgeLines(): THREE.LineSegments {
+    const geometry = new THREE.BufferGeometry();
+    const edgeCount = this.layerCount * 2;
+    const segmentsPerEdge = 30;
+    const positions = new Float32Array(edgeCount * segmentsPerEdge * 2 * 3);
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+    const material = new THREE.ShaderMaterial({
+      uniforms: {
+        uTime: { value: 0 }
+      },
+      vertexShader: `
+        void main() {
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+      `,
+      fragmentShader: `
+        uniform float uTime;
+        void main() {
+          float pulse = sin(uTime * 4.0) * 0.5 + 0.5;
+          float glow = 0.6 + pulse * 0.4;
+          vec3 color = vec3(1.0, 1.0, 0.95) * glow;
+          gl_FragColor = vec4(color, 1.0);
+        }
+      `,
+      transparent: true,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false
+    });
+
+    const lines = new THREE.LineSegments(geometry, material);
+    lines.renderOrder = 999;
+    return lines;
+  }
+
   private buildLayers(): void {
     const layerThickness = this.totalHeight / this.layerCount;
     const segX = Math.ceil(Math.sqrt(this.verticesPerLayer));
@@ -250,15 +288,40 @@ export class TerrainModel {
     this.shakeTime = 0.5;
   }
 
-  public emitParticles(): void {
+  public emitParticles(type?: FaultType): void {
     const positions = this.particles.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const colors = this.particles.geometry.getAttribute('color') as THREE.BufferAttribute;
     const posArr = positions.array as Float32Array;
+    const colorArr = colors.array as Float32Array;
+    const faultType = type || this.currentParams.type;
     const dipRad = THREE.MathUtils.degToRad(this.currentParams.dipAngle);
     const faultNormalX = Math.sin(dipRad);
     const faultNormalY = Math.cos(dipRad);
 
+    let emitCount: number;
+    let speedMul: number;
+    let normalDir: number;
+    let baseColor: { r: number; g: number; b: number };
+
+    if (faultType === 'normal') {
+      emitCount = 600;
+      speedMul = 1.1;
+      normalDir = -1;
+      baseColor = { r: 1.0, g: 0.75, b: 0.35 };
+    } else if (faultType === 'reverse') {
+      emitCount = 800;
+      speedMul = 1.4;
+      normalDir = 1;
+      baseColor = { r: 1.0, g: 0.55, b: 0.25 };
+    } else {
+      emitCount = 500;
+      speedMul = 1.0;
+      normalDir = 0;
+      baseColor = { r: 0.85, g: 0.7, b: 0.4 };
+    }
+
     let emitted = 0;
-    for (let i = 0; i < this.particleCount && emitted < 800; i++) {
+    for (let i = 0; i < this.particleCount && emitted < emitCount; i++) {
       if (this.particleLifetimes[i] <= 0) {
         const t = Math.random();
         const y = -this.totalHeight / 2 + t * this.totalHeight;
@@ -268,16 +331,29 @@ export class TerrainModel {
         posArr[i * 3 + 1] = y + (Math.random() - 0.5) * 0.1;
         posArr[i * 3 + 2] = (Math.random() - 0.5) * this.blockDepth * 0.8;
 
-        const spread = 2.5;
-        this.particleVelocities[i * 3] = (Math.random() - 0.5) * spread + faultNormalX * 1.2;
-        this.particleVelocities[i * 3 + 1] = Math.random() * spread * 0.8 + 0.8;
-        this.particleVelocities[i * 3 + 2] = (Math.random() - 0.5) * spread;
+        const colorVar = Math.random() * 0.2;
+        colorArr[i * 3] = Math.min(1.0, baseColor.r + colorVar);
+        colorArr[i * 3 + 1] = Math.min(1.0, baseColor.g + colorVar * 0.8);
+        colorArr[i * 3 + 2] = Math.min(1.0, baseColor.b + colorVar * 0.5);
+
+        const spread = 2.5 * speedMul;
+        if (faultType === 'strike-slip') {
+          const side = Math.random() > 0.5 ? 1 : -1;
+          this.particleVelocities[i * 3] = side * (Math.random() * 1.5 + 1.0) * speedMul;
+          this.particleVelocities[i * 3 + 1] = Math.random() * 0.5 * speedMul;
+          this.particleVelocities[i * 3 + 2] = (Math.random() - 0.5) * spread;
+        } else {
+          this.particleVelocities[i * 3] = (Math.random() - 0.5) * spread + faultNormalX * normalDir * 1.2 * speedMul;
+          this.particleVelocities[i * 3 + 1] = Math.random() * spread * 0.8 + 0.8 * speedMul;
+          this.particleVelocities[i * 3 + 2] = (Math.random() - 0.5) * spread;
+        }
 
         this.particleLifetimes[i] = 0.8 + Math.random() * 0.7;
         emitted++;
       }
     }
     positions.needsUpdate = true;
+    colors.needsUpdate = true;
   }
 
   public setParameters(params: Partial<FaultParameters>): void {
@@ -303,6 +379,7 @@ export class TerrainModel {
     this.applyFault(0);
     (this.faultGlow.material as THREE.ShaderMaterial).uniforms.uOpacity.value = 0;
     this.faultGlow.visible = false;
+    this.faultEdgeLines.visible = false;
   }
 
   public applyFault(progress: number): void {
@@ -367,6 +444,7 @@ export class TerrainModel {
     }
 
     this.updateFaultLine(progress);
+    this.updateFaultEdgeLines(progress);
   }
 
   private updateFaultLine(progress: number): void {
@@ -407,6 +485,101 @@ export class TerrainModel {
       this.faultGlow.position.set(0, 0, 0);
       this.faultGlow.rotation.set(0, 0, -dipRad);
       this.faultGlow.scale.set(1, 1.1, 1);
+    }
+  }
+
+  private updateFaultEdgeLines(progress: number): void {
+    const { type, dipAngle, displacement } = this.currentParams;
+    const dipRad = THREE.MathUtils.degToRad(dipAngle);
+    const tanDip = Math.tan(dipRad);
+    const maxDisp = displacement * 1.5;
+
+    const positions = this.faultEdgeLines.geometry.getAttribute('position') as THREE.BufferAttribute;
+    const arr = positions.array as Float32Array;
+    const segmentsPerEdge = 30;
+    const halfH = this.totalHeight / 2;
+    const halfD = this.blockDepth / 2;
+    const layerThickness = this.totalHeight / this.layerCount;
+
+    let vertexIndex = 0;
+
+    for (let layerIdx = 0; layerIdx < this.layerCount; layerIdx++) {
+      const yBase = -halfH + layerIdx * layerThickness;
+      const yTop = yBase + layerThickness;
+
+      for (const zSign of [-1, 1]) {
+        const z = zSign * halfD;
+
+        for (let i = 0; i < segmentsPerEdge; i++) {
+          const t0 = i / segmentsPerEdge;
+          const t1 = (i + 1) / segmentsPerEdge;
+
+          const y0 = yBase + t0 * layerThickness;
+          const y1 = yBase + t1 * layerThickness;
+
+          const x0 = (y0 + halfH) / tanDip - this.blockWidth / 2;
+          const x1 = (y1 + halfH) / tanDip - this.blockWidth / 2;
+
+          const getOffset = (x: number, y: number): [number, number, number] => {
+            const faultXAtY = (y + halfH) / tanDip - this.blockWidth / 2;
+            const isHangingWall = x < faultXAtY;
+            let dx = 0, dy = 0, dz = 0;
+
+            if (type === 'normal') {
+              if (isHangingWall) {
+                dy = -maxDisp * progress * Math.cos(dipRad);
+                dx = -maxDisp * progress * Math.sin(dipRad);
+              }
+            } else if (type === 'reverse') {
+              if (isHangingWall) {
+                dy = maxDisp * progress * Math.cos(dipRad) * 0.7;
+                dx = maxDisp * progress * Math.sin(dipRad);
+              }
+            } else if (type === 'strike-slip') {
+              if (x < 0) {
+                dz = maxDisp * progress * 0.8;
+              } else {
+                dz = -maxDisp * progress * 0.8;
+              }
+            }
+
+            const crackWidth = 0.04 * progress;
+            if (type !== 'strike-slip') {
+              const distToFault = Math.abs(x - faultXAtY);
+              const crackFactor = Math.max(0, 1 - distToFault / 0.3);
+              if (isHangingWall) {
+                dx -= crackWidth * crackFactor;
+              } else {
+                dx += crackWidth * crackFactor;
+              }
+            }
+
+            return [dx, dy, dz];
+          };
+
+          const [dx0, dy0, dz0] = getOffset(x0, y0);
+          const [dx1, dy1, dz1] = getOffset(x1, y1);
+
+          arr[vertexIndex++] = x0 + dx0;
+          arr[vertexIndex++] = y0 + dy0;
+          arr[vertexIndex++] = z + dz0;
+
+          arr[vertexIndex++] = x1 + dx1;
+          arr[vertexIndex++] = y1 + dy1;
+          arr[vertexIndex++] = z + dz1;
+        }
+      }
+    }
+
+    positions.needsUpdate = true;
+    this.faultEdgeLines.geometry.computeBoundingSphere();
+
+    if (progress > 0.01) {
+      this.faultEdgeLines.visible = true;
+      const edgeMat = this.faultEdgeLines.material as THREE.ShaderMaterial;
+      edgeMat.uniforms.uTime.value = this.glowTime;
+    } else {
+      this.faultEdgeLines.visible = false;
     }
   }
 
@@ -512,6 +685,7 @@ export class TerrainModel {
 
     this.glowTime += dt;
     (this.faultGlow.material as THREE.ShaderMaterial).uniforms.uTime.value = this.glowTime;
+    (this.faultEdgeLines.material as THREE.ShaderMaterial).uniforms.uTime.value = this.glowTime;
 
     if (this.shakeTime > 0) {
       this.shakeTime -= dt;

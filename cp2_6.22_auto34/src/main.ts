@@ -20,12 +20,6 @@ class App {
   private bloomPass: UnrealBloomPass;
   private fxaaPass: ShaderPass;
 
-  private sliceScene: THREE.Scene;
-  private sliceCamera: THREE.OrthographicCamera;
-  private sliceRenderer: THREE.WebGLRenderer;
-  private sliceMesh: THREE.Mesh | null = null;
-  private sliceFaultLine: THREE.Line | null = null;
-
   private terrain: TerrainModel;
   private faultAnimator: FaultAnimator;
   private uiPanel: UIPanel;
@@ -35,9 +29,6 @@ class App {
   private frameCount = 0;
   private fpsUpdateInterval = 0;
   private currentFPS = 0;
-
-  private sliceUpdateTimer = 0;
-  private readonly SLICE_UPDATE_INTERVAL = 0.1;
 
   constructor() {
     this.clock = new THREE.Clock();
@@ -53,11 +44,6 @@ class App {
     this.composer.addPass(this.bloomPass);
     this.composer.addPass(this.fxaaPass);
 
-    this.sliceScene = new THREE.Scene();
-    this.sliceScene.background = new THREE.Color(0x1a120a);
-    this.sliceCamera = this.createSliceCamera();
-    this.sliceRenderer = this.createSliceRenderer();
-
     this.setupLighting();
     this.setupGround();
 
@@ -65,6 +51,7 @@ class App {
     this.scene.add(this.terrain.group);
 
     this.faultAnimator = new FaultAnimator(this.terrain);
+    this.faultAnimator.initSliceView(document.getElementById('slice-canvas') as HTMLCanvasElement);
 
     this.uiPanel = new UIPanel({
       onFaultSelect: (type: FaultType) => this.handleFaultSelect(type),
@@ -73,7 +60,6 @@ class App {
       onSlipSpeedChange: (v: number) => this.faultAnimator.setSlipSpeed(v)
     });
 
-    this.setupSliceView();
     this.bindWindowEvents();
     this.start();
   }
@@ -152,34 +138,6 @@ class App {
     return pass;
   }
 
-  private createSliceCamera(): THREE.OrthographicCamera {
-    const aspect = 1;
-    const viewSize = 7;
-    const camera = new THREE.OrthographicCamera(
-      -viewSize * aspect,
-      viewSize * aspect,
-      viewSize,
-      -viewSize,
-      0.1,
-      100
-    );
-    camera.position.set(0, 0, 10);
-    camera.lookAt(0, 0, 0);
-    return camera;
-  }
-
-  private createSliceRenderer(): THREE.WebGLRenderer {
-    const canvas = document.getElementById('slice-canvas') as HTMLCanvasElement;
-    const renderer = new THREE.WebGLRenderer({
-      canvas,
-      antialias: true,
-      alpha: false
-    });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    renderer.outputColorSpace = THREE.SRGBColorSpace;
-    return renderer;
-  }
-
   private setupLighting(): void {
     const ambient = new THREE.AmbientLight(0x5a4a30, 0.55);
     this.scene.add(ambient);
@@ -229,73 +187,6 @@ class App {
     this.scene.add(gridHelper);
   }
 
-  private setupSliceView(): void {
-    const ambient = new THREE.AmbientLight(0xffffff, 0.9);
-    this.sliceScene.add(ambient);
-
-    const dir = new THREE.DirectionalLight(0xffffff, 0.6);
-    dir.position.set(3, 5, 5);
-    this.sliceScene.add(dir);
-
-    this.updateSliceGeometry();
-    this.resizeSliceRenderer();
-  }
-
-  private updateSliceGeometry(): void {
-    if (this.sliceMesh) {
-      this.sliceScene.remove(this.sliceMesh);
-      this.sliceMesh.geometry.dispose();
-      (this.sliceMesh.material as THREE.Material).dispose();
-    }
-    if (this.sliceFaultLine) {
-      this.sliceScene.remove(this.sliceFaultLine);
-      this.sliceFaultLine.geometry.dispose();
-      (this.sliceFaultLine.material as THREE.Material).dispose();
-    }
-
-    const sliceGeo = this.terrain.getSliceGeometry();
-    const sliceMat = new THREE.MeshBasicMaterial({
-      vertexColors: true,
-      side: THREE.DoubleSide
-    });
-    this.sliceMesh = new THREE.Mesh(sliceGeo, sliceMat);
-    this.sliceScene.add(this.sliceMesh);
-
-    const params = this.terrain.getParameters();
-    const dipRad = THREE.MathUtils.degToRad(params.dipAngle);
-    const tanDip = Math.tan(dipRad);
-    const progress = this.terrain.getProgress();
-    const halfH = 2.5;
-    const halfW = 3;
-
-    const linePoints: THREE.Vector3[] = [];
-    const segments = 40;
-    for (let i = 0; i <= segments; i++) {
-      const t = i / segments;
-      const y = -halfH + t * 5;
-      let x = (y + halfH) / tanDip - halfW;
-
-      const faultXAtY = (y + halfH) / tanDip - halfW;
-      const maxDisp = params.displacement * 1.5;
-      if (params.type === 'normal') {
-        x -= maxDisp * progress * Math.sin(dipRad) * 0.5;
-      } else if (params.type === 'reverse') {
-        x += maxDisp * progress * Math.sin(dipRad) * 0.5;
-      }
-
-      linePoints.push(new THREE.Vector3(x, y, 0));
-    }
-    const lineGeo = new THREE.BufferGeometry().setFromPoints(linePoints);
-    const lineMat = new THREE.LineBasicMaterial({
-      color: 0xffffff,
-      linewidth: 2,
-      transparent: true,
-      opacity: 0.95
-    });
-    this.sliceFaultLine = new THREE.Line(lineGeo, lineMat);
-    this.sliceScene.add(this.sliceFaultLine);
-  }
-
   private handleFaultSelect(type: FaultType): void {
     this.faultAnimator.triggerFault(type);
   }
@@ -316,25 +207,6 @@ class App {
       1 / (window.innerHeight * pixelRatio)
     );
     this.bloomPass.resolution.set(window.innerWidth, window.innerHeight);
-
-    this.resizeSliceRenderer();
-  }
-
-  private resizeSliceRenderer(): void {
-    const container = document.querySelector('.slice-container') as HTMLElement;
-    if (!container) return;
-    const rect = container.getBoundingClientRect();
-    const w = Math.max(1, Math.floor(rect.width));
-    const h = Math.max(1, Math.floor(rect.height));
-    this.sliceRenderer.setSize(w, h, false);
-
-    const aspect = w / h;
-    const viewSize = 4;
-    this.sliceCamera.left = -viewSize * aspect;
-    this.sliceCamera.right = viewSize * aspect;
-    this.sliceCamera.top = viewSize;
-    this.sliceCamera.bottom = -viewSize;
-    this.sliceCamera.updateProjectionMatrix();
   }
 
   private updateFPS(dt: number): void {
@@ -363,16 +235,10 @@ class App {
       this.controls.update();
       this.terrain.update(dt);
       this.faultAnimator.update(dt);
+      this.faultAnimator.updateSliceView();
       this.uiPanel.update(dt);
 
-      this.sliceUpdateTimer += dt;
-      if (this.sliceUpdateTimer >= this.SLICE_UPDATE_INTERVAL) {
-        this.sliceUpdateTimer = 0;
-        this.updateSliceGeometry();
-      }
-
       this.composer.render();
-      this.sliceRenderer.render(this.sliceScene, this.sliceCamera);
     };
     animate();
   }
