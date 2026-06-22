@@ -12,6 +12,10 @@ export interface ShoeConfig {
   laceMaterial: MaterialType;
   logoMaterial: MaterialType;
   decalImage: string | null;
+  decalOffsetX: number;
+  decalOffsetY: number;
+  decalScale: number;
+  decalRotation: number;
   shoeModel: number;
 }
 
@@ -35,6 +39,10 @@ export const DEFAULT_CONFIG: ShoeConfig = {
   laceMaterial: 'matte',
   logoMaterial: 'glossy',
   decalImage: null,
+  decalOffsetX: 0,
+  decalOffsetY: 0,
+  decalScale: 1,
+  decalRotation: 0,
   shoeModel: 0,
 };
 

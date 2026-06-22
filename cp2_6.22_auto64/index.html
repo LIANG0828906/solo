@@ -359,6 +359,84 @@
       border: 1px solid var(--border-glass);
     }
 
+    .decal-controls {
+      margin-top: 14px;
+      padding: 14px;
+      border-radius: 10px;
+      border: 1px solid var(--border-glass);
+      background: rgba(30, 34, 56, 0.5);
+      display: none;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .decal-controls.visible {
+      display: flex;
+    }
+
+    .decal-control-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .decal-control-row label {
+      font-size: 11px;
+      color: var(--text-muted);
+      min-width: 44px;
+      font-weight: 500;
+    }
+
+    .decal-control-row input[type="range"] {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.1);
+      outline: none;
+      cursor: pointer;
+      transition: background var(--transition-speed) var(--transition-ease);
+    }
+
+    .decal-control-row input[type="range"]:hover {
+      background: rgba(0, 212, 255, 0.25);
+    }
+
+    .decal-control-row input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #00d4ff;
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+      transition: transform var(--transition-speed) var(--transition-ease);
+    }
+
+    .decal-control-row input[type="range"]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .decal-control-row input[type="range"]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #00d4ff;
+      cursor: pointer;
+      border: none;
+      box-shadow: 0 0 8px rgba(0, 212, 255, 0.5);
+    }
+
+    .decal-control-row .dc-value {
+      font-size: 10px;
+      font-family: 'Orbitron', sans-serif;
+      color: var(--text-secondary);
+      min-width: 36px;
+      text-align: right;
+    }
+
     .decal-remove {
       padding: 4px 10px;
       border-radius: 6px;
@@ -692,6 +770,28 @@
           <div class="decal-preview" id="decal-preview">
             <img id="decal-preview-img" src="" alt="贴花预览" />
             <button class="decal-remove" id="decal-remove">移除</button>
+          </div>
+          <div class="decal-controls" id="decal-controls">
+            <div class="decal-control-row">
+              <label>横向</label>
+              <input type="range" id="decal-offset-x" min="-0.5" max="0.5" step="0.01" value="0" />
+              <span class="dc-value" id="decal-offset-x-val">0</span>
+            </div>
+            <div class="decal-control-row">
+              <label>纵向</label>
+              <input type="range" id="decal-offset-y" min="-0.5" max="0.5" step="0.01" value="0" />
+              <span class="dc-value" id="decal-offset-y-val">0</span>
+            </div>
+            <div class="decal-control-row">
+              <label>缩放</label>
+              <input type="range" id="decal-scale" min="0.3" max="2.5" step="0.05" value="1" />
+              <span class="dc-value" id="decal-scale-val">1.0</span>
+            </div>
+            <div class="decal-control-row">
+              <label>旋转</label>
+              <input type="range" id="decal-rotation" min="-90" max="90" step="1" value="0" />
+              <span class="dc-value" id="decal-rotation-val">0°</span>
+            </div>
           </div>
         </div>
       </div>

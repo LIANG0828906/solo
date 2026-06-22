@@ -11,7 +11,9 @@ import {
   createDecalTexture,
   easeInOutCubic,
   generateSuedeBumpMap,
+  generateSuedeNormalMap,
   generateMeshAlphaMap,
+  generateMeshColorMap,
   lerpColor,
 } from './utils';
 
@@ -25,6 +27,10 @@ interface PartMeshes {
 interface DecalInfo {
   mesh: THREE.Mesh;
   side: 'left' | 'right';
+  baseX: number;
+  baseY: number;
+  baseZ: number;
+  baseSize: { w: number; h: number };
 }
 
 interface TransitionState {
@@ -57,6 +63,10 @@ export class ShoeConfigurator {
   private container: HTMLElement;
   private clock: THREE.Clock;
   private configChangeListeners: ConfigChangeListener[] = [];
+  private cachedSuedeNormal: THREE.CanvasTexture | null = null;
+  private cachedSuedeBump: THREE.CanvasTexture | null = null;
+  private cachedMeshAlpha: THREE.CanvasTexture | null = null;
+  private cachedMeshColor: THREE.CanvasTexture | null = null;
 
   constructor(container: HTMLElement) {
     this.container = container;
@@ -202,13 +212,7 @@ export class ShoeConfigurator {
       });
     }
 
-    this.decalMeshes.forEach((d) => {
-      d.mesh.geometry.dispose();
-      if (d.mesh.material instanceof THREE.Material) {
-        d.mesh.material.dispose();
-      }
-    });
-    this.decalMeshes = [];
+    this.clearDecalMeshes();
 
     this.partMeshes = { upper: [], sole: [], lace: [], logo: [] };
     this.config.shoeModel = modelId;
@@ -254,42 +258,129 @@ export class ShoeConfigurator {
     const materialKey = `${partName}Material` as keyof ShoeConfig;
     const color = hexToThreeColor(this.config[colorKey] as string);
     const materialType = this.config[materialKey] as MaterialType;
-    const preset = getMaterialPreset(materialType);
+    return this.buildMaterial(color, materialType);
+  }
 
+  private buildMaterial(color: THREE.Color, materialType: MaterialType): THREE.MeshPhysicalMaterial {
+    const preset = getMaterialPreset(materialType);
     const matParams: THREE.MeshPhysicalMaterialParameters = {
       ...preset,
-      color,
+      color: color.clone(),
     };
 
     if (materialType === 'suede') {
-      matParams.bumpMap = generateSuedeBumpMap();
-      matParams.bumpScale = 0.06;
+      if (!this.cachedSuedeNormal) this.cachedSuedeNormal = generateSuedeNormalMap();
+      if (!this.cachedSuedeBump) this.cachedSuedeBump = generateSuedeBumpMap();
+      matParams.normalMap = this.cachedSuedeNormal;
+      matParams.normalScale = new THREE.Vector2(0.8, 0.8);
+      matParams.bumpMap = this.cachedSuedeBump;
+      matParams.bumpScale = 0.04;
     }
     if (materialType === 'mesh') {
-      matParams.alphaMap = generateMeshAlphaMap();
-      matParams.transparent = true;
+      if (!this.cachedMeshAlpha) this.cachedMeshAlpha = generateMeshAlphaMap();
+      if (!this.cachedMeshColor) this.cachedMeshColor = generateMeshColorMap();
+      matParams.alphaMap = this.cachedMeshAlpha;
+      matParams.alphaTest = 0.4;
+      matParams.map = this.cachedMeshColor;
       matParams.side = THREE.DoubleSide;
     }
 
     return new THREE.MeshPhysicalMaterial(matParams);
   }
 
+  private modifyVertices(
+    geo: THREE.BufferGeometry,
+    fn: (pos: THREE.Vector3, normal: THREE.Vector3, uv: THREE.Vector2) => void
+  ): void {
+    const posAttr = geo.getAttribute('position') as THREE.BufferAttribute;
+    const normAttr = geo.getAttribute('normal') as THREE.BufferAttribute | undefined;
+    const uvAttr = geo.getAttribute('uv') as THREE.BufferAttribute | undefined;
+    const vec = new THREE.Vector3();
+    const nrm = new THREE.Vector3();
+    const uv = new THREE.Vector2();
+    for (let i = 0; i < posAttr.count; i++) {
+      vec.set(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i));
+      if (normAttr) nrm.set(normAttr.getX(i), normAttr.getY(i), normAttr.getZ(i));
+      if (uvAttr) uv.set(uvAttr.getX(i), uvAttr.getY(i));
+      fn(vec, nrm, uv);
+      posAttr.setXYZ(i, vec.x, vec.y, vec.z);
+      if (normAttr) normAttr.setXYZ(i, nrm.x, nrm.y, nrm.z);
+      if (uvAttr) uvAttr.setXY(i, uv.x, uv.y);
+    }
+    posAttr.needsUpdate = true;
+    if (normAttr) normAttr.needsUpdate = true;
+    if (uvAttr) uvAttr.needsUpdate = true;
+    geo.computeVertexNormals();
+  }
+
+  private buildSoleFromProfile(
+    profile: Array<{ x: number; y: number }>,
+    thickness: number,
+    width: number
+  ): THREE.BufferGeometry {
+    const shape = new THREE.Shape();
+    shape.moveTo(profile[0].x, profile[0].y);
+    for (let i = 1; i < profile.length; i++) {
+      shape.lineTo(profile[i].x, profile[i].y);
+    }
+    shape.lineTo(profile[0].x, profile[0].y);
+
+    const extrudeSettings: THREE.ExtrudeGeometryOptions = {
+      depth: width,
+      bevelEnabled: true,
+      bevelThickness: thickness * 0.15,
+      bevelSize: thickness * 0.15,
+      bevelSegments: 6,
+      curveSegments: 16,
+    };
+
+    const geo = new THREE.ExtrudeGeometry(shape, extrudeSettings);
+    geo.translate(0, 0, -width / 2);
+    geo.rotateY(0);
+    return geo;
+  }
+
+  private buildUpperFromLathe(
+    profile: Array<{ x: number; y: number }>,
+    segments: number = 40,
+    scaleFn?: (angle: number, y: number) => { sx: number; sz: number; dy: number }
+  ): THREE.BufferGeometry {
+    const points = profile.map((p) => new THREE.Vector2(p.x, p.y));
+    const geo = new THREE.LatheGeometry(points, segments);
+    if (scaleFn) {
+      this.modifyVertices(geo, (p) => {
+        const angle = Math.atan2(p.z, p.x);
+        const result = scaleFn(angle, p.y);
+        p.x *= result.sx;
+        p.z *= result.sz;
+        p.y += result.dy;
+      });
+    }
+    return geo;
+  }
+
   private buildRunner(group: THREE.Group): void {
-    const soleGeo = new THREE.BoxGeometry(2.5, 0.18, 1.1, 12, 2, 6);
+    const soleProfile = [
+      { x: -1.2, y: -0.02 },
+      { x: -1.0, y: 0.02 },
+      { x: -0.6, y: 0.08 },
+      { x: 0.0, y: 0.1 },
+      { x: 0.6, y: 0.08 },
+      { x: 1.0, y: 0.02 },
+      { x: 1.25, y: -0.05 },
+      { x: 1.35, y: -0.18 },
+      { x: 1.28, y: -0.28 },
+      { x: 1.0, y: -0.26 },
+      { x: 0.0, y: -0.2 },
+      { x: -1.0, y: -0.24 },
+      { x: -1.25, y: -0.28 },
+      { x: -1.3, y: -0.18 },
+      { x: -1.25, y: -0.06 },
+    ];
+    const soleGeo = this.buildSoleFromProfile(soleProfile, 0.25, 1.05);
     this.modifyVertices(soleGeo, (p) => {
-      p.y -= 0.09;
-      if (p.x > 0.8) {
-        p.y += Math.pow(p.x - 0.8, 2) * 0.4;
-      }
-      if (p.x < -0.9) {
-        p.y += Math.pow(-p.x - 0.9, 2) * 0.3;
-      }
-      if (p.x < -0.95) {
-        p.x += (-p.x - 0.95) * 0.3;
-      }
-      if (p.x > 1.15) {
-        p.x -= (p.x - 1.15) * 0.3;
-      }
+      p.y -= 0.05;
+      p.z *= 1.0;
     });
     const sole = new THREE.Mesh(soleGeo, this.createPartMaterial('sole'));
     sole.castShadow = true;
@@ -297,58 +388,76 @@ export class ShoeConfigurator {
     group.add(sole);
     this.partMeshes.sole.push(sole);
 
-    const midsoleGeo = new THREE.BoxGeometry(2.4, 0.08, 1.05, 12, 2, 6);
-    this.modifyVertices(midsoleGeo, (p) => {
-      p.y += 0.04;
-      if (p.x > 0.8) p.y += Math.pow(p.x - 0.8, 2) * 0.35;
-      if (p.x < -0.9) p.y += Math.pow(-p.x - 0.9, 2) * 0.25;
+    const midsoleCurve = new THREE.CatmullRomCurve3([
+      new THREE.Vector3(-1.1, 0.02, 0),
+      new THREE.Vector3(-0.6, 0.1, 0),
+      new THREE.Vector3(0.0, 0.14, 0),
+      new THREE.Vector3(0.5, 0.12, 0),
+      new THREE.Vector3(1.0, 0.04, 0),
+      new THREE.Vector3(1.25, -0.08, 0),
+    ]);
+    const midsoleTube = new THREE.TubeGeometry(midsoleCurve, 80, 0.07, 12, false);
+    this.modifyVertices(midsoleTube, (p) => {
+      p.z *= 5.2;
     });
-    const midsole = new THREE.Mesh(midsoleGeo, this.createPartMaterial('sole'));
+    const midsole = new THREE.Mesh(midsoleTube, this.createPartMaterial('sole'));
     midsole.castShadow = true;
     group.add(midsole);
     this.partMeshes.sole.push(midsole);
 
-    for (let i = 0; i < 5; i++) {
-      const ridgeGeo = new THREE.BoxGeometry(1.0, 0.03, 0.08);
-      const ridge = new THREE.Mesh(ridgeGeo, this.createPartMaterial('sole'));
-      ridge.position.set(-0.6 + i * 0.3, 0.01, 0.52);
-      group.add(ridge);
-      this.partMeshes.sole.push(ridge);
+    const upperProfile = [
+      { x: 0.05, y: -0.05 },
+      { x: 0.35, y: 0.0 },
+      { x: 0.55, y: 0.2 },
+      { x: 0.6, y: 0.45 },
+      { x: 0.5, y: 0.7 },
+      { x: 0.35, y: 0.85 },
+      { x: 0.2, y: 0.9 },
+      { x: 0.0, y: 0.85 },
+      { x: -0.15, y: 0.72 },
+      { x: -0.25, y: 0.5 },
+      { x: -0.3, y: 0.25 },
+      { x: -0.25, y: 0.0 },
+      { x: -0.1, y: -0.05 },
+    ];
+    const upperGeo = this.buildUpperFromLathe(
+      upperProfile,
+      48,
+      (angle, y) => {
+        const ca = Math.cos(angle);
+        const sa = Math.sin(angle);
+        const sideFactor = Math.abs(sa);
+        let sx = 1.0;
+        let sz = 1.0;
+        let dy = 0;
 
-      const ridge2 = ridge.clone();
-      ridge2.position.z = -0.52;
-      group.add(ridge2);
-      this.partMeshes.sole.push(ridge2);
-    }
-
-    const upperGeo = new THREE.BoxGeometry(2.2, 0.8, 1.0, 10, 6, 6);
+        if (ca > 0) {
+          sx = 1.0 + ca * 1.1;
+          sz = 0.55 + (1.0 - sideFactor) * 0.2;
+          if (y > 0.5) {
+            sx *= Math.max(0.55, 1.0 - (y - 0.5) * 0.8);
+            sz *= Math.max(0.5, 1.0 - (y - 0.5) * 0.9);
+          }
+        } else {
+          sx = 1.0 + Math.abs(ca) * 0.4;
+          sz = 0.55 + (1.0 - sideFactor) * 0.15;
+          dy = -0.15;
+          if (y > 0.55) {
+            sx *= Math.max(0.5, 1.0 - (y - 0.55) * 0.9);
+            sz *= Math.max(0.5, 1.0 - (y - 0.55) * 0.9);
+            dy += (y - 0.55) * 0.3;
+          }
+        }
+        return { sx, sz, dy };
+      }
+    );
     this.modifyVertices(upperGeo, (p) => {
-      p.y += 0.4;
-
-      if (p.x < 0) {
-        p.y += -p.x * 0.15;
-      }
-      if (p.x > 0.6) {
-        p.y -= (p.x - 0.6) * 0.3;
-      }
-
-      if (p.x < -0.8) {
-        p.y += (-p.x - 0.8) * 0.5;
-        p.x += (-p.x - 0.8) * 0.2;
-      }
-
-      if (p.y > 0.7) {
-        p.z *= Math.max(0.5, 1.0 - (p.y - 0.7) * 0.5);
-        p.x *= Math.max(0.6, 1.0 - (p.y - 0.7) * 0.2);
-      }
-
-      if (p.y < -0.1) {
-        p.z *= 1.02;
-      }
-
-      if (p.x > 1.0) {
-        p.x -= (p.x - 1.0) * 0.3;
-        p.y += (p.x - 1.0) * 0.1;
+      p.y += 0.05;
+      const r = Math.sqrt(p.x * p.x + p.z * p.z);
+      if (r < 0.15 && p.y > 0.75) {
+        const keep = Math.max(0, (p.y - 0.75) * 3.0);
+        p.x *= 1.0 - keep * 0.5;
+        p.z *= 1.0 - keep * 0.5;
       }
     });
     const upper = new THREE.Mesh(upperGeo, this.createPartMaterial('upper'));
@@ -356,48 +465,105 @@ export class ShoeConfigurator {
     group.add(upper);
     this.partMeshes.upper.push(upper);
 
-    const toeCapGeo = new THREE.SphereGeometry(0.55, 16, 12, 0, Math.PI * 2, 0, Math.PI / 2);
-    this.modifyVertices(toeCapGeo, (p) => {
-      p.x = p.x * 1.1 + 0.9;
-      p.y = p.y * 0.5 + 0.15;
-      p.z = p.z * 0.95;
+    const toeShape = new THREE.Shape();
+    const toePts = 16;
+    for (let i = 0; i <= toePts; i++) {
+      const t = (i / toePts) * Math.PI;
+      const x = 0.9 + Math.cos(t) * 0.55;
+      const y = Math.sin(t) * 0.42 + 0.0;
+      if (i === 0) toeShape.moveTo(x, y);
+      else toeShape.lineTo(x, y);
+    }
+    const toeGeo = new THREE.ExtrudeGeometry(toeShape, {
+      depth: 1.0,
+      bevelEnabled: true,
+      bevelThickness: 0.06,
+      bevelSize: 0.08,
+      bevelSegments: 6,
+      curveSegments: 12,
     });
-    const toeCap = new THREE.Mesh(toeCapGeo, this.createPartMaterial('upper'));
+    toeGeo.translate(0, 0, -0.5);
+    this.modifyVertices(toeGeo, (p) => {
+      const dist = Math.abs(p.z);
+      if (dist > 0.3) {
+        const shrink = (dist - 0.3) / 0.3;
+        p.x -= shrink * 0.08;
+        p.y -= shrink * 0.06;
+      }
+    });
+    const toeCap = new THREE.Mesh(toeGeo, this.createPartMaterial('upper'));
     toeCap.castShadow = true;
     group.add(toeCap);
     this.partMeshes.upper.push(toeCap);
 
-    const heelCapGeo = new THREE.SphereGeometry(0.5, 16, 10, 0, Math.PI, 0, Math.PI);
-    this.modifyVertices(heelCapGeo, (p) => {
-      p.x = -p.x * 1.0 - 0.85;
-      p.y = p.y * 1.0 + 0.15;
-      p.z = p.z * 0.95;
+    const heelShape = new THREE.Shape();
+    const heelPts = 14;
+    for (let i = 0; i <= heelPts; i++) {
+      const t = (i / heelPts) * Math.PI;
+      const x = -0.85 - Math.cos(t) * 0.55;
+      const y = Math.sin(t) * 0.55 + 0.0;
+      if (i === 0) heelShape.moveTo(x, y);
+      else heelShape.lineTo(x, y);
+    }
+    const heelGeo = new THREE.ExtrudeGeometry(heelShape, {
+      depth: 0.95,
+      bevelEnabled: true,
+      bevelThickness: 0.05,
+      bevelSize: 0.07,
+      bevelSegments: 6,
+      curveSegments: 12,
     });
-    const heelCap = new THREE.Mesh(heelCapGeo, this.createPartMaterial('upper'));
+    heelGeo.translate(0, 0, -0.475);
+    const heelCap = new THREE.Mesh(heelGeo, this.createPartMaterial('upper'));
     heelCap.castShadow = true;
     group.add(heelCap);
     this.partMeshes.upper.push(heelCap);
 
-    const tongueGeo = new THREE.BoxGeometry(0.9, 0.08, 0.9, 8, 2, 6);
+    const tonguePts = [
+      new THREE.Vector3(-0.15, 0.82, 0),
+      new THREE.Vector3(0.05, 0.92, 0),
+      new THREE.Vector3(0.25, 0.9, 0),
+      new THREE.Vector3(0.4, 0.78, 0),
+    ];
+    const tongueCurve = new THREE.CatmullRomCurve3(tonguePts);
+    const tongueGeo = new THREE.TubeGeometry(tongueCurve, 30, 0.05, 10, false);
     this.modifyVertices(tongueGeo, (p) => {
-      p.x *= 1.0;
-      p.y += 0.85;
-      p.z *= 1.0;
-      if (p.x < 0) p.y += (-p.x) * 0.1;
-      if (p.x > 0.3) p.y -= (p.x - 0.3) * 0.2;
+      p.z *= 9.5;
     });
     const tongue = new THREE.Mesh(tongueGeo, this.createPartMaterial('upper'));
     tongue.castShadow = true;
-    tongue.position.x = -0.15;
     group.add(tongue);
     this.partMeshes.upper.push(tongue);
 
-    const collarGeo = new THREE.TorusGeometry(0.42, 0.06, 8, 20, Math.PI);
+    const tongueTopShape = new THREE.Shape();
+    tongueTopShape.moveTo(-0.25, 0.82);
+    tongueTopShape.quadraticCurveTo(0.0, 0.98, 0.3, 0.88);
+    tongueTopShape.lineTo(0.45, 0.78);
+    tongueTopShape.lineTo(-0.2, 0.75);
+    tongueTopShape.lineTo(-0.25, 0.82);
+    const tongueTopGeo = new THREE.ExtrudeGeometry(tongueTopShape, {
+      depth: 0.9,
+      bevelEnabled: true,
+      bevelThickness: 0.02,
+      bevelSize: 0.02,
+      bevelSegments: 3,
+    });
+    tongueTopGeo.translate(0, 0, -0.45);
+    const tongueTop = new THREE.Mesh(tongueTopGeo, this.createPartMaterial('upper'));
+    tongueTop.castShadow = true;
+    group.add(tongueTop);
+    this.partMeshes.upper.push(tongueTop);
+
+    const collarPts: THREE.Vector3[] = [];
+    const collarSegs = 24;
+    for (let i = 0; i <= collarSegs; i++) {
+      const t = (i / collarSegs) * Math.PI;
+      collarPts.push(new THREE.Vector3(-0.85 + Math.cos(t) * 0.45, 0.85 + Math.sin(t) * 0.45, 0));
+    }
+    const collarCurve = new THREE.CatmullRomCurve3(collarPts);
+    const collarGeo = new THREE.TubeGeometry(collarCurve, 32, 0.06, 10, false);
     this.modifyVertices(collarGeo, (p) => {
-      const t = p.x;
-      p.x = -0.85 + Math.cos(t) * 0.42;
-      p.y = 0.85 + Math.sin(t) * 0.42;
-      p.z = p.z;
+      p.z *= 8.0;
     });
     const collar = new THREE.Mesh(collarGeo, this.createPartMaterial('upper'));
     collar.castShadow = true;
@@ -408,7 +574,7 @@ export class ShoeConfigurator {
       const eyeletGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.05, 12);
       const eyeletL = new THREE.Mesh(eyeletGeo, this.createPartMaterial('logo'));
       eyeletL.rotation.x = Math.PI / 2;
-      eyeletL.position.set(-0.1 + i * 0.22, 0.85, 0.48);
+      eyeletL.position.set(-0.05 + i * 0.22, 0.9, 0.48);
       group.add(eyeletL);
       this.partMeshes.logo.push(eyeletL);
 
@@ -419,47 +585,63 @@ export class ShoeConfigurator {
     }
 
     for (let i = 0; i < 4; i++) {
-      const laceGeo = new THREE.BoxGeometry(0.05, 0.03, 0.95);
+      const laceCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-0.05 + i * 0.22, 0.92, 0.48),
+        new THREE.Vector3(-0.05 + i * 0.22 + 0.03, 0.93, 0),
+        new THREE.Vector3(-0.05 + i * 0.22, 0.92, -0.48),
+      ]);
+      const laceGeo = new THREE.TubeGeometry(laceCurve, 20, 0.022, 8, false);
       const lace = new THREE.Mesh(laceGeo, this.createPartMaterial('lace'));
-      lace.position.set(-0.1 + i * 0.22, 0.88, 0);
-      if (i % 2 === 0) {
-        lace.rotation.y = 0.15;
-      } else {
-        lace.rotation.y = -0.15;
-      }
+      lace.castShadow = true;
+      if (i % 2 === 0) lace.rotation.y = 0.12;
+      else lace.rotation.y = -0.12;
       group.add(lace);
       this.partMeshes.lace.push(lace);
     }
 
-    const swooshGeo = new THREE.BoxGeometry(0.9, 0.08, 0.025, 12, 3, 2);
-    this.modifyVertices(swooshGeo, (p) => {
-      const curve = Math.sin(p.x * 2.0) * 0.15;
-      p.y += curve;
-      if (Math.abs(p.x) > 0.4) {
-        p.y *= 1.0 - (Math.abs(p.x) - 0.4) * 1.0;
-      }
+    const swooshShape = new THREE.Shape();
+    swooshShape.moveTo(-0.55, 0.35);
+    swooshShape.bezierCurveTo(-0.3, 0.55, 0.1, 0.48, 0.45, 0.32);
+    swooshShape.bezierCurveTo(0.15, 0.44, -0.2, 0.42, -0.55, 0.28);
+    swooshShape.lineTo(-0.55, 0.35);
+    const swooshGeo = new THREE.ExtrudeGeometry(swooshShape, {
+      depth: 0.02,
+      bevelEnabled: true,
+      bevelThickness: 0.005,
+      bevelSize: 0.008,
+      bevelSegments: 2,
     });
+    swooshGeo.translate(0, 0, 0.51);
     const swoosh = new THREE.Mesh(swooshGeo, this.createPartMaterial('logo'));
-    swoosh.position.set(0.0, 0.4, 0.51);
+    swoosh.castShadow = true;
     group.add(swoosh);
     this.partMeshes.logo.push(swoosh);
 
     const swooshR = swoosh.clone();
     swooshR.position.z = -0.51;
+    swooshR.rotation.y = Math.PI;
     group.add(swooshR);
     this.partMeshes.logo.push(swooshR);
   }
 
   private buildHighTop(group: THREE.Group): void {
-    const soleGeo = new THREE.BoxGeometry(2.3, 0.22, 1.2, 10, 3, 6);
+    const soleProfile = [
+      { x: -1.15, y: -0.02 },
+      { x: -0.8, y: 0.04 },
+      { x: 0.0, y: 0.12 },
+      { x: 0.7, y: 0.1 },
+      { x: 1.05, y: 0.03 },
+      { x: 1.2, y: -0.12 },
+      { x: 1.12, y: -0.3 },
+      { x: 0.5, y: -0.32 },
+      { x: -0.5, y: -0.3 },
+      { x: -1.1, y: -0.3 },
+      { x: -1.18, y: -0.18 },
+      { x: -1.15, y: -0.05 },
+    ];
+    const soleGeo = this.buildSoleFromProfile(soleProfile, 0.3, 1.15);
     this.modifyVertices(soleGeo, (p) => {
-      p.y -= 0.11;
-      if (p.x < -0.9) {
-        p.y += Math.pow(-p.x - 0.9, 2) * 0.2;
-      }
-      if (p.x > 1.0) {
-        p.x -= (p.x - 1.0) * 0.3;
-      }
+      p.y -= 0.05;
     });
     const sole = new THREE.Mesh(soleGeo, this.createPartMaterial('sole'));
     sole.castShadow = true;
@@ -467,95 +649,191 @@ export class ShoeConfigurator {
     group.add(sole);
     this.partMeshes.sole.push(sole);
 
-    const midsoleGeo = new THREE.BoxGeometry(2.25, 0.12, 1.18, 10, 2, 6);
-    this.modifyVertices(midsoleGeo, (p) => {
-      p.y += 0.06;
-    });
-    const midsole = new THREE.Mesh(midsoleGeo, this.createPartMaterial('sole'));
-    midsole.castShadow = true;
-    group.add(midsole);
-    this.partMeshes.sole.push(midsole);
-
     for (let i = 0; i < 3; i++) {
-      const stripGeo = new THREE.BoxGeometry(2.15, 0.025, 1.12);
+      const stripShape = new THREE.Shape();
+      stripShape.moveTo(-1.1, 0.12 + i * 0.05);
+      stripShape.lineTo(1.1, 0.12 + i * 0.05);
+      stripShape.lineTo(1.1, 0.14 + i * 0.05);
+      stripShape.lineTo(-1.1, 0.14 + i * 0.05);
+      const stripGeo = new THREE.ExtrudeGeometry(stripShape, {
+        depth: 1.12,
+        bevelEnabled: false,
+      });
+      stripGeo.translate(0, 0, -0.56);
       const strip = new THREE.Mesh(stripGeo, this.createPartMaterial('sole'));
-      strip.position.set(0, 0.15 + i * 0.05, 0);
+      strip.castShadow = true;
       group.add(strip);
       this.partMeshes.sole.push(strip);
     }
 
-    const upperLowGeo = new THREE.BoxGeometry(2.1, 0.8, 1.1, 10, 6, 6);
-    this.modifyVertices(upperLowGeo, (p) => {
-      p.y += 0.4;
+    const lowerProfile = [
+      { x: 0.05, y: 0.0 },
+      { x: 0.4, y: 0.05 },
+      { x: 0.58, y: 0.3 },
+      { x: 0.58, y: 0.65 },
+      { x: 0.5, y: 0.9 },
+      { x: 0.3, y: 1.0 },
+      { x: 0.0, y: 0.95 },
+      { x: -0.2, y: 0.8 },
+      { x: -0.3, y: 0.55 },
+      { x: -0.3, y: 0.25 },
+      { x: -0.2, y: 0.0 },
+    ];
+    const lowerGeo = this.buildUpperFromLathe(
+      lowerProfile,
+      48,
+      (angle, y) => {
+        const ca = Math.cos(angle);
+        const sa = Math.sin(angle);
+        const sideFactor = Math.abs(sa);
+        let sx = 1.0;
+        let sz = 1.0;
+        let dy = 0;
 
-      if (p.x < -0.7) {
-        p.y += (-p.x - 0.7) * 0.3;
+        if (ca > 0) {
+          sx = 1.0 + ca * 0.95;
+          sz = 0.6 + (1.0 - sideFactor) * 0.15;
+        } else {
+          sx = 1.0 + Math.abs(ca) * 0.35;
+          sz = 0.6 + (1.0 - sideFactor) * 0.1;
+          dy = -0.2;
+        }
+        if (y > 0.8) {
+          const factor = (y - 0.8) / 0.3;
+          sx *= Math.max(0.55, 1.0 - factor * 0.7);
+          sz *= Math.max(0.5, 1.0 - factor * 0.8);
+        }
+        return { sx, sz, dy };
       }
-      if (p.y > 0.7) {
-        p.z *= Math.max(0.55, 1.0 - (p.y - 0.7) * 0.45);
-        p.x *= Math.max(0.65, 1.0 - (p.y - 0.7) * 0.18);
-      }
-    });
-    const upperLow = new THREE.Mesh(upperLowGeo, this.createPartMaterial('upper'));
-    upperLow.castShadow = true;
-    group.add(upperLow);
-    this.partMeshes.upper.push(upperLow);
+    );
+    const lower = new THREE.Mesh(lowerGeo, this.createPartMaterial('upper'));
+    lower.castShadow = true;
+    group.add(lower);
+    this.partMeshes.upper.push(lower);
 
-    const highCollarGeo = new THREE.CylinderGeometry(0.48, 0.55, 0.9, 16, 4, true);
-    this.modifyVertices(highCollarGeo, (p) => {
-      p.y += 1.15;
-      p.x *= 1.15;
-      p.z *= 0.95;
-      if (p.x < -0.1) {
-        p.z *= 1.0 - (-p.x - 0.1) * 0.15;
+    const collarProfile = [
+      { x: 0.05, y: 0.0 },
+      { x: 0.45, y: 0.05 },
+      { x: 0.55, y: 0.3 },
+      { x: 0.52, y: 0.6 },
+      { x: 0.4, y: 0.85 },
+      { x: 0.2, y: 0.95 },
+      { x: -0.05, y: 0.9 },
+      { x: -0.25, y: 0.7 },
+      { x: -0.35, y: 0.45 },
+      { x: -0.35, y: 0.2 },
+      { x: -0.25, y: 0.0 },
+    ];
+    const collarGeo = this.buildUpperFromLathe(
+      collarProfile,
+      36,
+      (angle, y) => {
+        const ca = Math.cos(angle);
+        const sa = Math.sin(angle);
+        const sideFactor = Math.abs(sa);
+        let sx = 1.0;
+        let sz = 1.0;
+        let dy = 1.05;
+        if (ca > 0) {
+          sx = 1.0 + ca * 0.5;
+          sz = 0.62 + (1.0 - sideFactor) * 0.1;
+        } else {
+          sx = 1.0 + Math.abs(ca) * 0.2;
+          sz = 0.62 + (1.0 - sideFactor) * 0.08;
+          dy += -0.25;
+        }
+        if (y > 0.75) {
+          const f = (y - 0.75) / 0.25;
+          sx *= Math.max(0.6, 1.0 - f * 0.6);
+          sz *= Math.max(0.55, 1.0 - f * 0.65);
+        }
+        return { sx, sz, dy };
       }
-    });
-    const highCollar = new THREE.Mesh(highCollarGeo, this.createPartMaterial('upper'));
-    highCollar.castShadow = true;
-    highCollar.position.x = -0.55;
-    group.add(highCollar);
-    this.partMeshes.upper.push(highCollar);
+    );
+    collarGeo.rotateX(0);
+    const collar = new THREE.Mesh(collarGeo, this.createPartMaterial('upper'));
+    collar.castShadow = true;
+    group.add(collar);
+    this.partMeshes.upper.push(collar);
 
-    const topCollarGeo = new THREE.TorusGeometry(0.52, 0.08, 10, 24, Math.PI);
-    this.modifyVertices(topCollarGeo, (p) => {
-      const t = p.x;
-      p.x = -0.55 + Math.cos(t) * 0.52;
-      p.y = 1.6 + Math.sin(t) * 0.52;
-      p.z = p.z;
+    const topPts: THREE.Vector3[] = [];
+    const topSegs = 28;
+    for (let i = 0; i <= topSegs; i++) {
+      const t = (i / topSegs) * Math.PI;
+      topPts.push(new THREE.Vector3(-0.55 + Math.cos(t) * 0.55, 1.55 + Math.sin(t) * 0.42, 0));
+    }
+    const topCurve = new THREE.CatmullRomCurve3(topPts);
+    const topGeo = new THREE.TubeGeometry(topCurve, 36, 0.075, 12, false);
+    this.modifyVertices(topGeo, (p) => {
+      p.z *= 7.6;
     });
-    const topCollar = new THREE.Mesh(topCollarGeo, this.createPartMaterial('upper'));
+    const topCollar = new THREE.Mesh(topGeo, this.createPartMaterial('upper'));
     topCollar.castShadow = true;
     group.add(topCollar);
     this.partMeshes.upper.push(topCollar);
 
-    const toeCapGeo = new THREE.SphereGeometry(0.58, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2);
-    this.modifyVertices(toeCapGeo, (p) => {
-      p.x = p.x * 1.05 + 0.85;
-      p.y = p.y * 0.55 + 0.15;
-      p.z = p.z * 1.0;
+    const toeShape = new THREE.Shape();
+    const toePts = 16;
+    for (let i = 0; i <= toePts; i++) {
+      const t = (i / toePts) * Math.PI;
+      toeShape.moveTo;
+      const x = 0.8 + Math.cos(t) * 0.58;
+      const y = Math.sin(t) * 0.48 - 0.02;
+      if (i === 0) toeShape.moveTo(x, y);
+      else toeShape.lineTo(x, y);
+    }
+    const toeGeo = new THREE.ExtrudeGeometry(toeShape, {
+      depth: 1.1,
+      bevelEnabled: true,
+      bevelThickness: 0.06,
+      bevelSize: 0.08,
+      bevelSegments: 6,
+      curveSegments: 12,
     });
-    const toeCap = new THREE.Mesh(toeCapGeo, this.createPartMaterial('upper'));
+    toeGeo.translate(0, 0, -0.55);
+    const toeCap = new THREE.Mesh(toeGeo, this.createPartMaterial('upper'));
     toeCap.castShadow = true;
     group.add(toeCap);
     this.partMeshes.upper.push(toeCap);
 
-    const heelCounterGeo = new THREE.SphereGeometry(0.55, 16, 10, 0, Math.PI, 0, Math.PI);
-    this.modifyVertices(heelCounterGeo, (p) => {
-      p.x = -p.x - 0.8;
-      p.y = p.y * 1.1 + 0.2;
-      p.z = p.z;
+    const heelShape = new THREE.Shape();
+    const heelPts = 14;
+    for (let i = 0; i <= heelPts; i++) {
+      const t = (i / heelPts) * Math.PI;
+      const x = -0.82 - Math.cos(t) * 0.6;
+      const y = Math.sin(t) * 0.65 - 0.02;
+      if (i === 0) heelShape.moveTo(x, y);
+      else heelShape.lineTo(x, y);
+    }
+    const heelGeo = new THREE.ExtrudeGeometry(heelShape, {
+      depth: 1.05,
+      bevelEnabled: true,
+      bevelThickness: 0.05,
+      bevelSize: 0.07,
+      bevelSegments: 6,
+      curveSegments: 12,
     });
-    const heelCounter = new THREE.Mesh(heelCounterGeo, this.createPartMaterial('upper'));
+    heelGeo.translate(0, 0, -0.525);
+    const heelCounter = new THREE.Mesh(heelGeo, this.createPartMaterial('upper'));
     heelCounter.castShadow = true;
     group.add(heelCounter);
     this.partMeshes.upper.push(heelCounter);
 
-    const ankleStrapGeo = new THREE.BoxGeometry(0.9, 0.15, 1.15, 8, 2, 4);
-    this.modifyVertices(ankleStrapGeo, (p) => {
-      p.y += 1.2;
-      p.x -= 0.2;
+    const strapShape = new THREE.Shape();
+    strapShape.moveTo(-0.7, 1.15);
+    strapShape.lineTo(0.15, 1.2);
+    strapShape.lineTo(0.2, 1.35);
+    strapShape.lineTo(-0.75, 1.3);
+    strapShape.lineTo(-0.7, 1.15);
+    const strapGeo = new THREE.ExtrudeGeometry(strapShape, {
+      depth: 1.15,
+      bevelEnabled: true,
+      bevelThickness: 0.02,
+      bevelSize: 0.02,
+      bevelSegments: 3,
     });
-    const ankleStrap = new THREE.Mesh(ankleStrapGeo, this.createPartMaterial('upper'));
+    strapGeo.translate(0, 0, -0.575);
+    const ankleStrap = new THREE.Mesh(strapGeo, this.createPartMaterial('upper'));
     ankleStrap.castShadow = true;
     group.add(ankleStrap);
     this.partMeshes.upper.push(ankleStrap);
@@ -564,7 +842,7 @@ export class ShoeConfigurator {
       const eyeletGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.05, 12);
       const eyeletL = new THREE.Mesh(eyeletGeo, this.createPartMaterial('logo'));
       eyeletL.rotation.x = Math.PI / 2;
-      eyeletL.position.set(-0.1 + i * 0.2, 0.85 + i * 0.08, 0.54);
+      eyeletL.position.set(-0.05 + i * 0.2, 0.9 + i * 0.1, 0.54);
       group.add(eyeletL);
       this.partMeshes.logo.push(eyeletL);
 
@@ -575,38 +853,63 @@ export class ShoeConfigurator {
     }
 
     for (let i = 0; i < 5; i++) {
-      const laceGeo = new THREE.BoxGeometry(0.05, 0.03, 1.05);
+      const laceCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-0.05 + i * 0.2, 0.93 + i * 0.1, 0.54),
+        new THREE.Vector3(-0.05 + i * 0.2 + 0.03, 0.96 + i * 0.1, 0),
+        new THREE.Vector3(-0.05 + i * 0.2, 0.93 + i * 0.1, -0.54),
+      ]);
+      const laceGeo = new THREE.TubeGeometry(laceCurve, 20, 0.025, 8, false);
       const lace = new THREE.Mesh(laceGeo, this.createPartMaterial('lace'));
-      lace.position.set(-0.05 + i * 0.2, 0.9 + i * 0.09, 0);
+      lace.castShadow = true;
       group.add(lace);
       this.partMeshes.lace.push(lace);
     }
 
-    const logoGeo = new THREE.BoxGeometry(0.6, 0.5, 0.03, 10, 8, 2);
-    this.modifyVertices(logoGeo, (p) => {
-      p.y += Math.sin(p.x * 3) * 0.05;
+    const logoShape = new THREE.Shape();
+    logoShape.moveTo(-0.28, 0.48);
+    logoShape.lineTo(0.0, 0.9);
+    logoShape.lineTo(0.28, 0.48);
+    logoShape.lineTo(0.12, 0.48);
+    logoShape.lineTo(0.0, 0.7);
+    logoShape.lineTo(-0.12, 0.48);
+    logoShape.lineTo(-0.28, 0.48);
+    const logoGeo = new THREE.ExtrudeGeometry(logoShape, {
+      depth: 0.025,
+      bevelEnabled: true,
+      bevelThickness: 0.005,
+      bevelSize: 0.008,
+      bevelSegments: 3,
     });
+    logoGeo.translate(0, 0, 0.57);
     const logo = new THREE.Mesh(logoGeo, this.createPartMaterial('logo'));
-    logo.position.set(0.1, 0.7, 0.57);
+    logo.castShadow = true;
     group.add(logo);
     this.partMeshes.logo.push(logo);
 
     const logoR = logo.clone();
     logoR.position.z = -0.57;
+    logoR.rotation.y = Math.PI;
     group.add(logoR);
     this.partMeshes.logo.push(logoR);
   }
 
   private buildSkate(group: THREE.Group): void {
-    const soleGeo = new THREE.BoxGeometry(2.6, 0.2, 1.25, 12, 2, 6);
+    const soleProfile = [
+      { x: -1.3, y: -0.02 },
+      { x: -0.8, y: 0.04 },
+      { x: 0.0, y: 0.08 },
+      { x: 0.8, y: 0.06 },
+      { x: 1.25, y: -0.02 },
+      { x: 1.35, y: -0.2 },
+      { x: 1.25, y: -0.3 },
+      { x: 0.0, y: -0.28 },
+      { x: -1.25, y: -0.3 },
+      { x: -1.35, y: -0.2 },
+      { x: -1.3, y: -0.05 },
+    ];
+    const soleGeo = this.buildSoleFromProfile(soleProfile, 0.25, 1.22);
     this.modifyVertices(soleGeo, (p) => {
-      p.y -= 0.1;
-      if (p.x < -1.15) {
-        p.x += (-p.x - 1.15) * 0.3;
-      }
-      if (p.x > 1.15) {
-        p.x -= (p.x - 1.15) * 0.3;
-      }
+      p.y -= 0.05;
     });
     const sole = new THREE.Mesh(soleGeo, this.createPartMaterial('sole'));
     sole.castShadow = true;
@@ -614,111 +917,181 @@ export class ShoeConfigurator {
     group.add(sole);
     this.partMeshes.sole.push(sole);
 
-    const midsoleGeo = new THREE.BoxGeometry(2.55, 0.1, 1.22);
-    this.modifyVertices(midsoleGeo, (p) => {
-      p.y += 0.05;
+    const wallPts = [
+      new THREE.Vector3(-1.25, 0.08, 0),
+      new THREE.Vector3(0.0, 0.12, 0),
+      new THREE.Vector3(1.25, 0.08, 0),
+    ];
+    const wallCurve = new THREE.CatmullRomCurve3(wallPts);
+    const wallTube = new THREE.TubeGeometry(wallCurve, 60, 0.04, 8, false);
+    this.modifyVertices(wallTube, (p) => {
+      p.z *= 15;
     });
-    const midsole = new THREE.Mesh(midsoleGeo, this.createPartMaterial('sole'));
-    midsole.castShadow = true;
-    group.add(midsole);
-    this.partMeshes.sole.push(midsole);
+    const sideWallF = wallTube.clone();
+    sideWallF.position.z = 0.61;
+    group.add(sideWallF);
+    this.partMeshes.sole.push(sideWallF);
+    const sideWallB = wallTube.clone();
+    sideWallB.position.z = -0.61;
+    group.add(sideWallB);
+    this.partMeshes.sole.push(sideWallB);
 
-    const wallGeo = new THREE.BoxGeometry(2.55, 0.12, 0.04);
-    const wallF = new THREE.Mesh(wallGeo, this.createPartMaterial('sole'));
-    wallF.position.set(0, 0.15, 0.61);
-    group.add(wallF);
-    this.partMeshes.sole.push(wallF);
-    const wallB = wallF.clone();
-    wallB.position.z = -0.61;
-    group.add(wallB);
-    this.partMeshes.sole.push(wallB);
-
-    const upperGeo = new THREE.BoxGeometry(2.4, 0.65, 1.15, 12, 6, 6);
-    this.modifyVertices(upperGeo, (p) => {
-      p.y += 0.32;
-
-      if (p.x < -0.8) {
-        p.y += (-p.x - 0.8) * 0.15;
+    const upperProfile = [
+      { x: 0.05, y: -0.02 },
+      { x: 0.45, y: 0.0 },
+      { x: 0.6, y: 0.2 },
+      { x: 0.58, y: 0.45 },
+      { x: 0.45, y: 0.62 },
+      { x: 0.25, y: 0.68 },
+      { x: 0.0, y: 0.64 },
+      { x: -0.2, y: 0.52 },
+      { x: -0.32, y: 0.35 },
+      { x: -0.32, y: 0.12 },
+      { x: -0.22, y: -0.02 },
+    ];
+    const upperGeo = this.buildUpperFromLathe(
+      upperProfile,
+      48,
+      (angle, y) => {
+        const ca = Math.cos(angle);
+        const sa = Math.sin(angle);
+        const sideFactor = Math.abs(sa);
+        let sx = 1.0;
+        let sz = 1.0;
+        let dy = 0;
+        if (ca > 0) {
+          sx = 1.0 + ca * 1.05;
+          sz = 0.62 + (1.0 - sideFactor) * 0.18;
+        } else {
+          sx = 1.0 + Math.abs(ca) * 0.45;
+          sz = 0.62 + (1.0 - sideFactor) * 0.15;
+          dy = -0.12;
+        }
+        if (y > 0.5) {
+          const f = (y - 0.5) / 0.22;
+          sx *= Math.max(0.55, 1.0 - f * 0.75);
+          sz *= Math.max(0.5, 1.0 - f * 0.85);
+        }
+        return { sx, sz, dy };
       }
-      if (p.x > 0.8) {
-        p.y -= (p.x - 0.8) * 0.2;
-      }
-
-      if (p.y > 0.5) {
-        p.z *= Math.max(0.55, 1.0 - (p.y - 0.5) * 0.5);
-        p.x *= Math.max(0.7, 1.0 - (p.y - 0.5) * 0.2);
-      }
-    });
+    );
     const upper = new THREE.Mesh(upperGeo, this.createPartMaterial('upper'));
     upper.castShadow = true;
     group.add(upper);
     this.partMeshes.upper.push(upper);
 
-    const toeCapGeo = new THREE.SphereGeometry(0.62, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2);
-    this.modifyVertices(toeCapGeo, (p) => {
-      p.x = p.x * 1.0 + 1.0;
-      p.y = p.y * 0.5 + 0.05;
-      p.z = p.z * 1.0;
+    const toeShape = new THREE.Shape();
+    const toePts = 18;
+    for (let i = 0; i <= toePts; i++) {
+      const t = (i / toePts) * Math.PI;
+      const x = 0.95 + Math.cos(t) * 0.65;
+      const y = Math.sin(t) * 0.45 - 0.05;
+      if (i === 0) toeShape.moveTo(x, y);
+      else toeShape.lineTo(x, y);
+    }
+    const toeGeo = new THREE.ExtrudeGeometry(toeShape, {
+      depth: 1.18,
+      bevelEnabled: true,
+      bevelThickness: 0.05,
+      bevelSize: 0.06,
+      bevelSegments: 5,
+      curveSegments: 12,
     });
-    const toeCap = new THREE.Mesh(toeCapGeo, this.createPartMaterial('upper'));
+    toeGeo.translate(0, 0, -0.59);
+    const toeCap = new THREE.Mesh(toeGeo, this.createPartMaterial('upper'));
     toeCap.castShadow = true;
     group.add(toeCap);
     this.partMeshes.upper.push(toeCap);
 
-    const toeBumperGeo = new THREE.BoxGeometry(0.25, 0.1, 1.2);
-    const toeBumper = new THREE.Mesh(toeBumperGeo, this.createPartMaterial('upper'));
-    toeBumper.position.set(1.1, 0.05, 0);
-    group.add(toeBumper);
-    this.partMeshes.upper.push(toeBumper);
-
-    const heelCounterGeo = new THREE.SphereGeometry(0.58, 16, 10, 0, Math.PI, 0, Math.PI);
-    this.modifyVertices(heelCounterGeo, (p) => {
-      p.x = -p.x - 0.9;
-      p.y = p.y * 0.85 + 0.1;
-      p.z = p.z;
+    const toeBumperShape = new THREE.Shape();
+    toeBumperShape.moveTo(1.1, -0.12);
+    toeBumperShape.lineTo(1.65, -0.08);
+    toeBumperShape.lineTo(1.65, 0.08);
+    toeBumperShape.lineTo(1.1, 0.12);
+    const bumperGeo = new THREE.ExtrudeGeometry(toeBumperShape, {
+      depth: 1.2,
+      bevelEnabled: true,
+      bevelThickness: 0.03,
+      bevelSize: 0.03,
+      bevelSegments: 3,
     });
-    const heelCounter = new THREE.Mesh(heelCounterGeo, this.createPartMaterial('upper'));
+    bumperGeo.translate(0, 0, -0.6);
+    const bumper = new THREE.Mesh(bumperGeo, this.createPartMaterial('upper'));
+    bumper.castShadow = true;
+    group.add(bumper);
+    this.partMeshes.upper.push(bumper);
+
+    const heelShape = new THREE.Shape();
+    const heelPts = 14;
+    for (let i = 0; i <= heelPts; i++) {
+      const t = (i / heelPts) * Math.PI;
+      const x = -0.88 - Math.cos(t) * 0.62;
+      const y = Math.sin(t) * 0.5 - 0.05;
+      if (i === 0) heelShape.moveTo(x, y);
+      else heelShape.lineTo(x, y);
+    }
+    const heelGeo = new THREE.ExtrudeGeometry(heelShape, {
+      depth: 1.15,
+      bevelEnabled: true,
+      bevelThickness: 0.05,
+      bevelSize: 0.06,
+      bevelSegments: 5,
+      curveSegments: 12,
+    });
+    heelGeo.translate(0, 0, -0.575);
+    const heelCounter = new THREE.Mesh(heelGeo, this.createPartMaterial('upper'));
     heelCounter.castShadow = true;
     group.add(heelCounter);
     this.partMeshes.upper.push(heelCounter);
 
-    const tongueGeo = new THREE.BoxGeometry(1.0, 0.07, 0.95, 8, 2, 6);
-    this.modifyVertices(tongueGeo, (p) => {
-      p.y += 0.68;
-      p.x -= 0.2;
-      if (p.x < -0.3) {
-        p.y += (-p.x - 0.3) * 0.15;
-      }
-      if (p.x > 0.3) {
-        p.y -= (p.x - 0.3) * 0.25;
-      }
+    const tongueShape = new THREE.Shape();
+    tongueShape.moveTo(-0.4, 0.62);
+    tongueShape.quadraticCurveTo(-0.1, 0.76, 0.2, 0.7);
+    tongueShape.lineTo(0.5, 0.55);
+    tongueShape.lineTo(-0.35, 0.56);
+    tongueShape.lineTo(-0.4, 0.62);
+    const tongueGeo = new THREE.ExtrudeGeometry(tongueShape, {
+      depth: 0.98,
+      bevelEnabled: true,
+      bevelThickness: 0.015,
+      bevelSize: 0.015,
+      bevelSegments: 3,
     });
+    tongueGeo.translate(0, 0, -0.49);
     const tongue = new THREE.Mesh(tongueGeo, this.createPartMaterial('upper'));
     tongue.castShadow = true;
     group.add(tongue);
     this.partMeshes.upper.push(tongue);
 
-    const sidePanelGeo = new THREE.BoxGeometry(1.0, 0.3, 0.03, 10, 4, 2);
-    this.modifyVertices(sidePanelGeo, (p) => {
-      if (p.y > 0.1) {
-        p.x *= Math.max(0.7, 1.0 - (p.y - 0.1) * 0.5);
-      }
+    const panelShape = new THREE.Shape();
+    panelShape.moveTo(-0.35, 0.25);
+    panelShape.quadraticCurveTo(0.0, 0.6, 0.6, 0.55);
+    panelShape.lineTo(0.65, 0.35);
+    panelShape.quadraticCurveTo(0.1, 0.32, -0.3, 0.18);
+    panelShape.lineTo(-0.35, 0.25);
+    const panelGeo = new THREE.ExtrudeGeometry(panelShape, {
+      depth: 0.025,
+      bevelEnabled: true,
+      bevelThickness: 0.004,
+      bevelSize: 0.006,
+      bevelSegments: 2,
     });
-    const sidePanelL = new THREE.Mesh(sidePanelGeo, this.createPartMaterial('upper'));
-    sidePanelL.position.set(0.15, 0.4, 0.59);
-    group.add(sidePanelL);
-    this.partMeshes.upper.push(sidePanelL);
-
-    const sidePanelR = sidePanelL.clone();
-    sidePanelR.position.z = -0.59;
-    group.add(sidePanelR);
-    this.partMeshes.upper.push(sidePanelR);
+    panelGeo.translate(0, 0, 0.59);
+    const panelL = new THREE.Mesh(panelGeo, this.createPartMaterial('upper'));
+    panelL.castShadow = true;
+    group.add(panelL);
+    this.partMeshes.upper.push(panelL);
+    const panelR = panelL.clone();
+    panelR.position.z = -0.59;
+    panelR.rotation.y = Math.PI;
+    group.add(panelR);
+    this.partMeshes.upper.push(panelR);
 
     for (let i = 0; i < 3; i++) {
       const eyeletGeo = new THREE.CylinderGeometry(0.04, 0.04, 0.05, 12);
       const eyeletL = new THREE.Mesh(eyeletGeo, this.createPartMaterial('logo'));
       eyeletL.rotation.x = Math.PI / 2;
-      eyeletL.position.set(-0.25 + i * 0.3, 0.7, 0.52);
+      eyeletL.position.set(-0.2 + i * 0.3, 0.72, 0.52);
       group.add(eyeletL);
       this.partMeshes.logo.push(eyeletL);
 
@@ -729,45 +1102,49 @@ export class ShoeConfigurator {
     }
 
     for (let i = 0; i < 3; i++) {
-      const laceGeo = new THREE.BoxGeometry(0.05, 0.03, 1.0);
+      const laceCurve = new THREE.CatmullRomCurve3([
+        new THREE.Vector3(-0.2 + i * 0.3, 0.75, 0.52),
+        new THREE.Vector3(-0.2 + i * 0.3 + 0.03, 0.77, 0),
+        new THREE.Vector3(-0.2 + i * 0.3, 0.75, -0.52),
+      ]);
+      const laceGeo = new THREE.TubeGeometry(laceCurve, 20, 0.023, 8, false);
       const lace = new THREE.Mesh(laceGeo, this.createPartMaterial('lace'));
-      lace.position.set(-0.25 + i * 0.3, 0.72, 0);
+      lace.castShadow = true;
       group.add(lace);
       this.partMeshes.lace.push(lace);
     }
 
-    const starLogoGeo = new THREE.PlaneGeometry(0.6, 0.28, 12, 6);
-    this.modifyVertices(starLogoGeo, (p) => {
-      const dist = Math.sqrt(p.x * p.x + p.y * p.y);
-      if (dist > 0.3 && dist < 0.35) {
-        p.z -= 0.05;
-      }
-    });
-    const starLogoL = new THREE.Mesh(starLogoGeo, this.createPartMaterial('logo'));
-    starLogoL.position.set(0.25, 0.42, 0.6);
-    group.add(starLogoL);
-    this.partMeshes.logo.push(starLogoL);
-
-    const starLogoR = starLogoL.clone();
-    starLogoR.position.z = -0.6;
-    starLogoR.rotation.y = Math.PI;
-    group.add(starLogoR);
-    this.partMeshes.logo.push(starLogoR);
-  }
-
-  private modifyVertices(
-    geo: THREE.BufferGeometry,
-    fn: (pos: THREE.Vector3) => void
-  ): void {
-    const posAttr = geo.getAttribute('position');
-    const vec = new THREE.Vector3();
-    for (let i = 0; i < posAttr.count; i++) {
-      vec.set(posAttr.getX(i), posAttr.getY(i), posAttr.getZ(i));
-      fn(vec);
-      posAttr.setXYZ(i, vec.x, vec.y, vec.z);
+    const starShape = new THREE.Shape();
+    const spikes = 5;
+    const outerR = 0.34;
+    const innerR = 0.15;
+    for (let i = 0; i < spikes * 2; i++) {
+      const r = i % 2 === 0 ? outerR : innerR;
+      const a = (i / (spikes * 2)) * Math.PI * 2 - Math.PI / 2;
+      const x = Math.cos(a) * r;
+      const y = Math.sin(a) * r;
+      if (i === 0) starShape.moveTo(x, y);
+      else starShape.lineTo(x, y);
     }
-    posAttr.needsUpdate = true;
-    geo.computeVertexNormals();
+    starShape.lineTo(Math.cos(-Math.PI / 2) * outerR, Math.sin(-Math.PI / 2) * outerR);
+    const starGeo = new THREE.ExtrudeGeometry(starShape, {
+      depth: 0.025,
+      bevelEnabled: true,
+      bevelThickness: 0.006,
+      bevelSize: 0.008,
+      bevelSegments: 3,
+    });
+    starGeo.translate(0.25, 0.42, 0.6);
+    const starL = new THREE.Mesh(starGeo, this.createPartMaterial('logo'));
+    starL.castShadow = true;
+    group.add(starL);
+    this.partMeshes.logo.push(starL);
+
+    const starR = starL.clone();
+    starR.position.z = -0.6;
+    starR.rotation.y = Math.PI;
+    group.add(starR);
+    this.partMeshes.logo.push(starR);
   }
 
   updateColor(partName: PartName, color: string): void {
@@ -829,6 +1206,15 @@ export class ShoeConfigurator {
     this.notifyConfigChange();
   }
 
+  updateDecalTransform(offsetX: number, offsetY: number, scale: number, rotation: number): void {
+    this.config.decalOffsetX = offsetX;
+    this.config.decalOffsetY = offsetY;
+    this.config.decalScale = scale;
+    this.config.decalRotation = rotation;
+    this.applyDecalTransform();
+    this.notifyConfigChange();
+  }
+
   removeTexture(): void {
     if (this.decalTexture) {
       this.decalTexture.dispose();
@@ -854,32 +1240,38 @@ export class ShoeConfigurator {
   private createDecalMeshes(): void {
     if (!this.currentModel || !this.decalTexture) return;
 
-    const positionsByModel: Array<Array<{ x: number; y: number; z: number; side: 'left' | 'right'; rotY?: number }>> = [
+    const positionsByModel: Array<Array<{ x: number; y: number; z: number; side: 'left' | 'right' }>> = [
       [
-        { x: 0.0, y: 0.5, z: 0.52, side: 'left' },
-        { x: 0.0, y: 0.5, z: -0.52, side: 'right' },
+        { x: 0.0, y: 0.5, z: 0.54 },
+        { x: 0.0, y: 0.5, z: -0.54 },
       ],
       [
-        { x: 0.1, y: 0.65, z: 0.58, side: 'left' },
-        { x: 0.1, y: 0.65, z: -0.58, side: 'right' },
+        { x: 0.1, y: 0.7, z: 0.6 },
+        { x: 0.1, y: 0.7, z: -0.6 },
       ],
       [
-        { x: 0.25, y: 0.45, z: 0.6, side: 'left' },
-        { x: 0.25, y: 0.45, z: -0.6, side: 'right' },
+        { x: 0.25, y: 0.45, z: 0.62 },
+        { x: 0.25, y: 0.45, z: -0.62 },
       ],
     ];
 
     const sizeByModel: Array<{ w: number; h: number }> = [
-      { w: 0.7, h: 0.35 },
-      { w: 0.55, h: 0.4 },
-      { w: 0.75, h: 0.35 },
+      { w: 0.65, h: 0.3 },
+      { w: 0.5, h: 0.38 },
+      { w: 0.55, h: 0.3 },
     ];
 
     const positions = positionsByModel[this.config.shoeModel] || positionsByModel[0];
     const size = sizeByModel[this.config.shoeModel] || sizeByModel[0];
 
     positions.forEach((pos) => {
-      const geo = new THREE.PlaneGeometry(size.w, size.h);
+      const geo = new THREE.PlaneGeometry(size.w, size.h, 16, 12);
+      this.modifyVertices(geo, (p) => {
+        const dist = Math.sqrt(p.x * p.x + p.y * p.y);
+        const bend = Math.max(0, 1.0 - dist / 0.6) * 0.12;
+        if (pos.side === 'left') p.z += bend;
+        else p.z -= bend;
+      });
       const mat = new THREE.MeshBasicMaterial({
         map: this.decalTexture,
         transparent: true,
@@ -891,7 +1283,29 @@ export class ShoeConfigurator {
         mesh.rotation.y = Math.PI;
       }
       this.currentModel!.add(mesh);
-      this.decalMeshes.push({ mesh, side: pos.side });
+      this.decalMeshes.push({
+        mesh,
+        side: pos.side,
+        baseX: pos.x,
+        baseY: pos.y,
+        baseZ: pos.z,
+        baseSize: size,
+      });
+    });
+
+    this.applyDecalTransform();
+  }
+
+  private applyDecalTransform(): void {
+    this.decalMeshes.forEach((d) => {
+      d.mesh.position.x = d.baseX + this.config.decalOffsetX;
+      d.mesh.position.y = d.baseY + this.config.decalOffsetY;
+      d.mesh.scale.setScalar(this.config.decalScale);
+      if (d.side === 'left') {
+        d.mesh.rotation.z = (this.config.decalRotation * Math.PI) / 180;
+      } else {
+        d.mesh.rotation.z = -(this.config.decalRotation * Math.PI) / 180;
+      }
     });
   }
 
@@ -899,26 +1313,10 @@ export class ShoeConfigurator {
     const meshes = this.partMeshes[partName];
     const colorKey = `${partName}Color` as keyof ShoeConfig;
     const color = hexToThreeColor(this.config[colorKey] as string);
-    const preset = getMaterialPreset(type);
-
-    const matParams: THREE.MeshPhysicalMaterialParameters = {
-      ...preset,
-      color,
-    };
-
-    if (type === 'suede') {
-      matParams.bumpMap = generateSuedeBumpMap();
-      matParams.bumpScale = 0.06;
-    }
-    if (type === 'mesh') {
-      matParams.alphaMap = generateMeshAlphaMap();
-      matParams.transparent = true;
-      matParams.side = THREE.DoubleSide;
-    }
 
     meshes.forEach((mesh) => {
       const oldMat = mesh.material as THREE.MeshPhysicalMaterial;
-      const newMat = new THREE.MeshPhysicalMaterial(matParams);
+      const newMat = this.buildMaterial(color, type);
       oldMat.dispose();
       mesh.material = newMat;
     });
@@ -958,9 +1356,8 @@ export class ShoeConfigurator {
     this.controls.autoRotate = false;
     this.composer.render();
 
-    await new Promise((resolve) => setTimeout(resolve, 50));
+    await new Promise((resolve) => setTimeout(resolve, 80));
 
-    const canvas = document.createElement('canvas');
     const dpr = Math.min(window.devicePixelRatio, 2);
     const appEl = document.getElementById('app');
     if (!appEl) return;
@@ -969,6 +1366,7 @@ export class ShoeConfigurator {
     const width = Math.floor(rect.width * dpr);
     const height = Math.floor(rect.height * dpr);
 
+    const canvas = document.createElement('canvas');
     canvas.width = width;
     canvas.height = height;
     const ctx = canvas.getContext('2d')!;
@@ -994,70 +1392,35 @@ export class ShoeConfigurator {
 
     const summaryCard = document.getElementById('summary-card');
     if (summaryCard) {
-      const sRect = summaryCard.getBoundingClientRect();
-      const dx = Math.floor((sRect.left - rect.left) * dpr);
-      const dy = Math.floor((sRect.top - rect.top) * dpr);
-      const dw = Math.floor(sRect.width * dpr);
-      const dh = Math.floor(sRect.height * dpr);
-
-      const bg = window.getComputedStyle(summaryCard).backgroundColor;
-      ctx.save();
-      ctx.fillStyle = bg || 'rgba(35,39,64,0.65)';
-      ctx.shadowColor = 'rgba(0,0,0,0.3)';
-      ctx.shadowBlur = 20 * dpr;
-      this.roundRect(ctx, dx, dy, dw, dh, 16 * dpr);
-      ctx.fill();
-      ctx.restore();
-
-      const titleEl = summaryCard.querySelector('.summary-title');
-      if (titleEl) {
-        ctx.font = `${11 * dpr}px Orbitron, sans-serif`;
-        ctx.fillStyle = '#9ca3b8';
-        ctx.fillText('参数摘要', dx + 20 * dpr, dy + 30 * dpr);
-      }
-
-      const grid = summaryCard.querySelector('#summary-grid');
-      if (grid) {
-        const rows = grid.querySelectorAll('span.sg-label, span.sg-value');
-        let yy = dy + 60 * dpr;
-        const pairs: Array<{ label: string; swatchColor: string | null; value: string }> = [];
-        this.collectSummaryRows(grid, pairs);
-        pairs.forEach((p) => {
-          ctx.font = `${12 * dpr}px 'Exo 2', sans-serif`;
-          ctx.fillStyle = '#6b7294';
-          ctx.fillText(p.label, dx + 20 * dpr, yy);
-          let xx = dx + 110 * dpr;
-          if (p.swatchColor) {
-            ctx.fillStyle = p.swatchColor;
-            ctx.fillRect(xx, yy - 12 * dpr, 14 * dpr, 14 * dpr);
-            ctx.strokeStyle = 'rgba(255,255,255,0.15)';
-            ctx.strokeRect(xx, yy - 12 * dpr, 14 * dpr, 14 * dpr);
-            xx += 22 * dpr;
-          }
-          ctx.fillStyle = '#e8eaf0';
-          ctx.font = `600 ${12 * dpr}px 'Exo 2', sans-serif`;
-          ctx.fillText(p.value, xx, yy);
-          yy += 22 * dpr;
+      try {
+        const html2canvas = (await import('html2canvas')).default;
+        const cardCanvas = await html2canvas(summaryCard, {
+          backgroundColor: null,
+          useCORS: true,
+          scale: dpr,
+          logging: false,
+          windowWidth: summaryCard.clientWidth,
+          windowHeight: summaryCard.clientHeight,
         });
-      }
 
-      ctx.save();
-      const btnX = dx + 20 * dpr;
-      const btnY = dy + dh - 60 * dpr;
-      const btnW = dw - 40 * dpr;
-      const btnH = 40 * dpr;
-      const btnGrad = ctx.createLinearGradient(btnX, btnY, btnX + btnW, btnY + btnH);
-      btnGrad.addColorStop(0, '#00d4ff');
-      btnGrad.addColorStop(1, '#0090b3');
-      ctx.fillStyle = btnGrad;
-      this.roundRect(ctx, btnX, btnY, btnW, btnH, 10 * dpr);
-      ctx.fill();
-      ctx.fillStyle = '#0a0e1a';
-      ctx.font = `700 ${12 * dpr}px Orbitron, sans-serif`;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText('📷 分享截图', btnX + btnW / 2, btnY + btnH / 2);
-      ctx.restore();
+        const sRect = summaryCard.getBoundingClientRect();
+        const dx = Math.floor((sRect.left - rect.left) * dpr);
+        const dy = Math.floor((sRect.top - rect.top) * dpr);
+        ctx.drawImage(cardCanvas, dx, dy);
+      } catch (e) {
+        console.warn('html2canvas capture failed, fallback to manual draw', e);
+        const sRect = summaryCard.getBoundingClientRect();
+        const dx = Math.floor((sRect.left - rect.left) * dpr);
+        const dy = Math.floor((sRect.top - rect.top) * dpr);
+        const dw = Math.floor(sRect.width * dpr);
+        const dh = Math.floor(sRect.height * dpr);
+        const bg = window.getComputedStyle(summaryCard).backgroundColor;
+        ctx.save();
+        ctx.fillStyle = bg || 'rgba(35,39,64,0.65)';
+        this.roundRect(ctx, dx, dy, dw, dh, 16 * dpr);
+        ctx.fill();
+        ctx.restore();
+      }
     }
 
     ctx.save();
@@ -1081,23 +1444,6 @@ export class ShoeConfigurator {
     link.click();
 
     this.controls.autoRotate = true;
-  }
-
-  private collectSummaryRows(
-    grid: Element,
-    out: Array<{ label: string; swatchColor: string | null; value: string }>
-  ): void {
-    const labels = grid.querySelectorAll('.sg-label');
-    const values = grid.querySelectorAll('.sg-value');
-    labels.forEach((l, i) => {
-      const label = l.textContent || '';
-      const valueEl = values[i];
-      if (!valueEl) return;
-      const swatch = valueEl.querySelector('.sg-swatch') as HTMLElement | null;
-      const swatchColor = swatch ? swatch.style.backgroundColor : null;
-      const valueText = (valueEl.lastChild?.textContent || '').trim();
-      out.push({ label, swatchColor, value: valueText });
-    });
   }
 
   private roundRect(
@@ -1162,8 +1508,10 @@ export class ShoeConfigurator {
     this.renderer.dispose();
     this.controls.dispose();
 
-    if (this.decalTexture) {
-      this.decalTexture.dispose();
-    }
+    if (this.decalTexture) this.decalTexture.dispose();
+    if (this.cachedSuedeNormal) this.cachedSuedeNormal.dispose();
+    if (this.cachedSuedeBump) this.cachedSuedeBump.dispose();
+    if (this.cachedMeshAlpha) this.cachedMeshAlpha.dispose();
+    if (this.cachedMeshColor) this.cachedMeshColor.dispose();
   }
 }
