@@ -89,10 +89,9 @@ function TripBoard({
         <div className="empty-state fade-in">
           <div className="empty-state-card">
             <div className="empty-icon-wrap">
-              <span className="empty-icon">🧳</span>
+              <i className="fa-solid fa-suitcase empty-icon"></i>
             </div>
-            <h3>开始你的第一段旅程吧</h3>
-            <p>还没有任何旅行计划？点击下方按钮，开启你的旅行规划之旅，记录每一段精彩的冒险。</p>
+            <p className="empty-title">开始你的第一段旅程吧</p>
             <button
               className="empty-create-btn"
               onClick={() => setShowCreateModal(true)}

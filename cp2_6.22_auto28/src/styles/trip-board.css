@@ -51,9 +51,9 @@
   overflow: hidden;
   box-shadow: var(--shadow-md);
   cursor: pointer;
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-              box-shadow 0.25s cubic-bezier(0.4, 0, 0.2, 1),
-              border-color 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+              border-color 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   border: 2px solid transparent;
   will-change: transform;
 }
@@ -104,7 +104,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: linear-gradient(135deg, #2dd4bf 0%, #14b8a6 25%, #0ea5e9 60%, #7dd3fc 100%);
+  background: linear-gradient(180deg, #00b4d8, #caf0f8);
 }
 
 .cover-icon {
@@ -165,9 +165,9 @@
 }
 
 .dest-text {
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--primary-dark);
+  font-size: 18px;
+  font-weight: 700;
+  color: #2c3e50;
 }
 
 .card-dates {
@@ -186,14 +186,15 @@
 }
 
 .date-range {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text-secondary);
+  font-size: 14px;
+  font-weight: 400;
+  color: #7f8c8d;
 }
 
 .date-sep {
-  font-size: 12px;
-  color: var(--text-light);
+  font-size: 14px;
+  font-weight: 400;
+  color: #7f8c8d;
 }
 
 .card-desc {
@@ -246,34 +247,20 @@
 }
 
 .empty-icon-wrap {
-  width: 96px;
-  height: 96px;
-  margin: 0 auto 24px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, var(--primary-color) 0%, var(--accent-blue) 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 8px 24px rgba(45, 212, 191, 0.3);
+  margin-bottom: 16px;
 }
 
 .empty-icon {
-  font-size: 48px;
+  font-size: 32px;
+  color: #00b4d8;
   line-height: 1;
 }
 
-.empty-state-card h3 {
-  font-size: 26px;
-  font-weight: 700;
-  color: var(--text-primary);
-  margin-bottom: 12px;
-}
-
-.empty-state-card p {
-  font-size: 15px;
-  color: var(--text-secondary);
-  margin-bottom: 28px;
-  line-height: 1.7;
+.empty-title {
+  font-size: 16px;
+  color: #7f8c8d;
+  margin-bottom: 24px;
+  font-weight: 400;
 }
 
 .empty-create-btn {
