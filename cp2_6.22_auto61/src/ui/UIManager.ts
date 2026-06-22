@@ -52,15 +52,29 @@ export class UIManager {
 
   private createControlPanel(): HTMLElement {
     const panel = document.createElement('div');
+    const style = document.createElement('style');
+    style.textContent = `
+      .glass-panel {
+        background: rgba(10, 22, 40, 0.7);
+        -webkit-backdrop-filter: blur(10px);
+        backdrop-filter: blur(10px);
+        background-image: linear-gradient(135deg, rgba(10, 22, 40, 0.7), rgba(13, 40, 24, 0.6));
+      }
+      @supports not ((backdrop-filter: blur(10px)) or (-webkit-backdrop-filter: blur(10px))) {
+        .glass-panel {
+          background: rgba(10, 22, 40, 0.92);
+        }
+      }
+    `;
+    document.head.appendChild(style);
+    
+    panel.className = 'glass-panel';
     panel.style.cssText = `
       position: absolute;
       top: 20px;
       left: 20px;
       width: 280px;
       padding: 20px;
-      background: rgba(10, 22, 40, 0.7);
-      backdrop-filter: blur(10px);
-      -webkit-backdrop-filter: blur(10px);
       border-radius: 12px;
       border: 1px solid rgba(255, 255, 255, 0.1);
       box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
@@ -81,21 +95,24 @@ export class UIManager {
       margin-bottom: 16px;
       background: linear-gradient(135deg, #22c55e, #16a34a);
       color: white;
-      border: none;
+      border: 2px solid transparent;
       border-radius: 8px;
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
       box-shadow: 0 2px 8px rgba(34, 197, 94, 0.3);
+      outline: none;
     `;
     btn.addEventListener('mouseenter', () => {
       btn.style.transform = 'translateY(-2px)';
       btn.style.boxShadow = '0 4px 12px rgba(34, 197, 94, 0.4)';
+      btn.style.borderColor = 'rgba(255, 255, 255, 0.3)';
     });
     btn.addEventListener('mouseleave', () => {
       btn.style.transform = 'translateY(0)';
       btn.style.boxShadow = '0 2px 8px rgba(34, 197, 94, 0.3)';
+      btn.style.borderColor = 'transparent';
     });
     return btn;
   }
@@ -137,21 +154,24 @@ export class UIManager {
       margin-bottom: 16px;
       background: linear-gradient(135deg, #ef4444, #dc2626);
       color: white;
-      border: none;
+      border: 2px solid transparent;
       border-radius: 8px;
       font-size: 14px;
       font-weight: 600;
       cursor: pointer;
-      transition: all 0.2s ease;
+      transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
       box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+      outline: none;
     `;
     btn.addEventListener('mouseenter', () => {
       btn.style.transform = 'translateY(-2px)';
       btn.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.4)';
+      btn.style.borderColor = 'rgba(255, 255, 255, 0.3)';
     });
     btn.addEventListener('mouseleave', () => {
       btn.style.transform = 'translateY(0)';
       btn.style.boxShadow = '0 2px 8px rgba(239, 68, 68, 0.3)';
+      btn.style.borderColor = 'transparent';
     });
     return btn;
   }

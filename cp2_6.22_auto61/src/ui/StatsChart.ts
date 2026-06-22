@@ -65,6 +65,10 @@ export class StatsChart {
     const yMax = Math.max(maxPopulation, maxEnergy) * 1.1;
     const yMin = 0;
 
+    if (!isFinite(yMax) || yMax <= 0) {
+      return;
+    }
+
     ctx.strokeStyle = '#e5e7eb';
     ctx.lineWidth = 1;
 
@@ -85,6 +89,10 @@ export class StatsChart {
     }
 
     const dataLength = Math.min(this.populationData.length, this.energyData.length);
+    if (dataLength < 2) {
+      return;
+    }
+
     const xStep = chartWidth / (this.maxDataPoints - 1);
 
     this.drawSmoothLine(
@@ -124,13 +132,24 @@ export class StatsChart {
     fillGradient: boolean
   ): void {
     const { ctx } = this;
+
+    if (!data || data.length < 2) {
+      return;
+    }
+
+    const yRange = yMax - yMin;
+    if (yRange <= 0 || !isFinite(yRange)) {
+      return;
+    }
+
     const points: { x: number; y: number }[] = [];
     const startIndex = this.maxDataPoints > data.length ? this.maxDataPoints - data.length : 0;
 
     for (let i = 0; i < data.length; i++) {
       const x = offsetX + (startIndex + i) * xStep;
-      const normalizedY = (data[i] - yMin) / (yMax - yMin);
-      const y = offsetY + chartHeight - normalizedY * chartHeight;
+      const value = data[i];
+      const normalizedY = isFinite(value) ? (value - yMin) / yRange : 0;
+      const y = offsetY + chartHeight - Math.max(0, Math.min(1, normalizedY)) * chartHeight;
       points.push({ x, y });
     }
 

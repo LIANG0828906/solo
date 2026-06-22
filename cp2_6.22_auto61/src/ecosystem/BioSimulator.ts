@@ -328,4 +328,10 @@ export class BioSimulator {
       }
     }
   }
+
+  collectBattleEffects(): BattleEffect[] {
+    const effects = [...this.battleEffects.filter(e => e.duration > 0)];
+    this.battleEffects = [];
+    return effects;
+  }
 }
