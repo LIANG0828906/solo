@@ -1,5 +1,8 @@
 import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { EffectComposer } from 'three/examples/jsm/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/examples/jsm/postprocessing/RenderPass.js';
+import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { StarField, StarOfficial } from './StarField';
 import { InteractivePanel } from './InteractivePanel';
 
@@ -7,6 +10,7 @@ class StarMapApp {
   private scene: THREE.Scene;
   private camera: THREE.PerspectiveCamera;
   private renderer: THREE.WebGLRenderer;
+  private composer: EffectComposer;
   private controls: OrbitControls;
   private starField: StarField;
   private panel: InteractivePanel;
@@ -33,10 +37,12 @@ class StarMapApp {
     this.mouse = new THREE.Vector2();
 
     this.initCamera();
-    this.starField = new StarField(this.scene);
     this.initRenderer();
+    this.initBloom();
+    this.starField = new StarField(this.scene);
     this.initControls();
     this.initLights();
+    this.setupLabelRenderer();
 
     this.panel = new InteractivePanel(this.starField);
 
@@ -58,20 +64,54 @@ class StarMapApp {
   private initRenderer(): void {
     this.renderer = new THREE.WebGLRenderer({
       antialias: true,
-      alpha: true
+      alpha: true,
+      powerPreference: 'high-performance'
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(window.innerWidth, window.innerHeight);
     this.renderer.setClearColor(0x0a0a1a, 1);
+    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    this.renderer.toneMappingExposure = 1.2;
 
     const container = document.getElementById('canvas-container')!;
     container.appendChild(this.renderer.domElement);
+  }
 
-    const labelContainer = document.getElementById('label-container')!;
-    if (labelContainer.parentNode) {
-      labelContainer.parentNode.removeChild(labelContainer);
+  private initBloom(): void {
+    this.composer = new EffectComposer(this.renderer);
+    const renderPass = new RenderPass(this.scene, this.camera);
+    this.composer.addPass(renderPass);
+
+    const bloomPass = new UnrealBloomPass(
+      new THREE.Vector2(window.innerWidth, window.innerHeight),
+      0.6,
+      0.4,
+      0.85
+    );
+    bloomPass.threshold = 0.1;
+    bloomPass.strength = 0.8;
+    bloomPass.radius = 0.5;
+    this.composer.addPass(bloomPass);
+  }
+
+  private setupLabelRenderer(): void {
+    const container = document.getElementById('canvas-container')!;
+
+    const existingLabelContainer = document.getElementById('label-container');
+    if (existingLabelContainer && existingLabelContainer.parentNode) {
+      existingLabelContainer.parentNode.removeChild(existingLabelContainer);
     }
-    container.appendChild(this.starField.labelRenderer.domElement);
+
+    const labelRenderer = this.starField.labelRenderer;
+    labelRenderer.domElement.style.position = 'absolute';
+    labelRenderer.domElement.style.top = '0';
+    labelRenderer.domElement.style.left = '0';
+    labelRenderer.domElement.style.width = '100%';
+    labelRenderer.domElement.style.height = '100%';
+    labelRenderer.domElement.style.pointerEvents = 'none';
+    labelRenderer.domElement.style.zIndex = '10';
+
+    container.appendChild(labelRenderer.domElement);
   }
 
   private initControls(): void {
@@ -121,6 +161,7 @@ class StarMapApp {
     this.camera.updateProjectionMatrix();
 
     this.renderer.setSize(width, height);
+    this.composer.setSize(width, height);
     this.starField.resize(width, height);
   }
 
@@ -245,7 +286,7 @@ class StarMapApp {
       this.controls.update();
     }
 
-    this.renderer.render(this.scene, this.camera);
+    this.composer.render();
     this.starField.labelRenderer.render(this.scene, this.camera);
   }
 }
