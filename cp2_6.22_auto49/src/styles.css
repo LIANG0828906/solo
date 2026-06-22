@@ -620,6 +620,90 @@ header.top-nav .nav-right {
   animation: fadeIn 0.3s ease;
 }
 
+.bid-section .success-msg.success-flash {
+  animation: successFlash 0.6s ease-out;
+}
+
+@keyframes successFlash {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  40% {
+    transform: scale(1.05);
+  }
+  60% {
+    transform: scale(1);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.quick-bid-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.quick-bid-label {
+  font-size: 12px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.quick-bid-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  background: white;
+  color: var(--accent-dark);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: inherit;
+}
+
+.quick-bid-btn:hover:not(:disabled) {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.quick-bid-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.quick-bid-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.quick-bid-btn.flash-success {
+  animation: quickBtnFlash 0.5s ease;
+}
+
+@keyframes quickBtnFlash {
+  0%, 100% {
+    background: white;
+    color: var(--accent-dark);
+  }
+  50% {
+    background: var(--success);
+    color: white;
+    border-color: var(--success);
+  }
+}
+
 .bid-history {
   max-height: 300px;
   overflow-y: auto;

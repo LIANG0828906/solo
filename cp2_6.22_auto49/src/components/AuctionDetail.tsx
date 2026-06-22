@@ -63,10 +63,15 @@ const AuctionDetail: React.FC<AuctionDetailProps> = ({
   const [errorMsg, setErrorMsg] = useState('');
   const [successMsg, setSuccessMsg] = useState('');
   const [btnState, setBtnState] = useState<'normal' | 'success' | 'error'>('normal');
+  const [showSuccessFlash, setShowSuccessFlash] = useState(false);
   const [, forceUpdate] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+  const historyRef = useRef<HTMLDivElement>(null);
   const btnShakeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const btnCheckTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const successFlashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const quickBidAmounts = [5, 10, 20];
 
   useEffect(() => {
     const load = async () => {
@@ -120,17 +125,26 @@ const AuctionDetail: React.FC<AuctionDetailProps> = ({
       if (!result.success) {
         setErrorMsg(result.error || '出价失败');
         setBtnState('error');
-        if (btnShakeTimer) clearTimeout(btnShakeTimer.current!);
+        if (btnShakeTimer.current) clearTimeout(btnShakeTimer.current);
         btnShakeTimer.current = setTimeout(() => setBtnState('normal'), 500);
       } else {
         setSuccessMsg(`出价成功！当前最高价 ¥${result.auction?.currentPrice}`);
         setBidAmount('');
         setBtnState('success');
-        if (btnCheckTimer) clearTimeout(btnCheckTimer.current!);
+        setShowSuccessFlash(true);
+
+        setTimeout(() => scrollToLatestBid(), 50);
+
+        if (btnCheckTimer.current) clearTimeout(btnCheckTimer.current);
         btnCheckTimer.current = setTimeout(() => {
           setBtnState('normal');
-          setSuccessMsg('');
         }, 1500);
+
+        if (successFlashTimer.current) clearTimeout(successFlashTimer.current);
+        successFlashTimer.current = setTimeout(() => {
+          setShowSuccessFlash(false);
+          setSuccessMsg('');
+        }, 2000);
       }
     };
     socket.on(`auction:bid:response:${auctionId}`, responseHandler);
@@ -142,6 +156,7 @@ const AuctionDetail: React.FC<AuctionDetailProps> = ({
       socket.off(`auction:bid:response:${auctionId}`, responseHandler);
       if (btnShakeTimer.current) clearTimeout(btnShakeTimer.current);
       if (btnCheckTimer.current) clearTimeout(btnCheckTimer.current);
+      if (successFlashTimer.current) clearTimeout(successFlashTimer.current);
     };
   }, [auctionId, socket, auctionsRef, onUpdateAuction]);
 
@@ -149,6 +164,25 @@ const AuctionDetail: React.FC<AuctionDetailProps> = ({
     const timer = setInterval(() => forceUpdate((n) => n + 1), 1000);
     return () => clearInterval(timer);
   }, []);
+
+  const handleQuickBid = (increment: number) => {
+    if (!auction) return;
+    setErrorMsg('');
+    const amount = auction.currentPrice + increment;
+    setBidAmount(String(amount));
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
+
+  const scrollToLatestBid = () => {
+    if (historyRef.current) {
+      historyRef.current.scrollTo({
+        top: 0,
+        behavior: 'smooth',
+      });
+    }
+  };
 
   const handleBid = () => {
     if (!auction) return;
@@ -328,8 +362,27 @@ const AuctionDetail: React.FC<AuctionDetailProps> = ({
                         {btnText}
                       </button>
                     </div>
+
+                    <div className="quick-bid-row">
+                      <span className="quick-bid-label">快速加价：</span>
+                      {quickBidAmounts.map((amount) => (
+                        <button
+                          key={amount}
+                          className={`quick-bid-btn ${showSuccessFlash ? 'flash-success' : ''}`}
+                          onClick={() => handleQuickBid(amount)}
+                          disabled={btnState === 'success'}
+                        >
+                          +¥{amount}
+                        </button>
+                      ))}
+                    </div>
+
                     {errorMsg && <div className="error-msg">⚠️ {errorMsg}</div>}
-                    {successMsg && <div className="success-msg">✓ {successMsg}</div>}
+                    {successMsg && (
+                      <div className={`success-msg ${showSuccessFlash ? 'success-flash' : ''}`}>
+                        ✓ {successMsg}
+                      </div>
+                    )}
                     <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
                       账户余额：<span style={{ fontWeight: 600, color: 'var(--accent-dark)' }}>¥{currentUser.balance}</span>
                     </div>
@@ -354,7 +407,7 @@ const AuctionDetail: React.FC<AuctionDetailProps> = ({
             {sortedHistory.length === 0 ? (
               <div className="empty-state">暂无出价，快来成为第一位出价者！</div>
             ) : (
-              <div className="bid-history">
+              <div className="bid-history" ref={historyRef}>
                 {sortedHistory.map((bid, idx) => (
                   <div
                     key={bid.id}
