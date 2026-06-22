@@ -4,6 +4,8 @@ import {
   createGalaxy,
   createStarTexture,
   createCoreGlow,
+  updateParticleColors,
+  updateHeatmap,
   GalaxyData,
   GalaxyParams
 } from './galaxy';
@@ -16,15 +18,11 @@ import {
 } from './collision';
 import { UI } from './ui';
 
-interface Snapshot {
-  galaxy1Pos: Float32Array;
-  galaxy1Vel: Float32Array;
-  galaxy1CorePos: THREE.Vector3;
-  galaxy1CoreVel: THREE.Vector3;
-  galaxy2Pos: Float32Array;
-  galaxy2Vel: Float32Array;
-  galaxy2CorePos: THREE.Vector3;
-  galaxy2CoreVel: THREE.Vector3;
+interface Keyframe {
+  core1Pos: THREE.Vector3;
+  core1Vel: THREE.Vector3;
+  core2Pos: THREE.Vector3;
+  core2Vel: THREE.Vector3;
   time: number;
 }
 
@@ -50,10 +48,12 @@ class GalaxySimulator {
   private frameCount: number = 0;
   private lastFpsTime: number = 0;
   private fps: number = 60;
+  private heatmapFrameCounter: number = 0;
 
-  private snapshots: Map<number, Snapshot> = new Map();
-  private snapshotInterval: number = 0.5;
-  private lastSnapshotTime: number = -Infinity;
+  private keyframes: Keyframe[] = [];
+  private keyframeInterval: number = 2.0;
+  private lastKeyframeTime: number = -Infinity;
+  private maxKeyframes: number = 20;
   private isSeeking: boolean = false;
 
   private initialGalaxy1Pos!: Float32Array;
@@ -96,6 +96,10 @@ class GalaxySimulator {
     this.controls.dampingFactor = 0.05;
     this.controls.minDistance = 30;
     this.controls.maxDistance = 500;
+    this.controls.touches = {
+      ONE: THREE.TOUCH.ROTATE,
+      TWO: THREE.TOUCH.DOLLY_PAN
+    };
 
     this.starTexture = createStarTexture();
 
@@ -120,6 +124,7 @@ class GalaxySimulator {
 
     this.createGalaxies();
     this.setupEventListeners();
+    this.setupMobileTouch();
     this.animate();
   }
 
@@ -227,10 +232,10 @@ class GalaxySimulator {
     this.scene.add(this.coreGlow2);
 
     this.saveInitialState();
-    this.snapshots.clear();
+    this.keyframes = [];
     this.currentTime = 0;
-    this.lastSnapshotTime = -Infinity;
-    this.takeSnapshot();
+    this.lastKeyframeTime = -Infinity;
+    this.recordKeyframe();
   }
 
   private saveInitialState(): void {
@@ -273,35 +278,44 @@ class GalaxySimulator {
     this.galaxy2.heatmapMesh.position.copy(this.galaxy2.corePosition);
   }
 
-  private takeSnapshot(): void {
-    const snapshot: Snapshot = {
-      galaxy1Pos: new Float32Array(this.galaxy1.positions),
-      galaxy1Vel: new Float32Array(this.galaxy1.velocities),
-      galaxy1CorePos: this.galaxy1.corePosition.clone(),
-      galaxy1CoreVel: this.galaxy1.coreVelocity.clone(),
-      galaxy2Pos: new Float32Array(this.galaxy2.positions),
-      galaxy2Vel: new Float32Array(this.galaxy2.velocities),
-      galaxy2CorePos: this.galaxy2.corePosition.clone(),
-      galaxy2CoreVel: this.galaxy2.coreVelocity.clone(),
+  private recordKeyframe(): void {
+    const kf: Keyframe = {
+      core1Pos: this.galaxy1.corePosition.clone(),
+      core1Vel: this.galaxy1.coreVelocity.clone(),
+      core2Pos: this.galaxy2.corePosition.clone(),
+      core2Vel: this.galaxy2.coreVelocity.clone(),
       time: this.currentTime
     };
-    this.snapshots.set(Math.floor(this.currentTime / this.snapshotInterval), snapshot);
-    this.lastSnapshotTime = this.currentTime;
+    this.keyframes.push(kf);
+    this.lastKeyframeTime = this.currentTime;
+    this.cleanupKeyframes();
   }
 
-  private restoreSnapshot(snapshot: Snapshot): void {
-    this.galaxy1.positions.set(snapshot.galaxy1Pos);
-    this.galaxy1.velocities.set(snapshot.galaxy1Vel);
-    this.galaxy1.corePosition.copy(snapshot.galaxy1CorePos);
-    this.galaxy1.coreVelocity.copy(snapshot.galaxy1CoreVel);
+  private cleanupKeyframes(): void {
+    const particleCount = this.galaxy1.masses.length + this.galaxy2.masses.length;
+    if (particleCount > 10000) {
+      this.maxKeyframes = 10;
+    } else if (particleCount > 5000) {
+      this.maxKeyframes = 15;
+    } else {
+      this.maxKeyframes = 25;
+    }
 
-    this.galaxy2.positions.set(snapshot.galaxy2Pos);
-    this.galaxy2.velocities.set(snapshot.galaxy2Vel);
-    this.galaxy2.corePosition.copy(snapshot.galaxy2CorePos);
-    this.galaxy2.coreVelocity.copy(snapshot.galaxy2CoreVel);
+    while (this.keyframes.length > this.maxKeyframes) {
+      this.keyframes.shift();
+    }
+  }
 
-    this.currentTime = snapshot.time;
-    this.updateGeometry();
+  private findNearestKeyframe(targetTime: number): Keyframe | null {
+    let best: Keyframe | null = null;
+    for (const kf of this.keyframes) {
+      if (kf.time <= targetTime + 0.01) {
+        if (!best || kf.time > best.time) {
+          best = kf;
+        }
+      }
+    }
+    return best;
   }
 
   private seekTo(targetTime: number): void {
@@ -309,33 +323,71 @@ class GalaxySimulator {
 
     targetTime = Math.max(0, Math.min(targetTime, this.totalTime));
 
-    const nearestKey = Math.floor(targetTime / this.snapshotInterval);
-    let nearestSnapshot: Snapshot | null = null;
-    let nearestDist = Infinity;
+    const nearestKf = this.findNearestKeyframe(targetTime);
 
-    for (const [key, snap] of this.snapshots) {
-      const dist = Math.abs(key - nearestKey);
-      if (dist < nearestDist && snap.time <= targetTime) {
-        nearestDist = dist;
-        nearestSnapshot = snap;
+    if (nearestKf && nearestKf.time <= targetTime) {
+      if (nearestKf.time === 0 || nearestKf.time < this.currentTime * 0.5) {
+        this.restoreInitialState();
+        this.currentTime = 0;
+      } else {
+        this.restoreInitialState();
+        this.currentTime = 0;
+        const fastDt = 0.1;
+        while (this.currentTime < nearestKf.time - fastDt * 0.5) {
+          updateGalaxyPhysics(this.galaxy1, this.galaxy2, fastDt);
+          this.currentTime += fastDt;
+        }
       }
-    }
-
-    if (nearestSnapshot) {
-      this.restoreSnapshot(nearestSnapshot);
     } else {
       this.restoreInitialState();
       this.currentTime = 0;
     }
 
+    const simDt = 0.05;
     while (this.currentTime < targetTime) {
-      const dt = Math.min(0.05, targetTime - this.currentTime);
-      updateGalaxyPhysics(this.galaxy1, this.galaxy2, dt);
-      this.currentTime += dt;
+      updateGalaxyPhysics(this.galaxy1, this.galaxy2, simDt);
+      this.currentTime += simDt;
     }
 
     this.updateGeometry();
+    this.updateDynamicVisuals();
     this.isSeeking = false;
+  }
+
+  private updateDynamicVisuals(): void {
+    updateParticleColors(
+      this.galaxy1.positions,
+      this.galaxy1.velocities,
+      this.galaxy1.colors,
+      this.galaxy1.starTypes,
+      this.galaxy1.masses.length
+    );
+    this.galaxy1.points.geometry.attributes.color.needsUpdate = true;
+
+    updateParticleColors(
+      this.galaxy2.positions,
+      this.galaxy2.velocities,
+      this.galaxy2.colors,
+      this.galaxy2.starTypes,
+      this.galaxy2.masses.length
+    );
+    this.galaxy2.points.geometry.attributes.color.needsUpdate = true;
+
+    updateHeatmap(
+      this.galaxy1.heatmapCanvas,
+      this.galaxy1.heatmapTexture,
+      this.galaxy1.positions,
+      this.galaxy1.masses.length,
+      new THREE.Vector3(0, 0, 0)
+    );
+
+    updateHeatmap(
+      this.galaxy2.heatmapCanvas,
+      this.galaxy2.heatmapTexture,
+      this.galaxy2.positions,
+      this.galaxy2.masses.length,
+      new THREE.Vector3(0, 0, 0)
+    );
   }
 
   private handleParamsChange(params: SimParams): void {
@@ -346,9 +398,10 @@ class GalaxySimulator {
 
   private handleReset(): void {
     this.currentTime = 0;
-    this.snapshots.clear();
+    this.keyframes = [];
     this.restoreInitialState();
-    this.takeSnapshot();
+    this.recordKeyframe();
+    this.updateDynamicVisuals();
     this.ui.setTimeline(0);
     this.ui.setPlaying(false);
     this.isPlaying = false;
@@ -357,6 +410,7 @@ class GalaxySimulator {
   private handleRecreate(): void {
     this.currentTime = 0;
     this.createGalaxies();
+    this.updateDynamicVisuals();
     this.ui.setTimeline(0);
     this.ui.setPlaying(false);
     this.isPlaying = false;
@@ -386,16 +440,84 @@ class GalaxySimulator {
     });
   }
 
+  private setupMobileTouch(): void {
+    const panel = document.getElementById('control-panel');
+    if (!panel) return;
+
+    let touchStartY = 0;
+    let isTouchingPanel = false;
+
+    panel.addEventListener('touchstart', (e) => {
+      isTouchingPanel = true;
+      touchStartY = e.touches[0].clientY;
+      e.stopPropagation();
+    }, { passive: true });
+
+    panel.addEventListener('touchmove', (e) => {
+      if (isTouchingPanel) {
+        e.stopPropagation();
+      }
+    }, { passive: true });
+
+    panel.addEventListener('touchend', () => {
+      isTouchingPanel = false;
+    }, { passive: true });
+
+    const sliders = panel.querySelectorAll('.slider');
+    sliders.forEach(slider => {
+      slider.addEventListener('touchstart', (e) => {
+        e.stopPropagation();
+      }, { passive: true });
+      slider.addEventListener('touchmove', (e) => {
+        e.stopPropagation();
+      }, { passive: true });
+    });
+
+    const canvas = this.renderer.domElement;
+    canvas.style.touchAction = 'none';
+
+    let pinchStartDist = 0;
+    let pinchStartZoom = 0;
+
+    canvas.addEventListener('touchstart', (e) => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        pinchStartDist = Math.sqrt(dx * dx + dy * dy);
+        pinchStartZoom = this.camera.position.length();
+      }
+    }, { passive: true });
+
+    canvas.addEventListener('touchmove', (e) => {
+      if (e.touches.length === 2) {
+        const dx = e.touches[0].clientX - e.touches[1].clientX;
+        const dy = e.touches[0].clientY - e.touches[1].clientY;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (pinchStartDist > 0) {
+          const scale = pinchStartDist / dist;
+          const newDist = pinchStartZoom * scale;
+          const clampedDist = Math.max(30, Math.min(500, newDist));
+          this.camera.position.normalize().multiplyScalar(clampedDist);
+        }
+      }
+    }, { passive: true });
+
+    canvas.addEventListener('touchend', () => {
+      pinchStartDist = 0;
+    }, { passive: true });
+  }
+
   private animate = (): void => {
     requestAnimationFrame(this.animate);
 
     const now = performance.now();
-    const deltaTime = Math.min(now - (this.lastFpsTime || now), 50) / 1000;
+    const rawDelta = now - (this.lastFpsTime || now);
+    const deltaTime = Math.min(rawDelta, 50) / 1000;
     this.lastFpsTime = now;
 
     this.frameCount++;
-    if (now - this.lastFpsTime >= 1000) {
-      this.fps = this.frameCount * 1000 / (now - this.lastFpsTime);
+    if (rawDelta >= 1000) {
+      this.fps = this.frameCount * 1000 / rawDelta;
       this.frameCount = 0;
     }
 
@@ -408,8 +530,8 @@ class GalaxySimulator {
         updateGalaxyPhysics(this.galaxy1, this.galaxy2, stepDt);
         this.currentTime += stepDt;
 
-        if (this.currentTime - this.lastSnapshotTime >= this.snapshotInterval) {
-          this.takeSnapshot();
+        if (this.currentTime - this.lastKeyframeTime >= this.keyframeInterval) {
+          this.recordKeyframe();
         }
 
         if (this.currentTime >= this.totalTime) {
@@ -424,6 +546,11 @@ class GalaxySimulator {
       this.coreGlow2.position.copy(this.galaxy2.corePosition);
 
       this.ui.updateTimeline(this.currentTime, this.totalTime);
+    }
+
+    this.heatmapFrameCounter++;
+    if (this.heatmapFrameCounter % 6 === 0) {
+      this.updateDynamicVisuals();
     }
 
     const stats: EnergyStats = computeEnergy(this.galaxy1, this.galaxy2);

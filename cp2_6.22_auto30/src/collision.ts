@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { GalaxyData, updateHeatmap } from './galaxy';
+import { GalaxyData } from './galaxy';
 
 export interface SimParams {
   mass1: number;
@@ -44,34 +44,29 @@ export function computeEnergy(
     kinetic += 0.5 * galaxy2.masses[i] * (vx * vx + vy * vy + vz * vz);
   }
 
-  const samples = Math.min(count1, count2, 200);
-  const stride1 = Math.floor(count1 / samples);
-  const stride2 = Math.floor(count2 / samples);
+  const dx = galaxy2.corePosition.x - galaxy1.corePosition.x;
+  const dy = galaxy2.corePosition.y - galaxy1.corePosition.y;
+  const dz = galaxy2.corePosition.z - galaxy1.corePosition.z;
+  const interDist = Math.sqrt(dx * dx + dy * dy + dz * dz + SOFTENING * SOFTENING);
+  potential -= G * galaxy1.mass * galaxy2.mass / interDist;
 
-  for (let i = 0; i < samples; i++) {
-    const idx1 = (i * stride1) % count1;
-    const i13 = idx1 * 3;
-    const x1 = galaxy1.positions[i13];
-    const y1 = galaxy1.positions[i13 + 1];
-    const z1 = galaxy1.positions[i13 + 2];
-
-    for (let j = 0; j < samples; j++) {
-      const idx2 = (j * stride2) % count2;
-      const i23 = idx2 * 3;
-      const dx = galaxy2.positions[i23] - x1;
-      const dy = galaxy2.positions[i23 + 1] - y1;
-      const dz = galaxy2.positions[i23 + 2] - z1;
-
-      const distSq = dx * dx + dy * dy + dz * dz + SOFTENING * SOFTENING;
-      const dist = Math.sqrt(distSq);
-
-      potential -= G * galaxy1.masses[idx1] * galaxy2.masses[idx2] / dist;
-    }
+  for (let i = 0; i < count1; i++) {
+    const i3 = i * 3;
+    const rdx = galaxy1.positions[i3];
+    const rdy = galaxy1.positions[i3 + 1];
+    const rdz = galaxy1.positions[i3 + 2];
+    const rDist = Math.sqrt(rdx * rdx + rdy * rdy + rdz * rdz + SOFTENING * SOFTENING);
+    potential -= G * galaxy1.mass * galaxy1.masses[i] / rDist;
   }
 
-  const scale1 = count1 / samples;
-  const scale2 = count2 / samples;
-  potential *= scale1 * scale2 * 0.01;
+  for (let i = 0; i < count2; i++) {
+    const i3 = i * 3;
+    const rdx = galaxy2.positions[i3];
+    const rdy = galaxy2.positions[i3 + 1];
+    const rdz = galaxy2.positions[i3 + 2];
+    const rDist = Math.sqrt(rdx * rdx + rdy * rdy + rdz * rdz + SOFTENING * SOFTENING);
+    potential -= G * galaxy2.mass * galaxy2.masses[i] / rDist;
+  }
 
   return {
     kinetic,
@@ -186,14 +181,6 @@ function updateParticleForces(
 
   const geometry = targetGalaxy.points.geometry;
   geometry.attributes.position.needsUpdate = true;
-
-  updateHeatmap(
-    targetGalaxy.heatmapCanvas,
-    targetGalaxy.heatmapTexture,
-    positions,
-    count,
-    new THREE.Vector3(0, 0, 0)
-  );
 }
 
 export function getInitialPositions(

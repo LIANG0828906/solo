@@ -52,24 +52,60 @@ export function createStarTexture(): THREE.Texture {
   return texture;
 }
 
-function getStarColor(starType: number, baseHue: number, velocity: number): THREE.Color {
+function getStarColor(starType: number, _baseHue: number, normalizedSpeed: number): THREE.Color {
   const color = new THREE.Color();
-  
+  const speed = normalizedSpeed;
+
+  let hue: number;
+  let saturation: number;
+  let lightness: number;
+
+  if (speed < 0.5) {
+    const t = speed * 2;
+    hue = 0.025 + t * 0.125;
+    saturation = 0.85 - t * 0.35;
+    lightness = 0.35 + t * 0.25;
+  } else {
+    const t = (speed - 0.5) * 2;
+    hue = 0.15 + t * 0.50;
+    saturation = 0.5 + t * 0.4;
+    lightness = 0.6 + t * 0.15;
+  }
+
   switch (starType) {
     case STAR_TYPES.BLUE_GIANT:
-      color.setHSL(0.6 + Math.random() * 0.1, 0.9, 0.7 + Math.random() * 0.2);
-      break;
-    case STAR_TYPES.MAIN_SEQUENCE:
-      const hue = baseHue + (Math.random() - 0.5) * 0.1;
-      const lightness = 0.5 + velocity * 0.2;
-      color.setHSL(hue, 0.7 + Math.random() * 0.2, lightness);
+      hue += 0.05;
+      lightness += 0.1;
       break;
     case STAR_TYPES.RED_GIANT:
-      color.setHSL(0.02 + Math.random() * 0.05, 0.9, 0.55 + Math.random() * 0.15);
+      hue -= 0.03;
+      lightness -= 0.05;
       break;
   }
-  
+
+  color.setHSL(hue, saturation, lightness);
   return color;
+}
+
+export function updateParticleColors(
+  positions: Float32Array,
+  velocities: Float32Array,
+  colors: Float32Array,
+  starTypes: Uint8Array,
+  particleCount: number
+): void {
+  const maxSpeed = 5;
+  for (let i = 0; i < particleCount; i++) {
+    const i3 = i * 3;
+    const speed = Math.sqrt(
+      velocities[i3] ** 2 + velocities[i3 + 1] ** 2 + velocities[i3 + 2] ** 2
+    );
+    const normSpeed = Math.min(speed / maxSpeed, 1);
+    const color = getStarColor(starTypes[i], 0, normSpeed);
+    colors[i3] = color.r;
+    colors[i3 + 1] = color.g;
+    colors[i3 + 2] = color.b;
+  }
 }
 
 export function createHeatmap(): { canvas: HTMLCanvasElement; texture: THREE.CanvasTexture; mesh: THREE.Mesh } {
@@ -109,7 +145,7 @@ export function updateHeatmap(
   
   ctx.clearRect(0, 0, w, h);
   
-  const gridSize = 64;
+  const gridSize = 48;
   const cellW = w / gridSize;
   const cellH = h / gridSize;
   const densityGrid = new Float32Array(gridSize * gridSize);
@@ -133,26 +169,29 @@ export function updateHeatmap(
     if (densityGrid[i] > maxDensity) maxDensity = densityGrid[i];
   }
   
-  if (maxDensity > 0) {
-    for (let gz = 0; gz < gridSize; gz++) {
-      for (let gx = 0; gx < gridSize; gx++) {
-        const density = densityGrid[gz * gridSize + gx] / maxDensity;
-        if (density > 0.05) {
-          const gradient = ctx.createRadialGradient(
-            gx * cellW + cellW / 2, gz * cellH + cellH / 2, 0,
-            gx * cellW + cellW / 2, gz * cellH + cellH / 2, cellW * 1.5
-          );
-          
-          const alpha = Math.min(density * 0.8, 0.6);
-          const hue = (1 - density) * 0.7;
-          
-          gradient.addColorStop(0, `hsla(${hue * 360}, 100%, 60%, ${alpha})`);
-          gradient.addColorStop(0.5, `hsla(${hue * 360}, 100%, 50%, ${alpha * 0.5})`);
-          gradient.addColorStop(1, `hsla(${hue * 360}, 100%, 50%, 0)`);
-          
-          ctx.fillStyle = gradient;
-          ctx.fillRect(gx * cellW, gz * cellH, cellW, cellH);
-        }
+  if (maxDensity === 0) {
+    texture.needsUpdate = true;
+    return;
+  }
+
+  for (let gz = 0; gz < gridSize; gz++) {
+    for (let gx = 0; gx < gridSize; gx++) {
+      const density = densityGrid[gz * gridSize + gx] / maxDensity;
+      if (density > 0.05) {
+        const gradient = ctx.createRadialGradient(
+          gx * cellW + cellW / 2, gz * cellH + cellH / 2, 0,
+          gx * cellW + cellW / 2, gz * cellH + cellH / 2, cellW * 1.5
+        );
+
+        const alpha = Math.min(density * 0.8, 0.6);
+        const hue = (1 - density) * 0.7;
+
+        gradient.addColorStop(0, `hsla(${hue * 360}, 100%, 60%, ${alpha})`);
+        gradient.addColorStop(0.5, `hsla(${hue * 360}, 100%, 50%, ${alpha * 0.5})`);
+        gradient.addColorStop(1, `hsla(${hue * 360}, 100%, 50%, 0)`);
+
+        ctx.fillStyle = gradient;
+        ctx.fillRect(gx * cellW, gz * cellH, cellW, cellH);
       }
     }
   }

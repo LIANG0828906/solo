@@ -32,6 +32,7 @@
       position: absolute;
       top: 0;
       left: 0;
+      touch-action: none;
     }
 
     canvas {
@@ -123,6 +124,7 @@
       outline: none;
       cursor: pointer;
       transition: box-shadow 0.3s ease;
+      touch-action: none;
     }
 
     .slider:hover {
@@ -146,6 +148,22 @@
       box-shadow: 0 0 16px rgba(110, 231, 255, 0.9);
     }
 
+    .slider::-moz-range-thumb {
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #6ee7ff, #c084fc);
+      cursor: pointer;
+      box-shadow: 0 0 8px rgba(110, 231, 255, 0.6);
+      border: none;
+    }
+
+    .slider::-moz-range-track {
+      height: 6px;
+      border-radius: 3px;
+      background: linear-gradient(90deg, rgba(80, 50, 200, 0.3), rgba(30, 20, 80, 0.3));
+    }
+
     .button-group {
       display: flex;
       gap: 8px;
@@ -167,6 +185,8 @@
       transition: all 0.3s ease;
       position: relative;
       overflow: hidden;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
 
     .btn:hover {
@@ -257,6 +277,8 @@
       justify-content: center;
       transition: all 0.3s ease;
       font-size: 14px;
+      -webkit-tap-highlight-color: transparent;
+      touch-action: manipulation;
     }
 
     .timeline-btn:hover {
@@ -304,24 +326,92 @@
 
     @media (max-width: 768px) {
       .control-panel {
-        width: calc(100% - 40px);
-        max-height: 40vh;
+        width: calc(100% - 20px);
+        max-height: 35vh;
         top: 10px;
         left: 10px;
-        right: 10px;
+        padding: 14px;
+        -webkit-overflow-scrolling: touch;
+        overscroll-behavior: contain;
+      }
+
+      .slider {
+        height: 8px;
+      }
+
+      .slider::-webkit-slider-thumb {
+        width: 22px;
+        height: 22px;
+      }
+
+      .slider::-moz-range-thumb {
+        width: 24px;
+        height: 24px;
+      }
+
+      .btn {
+        padding: 12px 14px;
+        font-size: 13px;
       }
 
       .stats-panel {
         top: auto;
-        bottom: 160px;
+        bottom: 120px;
         right: 10px;
-        left: 10px;
-        min-width: auto;
+        left: auto;
+        min-width: 150px;
+        padding: 12px 14px;
       }
 
       .timeline-container {
         width: calc(100% - 20px);
         bottom: 10px;
+        left: 10px;
+        transform: none;
+        padding: 10px 14px;
+      }
+
+      .timeline-controls {
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .time-display {
+        min-width: 80px;
+        font-size: 11px;
+      }
+
+      .speed-btns {
+        width: 100%;
+        justify-content: center;
+      }
+
+      .speed-btn {
+        padding: 6px 10px;
+        font-size: 12px;
+      }
+
+      .panel-title {
+        font-size: 16px;
+      }
+
+      .section-title {
+        font-size: 12px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      .control-panel {
+        max-height: 30vh;
+        padding: 10px;
+      }
+
+      .control-label {
+        font-size: 11px;
+      }
+
+      .stat-item {
+        font-size: 11px;
       }
     }
   </style>
