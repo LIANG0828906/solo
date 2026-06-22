@@ -22,7 +22,7 @@ import { Task, TaskStatus, Priority } from '../types';
 import '../styles/DashboardView.css';
 
 function DashboardView() {
-  const { tasks, setTasks } = useAppContext();
+  const { tasks, setTasks, refreshTasks } = useAppContext();
   const [searchQuery, setSearchQuery] = useState('');
   const [showAddModal, setShowAddModal] = useState(false);
   const [activeTask, setActiveTask] = useState<Task | null>(null);
@@ -43,22 +43,28 @@ function DashboardView() {
   );
 
   const filteredTasks = useMemo(() => {
-    if (!searchQuery.trim()) return tasks;
+    const tasksArray = Array.isArray(tasks) ? tasks : [];
+    if (!searchQuery.trim()) return tasksArray;
     const query = searchQuery.toLowerCase();
-    return tasks.filter(task => 
+    return tasksArray.filter(task => 
       task.title.toLowerCase().includes(query)
     );
   }, [tasks, searchQuery]);
 
   const getSortedColumnTasks = useCallback((status: TaskStatus, taskList: Task[]) => {
-    return taskList
+    const priorityOrder: Record<Priority, number> = { 'high': 0, 'medium': 1, 'low': 2 };
+    const safeTaskList = Array.isArray(taskList) ? taskList : [];
+    return safeTaskList
       .filter(t => t.status === status)
       .sort((a, b) => {
-        const priorityOrder: Record<Priority, number> = { 'high': 0, 'medium': 1, 'low': 2 };
-        if (priorityOrder[a.priority] !== priorityOrder[b.priority]) {
-          return priorityOrder[a.priority] - priorityOrder[b.priority];
+        const priorityA = a.priority in priorityOrder ? a.priority : 'medium';
+        const priorityB = b.priority in priorityOrder ? b.priority : 'medium';
+        if (priorityOrder[priorityA] !== priorityOrder[priorityB]) {
+          return priorityOrder[priorityA] - priorityOrder[priorityB];
         }
-        return a.order - b.order;
+        const orderA = typeof a.order === 'number' ? a.order : 0;
+        const orderB = typeof b.order === 'number' ? b.order : 0;
+        return orderA - orderB;
       });
   }, []);
 
@@ -75,6 +81,7 @@ function DashboardView() {
   };
 
   const getTaskStatus = (taskId: string): TaskStatus | null => {
+    const tasksArray = Array.isArray(tasks) ? tasks : [];
     if (todoTasks.find(t => t.id === taskId)) return 'todo';
     if (inProgressTasks.find(t => t.id === taskId)) return 'in-progress';
     if (doneTasks.find(t => t.id === taskId)) return 'done';
@@ -83,7 +90,8 @@ function DashboardView() {
 
   const handleDragStart = (event: DragStartEvent) => {
     const { active } = event;
-    const task = tasks.find(t => t.id === active.id);
+    const tasksArray = Array.isArray(tasks) ? tasks : [];
+    const task = tasksArray.find(t => t.id === active.id);
     if (task) {
       setActiveTask(task);
     }
@@ -108,14 +116,15 @@ function DashboardView() {
 
     if (!overStatus || activeStatus === overStatus) return;
 
-    const activeTaskItem = tasks.find(t => t.id === activeId);
+    const tasksArray = Array.isArray(tasks) ? tasks : [];
+    const activeTaskItem = tasksArray.find(t => t.id === activeId);
     if (!activeTaskItem) return;
 
     const sourceColumn = getColumnTasks(activeStatus);
     const destColumn = getColumnTasks(overStatus);
     const overIndex = destColumn.findIndex(t => t.id === overId);
 
-    const newTasks = tasks.filter(t => t.id !== activeId);
+    const newTasks = tasksArray.filter(t => t.id !== activeId);
     const newActiveTask = { ...activeTaskItem, status: overStatus };
 
     const samePriorityTasks = destColumn.filter(
@@ -148,54 +157,73 @@ function DashboardView() {
     const activeId = active.id as string;
     const overId = over.id as string;
 
-    const activeTaskItem = tasks.find(t => t.id === activeId);
+    const tasksArray = Array.isArray(tasks) ? tasks : [];
+    const activeTaskItem = tasksArray.find(t => t.id === activeId);
     if (!activeTaskItem) return;
 
     const activeStatus = getTaskStatus(activeId);
-    const overStatus = getTaskStatus(overId);
+    const overStatus = getTaskStatus(overId) || 
+      (['todo', 'in-progress', 'done'].includes(overId) ? overId as TaskStatus : null);
 
-    if (activeStatus === overStatus && activeStatus) {
-      const columnTasks = getColumnTasks(activeStatus);
-      const oldIndex = columnTasks.findIndex(t => t.id === activeId);
-      const newIndex = columnTasks.findIndex(t => t.id === overId);
+    const prevTasks = [...tasksArray];
+    
+    try {
+      if (activeStatus === overStatus && activeStatus) {
+        const columnTasks = getColumnTasks(activeStatus);
+        const oldIndex = columnTasks.findIndex(t => t.id === activeId);
+        const newIndex = columnTasks.findIndex(t => t.id === overId);
 
-      if (oldIndex !== newIndex) {
-        const reordered = arrayMove(columnTasks, oldIndex, newIndex);
-        const samePriority = reordered.filter(t => t.priority === activeTaskItem.priority);
-        const newOrder = samePriority.findIndex(t => t.id === activeId);
+        if (oldIndex !== newIndex && oldIndex !== -1 && newIndex !== -1) {
+          const reordered = arrayMove(columnTasks, oldIndex, newIndex);
+          const samePriority = reordered.filter(t => t.priority === activeTaskItem.priority);
+          const newOrder = samePriority.findIndex(t => t.id === activeId);
 
-        if (newOrder !== activeTaskItem.order) {
-          const prevTasks = [...tasks];
-          try {
+          if (newOrder !== activeTaskItem.order && newOrder !== -1) {
             await taskService.updateTaskStatus(activeId, activeStatus, newOrder);
-          } catch (error) {
-            console.error('Failed to reorder task:', error);
-            setTasks(prevTasks);
           }
         }
+      } else if (overStatus) {
+        const targetColumnTasks = getColumnTasks(overStatus);
+        const samePriorityTasks = targetColumnTasks.filter(
+          t => t.priority === activeTaskItem.priority
+        );
+        const newOrder = samePriorityTasks.length;
+        
+        await taskService.updateTaskStatus(activeId, overStatus, newOrder);
       }
-    } else {
-      const prevTasks = [...tasks];
-      try {
-        const targetStatus = overStatus || activeStatus;
-        if (targetStatus) {
-          await taskService.updateTaskStatus(activeId, targetStatus);
-        }
-      } catch (error) {
-        console.error('Failed to move task:', error);
-        setTasks(prevTasks);
-      }
+      
+      await refreshTasks();
+    } catch (error) {
+      console.error('Failed to update task:', error);
+      setTasks(prevTasks);
+      alert('任务移动失败，请重试');
     }
   };
 
   const handleAddTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newTask.title.trim() || isSubmitting) return;
+    if (isSubmitting) return;
+
+    if (!newTask.title.trim()) {
+      alert('请输入任务标题');
+      return;
+    }
+
+    if (!['high', 'medium', 'low'].includes(newTask.priority)) {
+      alert('请选择有效的优先级（高/中/低）');
+      return;
+    }
+
+    if (typeof newTask.estimatedHours !== 'number' || newTask.estimatedHours <= 0) {
+      alert('预计工时必须为正数');
+      return;
+    }
 
     setIsSubmitting(true);
     try {
       const createdTask = await taskService.createTask(newTask);
-      setTasks(prev => [...prev, createdTask]);
+      const tasksArray = Array.isArray(tasks) ? tasks : [];
+      setTasks([...tasksArray, createdTask]);
       setNewTask({
         title: '',
         priority: 'medium',
@@ -205,6 +233,7 @@ function DashboardView() {
       setShowAddModal(false);
     } catch (error) {
       console.error('Failed to create task:', error);
+      alert('创建任务失败，请重试');
     } finally {
       setIsSubmitting(false);
     }
