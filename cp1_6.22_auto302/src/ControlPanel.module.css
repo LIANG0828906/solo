@@ -1,0 +1,130 @@
+.panel {
+  background: #16162a;
+  border-radius: 12px;
+  padding: 24px;
+  flex: 1;
+  min-width: 280px;
+  box-sizing: border-box;
+}
+
+.title {
+  color: #ccc;
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0 0 24px 0;
+  letter-spacing: 0.5px;
+}
+
+.section {
+  margin-bottom: 28px;
+}
+
+.label {
+  display: block;
+  color: #ccc;
+  font-size: 14px;
+  margin-bottom: 12px;
+  font-weight: 500;
+}
+
+.waveButtons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+}
+
+.waveButton {
+  background: #2a2a4a;
+  color: #aaa;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 16px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: inherit;
+}
+
+.waveButton:hover {
+  background: #3a3a5a;
+  color: #fff;
+}
+
+.waveButton.active {
+  background: #4a90d9;
+  color: #fff;
+}
+
+.sliderContainer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.slider {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #2a2a4a;
+  outline: none;
+  transition: background 0.2s ease;
+  cursor: pointer;
+}
+
+.slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #4a90d9;
+  cursor: pointer;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.slider::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  background: #5aa0e9;
+}
+
+.slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #4a90d9;
+  cursor: pointer;
+  border: none;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.slider::-moz-range-thumb:hover {
+  transform: scale(1.15);
+  background: #5aa0e9;
+}
+
+.valueDisplay {
+  display: flex;
+  justify-content: space-between;
+  color: #888;
+  font-size: 12px;
+}
+
+.currentValue {
+  color: #4a90d9;
+  font-weight: 600;
+}
+
+.info {
+  margin-top: 32px;
+  padding-top: 20px;
+  border-top: 1px solid #2a2a4a;
+}
+
+.infoText {
+  color: #666;
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 4px 0;
+}
