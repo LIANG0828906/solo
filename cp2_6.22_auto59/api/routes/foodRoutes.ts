@@ -6,7 +6,7 @@ interface FoodLogEntry {
   id: string
   foodId: string
   foodName: string
-  servingSize: number
+  amount: number
   calories: number
   protein: number
   fat: number
@@ -78,30 +78,30 @@ const foodRouter = Router()
 foodRouter.get('/search', (req: Request, res: Response): void => {
   const q = req.query.q as string
   if (!q) {
-    res.json({ success: true, data: foods })
+    res.json(foods)
     return
   }
   const results = foods.filter((f) => f.name.toLowerCase().includes(q.toLowerCase()))
-  res.json({ success: true, data: results })
+  res.json(results)
 })
 
 foodRouter.get('/', (_req: Request, res: Response): void => {
-  res.json({ success: true, data: foods })
+  res.json(foods)
 })
 
 foodRouter.post('/log', (req: Request, res: Response): void => {
-  const { foodId, servingSize, date, mealType } = req.body
+  const { foodId, amount, date, mealType } = req.body
   const food = foods.find((f) => f.id === foodId)
   if (!food) {
-    res.status(404).json({ success: false, error: 'Food not found' })
+    res.status(404).json({ error: 'Food not found' })
     return
   }
-  const ratio = servingSize / 100
+  const ratio = amount / 100
   const entry: FoodLogEntry = {
     id: uuidv4(),
     foodId,
     foodName: food.name,
-    servingSize,
+    amount,
     calories: Math.round(food.calories * ratio),
     protein: Math.round(food.protein * ratio * 10) / 10,
     fat: Math.round(food.fat * ratio * 10) / 10,
@@ -112,19 +112,19 @@ foodRouter.post('/log', (req: Request, res: Response): void => {
     createdAt: new Date().toISOString(),
   }
   foodLogStore.set(entry.id, entry)
-  res.status(201).json({ success: true, data: entry })
+  res.status(201).json(entry)
 })
 
 foodRouter.get('/log/range', (req: Request, res: Response): void => {
   const { start, end } = req.query as { start?: string; end?: string }
   if (!start || !end) {
-    res.status(400).json({ success: false, error: 'start and end query params are required' })
+    res.status(400).json({ error: 'start and end query params are required' })
     return
   }
   const logs = Array.from(foodLogStore.values()).filter(
     (entry) => entry.date >= start && entry.date <= end,
   )
-  res.json({ success: true, data: logs })
+  res.json(logs)
 })
 
 foodRouter.get('/log', (req: Request, res: Response): void => {
@@ -133,33 +133,33 @@ foodRouter.get('/log', (req: Request, res: Response): void => {
   if (date) {
     logs = logs.filter((entry) => entry.date === date)
   }
-  res.json({ success: true, data: logs })
+  res.json(logs)
 })
 
 foodRouter.delete('/log/:id', (req: Request, res: Response): void => {
   const { id } = req.params
   if (!foodLogStore.has(id)) {
-    res.status(404).json({ success: false, error: 'Log entry not found' })
+    res.status(404).json({ error: 'Log entry not found' })
     return
   }
   foodLogStore.delete(id)
-  res.json({ success: true, message: 'Log entry deleted' })
+  res.json({ message: 'Log entry deleted' })
 })
 
 foodRouter.put('/log/:id', (req: Request, res: Response): void => {
   const { id } = req.params
   const existing = foodLogStore.get(id)
   if (!existing) {
-    res.status(404).json({ success: false, error: 'Log entry not found' })
+    res.status(404).json({ error: 'Log entry not found' })
     return
   }
-  const { servingSize, date, mealType } = req.body
-  const updatedServingSize = servingSize ?? existing.servingSize
+  const { amount, date, mealType } = req.body
+  const updatedAmount = amount ?? existing.amount
   const food = foods.find((f) => f.id === existing.foodId)
-  const ratio = updatedServingSize / 100
+  const ratio = updatedAmount / 100
   const updated: FoodLogEntry = {
     ...existing,
-    servingSize: updatedServingSize,
+    amount: updatedAmount,
     date: date ?? existing.date,
     mealType: mealType ?? existing.mealType,
     calories: Math.round((food?.calories ?? 0) * ratio),
@@ -169,19 +169,19 @@ foodRouter.put('/log/:id', (req: Request, res: Response): void => {
     fiber: Math.round((food?.fiber ?? 0) * ratio * 10) / 10,
   }
   foodLogStore.set(id, updated)
-  res.json({ success: true, data: updated })
+  res.json(updated)
 })
 
 const apiRouter = Router()
 
 apiRouter.get('/profile', (_req: Request, res: Response): void => {
-  res.json({ success: true, data: userProfile })
+  res.json(userProfile)
 })
 
 apiRouter.post('/profile', (req: Request, res: Response): void => {
   const { gender, age, weight, height, activityLevel } = req.body
   if (!gender || !age || !weight || !height || !activityLevel) {
-    res.status(400).json({ success: false, error: 'All profile fields are required' })
+    res.status(400).json({ error: 'All profile fields are required' })
     return
   }
   const bmr = calculateBMR(gender, weight, height, age)
@@ -205,11 +205,41 @@ apiRouter.post('/profile', (req: Request, res: Response): void => {
     carbs: macros.recommendedCarbs,
     fiber: 25,
   }
-  res.json({ success: true, data: userProfile })
+  res.json(userProfile)
+})
+
+apiRouter.put('/profile', (req: Request, res: Response): void => {
+  const { gender, age, weight, height, activityLevel } = req.body
+  if (!gender || !age || !weight || !height || !activityLevel) {
+    res.status(400).json({ error: 'All profile fields are required' })
+    return
+  }
+  const bmr = calculateBMR(gender, weight, height, age)
+  const multiplier = ACTIVITY_MULTIPLIERS[activityLevel] ?? 1.2
+  const tdee = bmr * multiplier
+  const macros = calculateRecommendedMacros(tdee)
+  userProfile = {
+    gender,
+    age,
+    weight,
+    height,
+    activityLevel,
+    bmr: Math.round(bmr),
+    tdee: Math.round(tdee),
+    ...macros,
+  }
+  nutritionGoals = {
+    calories: macros.recommendedCalories,
+    protein: macros.recommendedProtein,
+    fat: macros.recommendedFat,
+    carbs: macros.recommendedCarbs,
+    fiber: 25,
+  }
+  res.json(userProfile)
 })
 
 apiRouter.get('/goals', (_req: Request, res: Response): void => {
-  res.json({ success: true, data: nutritionGoals })
+  res.json(nutritionGoals)
 })
 
 apiRouter.put('/goals', (req: Request, res: Response): void => {
@@ -221,7 +251,7 @@ apiRouter.put('/goals', (req: Request, res: Response): void => {
     carbs: carbs ?? nutritionGoals.carbs,
     fiber: fiber ?? nutritionGoals.fiber,
   }
-  res.json({ success: true, data: nutritionGoals })
+  res.json(nutritionGoals)
 })
 
 export { foodRouter, apiRouter }
